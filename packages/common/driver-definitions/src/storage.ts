@@ -25,6 +25,7 @@ import {
 	ITokenClaims,
 	IVersion,
 } from "@fluidframework/protocol-definitions";
+// eslint-disable-next-line import/no-deprecated
 import { IAnyDriverError } from "./driverError";
 import { IResolvedUrl } from "./urlResolver";
 
@@ -193,6 +194,7 @@ export interface IDocumentStorageService extends Partial<IDisposable> {
 
 export interface IDocumentDeltaConnectionEvents extends IErrorEvent {
 	(event: "nack", listener: (documentId: string, message: INack[]) => void);
+	// eslint-disable-next-line import/no-deprecated
 	(event: "disconnect", listener: (reason: IAnyDriverError) => void);
 	(event: "op", listener: (documentId: string, messages: ISequencedDocumentMessage[]) => void);
 	(event: "signal", listener: (message: ISignalMessage | ISignalMessage[]) => void);

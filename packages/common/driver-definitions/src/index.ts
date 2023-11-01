@@ -9,11 +9,13 @@ export {
 	DriverErrorTypes,
 	IAnyDriverError,
 	IAuthorizationError,
+	IDriverError,
 	IDriverErrorBase,
 	IDriverBasicError,
 	IGenericNetworkError,
 	ILocationRedirectionError,
 	IThrottlingWarning,
+	ITypedDriverError,
 } from "./driverError";
 export {
 	FetchSource,

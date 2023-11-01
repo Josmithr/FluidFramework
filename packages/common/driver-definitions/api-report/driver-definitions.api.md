@@ -100,7 +100,7 @@ export enum FetchSource {
 // @public (undocumented)
 export type FiveDaysMs = 432000000;
 
-// @public
+// @public @deprecated
 export interface IAnyDriverError extends Omit<IDriverErrorBase, "errorType"> {
     // (undocumented)
     readonly errorType: string;
@@ -214,7 +214,7 @@ export interface IDocumentStorageServicePolicies {
     readonly maximumCacheDurationMs?: FiveDaysMs;
 }
 
-// @public
+// @public (undocumented)
 export interface IDriverBasicError extends IDriverErrorBase {
     // (undocumented)
     readonly errorType: DriverErrorType.genericError | DriverErrorType.fileNotFoundOrAccessDeniedError | DriverErrorType.offlineError | DriverErrorType.unsupportedClientProtocolVersion | DriverErrorType.writeError | DriverErrorType.fetchFailure | DriverErrorType.fetchTokenError | DriverErrorType.incorrectServerResponse | DriverErrorType.fileOverwrittenInStorage | DriverErrorType.fluidInvalidSchema | DriverErrorType.usageError | DriverErrorType.fileIsLocked | DriverErrorType.outOfStorageError;
@@ -223,13 +223,16 @@ export interface IDriverBasicError extends IDriverErrorBase {
 }
 
 // @public
-export interface IDriverErrorBase {
+export interface IDriverError<TErrorType extends string = string> {
     canRetry: boolean;
     endpointReached?: boolean;
-    readonly errorType: DriverErrorType;
+    readonly errorType: TErrorType;
     readonly message: string;
     online?: string;
 }
+
+// @public @deprecated
+export type IDriverErrorBase = ITypedDriverError<DriverErrorType>;
 
 // @public (undocumented)
 export interface IDriverHeader {
@@ -301,6 +304,9 @@ export interface IThrottlingWarning extends IDriverErrorBase {
     // (undocumented)
     readonly retryAfterSeconds: number;
 }
+
+// @public
+export type ITypedDriverError<TErrorType extends DriverErrorTypes = DriverErrorTypes> = IDriverError<TErrorType>;
 
 // @public (undocumented)
 export interface IUrlResolver {

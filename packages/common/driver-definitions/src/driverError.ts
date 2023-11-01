@@ -217,28 +217,13 @@ export enum DriverErrorType {
 }
 
 /**
- * Interface describing errors and warnings raised by any driver code.
- * Not expected to be implemented by a class or an object literal, but rather used in place of
- * any or unknown in various function signatures that pass errors around.
- *
- * "Any" in the interface name is a nod to the fact that errorType has lost its type constraint.
- * It will be either DriverErrorType or the specific driver's specialized error type enum,
- * but we can't reference a specific driver's error type enum in this code.
+ * Base interface for errors thrown by the driver.
  */
-export interface IAnyDriverError extends Omit<IDriverErrorBase, "errorType"> {
-	readonly errorType: string;
-}
-
-/**
- * Base interface for all errors and warnings
- */
-export interface IDriverErrorBase {
+export interface IDriverError<TErrorType extends string = string> {
 	/**
 	 * Classification of what type of error this is, used programmatically by consumers to interpret the error.
-	 *
-	 * @privateRemarks TODO: use {@link DriverErrorTypes} instead (breaking change).
 	 */
-	readonly errorType: DriverErrorType;
+	readonly errorType: TErrorType;
 
 	/**
 	 * Free-form error message
@@ -246,7 +231,8 @@ export interface IDriverErrorBase {
 	readonly message: string;
 
 	/**
-	 * True indicates the caller may retry the failed action. False indicates it's a fatal error
+	 * True indicates the caller may retry the failed action.
+	 * False indicates that the error is fatal, and the action should not be retried.
 	 */
 	canRetry: boolean;
 
@@ -261,6 +247,36 @@ export interface IDriverErrorBase {
 	 */
 	endpointReached?: boolean;
 }
+
+/**
+ * {@link IDriverError} with {@link IDriverError.errorType} constrained to {@link (DriverErrorTypes:type)}.
+ */
+export type ITypedDriverError<TErrorType extends DriverErrorTypes = DriverErrorTypes> =
+	IDriverError<TErrorType>;
+
+/**
+ * Interface describing errors and warnings raised by any driver code.
+ * Not expected to be implemented by a class or an object literal, but rather used in place of
+ * any or unknown in various function signatures that pass errors around.
+ *
+ * "Any" in the interface name is a nod to the fact that errorType has lost its type constraint.
+ * It will be either DriverErrorType or the specific driver's specialized error type enum,
+ * but we can't reference a specific driver's error type enum in this code.
+ *
+ * @deprecated Use {@link IDriverError} instead.
+ * @privateRemarks May be removed at earliest in `2.0.0-internal.9.0.0`.
+ */
+export interface IAnyDriverError extends Omit<IDriverErrorBase, "errorType"> {
+	readonly errorType: string;
+}
+
+/**
+ * Base interface for all driver-related errors and warnings.
+ *
+ * @deprecated Use {@link ITypedDriverError} instead.
+ * @privateRemarks May be removed at earliest in `2.0.0-internal.9.0.0`.
+ */
+export type IDriverErrorBase = ITypedDriverError<DriverErrorType>;
 
 export interface IThrottlingWarning extends IDriverErrorBase {
 	readonly errorType: DriverErrorType.throttlingError;
@@ -284,8 +300,9 @@ export interface ILocationRedirectionError extends IDriverErrorBase {
 }
 
 /**
+ * @remarks
  * Having this uber interface without types that have their own interfaces
- * allows compiler to differentiate interfaces based on error type
+ * allows the compiler to differentiate interfaces based on {@link IDriverError.errorType}.
  */
 export interface IDriverBasicError extends IDriverErrorBase {
 	readonly errorType:
