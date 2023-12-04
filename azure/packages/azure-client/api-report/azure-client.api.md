@@ -11,8 +11,11 @@ import { IEventProvider as IEventProvider_2 } from '@fluidframework/common-defin
 import { IFluidDataStoreFactory } from '@fluidframework/runtime-definitions';
 import { TypedEventEmitter } from '@fluid-internal/client-utils';
 
+// Warning: (ae-forgotten-export) The symbol "ServiceAudience" needs to be exported by the entry point index.d.ts
+//
 // @internal @deprecated
 export class AzureAudience extends ServiceAudience<AzureMember> implements IAzureAudience {
+    // Warning: (ae-forgotten-export) The symbol "IClient" needs to be exported by the entry point index.d.ts
     protected createServiceMember(audienceMember: IClient): AzureMember;
 }
 
@@ -23,6 +26,7 @@ export class AzureClient {
         container: IFluidContainer<TContainerSchema>;
         services: AzureContainerServices;
     }>;
+    // Warning: (ae-forgotten-export) The symbol "ContainerSchema" needs to be exported by the entry point index.d.ts
     createContainer<TContainerSchema extends ContainerSchema>(containerSchema: TContainerSchema): Promise<{
         container: IFluidContainer<TContainerSchema>;
         services: AzureContainerServices;
@@ -36,9 +40,12 @@ export class AzureClient {
 
 // @internal
 export interface AzureClientProps {
+    // Warning: (ae-forgotten-export) The symbol "IConfigProviderBase" needs to be exported by the entry point index.d.ts
     readonly configProvider?: IConfigProviderBase;
     readonly connection: AzureRemoteConnectionConfig | AzureLocalConnectionConfig;
     readonly logger?: ITelemetryBaseLogger;
+    // Warning: (ae-forgotten-export) The symbol "ICompressionStorageConfig" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
     readonly summaryCompression?: boolean | ICompressionStorageConfig;
 }
@@ -83,6 +90,8 @@ export interface AzureLocalConnectionConfig extends AzureConnectionConfig {
     type: "local";
 }
 
+// Warning: (ae-forgotten-export) The symbol "IMember" needs to be exported by the entry point index.d.ts
+//
 // @internal
 export interface AzureMember<T = any> extends IMember {
     additionalDetails?: T;
@@ -101,9 +110,13 @@ export interface AzureUser<T = any> extends IUser {
     name: string;
 }
 
+// Warning: (ae-forgotten-export) The symbol "IServiceAudience" needs to be exported by the entry point index.d.ts
+//
 // @internal
 export type IAzureAudience = IServiceAudience<AzureMember>;
 
+// Warning: (ae-forgotten-export) The symbol "ITelemetryBaseProperties" needs to be exported by the entry point index.d.ts
+//
 // @alpha
 export interface ITelemetryBaseEvent extends ITelemetryBaseProperties {
     // (undocumented)
@@ -116,10 +129,14 @@ export interface ITelemetryBaseEvent extends ITelemetryBaseProperties {
 export interface ITelemetryBaseLogger {
     // (undocumented)
     minLogLevel?: LogLevel;
+    // Warning: (ae-forgotten-export) The symbol "LogLevel" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
     send(event: ITelemetryBaseEvent, logLevel?: LogLevel): void;
 }
 
+// Warning: (ae-missing-release-tag) "ITokenClaims" is part of the package's API, but it is missing a release tag (@alpha, @beta, @public, or @internal)
+//
 // @public
 export interface ITokenClaims {
     documentId: string;
@@ -145,16 +162,24 @@ export interface ITokenResponse {
     jwt: string;
 }
 
+// Warning: (ae-missing-release-tag) "IUser" is part of the package's API, but it is missing a release tag (@alpha, @beta, @public, or @internal)
+//
 // @public
 export interface IUser {
     id: string;
 }
 
+// Warning: (ae-missing-release-tag) "ScopeType" is part of the package's API, but it is missing a release tag (@alpha, @beta, @public, or @internal)
+//
 // @public
 export enum ScopeType {
     DocRead = "doc:read",
     DocWrite = "doc:write",
     SummaryWrite = "summary:write"
 }
+
+// Warnings were encountered during analysis:
+//
+// src/AzureClient.ts:96:3 - (ae-forgotten-export) The symbol "IFluidContainer" needs to be exported by the entry point index.d.ts
 
 ```

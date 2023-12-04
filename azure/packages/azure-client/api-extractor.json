@@ -9,6 +9,17 @@
 			// TODO: Add missing documentation and remove this rule override
 			"ae-undocumented": {
 				"logLevel": "none"
+			},
+			// TODO: fix errors and remove this override
+			"ae-forgotten-export": {
+				"logLevel": "warning",
+				"addToApiReportFile": true
+			},
+			// This package's dependency on `@fluidframework/protocol-definitions` does not include the recent changes
+			// to explicitly tag its exports. Once that dependency has been updated, we should be able to remove this override.
+			"ae-missing-release-tag": {
+				"logLevel": "warning",
+				"addToApiReportFile": true
 			}
 		}
 	},
