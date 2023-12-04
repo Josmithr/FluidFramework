@@ -3,5 +3,24 @@
 	"extends": "../../../common/build/build-common/api-extractor-base.json",
 	"dtsRollup": {
 		"enabled": true
+	},
+	// This package is implemented by re-exporting members of other libraries in the repo.
+	// It serves as a primrary public entrypoint to the framework.
+	// To make the API story more end-user-friendly, we will bundle the packages we re-export here. This has 2 primary benefits:
+	// 1. Generated typings will directly contain API information, rather than simply being imports and re-exports from other packages.
+	// 2. The API docs story is improved by surfacing everything directly, rather than as links to docs in other packages.
+	"bundledPackages": ["@fluidframework/.*"],
+	"messages": {
+		"extractorMessageReporting": {
+			// TODO: Add missing documentation and remove this rule override
+			"ae-undocumented": {
+				"logLevel": "none"
+			},
+			// TODO: Add missing exports and remove this
+			"ae-forgotten-export": {
+				"logLevel": "warning",
+				"addToApiReportFile": true
+			}
+		}
 	}
 }
