@@ -16,8 +16,12 @@
 			"ae-undocumented": {
 				"logLevel": "none"
 			},
-			// TODO: Add missing exports and remove this
+			// TODO: Add missing exports and remove these
 			"ae-forgotten-export": {
+				"logLevel": "warning",
+				"addToApiReportFile": true
+			},
+			"ae-unresolved-link": {
 				"logLevel": "warning",
 				"addToApiReportFile": true
 			}
