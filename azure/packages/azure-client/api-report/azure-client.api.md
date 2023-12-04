@@ -4,21 +4,12 @@
 
 ```ts
 
-import { ContainerSchema } from '@fluidframework/fluid-static';
-import { IClient } from '@fluidframework/protocol-definitions';
-import { ICompressionStorageConfig } from '@fluidframework/driver-utils';
-import { IConfigProviderBase } from '@fluidframework/core-interfaces';
-import { IFluidContainer } from '@fluidframework/fluid-static';
-import { IMember } from '@fluidframework/fluid-static';
-import { IServiceAudience } from '@fluidframework/fluid-static';
-import { ITelemetryBaseEvent } from '@fluidframework/core-interfaces';
-import { ITelemetryBaseLogger } from '@fluidframework/core-interfaces';
-import { ITokenClaims } from '@fluidframework/protocol-definitions';
-import { ITokenProvider } from '@fluidframework/routerlicious-driver';
-import { ITokenResponse } from '@fluidframework/routerlicious-driver';
-import { IUser } from '@fluidframework/protocol-definitions';
-import { ScopeType } from '@fluidframework/protocol-definitions';
-import { ServiceAudience } from '@fluidframework/fluid-static';
+import { EventEmitter } from 'events';
+import { IChannelFactory } from '@fluidframework/datastore-definitions';
+import { IErrorEvent as IErrorEvent_2 } from '@fluidframework/common-definitions';
+import { IEventProvider as IEventProvider_2 } from '@fluidframework/common-definitions';
+import { IFluidDataStoreFactory } from '@fluidframework/runtime-definitions';
+import { TypedEventEmitter } from '@fluid-internal/client-utils';
 
 // @internal @deprecated
 export class AzureAudience extends ServiceAudience<AzureMember> implements IAzureAudience {
@@ -113,18 +104,57 @@ export interface AzureUser<T = any> extends IUser {
 // @internal
 export type IAzureAudience = IServiceAudience<AzureMember>;
 
-export { ITelemetryBaseEvent }
+// @alpha
+export interface ITelemetryBaseEvent extends ITelemetryBaseProperties {
+    // (undocumented)
+    category: string;
+    // (undocumented)
+    eventName: string;
+}
 
-export { ITelemetryBaseLogger }
+// @alpha
+export interface ITelemetryBaseLogger {
+    // (undocumented)
+    minLogLevel?: LogLevel;
+    // (undocumented)
+    send(event: ITelemetryBaseEvent, logLevel?: LogLevel): void;
+}
 
-export { ITokenClaims }
+// @public
+export interface ITokenClaims {
+    documentId: string;
+    exp: number;
+    iat: number;
+    jti?: string;
+    scopes: string[];
+    tenantId: string;
+    user: IUser;
+    ver: string;
+}
 
-export { ITokenProvider }
+// @internal
+export interface ITokenProvider {
+    documentPostCreateCallback?(documentId: string, creationToken: string): Promise<void>;
+    fetchOrdererToken(tenantId: string, documentId?: string, refresh?: boolean): Promise<ITokenResponse>;
+    fetchStorageToken(tenantId: string, documentId: string, refresh?: boolean): Promise<ITokenResponse>;
+}
 
-export { ITokenResponse }
+// @internal (undocumented)
+export interface ITokenResponse {
+    fromCache?: boolean;
+    jwt: string;
+}
 
-export { IUser }
+// @public
+export interface IUser {
+    id: string;
+}
 
-export { ScopeType }
+// @public
+export enum ScopeType {
+    DocRead = "doc:read",
+    DocWrite = "doc:write",
+    SummaryWrite = "summary:write"
+}
 
 ```
