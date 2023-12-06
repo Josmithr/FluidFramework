@@ -3,5 +3,13 @@
 	"extends": "../../../common/build/build-common/api-extractor-base.json",
 	"dtsRollup": {
 		"enabled": true
+	},
+	"messages": {
+		"extractorMessageReporting": {
+			"ae-unresolved-inheritdoc-reference": {
+				"logLevel": "warning",
+				"addToApiReportFile": true
+			}
+		}
 	}
 }

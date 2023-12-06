@@ -6,7 +6,7 @@
 	"messages": {
 		"extractorMessageReporting": {
 			"ae-forgotten-export": {
-				"logLevel": "warning",
+				"logLevel": "none",
 				"addToApiReportFile": true
 			}
 		}

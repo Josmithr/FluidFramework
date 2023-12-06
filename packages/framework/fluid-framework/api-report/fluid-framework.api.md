@@ -86,6 +86,7 @@ import { SharedString } from '@fluidframework/sequence';
 import { SharedStringFactory } from '@fluidframework/sequence';
 import { SharedStringSegment } from '@fluidframework/sequence';
 import { SubSequence } from '@fluidframework/sequence';
+import * as tree from '@fluid-experimental/tree2';
 
 export { AttachState }
 
@@ -250,5 +251,7 @@ export { SharedStringFactory }
 export { SharedStringSegment }
 
 export { SubSequence }
+
+export { tree }
 
 ```

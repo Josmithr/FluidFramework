@@ -104,3 +104,10 @@ export {
 	SharedStringFactory,
 	SubSequence,
 } from "@fluidframework/sequence";
+
+// Re-export the tree package as a single namespace member "tree".
+// This helps reduce clutter in this package's global scope.
+// Consumers can import tree APIs via `import foo from "fluid-framework/tree".
+import * as tree from "@fluid-experimental/tree2";
+// eslint-disable-next-line unicorn/prefer-export-from
+export { tree };
