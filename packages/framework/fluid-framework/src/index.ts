@@ -54,7 +54,6 @@ export {
 	type ISummaryContext,
 	LoaderCachingPolicy,
 } from "@fluidframework/driver-definitions";
-// export { ConnectionState } from "@fluidframework/container-loader";
 export type {
 	ContainerSchema,
 	DataObjectClass,
