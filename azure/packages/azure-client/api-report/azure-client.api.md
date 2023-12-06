@@ -4,18 +4,24 @@
 
 ```ts
 
-import { EventEmitter } from 'events';
-import { IChannelFactory } from '@fluidframework/datastore-definitions';
-import { IErrorEvent as IErrorEvent_2 } from '@fluidframework/common-definitions';
-import { IEventProvider as IEventProvider_2 } from '@fluidframework/common-definitions';
-import { IFluidDataStoreFactory } from '@fluidframework/runtime-definitions';
-import { TypedEventEmitter } from '@fluid-internal/client-utils';
+import { ContainerSchema } from '@fluidframework/fluid-static';
+import { IClient } from '@fluidframework/protocol-definitions';
+import { ICompressionStorageConfig } from '@fluidframework/driver-utils';
+import { IConfigProviderBase } from '@fluidframework/core-interfaces';
+import { IFluidContainer } from '@fluidframework/fluid-static';
+import { IMember } from '@fluidframework/fluid-static';
+import { IServiceAudience } from '@fluidframework/fluid-static';
+import { ITelemetryBaseEvent } from '@fluidframework/core-interfaces';
+import { ITelemetryBaseLogger } from '@fluidframework/core-interfaces';
+import { ITokenClaims as ITokenClaims_2 } from '@fluidframework/protocol-definitions';
+import { ITokenProvider as ITokenProvider_2 } from '@fluidframework/routerlicious-driver';
+import { ITokenResponse as ITokenResponse_2 } from '@fluidframework/routerlicious-driver';
+import { IUser } from '@fluidframework/protocol-definitions';
+import { ScopeType } from '@fluidframework/protocol-definitions';
+import { ServiceAudience } from '@fluidframework/fluid-static';
 
-// Warning: (ae-forgotten-export) The symbol "ServiceAudience" needs to be exported by the entry point index.d.ts
-//
 // @internal @deprecated
 export class AzureAudience extends ServiceAudience<AzureMember> implements IAzureAudience {
-    // Warning: (ae-forgotten-export) The symbol "IClient" needs to be exported by the entry point index.d.ts
     protected createServiceMember(audienceMember: IClient): AzureMember;
 }
 
@@ -26,7 +32,6 @@ export class AzureClient {
         container: IFluidContainer<TContainerSchema>;
         services: AzureContainerServices;
     }>;
-    // Warning: (ae-forgotten-export) The symbol "ContainerSchema" needs to be exported by the entry point index.d.ts
     createContainer<TContainerSchema extends ContainerSchema>(containerSchema: TContainerSchema): Promise<{
         container: IFluidContainer<TContainerSchema>;
         services: AzureContainerServices;
@@ -40,12 +45,9 @@ export class AzureClient {
 
 // @alpha
 export interface AzureClientProps {
-    // Warning: (ae-forgotten-export) The symbol "IConfigProviderBase" needs to be exported by the entry point index.d.ts
     readonly configProvider?: IConfigProviderBase;
     readonly connection: AzureRemoteConnectionConfig | AzureLocalConnectionConfig;
     readonly logger?: ITelemetryBaseLogger;
-    // Warning: (ae-forgotten-export) The symbol "ICompressionStorageConfig" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     readonly summaryCompression?: boolean | ICompressionStorageConfig;
 }
@@ -72,12 +74,12 @@ export interface AzureContainerVersion {
 }
 
 // @internal @deprecated
-export class AzureFunctionTokenProvider implements ITokenProvider {
+export class AzureFunctionTokenProvider implements ITokenProvider_2 {
     constructor(azFunctionUrl: string, user?: Pick<AzureMember<any>, "userId" | "userName" | "additionalDetails"> | undefined);
     // (undocumented)
-    fetchOrdererToken(tenantId: string, documentId?: string): Promise<ITokenResponse>;
+    fetchOrdererToken(tenantId: string, documentId?: string): Promise<ITokenResponse_2>;
     // (undocumented)
-    fetchStorageToken(tenantId: string, documentId: string): Promise<ITokenResponse>;
+    fetchStorageToken(tenantId: string, documentId: string): Promise<ITokenResponse_2>;
 }
 
 // @alpha
@@ -90,8 +92,6 @@ export interface AzureLocalConnectionConfig extends AzureConnectionConfig {
     type: "local";
 }
 
-// Warning: (ae-forgotten-export) The symbol "IMember" needs to be exported by the entry point index.d.ts
-//
 // @alpha
 export interface AzureMember<T = any> extends IMember {
     additionalDetails?: T;
@@ -110,76 +110,24 @@ export interface AzureUser<T = any> extends IUser {
     name: string;
 }
 
-// Warning: (ae-forgotten-export) The symbol "IServiceAudience" needs to be exported by the entry point index.d.ts
-//
 // @alpha
 export type IAzureAudience = IServiceAudience<AzureMember>;
 
-// Warning: (ae-forgotten-export) The symbol "ITelemetryBaseProperties" needs to be exported by the entry point index.d.ts
-//
-// @alpha
-export interface ITelemetryBaseEvent extends ITelemetryBaseProperties {
-    // (undocumented)
-    category: string;
-    // (undocumented)
-    eventName: string;
-}
+export { ITelemetryBaseEvent }
 
-// @alpha
-export interface ITelemetryBaseLogger {
-    // (undocumented)
-    minLogLevel?: LogLevel;
-    // Warning: (ae-forgotten-export) The symbol "LogLevel" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
-    send(event: ITelemetryBaseEvent, logLevel?: LogLevel): void;
-}
-
-// Warning: (ae-missing-release-tag) "ITokenClaims" is part of the package's API, but it is missing a release tag (@alpha, @beta, @public, or @internal)
-//
-// @public
-export interface ITokenClaims {
-    documentId: string;
-    exp: number;
-    iat: number;
-    jti?: string;
-    scopes: string[];
-    tenantId: string;
-    user: IUser;
-    ver: string;
-}
-
-// @alpha
-export interface ITokenProvider {
-    documentPostCreateCallback?(documentId: string, creationToken: string): Promise<void>;
-    fetchOrdererToken(tenantId: string, documentId?: string, refresh?: boolean): Promise<ITokenResponse>;
-    fetchStorageToken(tenantId: string, documentId: string, refresh?: boolean): Promise<ITokenResponse>;
-}
+export { ITelemetryBaseLogger }
 
 // @alpha (undocumented)
-export interface ITokenResponse {
-    fromCache?: boolean;
-    jwt: string;
-}
+export type ITokenClaims = ITokenClaims_2;
 
-// Warning: (ae-missing-release-tag) "IUser" is part of the package's API, but it is missing a release tag (@alpha, @beta, @public, or @internal)
-//
-// @public
-export interface IUser {
-    id: string;
-}
+// @alpha (undocumented)
+export type ITokenProvider = ITokenProvider_2;
 
-// Warning: (ae-missing-release-tag) "ScopeType" is part of the package's API, but it is missing a release tag (@alpha, @beta, @public, or @internal)
-//
-// @public
-export enum ScopeType {
-    DocRead = "doc:read",
-    DocWrite = "doc:write",
-    SummaryWrite = "summary:write"
-}
+// @alpha (undocumented)
+export type ITokenResponse = ITokenResponse_2;
 
-// Warnings were encountered during analysis:
-//
-// src/AzureClient.ts:96:3 - (ae-forgotten-export) The symbol "IFluidContainer" needs to be exported by the entry point index.d.ts
+export { IUser }
+
+export { ScopeType }
 
 ```

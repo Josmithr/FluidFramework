@@ -24,10 +24,17 @@ export type {
 	AzureRemoteConnectionConfig,
 	AzureUser,
 	IAzureAudience,
+	ITokenClaims,
+	ITokenProvider,
+	ITokenResponse,
 } from "./interfaces";
 
-export type { ITokenProvider, ITokenResponse } from "@fluidframework/routerlicious-driver";
-export type { ITokenClaims, IUser } from "@fluidframework/protocol-definitions";
+export type {
+	/**
+	 * @deprecated Use {@link AzureUser} instead.
+	 */
+	IUser,
+} from "@fluidframework/protocol-definitions";
 export { ScopeType } from "@fluidframework/protocol-definitions";
 
 // Re-export so developers can build loggers without pulling in core-interfaces

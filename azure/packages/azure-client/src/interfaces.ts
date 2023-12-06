@@ -7,8 +7,14 @@ import {
 	type ITelemetryBaseLogger,
 } from "@fluidframework/core-interfaces";
 import { type IMember, type IServiceAudience } from "@fluidframework/fluid-static";
-import { type IUser } from "@fluidframework/protocol-definitions";
-import { type ITokenProvider } from "@fluidframework/routerlicious-driver";
+import {
+	type ITokenClaims as ITokenClaimsBase,
+	type IUser,
+} from "@fluidframework/protocol-definitions";
+import {
+	type ITokenProvider as ITokenProviderBase,
+	type ITokenResponse as ITokenResponseBase,
+} from "@fluidframework/routerlicious-driver";
 import { type ICompressionStorageConfig } from "@fluidframework/driver-utils";
 
 /**
@@ -70,6 +76,24 @@ export interface AzureGetVersionsOptions {
  * @alpha
  */
 export type AzureConnectionConfigType = "local" | "remote";
+
+/**
+ * {@inheritDoc @fluidframework/protocol-definitions#ITokenClaims}
+ * @alpha
+ */
+export type ITokenClaims = ITokenClaimsBase;
+
+/**
+ * {@inheritDoc @fluidframework/routerlicious-driver#ITokenProvider}
+ * @alpha
+ */
+export type ITokenProvider = ITokenProviderBase;
+
+/**
+ * {@inheritDoc @fluidframework/routerlicious-driver#ITokenResponse}
+ * @alpha
+ */
+export type ITokenResponse = ITokenResponseBase;
 
 /**
  * Parameters for establishing a connection with the Azure Fluid Relay.
