@@ -12,10 +12,13 @@
  */
 
 export type {
+	ConnectionState,
 	ContainerWarning,
 	IAudience,
+	IBatchMessage,
 	IConnectionDetails,
 	IContainer,
+	IContainerContext,
 	IContainerEvents,
 	ICriticalContainerError,
 	IDeltaManager,
@@ -27,18 +30,31 @@ export type {
 	IFluidCodeDetailsConfig,
 	IFluidPackage,
 	IFluidPackageEnvironment,
-	ConnectionState as ConnectionStateType, // TODO
+	IGetPendingLocalStateProps,
+	ILoader,
+	ILoaderOptions,
+	IProvideLoader,
+	IProvideRuntimeFactory,
+	IRuntime,
+	IRuntimeFactory,
+	ISnapshotTreeWithBlobContents,
 	ReadOnlyInfo,
 } from "@fluidframework/container-definitions";
 export { AttachState, ContainerErrorType } from "@fluidframework/container-definitions";
 export {
 	DriverErrorType,
 	DriverErrorTypes,
+	FetchSource,
+	type FiveDaysMs,
 	type IAnyDriverError,
+	type IDocumentStorageService,
+	type IDocumentStorageServicePolicies,
 	type IDriverErrorBase,
 	type IResolvedUrl,
+	type ISummaryContext,
+	LoaderCachingPolicy,
 } from "@fluidframework/driver-definitions";
-export { ConnectionState } from "@fluidframework/container-loader";
+// export { ConnectionState } from "@fluidframework/container-loader";
 export type {
 	ContainerSchema,
 	DataObjectClass,
@@ -60,6 +76,9 @@ export type {
 	SharedObjectClass,
 } from "@fluidframework/fluid-static";
 export {
+	createDOProviderContainerRuntimeFactory,
+	createFluidContainer,
+	createServiceAudience,
 	DOProviderContainerRuntimeFactory,
 	FluidContainer,
 	ServiceAudience,

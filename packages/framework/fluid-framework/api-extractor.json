@@ -15,11 +15,6 @@
 			// TODO: Add missing documentation and remove this rule override
 			"ae-undocumented": {
 				"logLevel": "none"
-			},
-			// TODO: Add missing exports and remove these
-			"ae-unresolved-link": {
-				"logLevel": "warning",
-				"addToApiReportFile": true
 			}
 		}
 	}

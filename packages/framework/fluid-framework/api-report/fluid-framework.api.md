@@ -19,6 +19,7 @@ import { IClientConfiguration } from '@fluidframework/protocol-definitions';
 import { IClientDetails } from '@fluidframework/protocol-definitions';
 import { ICombiningOp } from '@fluidframework/merge-tree';
 import { IContainerRuntime } from '@fluidframework/container-runtime-definitions';
+import { ICreateBlobResponse } from '@fluidframework/protocol-definitions';
 import { IDisposable } from '@fluidframework/core-interfaces';
 import { IDocumentMessage } from '@fluidframework/protocol-definitions';
 import { IErrorBase } from '@fluidframework/core-interfaces';
@@ -51,15 +52,22 @@ import { ISequencedProposal } from '@fluidframework/protocol-definitions';
 import { ISharedObject } from '@fluidframework/shared-object-base';
 import { ISharedObjectEvents } from '@fluidframework/shared-object-base';
 import { ISignalMessage } from '@fluidframework/protocol-definitions';
+import { ISnapshotTree } from '@fluidframework/protocol-definitions';
+import { ISummaryContent } from '@fluidframework/protocol-definitions';
+import { ISummaryHandle } from '@fluidframework/protocol-definitions';
+import { ISummaryTree } from '@fluidframework/protocol-definitions';
 import { ISummaryTreeWithStats } from '@fluidframework/runtime-definitions';
+import { ITelemetryBaseLogger } from '@fluidframework/core-interfaces';
 import { ITelemetryContext } from '@fluidframework/runtime-definitions';
 import { ITokenClaims } from '@fluidframework/protocol-definitions';
+import { IVersion } from '@fluidframework/protocol-definitions';
 import { LocalReferencePosition } from '@fluidframework/merge-tree';
 import { Marker } from '@fluidframework/merge-tree';
 import { MergeTreeDeltaOperationType } from '@fluidframework/merge-tree';
 import { MergeTreeDeltaOperationTypes } from '@fluidframework/merge-tree';
 import { MergeTreeMaintenanceType } from '@fluidframework/merge-tree';
 import { MergeTreeRevertibleDriver } from '@fluidframework/merge-tree';
+import { MessageType } from '@fluidframework/protocol-definitions';
 import { PropertiesManager } from '@fluidframework/merge-tree';
 import { PropertySet } from '@fluidframework/merge-tree';
 import { RangeStackMap } from '@fluidframework/merge-tree';
@@ -79,16 +87,8 @@ export enum AttachState {
     Detached = "Detached"
 }
 
-// @internal (undocumented)
-export enum ConnectionState {
-    CatchingUp = 1,
-    Connected = 2,
-    Disconnected = 0,
-    EstablishingConnection = 3
-}
-
 // @alpha
-export namespace ConnectionStateType {
+export namespace ConnectionState {
     export type CatchingUp = 1;
     export type Connected = 2;
     export type Disconnected = 0;
@@ -96,7 +96,7 @@ export namespace ConnectionStateType {
 }
 
 // @alpha
-export type ConnectionStateType = ConnectionStateType.Disconnected | ConnectionStateType.EstablishingConnection | ConnectionStateType.CatchingUp | ConnectionStateType.Connected;
+export type ConnectionState = ConnectionState.Disconnected | ConnectionState.EstablishingConnection | ConnectionState.CatchingUp | ConnectionState.Connected;
 
 // @internal @deprecated
 export enum ContainerErrorType {
@@ -118,6 +118,23 @@ export interface ContainerSchema {
 export interface ContainerWarning extends IErrorBase {
     logged?: boolean;
 }
+
+// @internal (undocumented)
+export function createDOProviderContainerRuntimeFactory(props: {
+    schema: ContainerSchema;
+}): IRuntimeFactory;
+
+// @internal (undocumented)
+export function createFluidContainer<TContainerSchema extends ContainerSchema = ContainerSchema>(props: {
+    container: IContainer;
+    rootDataObject: IRootDataObject;
+}): IFluidContainer<TContainerSchema>;
+
+// @internal (undocumented)
+export function createServiceAudience<M extends IMember = IMember>(props: {
+    container: IContainer;
+    createServiceMember: (audienceMember: IClient) => M;
+}): IServiceAudience<M>;
 
 // @internal
 export type DataObjectClass<T extends IFluidLoadable> = {
@@ -143,8 +160,6 @@ export class DirectoryFactory implements IChannelFactory {
     get type(): string;
 }
 
-// Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "createDOProviderContainerRuntimeFactory"
-//
 // @internal @deprecated
 export class DOProviderContainerRuntimeFactory extends BaseContainerRuntimeFactory {
     constructor(schema: ContainerSchema);
@@ -200,15 +215,24 @@ export const DriverErrorTypes: {
 // @internal (undocumented)
 export type DriverErrorTypes = (typeof DriverErrorTypes)[keyof typeof DriverErrorTypes];
 
-// Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "createFluidContainer"
-//
+// @alpha (undocumented)
+export enum FetchSource {
+    // (undocumented)
+    default = "default",
+    // (undocumented)
+    noCache = "noCache"
+}
+
+// @alpha (undocumented)
+export type FiveDaysMs = 432000000;
+
 // @internal @deprecated
 export class FluidContainer<TContainerSchema extends ContainerSchema = ContainerSchema> extends TypedEventEmitter<IFluidContainerEvents> implements IFluidContainer<TContainerSchema> {
     constructor(container: IContainer, rootDataObject: IRootDataObject);
     attach(): Promise<string>;
     get attachState(): AttachState;
     connect(): Promise<void>;
-    get connectionState(): ConnectionStateType;
+    get connectionState(): ConnectionState;
     create<T extends IFluidLoadable>(objectClass: LoadableObjectClass<T>): Promise<T>;
     disconnect(): Promise<void>;
     dispose(): void;
@@ -237,6 +261,18 @@ export interface IAudience extends EventEmitter {
     on(event: "addMember" | "removeMember", listener: (clientId: string, client: IClient) => void): this;
 }
 
+// @alpha
+export interface IBatchMessage {
+    // (undocumented)
+    compression?: string;
+    // (undocumented)
+    contents?: string;
+    // (undocumented)
+    metadata: Record<string, unknown> | undefined;
+    // (undocumented)
+    referenceSequenceNumber?: number;
+}
+
 // @internal
 export interface IConnection {
     id: string;
@@ -261,15 +297,12 @@ export interface IContainer extends IEventProvider<IContainerEvents>, IFluidRout
     }): Promise<void>;
     readonly attachState: AttachState;
     readonly audience: IAudience;
-    // Warning: (ae-unresolved-link) The @link reference could not be resolved: A declaration for "ConnectionState" was not found that matches the TSDoc selector "namespace"
     readonly clientId?: string | undefined;
     close(error?: ICriticalContainerError): void;
     readonly closed: boolean;
-    // Warning: (ae-unresolved-link) The @link reference could not be resolved: A declaration for "ConnectionState" was not found that matches the TSDoc selector "namespace"
     connect(): void;
-    readonly connectionState: ConnectionStateType;
+    readonly connectionState: ConnectionState;
     deltaManager: IDeltaManager<ISequencedDocumentMessage, IDocumentMessage>;
-    // Warning: (ae-unresolved-link) The @link reference could not be resolved: A declaration for "ConnectionState" was not found that matches the TSDoc selector "namespace"
     disconnect(): void;
     dispose(error?: ICriticalContainerError): void;
     readonly disposed?: boolean;
@@ -293,6 +326,59 @@ export interface IContainer extends IEventProvider<IContainerEvents>, IFluidRout
     request(request: IRequest): Promise<IResponse>;
     resolvedUrl: IResolvedUrl | undefined;
     serialize(): string;
+}
+
+// @alpha
+export interface IContainerContext {
+    readonly attachState: AttachState;
+    // (undocumented)
+    readonly audience: IAudience | undefined;
+    // (undocumented)
+    readonly baseSnapshot: ISnapshotTree | undefined;
+    // (undocumented)
+    readonly clientDetails: IClientDetails;
+    // (undocumented)
+    readonly clientId: string | undefined;
+    // (undocumented)
+    readonly closeFn: (error?: ICriticalContainerError) => void;
+    // (undocumented)
+    readonly connected: boolean;
+    // (undocumented)
+    readonly deltaManager: IDeltaManager<ISequencedDocumentMessage, IDocumentMessage>;
+    // (undocumented)
+    readonly disposeFn?: (error?: ICriticalContainerError) => void;
+    getAbsoluteUrl?(relativeUrl: string): Promise<string | undefined>;
+    // (undocumented)
+    getLoadedFromVersion(): IVersion | undefined;
+    // @deprecated (undocumented)
+    getSpecifiedCodeDetails?(): IFluidCodeDetails | undefined;
+    // @deprecated
+    readonly id: string;
+    // (undocumented)
+    readonly loader: ILoader;
+    // (undocumented)
+    readonly options: ILoaderOptions;
+    // (undocumented)
+    pendingLocalState?: unknown;
+    // (undocumented)
+    readonly quorum: IQuorumClients;
+    readonly scope: FluidObject;
+    // (undocumented)
+    readonly storage: IDocumentStorageService;
+    // (undocumented)
+    readonly submitBatchFn: (batch: IBatchMessage[], referenceSequenceNumber?: number) => number;
+    // @deprecated (undocumented)
+    readonly submitFn: (type: MessageType, contents: any, batch: boolean, appData?: any) => number;
+    // (undocumented)
+    readonly submitSignalFn: (contents: any, targetClientId?: string) => void;
+    // (undocumented)
+    readonly submitSummaryFn: (summaryOp: ISummaryContent, referenceSequenceNumber?: number) => number;
+    // (undocumented)
+    readonly supportedFeatures?: ReadonlyMap<string, unknown>;
+    // (undocumented)
+    readonly taggedLogger: ITelemetryBaseLogger;
+    // (undocumented)
+    updateDirtyContainerState(dirty: boolean): void;
 }
 
 // @alpha
@@ -477,6 +563,25 @@ export interface IDirectoryValueChanged extends IValueChanged {
 }
 
 // @alpha
+export interface IDocumentStorageService extends Partial<IDisposable> {
+    createBlob(file: ArrayBufferLike): Promise<ICreateBlobResponse>;
+    downloadSummary(handle: ISummaryHandle): Promise<ISummaryTree>;
+    getSnapshotTree(version?: IVersion, scenarioName?: string): Promise<ISnapshotTree | null>;
+    getVersions(versionId: string | null, count: number, scenarioName?: string, fetchSource?: FetchSource): Promise<IVersion[]>;
+    readonly policies?: IDocumentStorageServicePolicies;
+    readBlob(id: string): Promise<ArrayBufferLike>;
+    // (undocumented)
+    repositoryUrl: string;
+    uploadSummaryWithContext(summary: ISummaryTree, context: ISummaryContext): Promise<string>;
+}
+
+// @alpha
+export interface IDocumentStorageServicePolicies {
+    readonly caching?: LoaderCachingPolicy;
+    readonly maximumCacheDurationMs?: FiveDaysMs;
+}
+
+// @alpha
 export interface IDriverErrorBase {
     canRetry: boolean;
     endpointReached?: boolean;
@@ -502,7 +607,7 @@ export interface IFluidContainer<TContainerSchema extends ContainerSchema = Cont
     attach(): Promise<string>;
     readonly attachState: AttachState;
     connect(): void;
-    readonly connectionState: ConnectionStateType;
+    readonly connectionState: ConnectionState;
     create<T extends IFluidLoadable>(objectClass: LoadableObjectClass<T>): Promise<T>;
     disconnect(): void;
     dispose(): void;
@@ -535,6 +640,12 @@ export interface IFluidPackageEnvironment {
         files: string[];
         [key: string]: unknown;
     };
+}
+
+// @alpha
+export interface IGetPendingLocalStateProps {
+    readonly notifyImminentClosure: boolean;
+    readonly stopBlobAttachingSignal?: AbortSignal;
 }
 
 // @internal
@@ -608,6 +719,24 @@ export interface IJSONRunSegment<T> extends IJSONSegment {
     // (undocumented)
     items: Serializable<T>[];
 }
+
+// @alpha
+export interface ILoader extends Partial<IProvideLoader> {
+    // @deprecated (undocumented)
+    readonly IFluidRouter: IFluidRouter;
+    // @deprecated (undocumented)
+    request(request: IRequest): Promise<IResponse>;
+    resolve(request: IRequest, pendingLocalState?: string): Promise<IContainer>;
+}
+
+// @alpha (undocumented)
+export type ILoaderOptions = {
+    [key in string | number]: any;
+} & {
+    cache?: boolean;
+    provideScopeLoader?: boolean;
+    maxClientLeaveWaitTime?: number;
+};
 
 // @internal
 export interface ILocalValue {
@@ -722,10 +851,22 @@ export enum IntervalType {
     Transient = 4
 }
 
+// @alpha (undocumented)
+export interface IProvideLoader {
+    // (undocumented)
+    readonly ILoader: ILoader;
+}
+
 // @internal (undocumented)
 export interface IProvideRootDataObject {
     // (undocumented)
     readonly IRootDataObject?: IRootDataObject;
+}
+
+// @alpha (undocumented)
+export interface IProvideRuntimeFactory {
+    // (undocumented)
+    readonly IRuntimeFactory: IRuntimeFactory;
 }
 
 // @alpha (undocumented)
@@ -749,6 +890,30 @@ export interface IResolvedUrl {
 export interface IRootDataObject extends IProvideRootDataObject {
     create<T extends IFluidLoadable>(objectClass: LoadableObjectClass<T>): Promise<T>;
     readonly initialObjects: LoadableObjectRecord;
+}
+
+// @alpha
+export interface IRuntime extends IDisposable {
+    createSummary(blobRedirectTable?: Map<string, string>): ISummaryTree;
+    getEntryPoint(): Promise<FluidObject | undefined>;
+    getPendingLocalState(props?: IGetPendingLocalStateProps): unknown;
+    // @deprecated
+    notifyAttaching(snapshot: ISnapshotTreeWithBlobContents): void;
+    notifyOpReplay?(message: ISequencedDocumentMessage): Promise<void>;
+    process(message: ISequencedDocumentMessage, local: boolean): any;
+    processSignal(message: any, local: boolean): any;
+    // @deprecated
+    request(request: IRequest): Promise<IResponse>;
+    setAttachState(attachState: AttachState.Attaching | AttachState.Attached): void;
+    setConnectionState(connected: boolean, clientId?: string): any;
+}
+
+// @alpha (undocumented)
+export const IRuntimeFactory: keyof IProvideRuntimeFactory;
+
+// @alpha
+export interface IRuntimeFactory extends IProvideRuntimeFactory {
+    instantiateRuntime(context: IContainerContext, existing: boolean): Promise<IRuntime>;
 }
 
 // @internal
@@ -864,6 +1029,26 @@ export interface ISharedString extends SharedSegmentSequence<SharedStringSegment
     posFromRelativePos(relativePos: IRelativePosition): number;
 }
 
+// @alpha
+export interface ISnapshotTreeWithBlobContents extends ISnapshotTree {
+    // (undocumented)
+    blobsContents: {
+        [path: string]: ArrayBufferLike;
+    };
+    // (undocumented)
+    trees: {
+        [path: string]: ISnapshotTreeWithBlobContents;
+    };
+}
+
+// @alpha
+export interface ISummaryContext {
+    readonly ackHandle: string | undefined;
+    readonly proposalHandle: string | undefined;
+    // (undocumented)
+    readonly referenceSequenceNumber: number;
+}
+
 // @internal
 export interface IValueChanged {
     key: string;
@@ -887,6 +1072,12 @@ export type LoadableObjectCtor<T extends IFluidLoadable> = new (...args: any[]) 
 
 // @internal
 export type LoadableObjectRecord = Record<string, IFluidLoadable>;
+
+// @alpha (undocumented)
+export enum LoaderCachingPolicy {
+    NoCaching = 0,
+    Prefetch = 1
+}
 
 // @internal
 export class LocalValueMaker {
@@ -1002,8 +1193,6 @@ export type SequencePlace = number | "start" | "end" | InteriorSequencePlace;
 // @internal
 export type SerializedIntervalDelta = Omit<ISerializedInterval, "start" | "end" | "properties"> & Partial<Pick<ISerializedInterval, "start" | "end" | "properties">>;
 
-// Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "createServiceAudience"
-//
 // @internal @deprecated
 export abstract class ServiceAudience<M extends IMember = IMember> extends TypedEventEmitter<IServiceAudienceEvents<M>> implements IServiceAudience<M> {
     constructor(
