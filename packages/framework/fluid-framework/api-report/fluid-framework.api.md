@@ -87,6 +87,17 @@ export enum ConnectionState {
     EstablishingConnection = 3
 }
 
+// @alpha
+export namespace ConnectionStateType {
+    export type CatchingUp = 1;
+    export type Connected = 2;
+    export type Disconnected = 0;
+    export type EstablishingConnection = 3;
+}
+
+// @alpha
+export type ConnectionStateType = ConnectionStateType.Disconnected | ConnectionStateType.EstablishingConnection | ConnectionStateType.CatchingUp | ConnectionStateType.Connected;
+
 // @internal @deprecated
 export enum ContainerErrorType {
     clientSessionExpiredError = "clientSessionExpiredError",
@@ -101,6 +112,11 @@ export enum ContainerErrorType {
 export interface ContainerSchema {
     dynamicObjectTypes?: LoadableObjectClass<any>[];
     initialObjects: LoadableObjectClassRecord;
+}
+
+// @alpha
+export interface ContainerWarning extends IErrorBase {
+    logged?: boolean;
 }
 
 // @internal
@@ -188,18 +204,15 @@ export type DriverErrorTypes = (typeof DriverErrorTypes)[keyof typeof DriverErro
 //
 // @internal @deprecated
 export class FluidContainer<TContainerSchema extends ContainerSchema = ContainerSchema> extends TypedEventEmitter<IFluidContainerEvents> implements IFluidContainer<TContainerSchema> {
-    // Warning: (ae-forgotten-export) The symbol "IContainer" needs to be exported by the entry point index.d.ts
     constructor(container: IContainer, rootDataObject: IRootDataObject);
     attach(): Promise<string>;
     get attachState(): AttachState;
     connect(): Promise<void>;
-    // Warning: (ae-forgotten-export) The symbol "ConnectionState_2" needs to be exported by the entry point index.d.ts
-    get connectionState(): ConnectionState_2;
+    get connectionState(): ConnectionStateType;
     create<T extends IFluidLoadable>(objectClass: LoadableObjectClass<T>): Promise<T>;
     disconnect(): Promise<void>;
     dispose(): void;
     get disposed(): boolean;
-    // Warning: (ae-forgotten-export) The symbol "InitialObjects" needs to be exported by the entry point index.d.ts
     get initialObjects(): InitialObjects<TContainerSchema>;
     readonly INTERNAL_CONTAINER_DO_NOT_USE?: () => IContainer;
     get isDirty(): boolean;
@@ -211,6 +224,19 @@ export function getTextAndMarkers(sharedString: SharedString, label: string, sta
     parallelMarkers: Marker[];
 };
 
+// @alpha
+export interface IAnyDriverError extends Omit<IDriverErrorBase, "errorType"> {
+    // (undocumented)
+    readonly errorType: string;
+}
+
+// @alpha
+export interface IAudience extends EventEmitter {
+    getMember(clientId: string): IClient | undefined;
+    getMembers(): Map<string, IClient>;
+    on(event: "addMember" | "removeMember", listener: (clientId: string, client: IClient) => void): this;
+}
+
 // @internal
 export interface IConnection {
     id: string;
@@ -218,7 +244,145 @@ export interface IConnection {
 }
 
 // @alpha
+export interface IConnectionDetails {
+    checkpointSequenceNumber: number | undefined;
+    // (undocumented)
+    claims: ITokenClaims;
+    // (undocumented)
+    clientId: string;
+    // (undocumented)
+    serviceConfiguration: IClientConfiguration;
+}
+
+// @alpha
+export interface IContainer extends IEventProvider<IContainerEvents>, IFluidRouter {
+    attach(request: IRequest, attachProps?: {
+        deltaConnection?: "none" | "delayed";
+    }): Promise<void>;
+    readonly attachState: AttachState;
+    readonly audience: IAudience;
+    // Warning: (ae-unresolved-link) The @link reference could not be resolved: A declaration for "ConnectionState" was not found that matches the TSDoc selector "namespace"
+    readonly clientId?: string | undefined;
+    close(error?: ICriticalContainerError): void;
+    readonly closed: boolean;
+    // Warning: (ae-unresolved-link) The @link reference could not be resolved: A declaration for "ConnectionState" was not found that matches the TSDoc selector "namespace"
+    connect(): void;
+    readonly connectionState: ConnectionStateType;
+    deltaManager: IDeltaManager<ISequencedDocumentMessage, IDocumentMessage>;
+    // Warning: (ae-unresolved-link) The @link reference could not be resolved: A declaration for "ConnectionState" was not found that matches the TSDoc selector "namespace"
+    disconnect(): void;
+    dispose(error?: ICriticalContainerError): void;
+    readonly disposed?: boolean;
+    forceReadonly?(readonly: boolean): any;
+    getAbsoluteUrl(relativeUrl: string): Promise<string | undefined>;
+    getEntryPoint(): Promise<FluidObject | undefined>;
+    getLoadedCodeDetails(): IFluidCodeDetails | undefined;
+    getQuorum(): IQuorumClients;
+    getSpecifiedCodeDetails(): IFluidCodeDetails | undefined;
+    // @deprecated (undocumented)
+    readonly IFluidRouter: IFluidRouter;
+    readonly isDirty: boolean;
+    proposeCodeDetails(codeDetails: IFluidCodeDetails): Promise<boolean>;
+    readonly readOnlyInfo: ReadOnlyInfo;
+    // @deprecated (undocumented)
+    request(request: {
+        url: "/";
+        headers?: undefined;
+    }): Promise<IResponse>;
+    // @deprecated
+    request(request: IRequest): Promise<IResponse>;
+    resolvedUrl: IResolvedUrl | undefined;
+    serialize(): string;
+}
+
+// @alpha
+export interface IContainerEvents extends IEvent {
+    (event: "readonly", listener: (readonly: boolean) => void): void;
+    (event: "connected", listener: (clientId: string) => void): any;
+    (event: "codeDetailsProposed", listener: (codeDetails: IFluidCodeDetails, proposal: ISequencedProposal) => void): any;
+    (event: "disconnected", listener: () => void): any;
+    (event: "attaching", listener: () => void): any;
+    (event: "attached", listener: () => void): any;
+    (event: "closed", listener: (error?: ICriticalContainerError) => void): any;
+    (event: "disposed", listener: (error?: ICriticalContainerError) => void): any;
+    (event: "warning", listener: (error: ContainerWarning) => void): any;
+    (event: "op", listener: (message: ISequencedDocumentMessage) => void): any;
+    (event: "dirty", listener: (dirty: boolean) => void): any;
+    (event: "saved", listener: (dirty: boolean) => void): any;
+}
+
+// @internal
+export interface ICreateInfo {
+    ccIds: string[];
+    csn: number;
+}
+
+// @alpha
 export type ICriticalContainerError = IErrorBase;
+
+// @alpha
+export interface IDeltaManager<T, U> extends IEventProvider<IDeltaManagerEvents>, IDeltaSender {
+    readonly active: boolean;
+    readonly clientDetails: IClientDetails;
+    readonly hasCheckpointSequenceNumber: boolean;
+    readonly inbound: IDeltaQueue<T>;
+    readonly inboundSignal: IDeltaQueue<ISignalMessage>;
+    readonly initialSequenceNumber: number;
+    readonly lastKnownSeqNumber: number;
+    readonly lastMessage: ISequencedDocumentMessage | undefined;
+    readonly lastSequenceNumber: number;
+    readonly maxMessageSize: number;
+    readonly minimumSequenceNumber: number;
+    readonly outbound: IDeltaQueue<U[]>;
+    // (undocumented)
+    readonly readOnlyInfo: ReadOnlyInfo;
+    readonly serviceConfiguration: IClientConfiguration | undefined;
+    submitSignal(content: any, targetClientId?: string): void;
+    readonly version: string;
+}
+
+// @alpha
+export interface IDeltaManagerEvents extends IEvent {
+    // @deprecated (undocumented)
+    (event: "prepareSend", listener: (messageBuffer: any[]) => void): any;
+    // @deprecated (undocumented)
+    (event: "submitOp", listener: (message: IDocumentMessage) => void): any;
+    (event: "op", listener: (message: ISequencedDocumentMessage, processingTime: number) => void): any;
+    (event: "pong", listener: (latency: number) => void): any;
+    (event: "connect", listener: (details: IConnectionDetails, opsBehind?: number) => void): any;
+    (event: "disconnect", listener: (reason: string, error?: IAnyDriverError) => void): any;
+    (event: "readonly", listener: (readonly: boolean, readonlyConnectionReason?: {
+        reason: string;
+        error?: IErrorBase;
+    }) => void): any;
+}
+
+// @alpha
+export interface IDeltaQueue<T> extends IEventProvider<IDeltaQueueEvents<T>>, IDisposable {
+    idle: boolean;
+    length: number;
+    pause(): Promise<void>;
+    paused: boolean;
+    peek(): T | undefined;
+    resume(): void;
+    toArray(): T[];
+    waitTillProcessingDone(): Promise<{
+        count: number;
+        duration: number;
+    }>;
+}
+
+// @alpha
+export interface IDeltaQueueEvents<T> extends IErrorEvent {
+    (event: "push", listener: (task: T) => void): any;
+    (event: "op", listener: (task: T) => void): any;
+    (event: "idle", listener: (count: number, duration: number) => void): any;
+}
+
+// @alpha
+export interface IDeltaSender {
+    flush(): void;
+}
 
 // @internal
 export interface IDirectory extends Map<string, any>, IEventProvider<IDirectoryEvents>, Partial<IDisposable> {
@@ -249,7 +413,6 @@ export interface IDirectoryCreateSubDirectoryOperation {
 
 // @internal
 export interface IDirectoryDataObject {
-    // Warning: (ae-forgotten-export) The symbol "ICreateInfo" needs to be exported by the entry point index.d.ts
     ci?: ICreateInfo;
     storage?: {
         [key: string]: ISerializableValue;
@@ -313,12 +476,33 @@ export interface IDirectoryValueChanged extends IValueChanged {
     path: string;
 }
 
+// @alpha
+export interface IDriverErrorBase {
+    canRetry: boolean;
+    endpointReached?: boolean;
+    readonly errorType: DriverErrorType;
+    readonly message: string;
+    online?: string;
+}
+
+// @alpha
+export interface IFluidCodeDetails {
+    readonly config?: IFluidCodeDetailsConfig;
+    readonly package: string | Readonly<IFluidPackage>;
+}
+
+// @alpha
+export interface IFluidCodeDetailsConfig {
+    // (undocumented)
+    readonly [key: string]: string;
+}
+
 // @internal
 export interface IFluidContainer<TContainerSchema extends ContainerSchema = ContainerSchema> extends IEventProvider<IFluidContainerEvents> {
     attach(): Promise<string>;
     readonly attachState: AttachState;
     connect(): void;
-    readonly connectionState: ConnectionState_2;
+    readonly connectionState: ConnectionStateType;
     create<T extends IFluidLoadable>(objectClass: LoadableObjectClass<T>): Promise<T>;
     disconnect(): void;
     dispose(): void;
@@ -336,6 +520,23 @@ export interface IFluidContainerEvents extends IEvent {
     (event: "disposed", listener: (error?: ICriticalContainerError) => void): any;
 }
 
+// @alpha
+export interface IFluidPackage {
+    [key: string]: unknown;
+    fluid: {
+        [environment: string]: undefined | IFluidPackageEnvironment;
+    };
+    name: string;
+}
+
+// @alpha
+export interface IFluidPackageEnvironment {
+    [target: string]: undefined | {
+        files: string[];
+        [key: string]: unknown;
+    };
+}
+
 // @internal
 export interface IInterval {
     // (undocumented)
@@ -343,7 +544,6 @@ export interface IInterval {
     compare(b: IInterval): number;
     compareEnd(b: IInterval): number;
     compareStart(b: IInterval): number;
-    // Warning: (ae-forgotten-export) The symbol "SequencePlace" needs to be exported by the entry point index.d.ts
     modify(label: string, start: SequencePlace | undefined, end: SequencePlace | undefined, op?: ISequencedDocumentMessage, localSeq?: number, useNewSlidingBehavior?: boolean): IInterval | undefined;
     // (undocumented)
     overlaps(b: IInterval): boolean;
@@ -354,8 +554,6 @@ export interface IInterval {
 export interface IIntervalCollection<TInterval extends ISerializableInterval> extends TypedEventEmitter<IIntervalCollectionEvent<TInterval>> {
     // (undocumented)
     [Symbol.iterator](): Iterator<TInterval>;
-    // Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "SequencePlace"
-    //
     // @deprecated
     add(start: SequencePlace, end: SequencePlace, intervalType: IntervalType, props?: PropertySet): TInterval;
     add({ start, end, props, }: {
@@ -367,7 +565,6 @@ export interface IIntervalCollection<TInterval extends ISerializableInterval> ex
     attachDeserializer(onDeserialize: DeserializeCallback): void;
     // (undocumented)
     readonly attached: boolean;
-    // Warning: (ae-forgotten-export) The symbol "IntervalIndex" needs to be exported by the entry point index.d.ts
     attachIndex(index: IntervalIndex<TInterval>): void;
     change(id: string, start: SequencePlace, end: SequencePlace): TInterval | undefined;
     changeProperties(id: string, props: PropertySet): any;
@@ -402,9 +599,6 @@ export interface IIntervalCollectionEvent<TInterval extends ISerializableInterva
 
 // @internal @sealed @deprecated (undocumented)
 export interface IIntervalHelpers<TInterval extends ISerializableInterval> {
-    // Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "SequencePlace"
-    // Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "SequencePlace"
-    //
     // (undocumented)
     create(label: string, start: SequencePlace | undefined, end: SequencePlace | undefined, client: Client | undefined, intervalType: IntervalType, op?: ISequencedDocumentMessage, fromSnapshot?: boolean, useNewSlidingBehavior?: boolean): TInterval;
 }
@@ -432,6 +626,19 @@ export interface IMapMessageLocalMetadata {
 export interface IMember {
     connections: IConnection[];
     userId: string;
+}
+
+// @internal
+export type InitialObjects<T extends ContainerSchema> = {
+    [K in keyof T["initialObjects"]]: T["initialObjects"][K] extends LoadableObjectClass<infer TChannel> ? TChannel : never;
+};
+
+// @internal
+export interface InteriorSequencePlace {
+    // (undocumented)
+    pos: number;
+    // (undocumented)
+    side: Side;
 }
 
 // @internal
@@ -468,6 +675,12 @@ export class Interval implements ISerializableInterval {
 }
 
 // @internal
+export interface IntervalIndex<TInterval extends ISerializableInterval> {
+    add(interval: TInterval): void;
+    remove(interval: TInterval): void;
+}
+
+// @internal
 export interface IntervalLocator {
     interval: SequenceInterval;
     label: string;
@@ -475,6 +688,29 @@ export interface IntervalLocator {
 
 // @internal
 export function intervalLocatorFromEndpoint(potentialEndpoint: LocalReferencePosition): IntervalLocator | undefined;
+
+// @internal
+export const IntervalOpType: {
+    readonly ADD: "add";
+    readonly DELETE: "delete";
+    readonly CHANGE: "change";
+    readonly PROPERTY_CHANGED: "propertyChanged";
+    readonly POSITION_REMOVE: "positionRemove";
+};
+
+// @internal (undocumented)
+export type IntervalOpType = (typeof IntervalOpType)[keyof typeof IntervalOpType];
+
+// @internal
+export const IntervalStickiness: {
+    readonly NONE: 0;
+    readonly START: 1;
+    readonly END: 2;
+    readonly FULL: 3;
+};
+
+// @internal
+export type IntervalStickiness = (typeof IntervalStickiness)[keyof typeof IntervalStickiness];
 
 // @internal (undocumented)
 export enum IntervalType {
@@ -486,8 +722,29 @@ export enum IntervalType {
     Transient = 4
 }
 
-// Warning: (ae-forgotten-export) The symbol "IProvideRootDataObject" needs to be exported by the entry point index.d.ts
-//
+// @internal (undocumented)
+export interface IProvideRootDataObject {
+    // (undocumented)
+    readonly IRootDataObject?: IRootDataObject;
+}
+
+// @alpha (undocumented)
+export interface IResolvedUrl {
+    // (undocumented)
+    endpoints: {
+        [name: string]: string;
+    };
+    id: string;
+    // (undocumented)
+    tokens: {
+        [name: string]: string;
+    };
+    // (undocumented)
+    type: "fluid";
+    // (undocumented)
+    url: string;
+}
+
 // @internal
 export interface IRootDataObject extends IProvideRootDataObject {
     create<T extends IFluidLoadable>(objectClass: LoadableObjectClass<T>): Promise<T>;
@@ -529,11 +786,8 @@ export interface ISerializedInterval {
     properties?: PropertySet;
     sequenceNumber: number;
     start: number | "start" | "end";
-    // Warning: (ae-forgotten-export) The symbol "Side" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     startSide?: Side;
-    // Warning: (ae-forgotten-export) The symbol "IntervalStickiness" needs to be exported by the entry point index.d.ts
     stickiness?: IntervalStickiness;
 }
 
@@ -546,7 +800,6 @@ export interface ISerializedValue {
 // @internal
 export interface IServiceAudience<M extends IMember> extends IEventProvider<IServiceAudienceEvents<M>> {
     getMembers(): Map<string, M>;
-    // Warning: (ae-forgotten-export) The symbol "Myself" needs to be exported by the entry point index.d.ts
     getMyself(): Myself<M> | undefined;
 }
 
@@ -619,8 +872,6 @@ export interface IValueChanged {
 
 // @internal @deprecated
 export interface IValueOpEmitter {
-    // Warning: (ae-forgotten-export) The symbol "IntervalOpType" needs to be exported by the entry point index.d.ts
-    //
     // @deprecated
     emit(opName: IntervalOpType, previousValue: undefined, params: SerializedIntervalDelta, localOpMetadata: IMapMessageLocalMetadata): void;
 }
@@ -662,6 +913,22 @@ export class MapFactory implements IChannelFactory {
 
 // @internal
 export type MemberChangedListener<M extends IMember> = (clientId: string, member: M) => void;
+
+// @internal
+export type Myself<M extends IMember = IMember> = M & {
+    currentConnection: string;
+};
+
+// @alpha (undocumented)
+export type ReadOnlyInfo = {
+    readonly readonly: false | undefined;
+} | {
+    readonly readonly: true;
+    readonly forced: boolean;
+    readonly permissions: boolean | undefined;
+    readonly storageOnly: boolean;
+    readonly storageOnlyReason?: string;
+};
 
 // @internal
 export class SequenceDeltaEvent extends SequenceEvent<MergeTreeDeltaOperationType> {
@@ -730,6 +997,9 @@ export class SequenceMaintenanceEvent extends SequenceEvent<MergeTreeMaintenance
 }
 
 // @internal
+export type SequencePlace = number | "start" | "end" | InteriorSequencePlace;
+
+// @internal
 export type SerializedIntervalDelta = Omit<ISerializedInterval, "start" | "end" | "properties"> & Partial<Pick<ISerializedInterval, "start" | "end" | "properties">>;
 
 // Warning: (ae-unresolved-link) The @link reference could not be resolved: The package "fluid-framework" does not have an export "createServiceAudience"
@@ -738,7 +1008,6 @@ export type SerializedIntervalDelta = Omit<ISerializedInterval, "start" | "end" 
 export abstract class ServiceAudience<M extends IMember = IMember> extends TypedEventEmitter<IServiceAudienceEvents<M>> implements IServiceAudience<M> {
     constructor(
     container: IContainer);
-    // Warning: (ae-forgotten-export) The symbol "IAudience" needs to be exported by the entry point index.d.ts
     protected readonly audience: IAudience;
     protected readonly container: IContainer;
     protected abstract createServiceMember(audienceMember: IClient): M;
@@ -1010,6 +1279,14 @@ export class SharedStringFactory implements IChannelFactory {
 
 // @internal (undocumented)
 export type SharedStringSegment = TextSegment | Marker;
+
+// @internal
+export enum Side {
+    // (undocumented)
+    After = 1,
+    // (undocumented)
+    Before = 0
+}
 
 // @internal @deprecated (undocumented)
 export class SubSequence<T> extends BaseSegment {

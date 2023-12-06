@@ -11,9 +11,33 @@
  * @packageDocumentation
  */
 
-export type { ICriticalContainerError } from "@fluidframework/container-definitions";
+export type {
+	ContainerWarning,
+	IAudience,
+	IConnectionDetails,
+	IContainer,
+	IContainerEvents,
+	ICriticalContainerError,
+	IDeltaManager,
+	IDeltaManagerEvents,
+	IDeltaSender,
+	IDeltaQueue,
+	IDeltaQueueEvents,
+	IFluidCodeDetails,
+	IFluidCodeDetailsConfig,
+	IFluidPackage,
+	IFluidPackageEnvironment,
+	ConnectionState as ConnectionStateType, // TODO
+	ReadOnlyInfo,
+} from "@fluidframework/container-definitions";
 export { AttachState, ContainerErrorType } from "@fluidframework/container-definitions";
-export { DriverErrorType, DriverErrorTypes } from "@fluidframework/driver-definitions";
+export {
+	DriverErrorType,
+	DriverErrorTypes,
+	type IAnyDriverError,
+	type IDriverErrorBase,
+	type IResolvedUrl,
+} from "@fluidframework/driver-definitions";
 export { ConnectionState } from "@fluidframework/container-loader";
 export type {
 	ContainerSchema,
@@ -22,6 +46,8 @@ export type {
 	IFluidContainer,
 	IFluidContainerEvents,
 	IMember,
+	InitialObjects,
+	IProvideRootDataObject,
 	IRootDataObject,
 	IServiceAudience,
 	IServiceAudienceEvents,
@@ -30,6 +56,7 @@ export type {
 	LoadableObjectCtor,
 	LoadableObjectRecord,
 	MemberChangedListener,
+	Myself,
 	SharedObjectClass,
 } from "@fluidframework/fluid-static";
 export {
@@ -38,6 +65,7 @@ export {
 	ServiceAudience,
 } from "@fluidframework/fluid-static";
 export type {
+	ICreateInfo,
 	IDirectory,
 	IDirectoryClearOperation,
 	IDirectoryCreateSubDirectoryOperation,
@@ -76,7 +104,10 @@ export type {
 	IJSONRunSegment,
 	IMapMessageLocalMetadata,
 	IIntervalCollection,
+	InteriorSequencePlace,
+	IntervalIndex,
 	IntervalLocator,
+	IntervalOpType,
 	ISequenceDeltaRange,
 	ISerializableInterval,
 	ISerializedInterval,
@@ -84,6 +115,7 @@ export type {
 	ISharedSegmentSequenceEvents,
 	ISharedString,
 	IValueOpEmitter,
+	SequencePlace,
 	SerializedIntervalDelta,
 	SharedStringSegment,
 } from "@fluidframework/sequence";
@@ -91,6 +123,7 @@ export {
 	getTextAndMarkers,
 	Interval,
 	intervalLocatorFromEndpoint,
+	IntervalStickiness,
 	IntervalType,
 	SequenceDeltaEvent,
 	SequenceEvent,
@@ -102,5 +135,6 @@ export {
 	SharedSequence,
 	SharedString,
 	SharedStringFactory,
+	Side,
 	SubSequence,
 } from "@fluidframework/sequence";
