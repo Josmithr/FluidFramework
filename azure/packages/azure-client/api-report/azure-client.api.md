@@ -19,7 +19,7 @@ export class AzureAudience extends ServiceAudience<AzureMember> implements IAzur
     protected createServiceMember(audienceMember: IClient): AzureMember;
 }
 
-// @internal
+// @alpha
 export class AzureClient {
     constructor(properties: AzureClientProps);
     copyContainer<TContainerSchema extends ContainerSchema>(id: string, containerSchema: TContainerSchema, version?: AzureContainerVersion): Promise<{
@@ -38,7 +38,7 @@ export class AzureClient {
     getContainerVersions(id: string, options?: AzureGetVersionsOptions): Promise<AzureContainerVersion[]>;
 }
 
-// @internal
+// @alpha
 export interface AzureClientProps {
     // Warning: (ae-forgotten-export) The symbol "IConfigProviderBase" needs to be exported by the entry point index.d.ts
     readonly configProvider?: IConfigProviderBase;
@@ -50,22 +50,22 @@ export interface AzureClientProps {
     readonly summaryCompression?: boolean | ICompressionStorageConfig;
 }
 
-// @internal
+// @alpha
 export interface AzureConnectionConfig {
     endpoint: string;
     tokenProvider: ITokenProvider;
     type: AzureConnectionConfigType;
 }
 
-// @internal
+// @alpha
 export type AzureConnectionConfigType = "local" | "remote";
 
-// @internal
+// @alpha
 export interface AzureContainerServices {
     audience: IAzureAudience;
 }
 
-// @internal
+// @alpha
 export interface AzureContainerVersion {
     date?: string;
     id: string;
@@ -80,25 +80,25 @@ export class AzureFunctionTokenProvider implements ITokenProvider {
     fetchStorageToken(tenantId: string, documentId: string): Promise<ITokenResponse>;
 }
 
-// @internal
+// @alpha
 export interface AzureGetVersionsOptions {
     maxCount: number;
 }
 
-// @internal
+// @alpha
 export interface AzureLocalConnectionConfig extends AzureConnectionConfig {
     type: "local";
 }
 
 // Warning: (ae-forgotten-export) The symbol "IMember" needs to be exported by the entry point index.d.ts
 //
-// @internal
+// @alpha
 export interface AzureMember<T = any> extends IMember {
     additionalDetails?: T;
     userName: string;
 }
 
-// @internal
+// @alpha
 export interface AzureRemoteConnectionConfig extends AzureConnectionConfig {
     tenantId: string;
     type: "remote";
@@ -112,7 +112,7 @@ export interface AzureUser<T = any> extends IUser {
 
 // Warning: (ae-forgotten-export) The symbol "IServiceAudience" needs to be exported by the entry point index.d.ts
 //
-// @internal
+// @alpha
 export type IAzureAudience = IServiceAudience<AzureMember>;
 
 // Warning: (ae-forgotten-export) The symbol "ITelemetryBaseProperties" needs to be exported by the entry point index.d.ts
@@ -149,14 +149,14 @@ export interface ITokenClaims {
     ver: string;
 }
 
-// @internal
+// @alpha
 export interface ITokenProvider {
     documentPostCreateCallback?(documentId: string, creationToken: string): Promise<void>;
     fetchOrdererToken(tenantId: string, documentId?: string, refresh?: boolean): Promise<ITokenResponse>;
     fetchStorageToken(tenantId: string, documentId: string, refresh?: boolean): Promise<ITokenResponse>;
 }
 
-// @internal (undocumented)
+// @alpha (undocumented)
 export interface ITokenResponse {
     fromCache?: boolean;
     jwt: string;
