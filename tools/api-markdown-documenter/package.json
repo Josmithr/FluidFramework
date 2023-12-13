@@ -13,7 +13,7 @@
 	"sideEffects": false,
 	"main": "dist/index.cjs",
 	"module": "lib/index.mjs",
-	"types": "dist/index.d.ts",
+	"types": "dist/api-markdown-documenter-public.d.ts",
 	"exports": {
 		".": {
 			"import": {
