@@ -37,44 +37,70 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            0,
-                            {
-                              "type": "Node",
-                              "fields": {
-                                "foo": [
-                                  {
-                                    "type": "Node",
-                                    "value": "a"
-                                  },
-                                  {
-                                    "type": "Node",
-                                    "value": "b"
-                                  },
-                                  {
-                                    "type": "Node",
-                                    "value": "c"
-                                  }
-                                ],
-                                "bar": [
-                                  {
-                                    "type": "Node",
-                                    "value": "d"
-                                  },
-                                  {
-                                    "type": "Node",
-                                    "value": "e"
-                                  },
-                                  {
-                                    "type": "Node",
-                                    "value": "f"
-                                  }
-                                ]
+                        "builds": {
+                          "builds": [
+                            [
+                              0,
+                              0
+                            ]
+                          ],
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
                               }
-                            }
-                          ]
-                        ]
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "Node",
+                                  false,
+                                  [
+                                    "foo",
+                                    [
+                                      "Node",
+                                      true,
+                                      "a",
+                                      [],
+                                      "Node",
+                                      true,
+                                      "b",
+                                      [],
+                                      "Node",
+                                      true,
+                                      "c",
+                                      []
+                                    ],
+                                    "bar",
+                                    [
+                                      "Node",
+                                      true,
+                                      "d",
+                                      [],
+                                      "Node",
+                                      true,
+                                      "e",
+                                      [],
+                                      "Node",
+                                      true,
+                                      "f",
+                                      []
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000004",
                       "sequenceNumber": 1,
@@ -203,66 +229,66 @@
               "ForestTree": {
                 "type": "blob",
                 "content": {
-                  "version": 1,
-                  "data": [
-                    [
-                      "rootFieldKey",
+                  "keys": [
+                    "rootFieldKey"
+                  ],
+                  "fields": {
+                    "version": 1,
+                    "identifiers": [],
+                    "shapes": [
                       {
-                        "version": 1,
-                        "identifiers": [],
-                        "shapes": [
-                          {
-                            "c": {
-                              "extraFields": 1,
-                              "fields": []
-                            }
-                          },
-                          {
-                            "a": 0
-                          }
-                        ],
-                        "data": [
-                          1,
+                        "c": {
+                          "extraFields": 1,
+                          "fields": []
+                        }
+                      },
+                      {
+                        "a": 0
+                      }
+                    ],
+                    "data": [
+                      [
+                        1,
+                        [
+                          "Node",
+                          false,
                           [
-                            "Node",
-                            false,
+                            "foo",
                             [
-                              "foo",
-                              [
-                                "Node",
-                                true,
-                                "a",
-                                []
-                              ],
-                              "bar",
-                              [
-                                "Node",
-                                true,
-                                "d",
-                                [],
-                                "Node",
-                                true,
-                                "b",
-                                [],
-                                "Node",
-                                true,
-                                "c",
-                                [],
-                                "Node",
-                                true,
-                                "e",
-                                [],
-                                "Node",
-                                true,
-                                "f",
-                                []
-                              ]
+                              "Node",
+                              true,
+                              "a",
+                              []
+                            ],
+                            "bar",
+                            [
+                              "Node",
+                              true,
+                              "d",
+                              [],
+                              "Node",
+                              true,
+                              "b",
+                              [],
+                              "Node",
+                              true,
+                              "c",
+                              [],
+                              "Node",
+                              true,
+                              "e",
+                              [],
+                              "Node",
+                              true,
+                              "f",
+                              []
                             ]
                           ]
                         ]
-                      }
+                      ]
                     ]
-                  ]
+                  },
+                  "version": 1
                 },
                 "encoding": "utf-8"
               }

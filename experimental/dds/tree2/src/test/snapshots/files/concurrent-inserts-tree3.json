@@ -37,15 +37,40 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            0,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "y"
-                            }
-                          ]
-                        ]
+                        "builds": {
+                          "builds": [
+                            [
+                              0,
+                              0
+                            ]
+                          ],
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "y",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000002",
                       "sequenceNumber": -9007199254740990,
@@ -73,15 +98,40 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            1,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "x"
-                            }
-                          ]
-                        ]
+                        "builds": {
+                          "builds": [
+                            [
+                              1,
+                              0
+                            ]
+                          ],
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "x",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000003",
                       "sequenceNumber": -9007199254740989,
@@ -112,22 +162,53 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            0,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "a"
-                            }
+                        "builds": {
+                          "builds": [
+                            [
+                              0,
+                              0
+                            ],
+                            [
+                              1,
+                              1
+                            ]
                           ],
-                          [
-                            1,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "c"
-                            }
-                          ]
-                        ]
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "a",
+                                  []
+                                ]
+                              ],
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "c",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000004",
                       "sequenceNumber": -9007199254740988,
@@ -158,15 +239,40 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            2,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "b"
-                            }
-                          ]
-                        ]
+                        "builds": {
+                          "builds": [
+                            [
+                              2,
+                              0
+                            ]
+                          ],
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "b",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000005",
                       "sequenceNumber": -9007199254740987,
@@ -194,15 +300,40 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            2,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "z"
-                            }
-                          ]
-                        ]
+                        "builds": {
+                          "builds": [
+                            [
+                              2,
+                              0
+                            ]
+                          ],
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "z",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000008",
                       "sequenceNumber": -9007199254740986,
@@ -233,22 +364,53 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            0,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "d"
-                            }
+                        "builds": {
+                          "builds": [
+                            [
+                              0,
+                              0
+                            ],
+                            [
+                              1,
+                              1
+                            ]
                           ],
-                          [
-                            1,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "e"
-                            }
-                          ]
-                        ]
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "d",
+                                  []
+                                ]
+                              ],
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "e",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-000000000009",
                       "sequenceNumber": -9007199254740985,
@@ -279,15 +441,40 @@
                             ]
                           }
                         ],
-                        "builds": [
-                          [
-                            2,
-                            {
-                              "type": "com.fluidframework.leaf.string",
-                              "value": "f"
-                            }
-                          ]
-                        ]
+                        "builds": {
+                          "builds": [
+                            [
+                              2,
+                              0
+                            ]
+                          ],
+                          "trees": {
+                            "version": 1,
+                            "identifiers": [],
+                            "shapes": [
+                              {
+                                "c": {
+                                  "extraFields": 1,
+                                  "fields": []
+                                }
+                              },
+                              {
+                                "a": 0
+                              }
+                            ],
+                            "data": [
+                              [
+                                1,
+                                [
+                                  "com.fluidframework.leaf.string",
+                                  true,
+                                  "f",
+                                  []
+                                ]
+                              ]
+                            ]
+                          }
+                        }
                       },
                       "revision": "beefbeef-beef-4000-8000-00000000000a",
                       "sequenceNumber": -9007199254740984,
@@ -396,68 +583,68 @@
               "ForestTree": {
                 "type": "blob",
                 "content": {
-                  "version": 1,
-                  "data": [
-                    [
-                      "rootFieldKey",
+                  "keys": [
+                    "rootFieldKey"
+                  ],
+                  "fields": {
+                    "version": 1,
+                    "identifiers": [],
+                    "shapes": [
                       {
-                        "version": 1,
-                        "identifiers": [],
-                        "shapes": [
-                          {
-                            "c": {
-                              "extraFields": 1,
-                              "fields": []
-                            }
-                          },
-                          {
-                            "a": 0
-                          }
-                        ],
-                        "data": [
-                          1,
-                          [
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "z",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "x",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "d",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "f",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "e",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "y",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "a",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "b",
-                            [],
-                            "com.fluidframework.leaf.string",
-                            true,
-                            "c",
-                            []
-                          ]
-                        ]
+                        "c": {
+                          "extraFields": 1,
+                          "fields": []
+                        }
+                      },
+                      {
+                        "a": 0
                       }
+                    ],
+                    "data": [
+                      [
+                        1,
+                        [
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "z",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "x",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "d",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "f",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "e",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "y",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "a",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "b",
+                          [],
+                          "com.fluidframework.leaf.string",
+                          true,
+                          "c",
+                          []
+                        ]
+                      ]
                     ]
-                  ]
+                  },
+                  "version": 1
                 },
                 "encoding": "utf-8"
               }

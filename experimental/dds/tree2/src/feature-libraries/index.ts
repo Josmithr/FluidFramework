@@ -45,13 +45,11 @@ export {
 	typeNameSymbol,
 	valueSymbol,
 	isTreeValue,
-	getPrimaryField,
 	ContextuallyTypedNodeDataObject,
 	ContextuallyTypedNodeData,
 	MarkedArrayLike,
 	isContextuallyTypedNodeDataObject,
 	getFieldKind,
-	getFieldSchema,
 	ArrayLikeMut,
 	cursorFromContextualData,
 	cursorsFromContextualData,
@@ -62,19 +60,18 @@ export {
 	normalizeNewFieldContent,
 	NewFieldContent,
 	getPossibleTypes,
+	getAllowedTypes,
 } from "./contextuallyTyped";
 
 export { allowsValue, assertAllowedValue, isFluidHandle } from "./valueUtilities";
 
 export { FieldGenerator, TreeDataContext } from "./fieldGenerator";
 
-export { ForestSummarizer } from "./forestSummarizer";
+export { ForestSummarizer } from "./forest-summary";
 export { cursorForMapTreeField, cursorForMapTreeNode, mapTreeFromCursor } from "./mapTreeCursor";
 export { MemoizedIdRangeAllocator, IdRange } from "./memoizedIdRangeAllocator";
 export { buildForest } from "./object-forest";
-export { SchemaSummarizer, SchemaEditor, encodeTreeSchema } from "./schemaSummarizer";
-// This is exported because its useful for doing comparisons of schema in tests.
-export { makeSchemaCodec } from "./schemaIndexFormat";
+export { SchemaSummarizer, SchemaEditor, encodeTreeSchema, makeSchemaCodec } from "./schema-index/";
 export {
 	stackTreeNodeCursor,
 	CursorAdapter,
@@ -114,7 +111,6 @@ export {
 	CrossFieldManager,
 	CrossFieldTarget,
 	FieldKind,
-	Multiplicity,
 	FullSchemaPolicy,
 	allowsRepoSuperset,
 	GenericChangeset,
@@ -126,11 +122,13 @@ export {
 	RelevantRemovedRootsFromChild,
 } from "./modular-schema";
 
+export { Multiplicity } from "./multiplicity";
+
 export {
 	TreeNodeSchema,
 	AllowedTypes,
 	TreeFieldSchema,
-	TreeSchema,
+	FlexTreeSchema,
 	Any,
 	SchemaLibraryData,
 	LazyTreeNodeSchema,
@@ -160,6 +158,8 @@ export {
 	NormalizeObjectNodeFields,
 	NormalizeField as NormalizeFieldSchema,
 	Fields,
+	intoStoredSchema,
+	intoStoredSchemaCollection,
 } from "./typed-schema";
 
 export {
@@ -189,10 +189,7 @@ export {
 	buildChunkedForest,
 	defaultChunkPolicy,
 	makeTreeChunker,
-	decode,
-	uncompressedEncode,
-	schemaCompressedEncode,
-	EncodedChunk,
+	makeFieldBatchCodec,
 } from "./chunked-forest";
 
 export {
@@ -223,6 +220,7 @@ export {
 	SequenceFieldEditBuilder,
 	defaultSchemaPolicy,
 	intoDelta,
+	relevantRemovedRoots,
 } from "./default-schema";
 
 export {
