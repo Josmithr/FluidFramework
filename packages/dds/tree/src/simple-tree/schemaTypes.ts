@@ -107,7 +107,7 @@ export interface TreeNodeSchemaClass<
 	 * Therefor overriding this constructor is not type-safe and is not supported.
 	 * @sealed
 	 */
-	new (data: TInsertable): Unhydrated<TNode>;
+	new (data: TInsertable | OpaqueFlexTreeTODO): Unhydrated<TNode>;
 }
 
 /**
@@ -312,7 +312,9 @@ export type NodeFromSchema<T extends TreeNodeSchema> = T extends TreeNodeSchema<
  * @public
  */
 export type InsertableTypedNode<T extends TreeNodeSchema> =
-	| (T extends { implicitlyConstructable: true } ? NodeBuilderData<T> : never)
+	| (T extends { implicitlyConstructable: true }
+			? Exclude<NodeBuilderData<T>, OpaqueFlexTreeTODO>
+			: never)
 	| Unhydrated<NodeFromSchema<T>>;
 
 /**

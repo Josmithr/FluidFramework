@@ -4,7 +4,12 @@
  */
 
 import { assert, unreachableCase } from "@fluidframework/core-utils";
-import { RestrictiveReadonlyRecord, getOrCreate, isReadonlyArray } from "../util/index.js";
+import {
+	RestrictiveReadonlyRecord,
+	getOrCreate,
+	isReadonlyArray,
+	type Erased,
+} from "../util/index.js";
 import {
 	FlexTreeNode,
 	LeafNodeSchema as FlexLeafNodeSchema,
@@ -132,7 +137,11 @@ export type ScopedSchemaName<
 	TScope extends string | undefined,
 	TName extends number | string,
 > = TScope extends undefined ? `${TName}` : `${TScope}.${TName}`;
-// > = `${TScope extends undefined ? "" : `${TScope}.`}${TName}`;
+
+/**
+ * TODO
+ */
+export interface OpaqueFlexTreeTODO extends Erased<"Tree.InternalTreeNode"> {}
 
 // TODO:
 // SchemaFactory.array references should link to the correct overloads, however the syntax for this does not seems to work currently for methods unless the they are not qualified with the class.
@@ -297,7 +306,7 @@ export class SchemaFactory<
 			 * This constructor only does validation of the input, and should be passed the argument from the derived type unchanged.
 			 * It is up to the derived type to actually do something with this value.
 			 */
-			public constructor(input: FlexTreeNode | unknown) {
+			public constructor(input: OpaqueFlexTreeTODO | unknown) {
 				super();
 				// Currently this just does validation. All other logic is in the subclass.
 				if (isFlexTreeNode(input)) {
@@ -332,7 +341,7 @@ export class SchemaFactory<
 		const T extends RestrictiveReadonlyRecord<string, ImplicitFieldSchema>,
 	>(name: Name, t: T) {
 		class schema extends this.nodeSchema(name, NodeKind.Object, t, true) {
-			public constructor(input: InsertableObjectFromSchemaRecord<T>) {
+			public constructor(input: InsertableObjectFromSchemaRecord<T> | OpaqueFlexTreeTODO) {
 				super(input);
 
 				// Differentiate between the following cases:
@@ -377,7 +386,7 @@ export class SchemaFactory<
 				TreeNode &
 				ObjectFromSchemaRecord<T> &
 				WithType<ScopedSchemaName<TScope, Name>>,
-			object & InsertableObjectFromSchemaRecord<T>,
+			object & InsertableObjectFromSchemaRecord<T>, // | OpaqueFlexTreeTODO
 			true,
 			T
 		>;
