@@ -4,7 +4,7 @@
  */
 import { expect } from "chai";
 
-import { BlockQuoteNode, LineBreakNode, PlainTextNode } from "../../../documentation-domain";
+import { BlockQuoteNode, PlainTextNode } from "../../../documentation-domain";
 import { testRender } from "./Utilities";
 
 describe("BlockQuote Markdown rendering tests", () => {
@@ -17,7 +17,7 @@ describe("BlockQuote Markdown rendering tests", () => {
 			const blockQuoteNode = new BlockQuoteNode([
 				new PlainTextNode("Here's a block quote. "),
 				new PlainTextNode("It sure is something!"),
-				new LineBreakNode(),
+				new PlainTextNode("\n"),
 				new PlainTextNode("-BlockQuote"),
 			]);
 			const result = testRender(blockQuoteNode);
@@ -46,7 +46,7 @@ describe("BlockQuote Markdown rendering tests", () => {
 			const blockQuoteNode = new BlockQuoteNode([
 				new PlainTextNode("Here's a block quote. "),
 				new PlainTextNode("It sure is something!"),
-				new LineBreakNode(),
+				new PlainTextNode("\n"),
 				new PlainTextNode("-BlockQuote"),
 			]);
 			const result = testRender(blockQuoteNode, { insideTable: true });

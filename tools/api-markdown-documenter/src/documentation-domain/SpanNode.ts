@@ -10,7 +10,6 @@ import {
 import { DocumentationNodeType } from "./DocumentationNodeType";
 import { PlainTextNode } from "./PlainTextNode";
 import { type TextFormatting } from "./TextFormatting";
-import { createNodesFromPlainText } from "./Utilities";
 
 /**
  * A grouping of text, potentially spanning multiple lines, which may have some {@link TextFormatting}.
@@ -69,7 +68,7 @@ export class SpanNode<
 	 * @param text - The node contents.
 	 */
 	public static createFromPlainText(text: string, formatting?: TextFormatting): SpanNode {
-		return new SpanNode(createNodesFromPlainText(text), formatting);
+		return new SpanNode([new PlainTextNode(text)], formatting);
 	}
 }
 

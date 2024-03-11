@@ -30,7 +30,6 @@ export { DocumentationNodeType } from "./DocumentationNodeType";
 export { FencedCodeBlockNode } from "./FencedCodeBlockNode";
 export { HeadingNode } from "./HeadingNode";
 export { HorizontalRuleNode } from "./HorizontalRuleNode";
-export { LineBreakNode } from "./LineBreakNode";
 export { LinkNode } from "./LinkNode";
 export { OrderedListNode } from "./OrderedListNode";
 export { ParagraphNode } from "./ParagraphNode";

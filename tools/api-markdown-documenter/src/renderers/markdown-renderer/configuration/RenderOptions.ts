@@ -10,7 +10,6 @@ import {
 	type FencedCodeBlockNode,
 	type HeadingNode,
 	type HorizontalRuleNode,
-	type LineBreakNode,
 	type LinkNode,
 	type OrderedListNode,
 	type ParagraphNode,
@@ -31,7 +30,6 @@ import {
 	renderHeading,
 	renderHierarchicalSection,
 	renderHorizontalRule,
-	renderLineBreak,
 	renderLink,
 	renderOrderedList,
 	renderParagraph,
@@ -83,8 +81,6 @@ export const defaultRenderers: Renderers = {
 		renderFencedCodeBlock(node as FencedCodeBlockNode, writer, context),
 	[DocumentationNodeType.Heading]: (node, writer, context): void =>
 		renderHeading(node as HeadingNode, writer, context),
-	[DocumentationNodeType.LineBreak]: (node, writer, context): void =>
-		renderLineBreak(node as LineBreakNode, writer, context),
 	[DocumentationNodeType.Link]: (node, writer, context): void =>
 		renderLink(node as LinkNode, writer, context),
 	[DocumentationNodeType.Section]: (node, writer, context): void =>

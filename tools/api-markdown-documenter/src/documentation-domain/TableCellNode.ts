@@ -4,7 +4,7 @@
  */
 import { type DocumentationNode, DocumentationParentNodeBase } from "./DocumentationNode";
 import { DocumentationNodeType } from "./DocumentationNodeType";
-import { createNodesFromPlainText } from "./Utilities";
+import { PlainTextNode } from "./PlainTextNode";
 
 /**
  * Kind of Table Cell.
@@ -89,7 +89,7 @@ export class TableHeaderCellNode extends TableCellNode {
 	public static createFromPlainText(text: string): TableHeaderCellNode {
 		return text.length === 0
 			? TableHeaderCellNode.Empty
-			: new TableHeaderCellNode(createNodesFromPlainText(text));
+			: new TableHeaderCellNode([new PlainTextNode(text)]);
 	}
 }
 
@@ -115,6 +115,6 @@ export class TableBodyCellNode extends TableCellNode {
 	public static createFromPlainText(text: string): TableBodyCellNode {
 		return text.length === 0
 			? TableBodyCellNode.Empty
-			: new TableBodyCellNode(createNodesFromPlainText(text));
+			: new TableBodyCellNode([new PlainTextNode(text)]);
 	}
 }

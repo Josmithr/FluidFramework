@@ -62,4 +62,13 @@ export class PlainTextNode
 
 		this.escaped = escaped ?? false;
 	}
+
+	/**
+	 * Trims leading and trailing whitespace from the text.
+	 *
+	 * @see {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trim}
+	 */
+	public trim(): PlainTextNode {
+		return new PlainTextNode(this.value.trim());
+	}
 }

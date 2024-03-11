@@ -24,7 +24,6 @@ import {
 	type DocumentationNode,
 	DocumentationNodeType,
 	FencedCodeBlockNode,
-	LineBreakNode,
 	LinkNode,
 	ParagraphNode,
 	PlainTextNode,
@@ -93,6 +92,8 @@ export interface TsdocNodeTransformOptions extends ConfigurationBase {
  *
  * @returns The transformed `DocNode`, if it was of a kind we support.
  * Else, an error will be logged, and `undefined` will be returned.
+ *
+ * @privateRemarks TODO: this should just throw on unsupported input, rather than returning `undefined`.
  */
 export function _transformTsdocNode(
 	node: DocNode,
@@ -127,7 +128,8 @@ export function _transformTsdocNode(
 			return transformTsdocSection(node as DocSection, options);
 		}
 		case DocNodeKind.SoftBreak: {
-			return LineBreakNode.Singleton;
+			// TODO: this doesn't seem right. Soft-break should result in nothing in the output.
+			return new PlainTextNode("\n");
 		}
 		default: {
 			options.logger?.error(`Unsupported DocNode kind: "${node.kind}".`, node);
@@ -321,41 +323,13 @@ function transformChildren(
 		(child) => child !== undefined,
 	) as DocumentationNode[];
 
-	// Collapse groups of adjacent line breaks to reduce unnecessary clutter in the output.
-	filteredChildren = collapseAdjacentLineBreaks(filteredChildren);
+	// // Collapse groups of adjacent line breaks to reduce unnecessary clutter in the output.
+	// filteredChildren = collapseAdjacentLineBreaks(filteredChildren);
 
-	// Remove line breaks adjacent to paragraphs, as they are redundant
-	filteredChildren = filterNewlinesAdjacentToParagraphs(filteredChildren);
+	// // Remove line breaks adjacent to paragraphs, as they are redundant
+	// filteredChildren = filterNewlinesAdjacentToParagraphs(filteredChildren);
 
 	return filteredChildren;
-}
-
-/**
- * Collapses adjacent groups of 1+ line break nodes into a single line break node to reduce clutter
- * in output tree.
- */
-function collapseAdjacentLineBreaks(nodes: readonly DocumentationNode[]): DocumentationNode[] {
-	if (nodes.length === 0) {
-		return [];
-	}
-
-	const result: DocumentationNode[] = [];
-	let onNewline = false;
-	for (const node of nodes) {
-		if (node.type === DocumentationNodeType.LineBreak) {
-			if (onNewline) {
-				continue;
-			} else {
-				onNewline = true;
-				result.push(node);
-			}
-		} else {
-			onNewline = false;
-			result.push(node);
-		}
-	}
-
-	return result;
 }
 
 /**

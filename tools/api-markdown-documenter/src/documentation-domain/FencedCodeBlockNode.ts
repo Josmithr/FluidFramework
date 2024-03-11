@@ -8,7 +8,7 @@ import {
 	type MultiLineDocumentationNode,
 } from "./DocumentationNode";
 import { DocumentationNodeType } from "./DocumentationNodeType";
-import { createNodesFromPlainText } from "./Utilities";
+import { PlainTextNode } from "./PlainTextNode";
 
 /**
  * A fenced code block, with an optional associated code language.
@@ -63,6 +63,6 @@ export class FencedCodeBlockNode
 	 * @param language - (optional) code language to associated with the code block.
 	 */
 	public static createFromPlainText(text: string, language?: string): FencedCodeBlockNode {
-		return new FencedCodeBlockNode(createNodesFromPlainText(text), language);
+		return new FencedCodeBlockNode([new PlainTextNode(text)], language);
 	}
 }

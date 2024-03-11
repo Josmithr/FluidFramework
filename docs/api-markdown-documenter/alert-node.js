@@ -53,6 +53,7 @@ class AlertNode extends DocumentationParentNodeBase {
 	 * @param {string | undefined} title - (Optional) Title text for the alert.
 	 */
 	static createFromPlainText(text, alertKind, title) {
+		// TODO: Once `api-markdown-documenter` dependency is updated, use `new PlainTextNode(text)` instead of `createNodesFromPlainText(text)`.
 		return new AlertNode(createNodesFromPlainText(text), alertKind, title);
 	}
 }

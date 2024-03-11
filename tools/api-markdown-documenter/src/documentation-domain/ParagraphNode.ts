@@ -8,7 +8,7 @@ import {
 	type MultiLineDocumentationNode,
 } from "./DocumentationNode";
 import { DocumentationNodeType } from "./DocumentationNodeType";
-import { createNodesFromPlainText } from "./Utilities";
+import { PlainTextNode } from "./PlainTextNode";
 
 /**
  * A grouping of text content, potentially spanning multiple lines.
@@ -66,7 +66,7 @@ export class ParagraphNode
 	 * @param text - The node contents.
 	 */
 	public static createFromPlainText(text: string): ParagraphNode {
-		return new ParagraphNode(createNodesFromPlainText(text));
+		return new ParagraphNode([new PlainTextNode(text)]);
 	}
 
 	/**

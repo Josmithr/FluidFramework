@@ -33,7 +33,6 @@ import {
 	type DocumentationParentNode,
 	FencedCodeBlockNode,
 	HeadingNode,
-	LineBreakNode,
 	LinkNode,
 	ParagraphNode,
 	PlainTextNode,
@@ -521,7 +520,7 @@ export function createDeprecationNoticeSection(
 			"WARNING: This API is deprecated and will be removed in a future release.",
 			{ bold: true },
 		),
-		LineBreakNode.Singleton,
+		new PlainTextNode("\n"),
 		new SpanNode([transformTsdocSection(deprecatedBlock, tsdocNodeTransformOptions)], {
 			italic: true,
 		}),
@@ -659,7 +658,7 @@ function createExampleSection(
 	const { logger } = config;
 
 	const tsdocNodeTransformOptions = getTsdocNodeTransformationOptions(example.apiItem, config);
-	let exampleParagraph: DocumentationParentNode = transformTsdocSection(
+	let exampleParagraph: ParagraphNode = transformTsdocSection(
 		example.content,
 		tsdocNodeTransformOptions,
 	);
@@ -787,29 +786,6 @@ function stripTitleFromParagraph(
 
 	if (firstChild.isLiteral) {
 		if (firstChild.type === DocumentationNodeType.PlainText) {
-			const text = (firstChild as PlainTextNode).text;
-			if (text === title) {
-				// Remove from children, and remove any trailing line breaks
-				const newChildren = children.slice(1);
-				while (
-					newChildren.length > 0 &&
-					newChildren[0].type === DocumentationNodeType.LineBreak
-				) {
-					newChildren.shift();
-				}
-				return {
-					...node,
-					children: newChildren,
-					hasChildren: newChildren.length > 0,
-				};
-			} else {
-				logger?.error(
-					"Transformed example paragraph does not begin with expected title. This is unexpected and indicates a bug.",
-					`Expected: "${title}".`,
-					`Found: "${text}".`,
-				);
-				return node;
-			}
 		} else {
 			logger?.error(
 				"Transformed example paragraph does not begin with plain text. This is unexpected and indicates a bug.",
@@ -822,6 +798,33 @@ function stripTitleFromParagraph(
 		"Transformed example paragraph begins with a non-literal, non-parent node. This is unexpected and indicates a bug.",
 	);
 	return node;
+}
+
+function stripTitleFromText(
+	node: PlainTextNode,
+	title: string,
+	logger: Logger | undefined,
+): PlainTextNode {
+	const text = node.text;
+	if (text === title) {
+		// Remove from children, and remove any trailing line breaks
+		const newChildren = children.slice(1);
+		while (newChildren.length > 0 && newChildren[0].type === DocumentationNodeType.LineBreak) {
+			newChildren.shift();
+		}
+		return {
+			...node,
+			children: newChildren,
+			hasChildren: newChildren.length > 0,
+		};
+	} else {
+		logger?.error(
+			"Transformed example paragraph does not begin with expected title. This is unexpected and indicates a bug.",
+			`Expected: "${title}".`,
+			`Found: "${text}".`,
+		);
+		return node;
+	}
 }
 
 /**

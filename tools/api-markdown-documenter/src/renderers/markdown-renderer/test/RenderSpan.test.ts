@@ -4,12 +4,7 @@
  */
 import { expect } from "chai";
 
-import {
-	LineBreakNode,
-	PlainTextNode,
-	SpanNode,
-	type TextFormatting,
-} from "../../../documentation-domain";
+import { PlainTextNode, SpanNode, type TextFormatting } from "../../../documentation-domain";
 import { testRender } from "./Utilities";
 
 describe("Span Markdown rendering tests", () => {
@@ -32,13 +27,13 @@ describe("Span Markdown rendering tests", () => {
 				bold: true,
 				italic: true,
 			};
-			const text1 = "This is some text. ";
-			const text2 = "This is more text!";
-			const node1 = new PlainTextNode(text1);
-			const node2 = LineBreakNode.Singleton;
-			const node3 = new PlainTextNode(text2);
-			const span = new SpanNode([node1, node2, node3], formatting);
-			expect(testRender(span)).to.equal(`**_This is some text._** \n\n**_${text2}_**`);
+
+			const plainText = new PlainTextNode(`This is some text. \nThis is more text!`);
+			const span = new SpanNode([plainText], formatting);
+
+			expect(testRender(span)).to.equal(
+				`**_This is some text._** \n**_This is more text!_**`,
+			);
 		});
 	});
 
@@ -62,14 +57,12 @@ describe("Span Markdown rendering tests", () => {
 				bold: true,
 				italic: true,
 			};
-			const text1 = "This is some text. ";
-			const text2 = "This is more text!";
-			const node1 = new PlainTextNode(text1);
-			const node2 = LineBreakNode.Singleton;
-			const node3 = new PlainTextNode(text2);
-			const span = new SpanNode([node1, node2, node3], formatting);
+
+			const plainText = new PlainTextNode(`This is some text. \nThis is more text!`);
+			const span = new SpanNode([plainText], formatting);
+
 			expect(testRender(span, { insideTable: true })).to.equal(
-				`<span><b><i>This is some text.</i></b> <br><b><i>${text2}</i></b></span>`,
+				`<span><b><i>This is some text.</i></b> <br><b><i>This is more text!</i></b></span>`,
 			);
 		});
 	});

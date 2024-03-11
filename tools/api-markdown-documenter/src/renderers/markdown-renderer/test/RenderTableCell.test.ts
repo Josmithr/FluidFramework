@@ -5,7 +5,6 @@
 import { expect } from "chai";
 
 import {
-	LineBreakNode,
 	ParagraphNode,
 	PlainTextNode,
 	SpanNode,
@@ -34,8 +33,7 @@ describe("Table Markdown rendering tests", () => {
 		it("Cell with complex, multi-line content", () => {
 			const input = new TableBodyCellNode([
 				new ParagraphNode([
-					new PlainTextNode("Hello world!"),
-					LineBreakNode.Singleton,
+					new PlainTextNode("Hello world!\n"),
 					new ParagraphNode([
 						SpanNode.createFromPlainText("Meaning of life", { bold: true }),
 						new PlainTextNode(": "),

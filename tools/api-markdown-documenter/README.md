@@ -183,7 +183,7 @@ Use at your own risk.
 
 ### Known Bugs
 
--   Types that extend or implement types with generic parameters result in signatures rendered with missing closing `>`s.
+-   Existing `DocumentationNode` implementations lie about being Unist compliant. Any auxiliary data used by a given node needs to be captured in the `data` property of the base interfaces.
 
 ### Documentation Improvements
 

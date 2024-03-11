@@ -8,7 +8,7 @@ import {
 	type MultiLineDocumentationNode,
 } from "./DocumentationNode";
 import { DocumentationNodeType } from "./DocumentationNodeType";
-import { createNodesFromPlainText } from "./Utilities";
+import { PlainTextNode } from "./PlainTextNode";
 
 /**
  * A quotation block.
@@ -63,6 +63,6 @@ export class BlockQuoteNode
 	 * @param text - The node contents.
 	 */
 	public static createFromPlainText(text: string): BlockQuoteNode {
-		return new BlockQuoteNode(createNodesFromPlainText(text));
+		return new BlockQuoteNode([new PlainTextNode(text)]);
 	}
 }

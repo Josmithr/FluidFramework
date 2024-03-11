@@ -11,6 +11,8 @@ import type { RenderContext } from "../RenderContext";
  * {@link https://github.com/microsoft/rushstack/blob/main/apps/api-documenter/src/markdown/MarkdownEmitter.ts}
  */
 
+// TODO: handle line breaks
+
 /**
  * Renders a {@link PlainTextNode} as HTML.
  *
