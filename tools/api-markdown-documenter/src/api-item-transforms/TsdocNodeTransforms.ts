@@ -38,6 +38,10 @@ import { type ApiItemTransformationConfiguration } from "./configuration";
 /**
  * Library of transformations from {@link https://github.com/microsoft/tsdoc/blob/main/tsdoc/src/nodes/DocNode.ts| DocNode}s
  * to {@link DocumentationNode}s.
+ *
+ * TODOs:
+ * * Move all "clean up" modifications to a subsequent transformation step on the raw transformation
+ * output, rather than injecting it into the main transformation step.
  */
 
 /**
@@ -81,6 +85,11 @@ export interface TsdocNodeTransformOptions extends ConfigurationBase {
 	 * @returns The appropriate URL target if the reference can be resolved. Otherwise, `undefined`.
 	 */
 	readonly resolveApiReference: (codeDestination: DocDeclarationReference) => Link | undefined;
+
+	/**
+	 * Determines whether or not plain text of TSDoc comments should be parsed as Markdown.
+	 */
+	readonly parseTextAsMarkdown: boolean;
 }
 
 /**
@@ -195,6 +204,8 @@ export function transformTsdocEscapedText(
 
 /**
  * Converts a {@link @microsoft/tsdoc#DocHtmlStartTag} | {@link @microsoft/tsdoc#DocHtmlEndTag} to a {@link PlainTextNode}.
+ *
+ * @privateRemarks TODO: Output {@link https://github.com/syntax-tree/hast | HTML AST node} instead, and rely on "renderers" to handle accordingly.
  */
 export function transformTsdocHtmlTag(
 	node: DocHtmlStartTag | DocHtmlEndTag,
@@ -290,7 +301,7 @@ function createParagraph(
 		}
 	}
 
-	// To reduce unecessary hierarchy, if the only child of this paragraph is a single paragraph,
+	// To reduce unnecessary hierarchy, if the only child of this paragraph is a single paragraph,
 	// return it, rather than wrapping it.
 	if (
 		transformedChildren.length === 1 &&

@@ -40,6 +40,12 @@ export interface ApiItemTransformationConfiguration
 	 * Default root URI used when generating content links.
 	 */
 	readonly uriRoot: string;
+
+	/**
+	 * Determines whether or not plain text of TSDoc comments should be parsed as Markdown.
+	 * @defaultValue `false`
+	 */
+	readonly parseTextAsMarkdown?: boolean;
 }
 
 /**
@@ -59,6 +65,7 @@ export function getApiItemTransformationConfigurationWithDefaults(
 		...transformationOptions,
 		apiModel: inputOptions.apiModel,
 		uriRoot: inputOptions.uriRoot,
+		parseTextAsMarkdown: inputOptions.parseTextAsMarkdown ?? false,
 		logger,
 	};
 }

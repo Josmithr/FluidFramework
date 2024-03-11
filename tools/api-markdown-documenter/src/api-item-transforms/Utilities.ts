@@ -62,6 +62,7 @@ export function getTsdocNodeTransformationOptions(
 		contextApiItem,
 		resolveApiReference: (codeDestination): Link | undefined =>
 			resolveSymbolicLink(contextApiItem, codeDestination, config),
+		parseTextAsMarkdown: config.parseTextAsMarkdown,
 		logger: config.logger,
 	};
 }
