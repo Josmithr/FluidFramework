@@ -32,6 +32,7 @@ import { NewlineKind } from '@rushstack/node-core-library';
 import type { Node as Node_2 } from 'unist';
 import type { Parent } from 'unist';
 import { ReleaseTag } from '@microsoft/api-extractor-model';
+import type { Root } from 'mdast';
 import { TypeParameter } from '@microsoft/api-extractor-model';
 
 // @public
@@ -44,6 +45,7 @@ export { ApiItemKind }
 // @public
 export interface ApiItemTransformationConfiguration extends ApiItemTransformationOptions, DocumentationSuiteOptions, ConfigurationBase {
     apiModel: ApiModel;
+    readonly parseTextAsMarkdown?: boolean;
     readonly uriRoot: string;
 }
 
@@ -221,6 +223,7 @@ export enum DocumentationNodeType {
     HorizontalRule = "HorizontalRule",
     LineBreak = "LineBreak",
     Link = "Link",
+    Markdown = "Markdown",
     OrderedList = "OrderedList",
     Paragraph = "Paragraph",
     PlainText = "PlainText",
@@ -495,6 +498,13 @@ export interface Logger {
 
 // @public
 export type LoggingFunction = (message: string | Error, ...parameters: unknown[]) => void;
+
+// @public
+export class MarkdownNode extends DocumentationLiteralNodeBase<Root> implements DocumentationNode {
+    constructor(rawMarkdown: string);
+    readonly singleLine: boolean;
+    readonly type = DocumentationNodeType.Markdown;
+}
 
 // @public
 export interface MarkdownRenderConfiguration extends ConfigurationBase {

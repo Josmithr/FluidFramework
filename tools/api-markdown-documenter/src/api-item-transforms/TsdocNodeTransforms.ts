@@ -26,6 +26,7 @@ import {
 	FencedCodeBlockNode,
 	LineBreakNode,
 	LinkNode,
+	MarkdownNode,
 	ParagraphNode,
 	PlainTextNode,
 	type SingleLineDocumentationNode,
@@ -188,8 +189,8 @@ export function transformTsdocSection(
 export function transformTsdocPlainText(
 	node: DocPlainText,
 	options: TsdocNodeTransformOptions,
-): PlainTextNode {
-	return new PlainTextNode(node.text);
+): PlainTextNode | MarkdownNode {
+	return options.parseTextAsMarkdown ? new MarkdownNode(node.text) : new PlainTextNode(node.text);
 }
 
 /**

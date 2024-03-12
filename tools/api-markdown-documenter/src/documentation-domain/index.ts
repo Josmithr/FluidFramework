@@ -32,6 +32,7 @@ export { HeadingNode } from "./HeadingNode";
 export { HorizontalRuleNode } from "./HorizontalRuleNode";
 export { LineBreakNode } from "./LineBreakNode";
 export { LinkNode } from "./LinkNode";
+export { MarkdownNode } from "./MarkdownNode";
 export { OrderedListNode } from "./OrderedListNode";
 export { ParagraphNode } from "./ParagraphNode";
 export { PlainTextNode } from "./PlainTextNode";

@@ -53,6 +53,11 @@ export enum DocumentationNodeType {
 	HorizontalRule = "HorizontalRule",
 
 	/**
+	 * See {@link MarkdownNode}
+	 */
+	Markdown = "Markdown",
+
+	/**
 	 * See {@link OrderedListNode}
 	 */
 	OrderedList = "OrderedList",
