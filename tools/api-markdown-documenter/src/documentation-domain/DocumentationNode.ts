@@ -2,12 +2,7 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-import type {
-	Data as UnistData,
-	Literal as UnistLiteral,
-	Node as UnistNode,
-	Parent as UnistParent,
-} from "unist";
+import type { Literal as UnistLiteral, Node as UnistNode, Parent as UnistParent } from "unist";
 
 /**
  * Base type for documentation nodes.
@@ -17,7 +12,7 @@ import type {
  *
  * @public
  */
-export interface DocumentationNode<TData extends object = UnistData> extends UnistNode<TData> {
+export interface DocumentationNode<TData extends object = object> extends UnistNode<TData> {
 	/**
 	 * The type of Documentation domain node.
 	 *
@@ -60,7 +55,7 @@ export interface DocumentationNode<TData extends object = UnistData> extends Uni
  *
  * @public
  */
-export interface SingleLineDocumentationNode<TData extends object = UnistData>
+export interface SingleLineDocumentationNode<TData extends object = object>
 	extends DocumentationNode<TData> {
 	/**
 	 * {@inheritDoc DocumentationNode.singleLine}
@@ -73,7 +68,7 @@ export interface SingleLineDocumentationNode<TData extends object = UnistData>
  *
  * @public
  */
-export interface MultiLineDocumentationNode<TData extends object = UnistData>
+export interface MultiLineDocumentationNode<TData extends object = object>
 	extends DocumentationNode<TData> {
 	/**
 	 * {@inheritDoc DocumentationNode.singleLine}
@@ -90,8 +85,9 @@ export interface MultiLineDocumentationNode<TData extends object = UnistData>
  */
 export interface DocumentationParentNode<
 	TDocumentationNode extends DocumentationNode = DocumentationNode,
-> extends UnistParent<TDocumentationNode, UnistData>,
-		DocumentationNode {
+	TData extends object = object,
+> extends UnistParent<TDocumentationNode, TData>,
+		DocumentationNode<TData> {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
 	 */
@@ -127,9 +123,9 @@ export interface DocumentationParentNode<
  *
  * @public
  */
-export interface DocumentationLiteralNode<TValue = unknown>
-	extends UnistLiteral<TValue>,
-		DocumentationNode {
+export interface DocumentationLiteralNode<TValue = unknown, TData extends object = object>
+	extends UnistLiteral<TValue, TData>,
+		DocumentationNode<TData> {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
 	 */
@@ -160,7 +156,8 @@ export interface DocumentationLiteralNode<TValue = unknown>
  */
 export abstract class DocumentationParentNodeBase<
 	TDocumentationNode extends DocumentationNode = DocumentationNode,
-> implements DocumentationParentNode<TDocumentationNode>
+	TData extends object = object,
+> implements DocumentationParentNode<TDocumentationNode, TData>
 {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
@@ -181,6 +178,11 @@ export abstract class DocumentationParentNodeBase<
 	 * {@inheritDoc DocumentationParentNode.children}
 	 */
 	public readonly children: TDocumentationNode[];
+
+	/**
+	 * {@inheritDoc DocumentationNode.data}
+	 */
+	public readonly data: TData;
 
 	/**
 	 * {@inheritDoc DocumentationNode.singleLine}
@@ -206,8 +208,9 @@ export abstract class DocumentationParentNodeBase<
 		return true;
 	}
 
-	protected constructor(children: TDocumentationNode[]) {
+	protected constructor(children: TDocumentationNode[], data: TData) {
 		this.children = children;
+		this.data = data;
 	}
 
 	/**
@@ -223,8 +226,8 @@ export abstract class DocumentationParentNodeBase<
  *
  * @public
  */
-export abstract class DocumentationLiteralNodeBase<TValue = unknown>
-	implements DocumentationLiteralNode<TValue>
+export abstract class DocumentationLiteralNodeBase<TValue = unknown, TData extends object = object>
+	implements DocumentationLiteralNode<TValue, TData>
 {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
@@ -247,6 +250,11 @@ export abstract class DocumentationLiteralNodeBase<TValue = unknown>
 	public readonly value: TValue;
 
 	/**
+	 * {@inheritDoc DocumentationNode.data}
+	 */
+	public readonly data: TData;
+
+	/**
 	 * {@inheritDoc DocumentationNode.singleLine}
 	 */
 	public abstract get singleLine(): boolean;
@@ -256,7 +264,8 @@ export abstract class DocumentationLiteralNodeBase<TValue = unknown>
 	 */
 	public abstract get isEmpty(): boolean;
 
-	protected constructor(value: TValue) {
+	protected constructor(value: TValue, data: TData) {
 		this.value = value;
+		this.data = data;
 	}
 }

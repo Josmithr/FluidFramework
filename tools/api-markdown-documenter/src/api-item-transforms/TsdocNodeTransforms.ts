@@ -32,6 +32,7 @@ import {
 	type SingleLineDocumentationNode,
 	SingleLineSpanNode,
 	SpanNode,
+	HtmlNode,
 } from "../documentation-domain/index.js";
 import { type ConfigurationBase } from "../ConfigurationBase.js";
 import { getTsdocNodeTransformationOptions } from "./Utilities.js";
@@ -97,9 +98,17 @@ export interface TsdocNodeTransformOptions extends ConfigurationBase {
  * Else, an error will be logged, and `undefined` will be returned.
  */
 export function _transformTsdocNode(
-	node: DocNode,
+	node: DocNode | HtmlSpan,
 	options: TsdocNodeTransformOptions,
 ): DocumentationNode | undefined {
+	// If the input is an HTML span, handle it separately
+	if (isHtmlSpan(node)) {
+		return new HtmlNode(transformChildren(node.children, options), {
+			tag: node.tag,
+			attributes: node.attributes,
+		});
+	}
+
 	switch (node.kind) {
 		case DocNodeKind.CodeSpan: {
 			return transformTsdocCodeSpan(node as DocCodeSpan, options);
@@ -110,11 +119,14 @@ export function _transformTsdocNode(
 		case DocNodeKind.FencedCode: {
 			return transformTsdocFencedCode(node as DocFencedCode, options);
 		}
-		case DocNodeKind.HtmlStartTag: {
-			return transformTsdocHtmlTag(node as DocHtmlStartTag, options);
+		case DocNodeKind.HtmlAttribute: {
+			throw new Error(
+				"Unexpected HtmlAttribute node. Such nodes are only supported as children of HtmlStartTag and HtmlEndTag nodes.",
+			);
 		}
+		case DocNodeKind.HtmlStartTag:
 		case DocNodeKind.HtmlEndTag: {
-			return transformTsdocHtmlTag(node as DocHtmlEndTag, options);
+			throw new Error("TODO");
 		}
 		case DocNodeKind.InheritDocTag: {
 			options.logger?.error(
@@ -205,16 +217,23 @@ export function transformTsdocEscapedText(
 }
 
 /**
- * Converts a {@link @microsoft/tsdoc#DocHtmlStartTag} | {@link @microsoft/tsdoc#DocHtmlEndTag} to a {@link PlainTextNode}.
+ * TODO
  */
-export function transformTsdocHtmlTag(
-	node: DocHtmlStartTag | DocHtmlEndTag,
+export function transformTsdocHtmlSpan(
+	startTag: DocHtmlStartTag,
+	children: readonly DocNode[],
+	endTag: DocHtmlEndTag | undefined,
 	options: TsdocNodeTransformOptions,
-): PlainTextNode {
-	// TODO: this really isn't right. Mapping this forward as plain text assumes that any output format can support embedded HTML.
-	// That is valid for HTML and Markdown, but not necessarily for other formats.
-	// Instead, we should map embedded HTML content forward in an encapsulated format, and let the renderer decide how to handle it.
-	return new PlainTextNode(node.emitAsHtml(), /* escaped: */ true);
+): HtmlNode {
+	if (endTag !== undefined && startTag.name !== endTag.name) {
+		throw new Error(`Mismatched tags in HTML span: "${startTag.name}" and "${endTag.name}".`);
+	}
+
+	const transformedChildren = transformChildren(children, options);
+	return new HtmlNode(transformedChildren, {
+		tag: startTag.name,
+		attributes: startTag.htmlAttributes.map((attribute) => attribute.value),
+	});
 }
 
 /**
@@ -360,12 +379,15 @@ function transformChildren(
 	children: readonly DocNode[],
 	options: TsdocNodeTransformOptions,
 ): DocumentationNode[] {
-	// TODO: HTML contents come in as a start tag, followed by the content, followed by an end tag, rather than something with hierarchy.
-	// To ensure we map the content correctly, we should scan the child list for matching open/close tags,
-	// and map the subsequence to an "html" node.
+	// HTML contents come in as a start tag, followed by the content, followed by an end tag, rather than something with hierarchy.
+	// To ensure we map the content correctly, we will scan the child list for matching open/close tags,
+	// and map the subsequence to an HtmlNode for the renderer to handle as it sees fit.
+	const childrenWithHtmlSpansExtracted: (DocNode | HtmlSpan)[] = extractHtmlSpans(children);
 
 	// Transform child items into Documentation domain
-	const transformedChildren = children.map((child) => _transformTsdocNode(child, options));
+	const transformedChildren = childrenWithHtmlSpansExtracted.map((child) =>
+		_transformTsdocNode(child, options),
+	);
 
 	// Filter out `undefined` values resulting from transformation errors.
 	let filteredChildren = transformedChildren.filter(
@@ -379,6 +401,85 @@ function transformChildren(
 	filteredChildren = filterNewlinesAdjacentToParagraphs(filteredChildren);
 
 	return filteredChildren;
+}
+
+/**
+ * TODO
+ */
+export interface HtmlSpan {
+	tag: string;
+	attributes: readonly string[];
+	children: DocNode[];
+}
+
+function isHtmlSpan(value: unknown): value is HtmlSpan {
+	if (typeof value !== "object" || value === null) {
+		return false;
+	}
+	const maybeHtmlSpan = value as Partial<HtmlSpan>;
+	return (
+		typeof maybeHtmlSpan.tag === "string" &&
+		Array.isArray(maybeHtmlSpan.attributes) &&
+		Array.isArray(maybeHtmlSpan.children)
+	);
+}
+
+/**
+ * TODO
+ */
+function extractHtmlSpans(nodes: readonly DocNode[]): (DocNode | HtmlSpan)[] {
+	const output: (DocNode | HtmlSpan)[] = [];
+
+	const spanStack: HtmlSpan[] = [];
+	for (const node of nodes) {
+		switch (node.kind) {
+			case DocNodeKind.HtmlStartTag: {
+				const startTagNode = node as DocHtmlStartTag;
+				// If the start tag is self-closing, then it doesn't have any children and we don't need to adjust anything.
+				// Just push it to the output list as is.
+				// Otherwise, start a new span.
+				if (startTagNode.selfClosingTag) {
+					output.push(startTagNode);
+				} else {
+					spanStack.push({
+						tag: startTagNode.name,
+						attributes: startTagNode.htmlAttributes.map((attribute) => attribute.value),
+						children: [],
+					});
+				}
+
+				break;
+			}
+			case DocNodeKind.HtmlEndTag: {
+				if (spanStack.length === 0) {
+					throw new Error("Unexpected end tag encountered while not in an HTML span.");
+				}
+				const endTagNode = node as DocHtmlEndTag;
+				if (spanStack[spanStack.length - 1].tag !== endTagNode.name) {
+					throw new Error(
+						`Mismatched tags in HTML span: "${
+							spanStack[spanStack.length - 1].tag
+						}" and "${endTagNode.name}".`,
+					);
+				}
+
+				// Length checked above
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				output.push(spanStack.pop()!);
+			}
+			default: {
+				// If we are in an HTML span, add the node to the current span's children.
+				// Otherwise, push directly to the output array.
+				if (spanStack.length === 0) {
+					output.push(node);
+				} else {
+					spanStack[spanStack.length - 1].children.push(node);
+				}
+			}
+		}
+	}
+
+	return output;
 }
 
 /**

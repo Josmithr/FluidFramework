@@ -58,7 +58,7 @@ export class UnorderedListNode
 	}
 
 	public constructor(children: SingleLineDocumentationNode[]) {
-		super(children);
+		super(children, {});
 	}
 
 	/**

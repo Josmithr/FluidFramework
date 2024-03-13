@@ -38,6 +38,11 @@ export enum DocumentationNodeType {
 	Heading = "Heading",
 
 	/**
+	 * See {@link HtmlNode}
+	 */
+	Html = "Html",
+
+	/**
 	 * See {@link LineBreakNode}
 	 */
 	LineBreak = "LineBreak",

@@ -28,6 +28,13 @@ export enum TableRowKind {
 }
 
 /**
+ * {@link TableRowNode} {@link DocumentationNode.data}.
+ */
+export interface TableRowProperties {
+	rowKind: TableRowKind;
+}
+
+/**
  * A row in a table.
  *
  * @example Markdown
@@ -54,7 +61,10 @@ export enum TableRowKind {
  *
  * @public
  */
-export abstract class TableRowNode extends DocumentationParentNodeBase<TableCellNode> {
+export abstract class TableRowNode extends DocumentationParentNodeBase<
+	TableCellNode,
+	TableRowProperties
+> {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
 	 */
@@ -63,11 +73,12 @@ export abstract class TableRowNode extends DocumentationParentNodeBase<TableCell
 	/**
 	 * The kind of row this node represents.
 	 */
-	public readonly rowKind: TableRowKind;
+	public get rowKind(): TableRowKind {
+		return this.data.rowKind;
+	}
 
-	protected constructor(cells: TableCellNode[], rowKind: TableRowKind) {
-		super(cells);
-		this.rowKind = rowKind;
+	protected constructor(cells: TableCellNode[], data: TableRowProperties) {
+		super(cells, data);
 	}
 }
 
@@ -83,7 +94,7 @@ export class TableHeaderRowNode extends TableRowNode {
 	public static readonly Empty = new TableHeaderRowNode([]);
 
 	public constructor(cells: TableHeaderCellNode[]) {
-		super(cells, TableRowKind.Header);
+		super(cells, { rowKind: TableRowKind.Header });
 	}
 }
 
@@ -99,6 +110,6 @@ export class TableBodyRowNode extends TableRowNode {
 	public static readonly Empty = new TableBodyRowNode([]);
 
 	public constructor(cells: TableCellNode[]) {
-		super(cells, TableRowKind.Body);
+		super(cells, { rowKind: TableRowKind.Body });
 	}
 }
