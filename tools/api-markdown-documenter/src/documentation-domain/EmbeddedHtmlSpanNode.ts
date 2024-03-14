@@ -29,7 +29,7 @@ export interface EmbeddedHtmlSpanProperties {
 }
 
 /**
- * TODO
+ * TODO (including context, body format (non-raw-HTML children), and why this isn't the best long-term solution).
  *
  * @public
  */
