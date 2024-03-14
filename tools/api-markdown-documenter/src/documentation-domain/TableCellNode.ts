@@ -6,6 +6,8 @@ import { type DocumentationNode, DocumentationParentNodeBase } from "./Documenta
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 import { createNodesFromPlainText } from "./Utilities.js";
 
+// TODO: use TData
+
 /**
  * Kind of Table Cell.
  *
@@ -62,7 +64,7 @@ export abstract class TableCellNode extends DocumentationParentNodeBase {
 	public readonly cellKind: TableCellKind;
 
 	protected constructor(children: DocumentationNode[], cellKind: TableCellKind) {
-		super(children);
+		super(children, {});
 		this.cellKind = cellKind;
 	}
 }

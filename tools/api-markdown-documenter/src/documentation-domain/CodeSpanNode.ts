@@ -48,7 +48,7 @@ export class CodeSpanNode
 	}
 
 	public constructor(children: SingleLineDocumentationNode[]) {
-		super(children);
+		super(children, {});
 	}
 
 	/**

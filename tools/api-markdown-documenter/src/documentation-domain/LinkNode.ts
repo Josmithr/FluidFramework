@@ -10,6 +10,8 @@ import {
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 import { PlainTextNode } from "./PlainTextNode.js";
 
+// TODO: use TData
+
 /**
  * A hyperlink to some other content.
  *
@@ -49,7 +51,7 @@ export class LinkNode
 	}
 
 	public constructor(content: SingleLineDocumentationNode[], target: UrlTarget) {
-		super(content);
+		super(content, {});
 		this.target = target;
 	}
 

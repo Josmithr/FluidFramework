@@ -24,7 +24,6 @@ import { ApiPackage } from '@microsoft/api-extractor-model';
 import { ApiPropertyItem } from '@microsoft/api-extractor-model';
 import { ApiTypeAlias } from '@microsoft/api-extractor-model';
 import { ApiVariable } from '@microsoft/api-extractor-model';
-import type { Data } from 'unist';
 import { DocNode } from '@microsoft/tsdoc';
 import { DocSection } from '@microsoft/tsdoc';
 import type { Literal } from 'unist';
@@ -186,7 +185,8 @@ export namespace DefaultDocumentationSuiteOptions {
 }
 
 // @public
-export interface DocumentationLiteralNode<TValue = unknown> extends Literal<TValue>, DocumentationNode {
+export interface DocumentationLiteralNode<TValue = unknown, TData extends object = object> extends Literal<TValue, TData>, DocumentationNode<TData> {
+    readonly data?: TData;
     readonly isLiteral: true;
     readonly isParent: false;
     readonly type: string;
@@ -194,8 +194,9 @@ export interface DocumentationLiteralNode<TValue = unknown> extends Literal<TVal
 }
 
 // @public
-export abstract class DocumentationLiteralNodeBase<TValue = unknown> implements DocumentationLiteralNode<TValue> {
-    protected constructor(value: TValue);
+export abstract class DocumentationLiteralNodeBase<TValue = unknown, TData extends object = object> implements DocumentationLiteralNode<TValue, TData> {
+    protected constructor(value: TValue, data: TData);
+    readonly data: TData;
     abstract get isEmpty(): boolean;
     readonly isLiteral = true;
     readonly isParent = false;
@@ -205,7 +206,8 @@ export abstract class DocumentationLiteralNodeBase<TValue = unknown> implements 
 }
 
 // @public
-export interface DocumentationNode<TData extends object = Data> extends Node_2<TData> {
+export interface DocumentationNode<TData extends object = object> extends Node_2<TData> {
+    readonly data?: TData;
     readonly isEmpty: boolean;
     readonly isLiteral: boolean;
     readonly isParent: boolean;
@@ -221,6 +223,7 @@ export enum DocumentationNodeType {
     FencedCode = "FencedCode",
     Heading = "Heading",
     HorizontalRule = "HorizontalRule",
+    Html = "Html",
     LineBreak = "LineBreak",
     Link = "Link",
     OrderedList = "OrderedList",
@@ -235,8 +238,9 @@ export enum DocumentationNodeType {
 }
 
 // @public
-export interface DocumentationParentNode<TDocumentationNode extends DocumentationNode = DocumentationNode> extends Parent<TDocumentationNode, Data>, DocumentationNode {
+export interface DocumentationParentNode<TDocumentationNode extends DocumentationNode = DocumentationNode, TData extends object = object> extends Parent<TDocumentationNode, TData>, DocumentationNode<TData> {
     readonly children: TDocumentationNode[];
+    readonly data?: TData;
     readonly hasChildren: boolean;
     readonly isLiteral: false;
     readonly isParent: true;
@@ -244,9 +248,10 @@ export interface DocumentationParentNode<TDocumentationNode extends Documentatio
 }
 
 // @public
-export abstract class DocumentationParentNodeBase<TDocumentationNode extends DocumentationNode = DocumentationNode> implements DocumentationParentNode<TDocumentationNode> {
-    protected constructor(children: TDocumentationNode[]);
+export abstract class DocumentationParentNodeBase<TDocumentationNode extends DocumentationNode = DocumentationNode, TData extends object = object> implements DocumentationParentNode<TDocumentationNode, TData> {
+    protected constructor(children: TDocumentationNode[], data: TData);
     readonly children: TDocumentationNode[];
+    readonly data: TData;
     get hasChildren(): boolean;
     get isEmpty(): boolean;
     readonly isLiteral = false;
@@ -400,6 +405,25 @@ export class HorizontalRuleNode implements MultiLineDocumentationNode {
     readonly type = DocumentationNodeType.HorizontalRule;
 }
 
+// @public
+export class HtmlNode extends DocumentationParentNodeBase<DocumentationNode, HtmlNodeProperties> implements MultiLineDocumentationNode<HtmlNodeProperties>, HtmlNodeProperties {
+    constructor(children: DocumentationNode[], data: HtmlNodeProperties);
+    // (undocumented)
+    get attributes(): readonly string[];
+    get singleLine(): false;
+    // (undocumented)
+    get tag(): string;
+    readonly type = DocumentationNodeType.Html;
+}
+
+// @public
+export interface HtmlNodeProperties {
+    // (undocumented)
+    attributes: readonly string[];
+    // (undocumented)
+    tag: string;
+}
+
 // @alpha
 export interface HtmlRenderConfiguration extends ConfigurationBase {
     readonly customRenderers?: HtmlRenderers;
@@ -532,7 +556,7 @@ export interface MarkdownRenderers {
 }
 
 // @public
-export interface MultiLineDocumentationNode<TData extends object = Data> extends DocumentationNode<TData> {
+export interface MultiLineDocumentationNode<TData extends object = object> extends DocumentationNode<TData> {
     readonly singleLine: false;
 }
 
@@ -614,7 +638,7 @@ export class SectionNode extends DocumentationParentNodeBase implements MultiLin
 function shouldItemBeIncluded(apiItem: ApiItem, config: Required<ApiItemTransformationConfiguration>): boolean;
 
 // @public
-export interface SingleLineDocumentationNode<TData extends object = Data> extends DocumentationNode<TData> {
+export interface SingleLineDocumentationNode<TData extends object = object> extends DocumentationNode<TData> {
     readonly singleLine: true;
 }
 
@@ -689,10 +713,15 @@ export enum TableRowKind {
 }
 
 // @public
-export abstract class TableRowNode extends DocumentationParentNodeBase<TableCellNode> {
-    protected constructor(cells: TableCellNode[], rowKind: TableRowKind);
-    readonly rowKind: TableRowKind;
+export abstract class TableRowNode extends DocumentationParentNodeBase<TableCellNode, TableRowProperties> {
+    protected constructor(cells: TableCellNode[], data: TableRowProperties);
+    get rowKind(): TableRowKind;
     readonly type = DocumentationNodeType.TableRow;
+}
+
+// @public
+export interface TableRowProperties {
+    rowKind: TableRowKind;
 }
 
 // @public

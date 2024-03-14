@@ -12,6 +12,8 @@ import { PlainTextNode } from "./PlainTextNode.js";
 import { type TextFormatting } from "./TextFormatting.js";
 import { createNodesFromPlainText } from "./Utilities.js";
 
+// TODO: use TData
+
 /**
  * A grouping of text, potentially spanning multiple lines, which may have some {@link TextFormatting}.
  *
@@ -60,7 +62,7 @@ export class SpanNode<
 	public readonly textFormatting?: TextFormatting;
 
 	public constructor(children: TDocumentationNode[], formatting?: TextFormatting) {
-		super(children);
+		super(children, {});
 		this.textFormatting = formatting;
 	}
 

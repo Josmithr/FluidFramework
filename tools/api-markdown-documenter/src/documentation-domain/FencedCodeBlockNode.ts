@@ -10,6 +10,8 @@ import {
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 import { createNodesFromPlainText } from "./Utilities.js";
 
+// TODO: use TData
+
 /**
  * A fenced code block, with an optional associated code language.
  *
@@ -53,7 +55,7 @@ export class FencedCodeBlockNode
 	}
 
 	public constructor(children: DocumentationNode[], language?: string) {
-		super(children);
+		super(children, {});
 		this.language = language;
 	}
 

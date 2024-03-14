@@ -11,6 +11,8 @@ import {
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 import { PlainTextNode } from "./PlainTextNode.js";
 
+// TODO: use TData
+
 /**
  * A document heading.
  *
@@ -54,7 +56,7 @@ export class HeadingNode
 	}
 
 	public constructor(content: SingleLineDocumentationNode[], id?: string) {
-		super(content);
+		super(content, {});
 
 		this.id = id;
 	}

@@ -58,7 +58,7 @@ export class ParagraphNode
 	}
 
 	public constructor(children: DocumentationNode[]) {
-		super(children);
+		super(children, {});
 	}
 
 	/**

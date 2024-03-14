@@ -8,6 +8,8 @@ import { type ApiItem } from "../index.js";
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 import { type SectionNode } from "./SectionNode.js";
 
+// TODO: use TData
+
 /**
  * {@link DocumentNode} construction properties.
  *

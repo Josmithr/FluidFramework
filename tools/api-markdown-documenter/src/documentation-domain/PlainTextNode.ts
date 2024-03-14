@@ -8,6 +8,8 @@ import {
 } from "./DocumentationNode.js";
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 
+// TODO: use TData
+
 /**
  * Plain text.
  *
@@ -61,7 +63,7 @@ export class PlainTextNode
 	}
 
 	public constructor(text: string, escaped?: boolean) {
-		super(text);
+		super(text, {});
 
 		if (text.includes("\n")) {
 			throw new Error("Invalid value: Plain text nodes may not contain newline characters");

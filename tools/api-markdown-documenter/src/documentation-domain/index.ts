@@ -30,7 +30,7 @@ export { DocumentationNodeType } from "./DocumentationNodeType.js";
 export { FencedCodeBlockNode } from "./FencedCodeBlockNode.js";
 export { HeadingNode } from "./HeadingNode.js";
 export { HorizontalRuleNode } from "./HorizontalRuleNode.js";
-export { HtmlNode } from "./HtmlNode.js";
+export { HtmlNode, type HtmlNodeProperties } from "./HtmlNode.js";
 export { LineBreakNode } from "./LineBreakNode.js";
 export { LinkNode } from "./LinkNode.js";
 export { OrderedListNode } from "./OrderedListNode.js";
@@ -45,10 +45,11 @@ export {
 	TableCellKind,
 } from "./TableCellNode.js";
 export {
-	TableRowNode,
 	TableBodyRowNode,
 	TableHeaderRowNode,
 	TableRowKind,
+	TableRowNode,
+	type TableRowProperties,
 } from "./TableRowNode.js";
 export { TableNode } from "./TableNode.js";
 export type { TextFormatting } from "./TextFormatting.js";

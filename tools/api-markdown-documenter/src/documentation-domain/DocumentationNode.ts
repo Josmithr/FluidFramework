@@ -21,6 +21,13 @@ export interface DocumentationNode<TData extends object = object> extends UnistN
 	readonly type: string;
 
 	/**
+	 * Optional data associated with the node.
+	 *
+	 * @see {@link https://github.com/syntax-tree/unist#data}.
+	 */
+	readonly data?: TData;
+
+	/**
 	 * Whether or not this node is a {@link https://github.com/syntax-tree/unist#literal | Literal}.
 	 *
 	 * @remarks If true, `this` is a {@link DocumentationLiteralNode}.
@@ -94,6 +101,11 @@ export interface DocumentationParentNode<
 	readonly type: string;
 
 	/**
+	 * {@inheritDoc DocumentationNode.data}
+	 */
+	readonly data?: TData;
+
+	/**
 	 * {@inheritDoc DocumentationNode.isLiteral}
 	 */
 	readonly isLiteral: false;
@@ -130,6 +142,11 @@ export interface DocumentationLiteralNode<TValue = unknown, TData extends object
 	 * {@inheritDoc DocumentationNode."type"}
 	 */
 	readonly type: string;
+
+	/**
+	 * {@inheritDoc DocumentationNode.data}
+	 */
+	readonly data?: TData;
 
 	/**
 	 * {@inheritDoc DocumentationNode.isLiteral}

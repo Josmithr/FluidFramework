@@ -29,8 +29,13 @@ export enum TableRowKind {
 
 /**
  * {@link TableRowNode} {@link DocumentationNode.data}.
+ *
+ * @public
  */
 export interface TableRowProperties {
+	/**
+	 * {@inheritDoc TableRowKind}
+	 */
 	rowKind: TableRowKind;
 }
 

@@ -11,6 +11,8 @@ import { DocumentationNodeType } from "./DocumentationNodeType.js";
 
 /**
  * {@link HtmlNode} {@link DocumentationNode.data}.
+ *
+ * @public
  */
 export interface HtmlNodeProperties {
 	tag: string;

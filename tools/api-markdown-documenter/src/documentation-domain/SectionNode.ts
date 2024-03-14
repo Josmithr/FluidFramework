@@ -10,6 +10,8 @@ import {
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 import { type HeadingNode } from "./HeadingNode.js";
 
+// TODO: use TData
+
 /**
  * Represents a hierarchically nested section.
  * Influences things like automatic heading level generation.
@@ -62,7 +64,7 @@ export class SectionNode extends DocumentationParentNodeBase implements MultiLin
 	}
 
 	public constructor(children: DocumentationNode[], heading?: HeadingNode) {
-		super(children);
+		super(children, {});
 
 		this.heading = heading;
 	}

@@ -91,7 +91,7 @@ export class TableNode
 	public readonly headerRow?: TableHeaderRowNode;
 
 	public constructor(bodyRows: TableBodyRowNode[], headingRow?: TableHeaderRowNode) {
-		super(bodyRows);
+		super(bodyRows, {});
 		this.headerRow = headingRow;
 	}
 }

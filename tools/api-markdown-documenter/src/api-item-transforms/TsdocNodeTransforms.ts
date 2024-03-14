@@ -96,8 +96,10 @@ export interface TsdocNodeTransformOptions extends ConfigurationBase {
  *
  * @returns The transformed `DocNode`, if it was of a kind we support.
  * Else, an error will be logged, and `undefined` will be returned.
+ *
+ * TODO: Notes about HTML tags
  */
-export function _transformTsdocNode(
+function _transformTsdocNode(
 	node: DocNode | HtmlSpan,
 	options: TsdocNodeTransformOptions,
 ): DocumentationNode | undefined {
@@ -126,7 +128,9 @@ export function _transformTsdocNode(
 		}
 		case DocNodeKind.HtmlStartTag:
 		case DocNodeKind.HtmlEndTag: {
-			throw new Error("TODO");
+			throw new Error(
+				"HTML tag nodes and their contained sequence of nodes should have been converted to an HtmlSpan.",
+			);
 		}
 		case DocNodeKind.InheritDocTag: {
 			options.logger?.error(
@@ -466,6 +470,7 @@ function extractHtmlSpans(nodes: readonly DocNode[]): (DocNode | HtmlSpan)[] {
 				// Length checked above
 				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 				output.push(spanStack.pop()!);
+				break;
 			}
 			default: {
 				// If we are in an HTML span, add the node to the current span's children.
