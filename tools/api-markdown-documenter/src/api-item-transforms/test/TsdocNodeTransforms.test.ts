@@ -56,5 +56,72 @@ describe("TsdocNodeTransforms", () => {
 			expect(result.length).to.equal(3);
 			expect(result).to.deep.equal(expected);
 		});
+
+		it("Nested", () => {
+			const input: DocNode[] = [
+				{
+					kind: DocNodeKind.HtmlStartTag,
+					name: "div",
+					htmlAttributes: [],
+					selfClosing: false,
+				} as unknown as DocHtmlStartTag,
+				{
+					kind: DocNodeKind.HtmlStartTag,
+					name: "h1",
+					htmlAttributes: [],
+					selfClosing: false,
+				} as unknown as DocHtmlStartTag,
+				{
+					kind: DocNodeKind.PlainText,
+					text: "Foo",
+				} as unknown as DocPlainText,
+				{
+					kind: DocNodeKind.HtmlEndTag,
+					name: "h1",
+				} as unknown as DocHtmlEndTag,
+				{
+					kind: DocNodeKind.HtmlStartTag,
+					name: "p",
+					htmlAttributes: [],
+					selfClosing: false,
+				} as unknown as DocHtmlStartTag,
+				{
+					kind: DocNodeKind.PlainText,
+					text: "Bar",
+				} as unknown as DocPlainText,
+				{
+					kind: DocNodeKind.HtmlEndTag,
+					name: "p",
+				} as unknown as DocHtmlEndTag,
+				{
+					kind: DocNodeKind.HtmlEndTag,
+					name: "div",
+				} as unknown as DocHtmlEndTag,
+			];
+
+			const expected: (DocNode | HtmlSpan)[] = [
+				{
+					tag: "div",
+					attributes: [],
+					children: [
+						{
+							tag: "h1",
+							attributes: [],
+							children: [input[2]],
+						},
+						{
+							tag: "p",
+							attributes: [],
+							children: [input[5]],
+						},
+					],
+				},
+			];
+
+			const result = extractHtmlSpans(input);
+
+			expect(result.length).to.equal(1);
+			expect(result).to.deep.equal(expected);
+		});
 	});
 });
