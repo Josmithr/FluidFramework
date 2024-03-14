@@ -2,20 +2,20 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
-import type { HtmlNode } from "../../../documentation-domain/index.js";
+import type { HtmlSpanNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import { renderNodes } from "../Render.js";
 import type { RenderContext } from "../RenderContext.js";
 
 /**
- * Renders a {@link HtmlNode}.
+ * Renders a {@link HtmlSpanNode}.
  *
  * @param node - The node to render.
  * @param writer - Writer context object into which the document contents will be written.
  * @param context - See {@link RenderContext}.
  */
 export function renderHtmlSpan(
-	node: HtmlNode,
+	node: HtmlSpanNode,
 	writer: DocumentWriter,
 	context: RenderContext,
 ): void {

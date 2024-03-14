@@ -38,7 +38,7 @@ export enum DocumentationNodeType {
 	Heading = "Heading",
 
 	/**
-	 * See {@link HtmlNode}
+	 * See {@link HtmlSpanNode}
 	 */
 	Html = "Html",
 

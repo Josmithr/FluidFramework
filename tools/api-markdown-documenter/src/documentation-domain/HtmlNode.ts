@@ -10,44 +10,32 @@ import {
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 
 /**
- * {@link HtmlNode} {@link DocumentationNode.data}.
+ * {@link HtmlSpanNode} {@link DocumentationNode.data}.
  *
  * @public
  */
-export interface HtmlNodeProperties {
+export interface HtmlSpanProperties {
+	/**
+	 * The HTML tag name.
+	 *
+	 * @example
+	 * "div" for a "<div>...</div>" tree.
+	 */
 	tag: string;
-	attributes: readonly string[]; // TODO: Can we reduce this to a record or something more fine grained?
+	/**
+	 * TODO (include format)
+	 */
+	attributes: readonly string[];
 }
 
 /**
- * A grouping of text content, potentially spanning multiple lines.
- *
- * @example Markdown
- *
- * ```md
- * Some content...
- *
- * Some more content...
- *
- * ```
- *
- * Note that a paragraph in Markdown will always include a trailing newline.
- *
- * @example HTML
- *
- * ```html
- * <p>
- * 	Some content...
- *
- * 	Some more content...
- * </p>
- * ```
+ * TODO
  *
  * @public
  */
-export class HtmlNode
-	extends DocumentationParentNodeBase<DocumentationNode, HtmlNodeProperties>
-	implements MultiLineDocumentationNode<HtmlNodeProperties>, HtmlNodeProperties
+export class HtmlSpanNode
+	extends DocumentationParentNodeBase<DocumentationNode, HtmlSpanProperties>
+	implements MultiLineDocumentationNode<HtmlSpanProperties>, HtmlSpanProperties
 {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
@@ -62,20 +50,20 @@ export class HtmlNode
 	}
 
 	/**
-	 * {@inheritDoc HtmlNodeProperties.tag}
+	 * {@inheritDoc HtmlSpanProperties.tag}
 	 */
 	public get tag(): string {
 		return this.data.tag;
 	}
 
 	/**
-	 * {@inheritDoc HtmlNodeProperties.attributes}
+	 * {@inheritDoc HtmlSpanProperties.attributes}
 	 */
 	public get attributes(): readonly string[] {
 		return this.data.attributes;
 	}
 
-	public constructor(children: DocumentationNode[], data: HtmlNodeProperties) {
+	public constructor(children: DocumentationNode[], data: HtmlSpanProperties) {
 		super(children, data);
 	}
 }

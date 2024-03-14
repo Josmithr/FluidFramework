@@ -21,7 +21,7 @@ import {
 	type TableNode,
 	type TableRowNode,
 	type UnorderedListNode,
-	type HtmlNode,
+	type HtmlSpanNode,
 } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
@@ -86,7 +86,7 @@ export const defaultRenderers: Renderers = {
 	[DocumentationNodeType.Heading]: (node, writer, context): void =>
 		renderHeading(node as HeadingNode, writer, context),
 	[DocumentationNodeType.Html]: (node, writer, context): void =>
-		renderHtmlSpan(node as HtmlNode, writer, context),
+		renderHtmlSpan(node as HtmlSpanNode, writer, context),
 	[DocumentationNodeType.LineBreak]: (node, writer, context): void =>
 		renderLineBreak(node as LineBreakNode, writer, context),
 	[DocumentationNodeType.Link]: (node, writer, context): void =>

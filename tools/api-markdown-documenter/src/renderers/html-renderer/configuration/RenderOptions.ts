@@ -19,7 +19,7 @@ import {
 	type TableNode,
 	type TableRowNode,
 	type UnorderedListNode,
-	type HtmlNode,
+	type HtmlSpanNode,
 } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
@@ -92,7 +92,7 @@ export const defaultRenderers: Renderers = {
 	[DocumentationNodeType.HorizontalRule]: (node, writer, context): void =>
 		renderHorizontalRule(writer, context),
 	[DocumentationNodeType.Html]: (node, writer, context): void =>
-		renderHtmlSpan(node as HtmlNode, writer, context),
+		renderHtmlSpan(node as HtmlSpanNode, writer, context),
 	[DocumentationNodeType.OrderedList]: (node, writer, context): void =>
 		renderOrderedList(node as OrderedListNode, writer, context),
 	[DocumentationNodeType.Paragraph]: (node, writer, context): void =>

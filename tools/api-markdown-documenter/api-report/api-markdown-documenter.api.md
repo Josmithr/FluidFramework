@@ -405,25 +405,6 @@ export class HorizontalRuleNode implements MultiLineDocumentationNode {
     readonly type = DocumentationNodeType.HorizontalRule;
 }
 
-// @public
-export class HtmlNode extends DocumentationParentNodeBase<DocumentationNode, HtmlNodeProperties> implements MultiLineDocumentationNode<HtmlNodeProperties>, HtmlNodeProperties {
-    constructor(children: DocumentationNode[], data: HtmlNodeProperties);
-    // (undocumented)
-    get attributes(): readonly string[];
-    get singleLine(): false;
-    // (undocumented)
-    get tag(): string;
-    readonly type = DocumentationNodeType.Html;
-}
-
-// @public
-export interface HtmlNodeProperties {
-    // (undocumented)
-    attributes: readonly string[];
-    // (undocumented)
-    tag: string;
-}
-
 // @alpha
 export interface HtmlRenderConfiguration extends ConfigurationBase {
     readonly customRenderers?: HtmlRenderers;
@@ -452,6 +433,21 @@ export { HtmlRenderer }
 // @alpha
 export interface HtmlRenderers {
     [documentationNodeKind: string]: (node: DocumentationNode, writer: DocumentWriter, context: HtmlRenderContext) => void;
+}
+
+// @public
+export class HtmlSpanNode extends DocumentationParentNodeBase<DocumentationNode, HtmlSpanProperties> implements MultiLineDocumentationNode<HtmlSpanProperties>, HtmlSpanProperties {
+    constructor(children: DocumentationNode[], data: HtmlSpanProperties);
+    get attributes(): readonly string[];
+    get singleLine(): false;
+    get tag(): string;
+    readonly type = DocumentationNodeType.Html;
+}
+
+// @public
+export interface HtmlSpanProperties {
+    attributes: readonly string[];
+    tag: string;
 }
 
 // @public
