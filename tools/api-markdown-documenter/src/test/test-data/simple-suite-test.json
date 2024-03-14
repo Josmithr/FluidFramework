@@ -844,7 +844,7 @@
 				{
 					"kind": "Variable",
 					"canonicalReference": "simple-suite-test!testConst:var",
-					"docComment": "/**\n * Test Constant\n *\n * @remarks\n *\n * Here are some remarks about the variable\n *\n * @beta\n */\n",
+					"docComment": "/**\n * Test Constant\n *\n * @remarks\n *\n * Here are some remarks about the variable.\n *\n * <div width=\"50%\"> <h2>With some HTML Content</h2> <p> Including <a href=\"https://www.bing.com\">an HTML link to Bing</a>, and {@link TestEnum | a TSDoc link to another API item}! </p> </div>\n *\n * @beta\n */\n",
 					"excerptTokens": [
 						{
 							"kind": "Content",
