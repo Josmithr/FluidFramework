@@ -430,8 +430,9 @@ function isHtmlSpan(value: unknown): value is HtmlSpan {
 
 /**
  * TODO
+ * @privateRemarks Exported strictly for unit testing.
  */
-function extractHtmlSpans(nodes: readonly DocNode[]): (DocNode | HtmlSpan)[] {
+export function extractHtmlSpans(nodes: readonly DocNode[]): (DocNode | HtmlSpan)[] {
 	const output: (DocNode | HtmlSpan)[] = [];
 
 	const spanStack: HtmlSpan[] = [];
