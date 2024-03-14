@@ -3,18 +3,18 @@
  * Licensed under the MIT License.
  */
 import {
-	type MultiLineDocumentationNode,
-	DocumentationParentNodeBase,
 	type DocumentationNode,
+	DocumentationParentNodeBase,
+	type MultiLineDocumentationNode,
 } from "./DocumentationNode.js";
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
 
 /**
- * {@link HtmlSpanNode} {@link DocumentationNode.data}.
+ * {@link EmbeddedHtmlSpanNode} {@link DocumentationNode.data}.
  *
  * @public
  */
-export interface HtmlSpanProperties {
+export interface EmbeddedHtmlSpanProperties {
 	/**
 	 * The HTML tag name.
 	 *
@@ -33,14 +33,14 @@ export interface HtmlSpanProperties {
  *
  * @public
  */
-export class HtmlSpanNode
-	extends DocumentationParentNodeBase<DocumentationNode, HtmlSpanProperties>
-	implements MultiLineDocumentationNode<HtmlSpanProperties>, HtmlSpanProperties
+export class EmbeddedHtmlSpanNode
+	extends DocumentationParentNodeBase<DocumentationNode, EmbeddedHtmlSpanProperties>
+	implements MultiLineDocumentationNode<EmbeddedHtmlSpanProperties>, EmbeddedHtmlSpanProperties
 {
 	/**
 	 * {@inheritDoc DocumentationNode."type"}
 	 */
-	public readonly type = DocumentationNodeType.Html;
+	public readonly type = DocumentationNodeType.EmbeddedHtmlSpan;
 
 	/**
 	 * {@inheritDoc DocumentationNode.singleLine}
@@ -50,20 +50,20 @@ export class HtmlSpanNode
 	}
 
 	/**
-	 * {@inheritDoc HtmlSpanProperties.tag}
+	 * {@inheritDoc EmbeddedHtmlSpanProperties.tag}
 	 */
 	public get tag(): string {
 		return this.data.tag;
 	}
 
 	/**
-	 * {@inheritDoc HtmlSpanProperties.attributes}
+	 * {@inheritDoc EmbeddedHtmlSpanProperties.attributes}
 	 */
 	public get attributes(): readonly string[] {
 		return this.data.attributes;
 	}
 
-	public constructor(children: DocumentationNode[], data: HtmlSpanProperties) {
+	public constructor(children: DocumentationNode[], data: EmbeddedHtmlSpanProperties) {
 		super(children, data);
 	}
 }

@@ -21,7 +21,7 @@ import {
 	type TableNode,
 	type TableRowNode,
 	type UnorderedListNode,
-	type HtmlSpanNode,
+	type EmbeddedHtmlSpanNode,
 } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
@@ -32,7 +32,7 @@ import {
 	renderHeading,
 	renderHierarchicalSection,
 	renderHorizontalRule,
-	renderHtmlSpan,
+	renderEmbeddedHtmlSpan,
 	renderLineBreak,
 	renderLink,
 	renderOrderedList,
@@ -81,12 +81,12 @@ export const defaultRenderers: Renderers = {
 		renderBlockQuote(node as BlockQuoteNode, writer, context),
 	[DocumentationNodeType.CodeSpan]: (node, writer, context): void =>
 		renderCodeSpan(node as CodeSpanNode, writer, context),
+	[DocumentationNodeType.EmbeddedHtmlSpan]: (node, writer, context): void =>
+		renderEmbeddedHtmlSpan(node as EmbeddedHtmlSpanNode, writer, context),
 	[DocumentationNodeType.FencedCode]: (node, writer, context): void =>
 		renderFencedCodeBlock(node as FencedCodeBlockNode, writer, context),
 	[DocumentationNodeType.Heading]: (node, writer, context): void =>
 		renderHeading(node as HeadingNode, writer, context),
-	[DocumentationNodeType.Html]: (node, writer, context): void =>
-		renderHtmlSpan(node as HtmlSpanNode, writer, context),
 	[DocumentationNodeType.LineBreak]: (node, writer, context): void =>
 		renderLineBreak(node as LineBreakNode, writer, context),
 	[DocumentationNodeType.Link]: (node, writer, context): void =>

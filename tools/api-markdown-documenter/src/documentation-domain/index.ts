@@ -30,7 +30,7 @@ export { DocumentationNodeType } from "./DocumentationNodeType.js";
 export { FencedCodeBlockNode } from "./FencedCodeBlockNode.js";
 export { HeadingNode } from "./HeadingNode.js";
 export { HorizontalRuleNode } from "./HorizontalRuleNode.js";
-export { HtmlSpanNode, type HtmlSpanProperties } from "./HtmlNode.js";
+export { EmbeddedHtmlSpanNode, type EmbeddedHtmlSpanProperties } from "./EmbeddedHtmlSpanNode.js";
 export { LineBreakNode } from "./LineBreakNode.js";
 export { LinkNode } from "./LinkNode.js";
 export { OrderedListNode } from "./OrderedListNode.js";

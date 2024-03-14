@@ -24,6 +24,7 @@ import {
 	CodeSpanNode,
 	type DocumentationNode,
 	DocumentationNodeType,
+	EmbeddedHtmlSpanNode,
 	FencedCodeBlockNode,
 	LineBreakNode,
 	LinkNode,
@@ -32,7 +33,6 @@ import {
 	type SingleLineDocumentationNode,
 	SingleLineSpanNode,
 	SpanNode,
-	HtmlSpanNode,
 } from "../documentation-domain/index.js";
 import { type ConfigurationBase } from "../ConfigurationBase.js";
 import { getTsdocNodeTransformationOptions } from "./Utilities.js";
@@ -105,7 +105,7 @@ function _transformTsdocNode(
 ): DocumentationNode | undefined {
 	// If the input is an HTML span, handle it separately
 	if (isHtmlSpan(node)) {
-		return new HtmlSpanNode(transformChildren(node.children, options), {
+		return new EmbeddedHtmlSpanNode(transformChildren(node.children, options), {
 			tag: node.tag,
 			attributes: node.attributes,
 		});
@@ -228,13 +228,13 @@ export function transformTsdocHtmlSpan(
 	children: readonly DocNode[],
 	endTag: DocHtmlEndTag | undefined,
 	options: TsdocNodeTransformOptions,
-): HtmlSpanNode {
+): EmbeddedHtmlSpanNode {
 	if (endTag !== undefined && startTag.name !== endTag.name) {
 		throw new Error(`Mismatched tags in HTML span: "${startTag.name}" and "${endTag.name}".`);
 	}
 
 	const transformedChildren = transformChildren(children, options);
-	return new HtmlSpanNode(transformedChildren, {
+	return new EmbeddedHtmlSpanNode(transformedChildren, {
 		tag: startTag.name,
 		attributes: startTag.htmlAttributes.map((attribute) => attribute.value),
 	});

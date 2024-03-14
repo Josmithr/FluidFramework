@@ -220,10 +220,10 @@ export enum DocumentationNodeType {
     BlockQuote = "BlockQuote",
     CodeSpan = "CodeSpan",
     Document = "Document",
+    EmbeddedHtmlSpan = "EmbeddedHtmlSpan",
     FencedCode = "FencedCode",
     Heading = "Heading",
     HorizontalRule = "HorizontalRule",
-    Html = "Html",
     LineBreak = "LineBreak",
     Link = "Link",
     OrderedList = "OrderedList",
@@ -316,6 +316,21 @@ export namespace DocumentWriter {
 
 // @public
 function doesItemRequireOwnDocument(apiItem: ApiItem, documentBoundaries: DocumentBoundaries): boolean;
+
+// @public
+export class EmbeddedHtmlSpanNode extends DocumentationParentNodeBase<DocumentationNode, EmbeddedHtmlSpanProperties> implements MultiLineDocumentationNode<EmbeddedHtmlSpanProperties>, EmbeddedHtmlSpanProperties {
+    constructor(children: DocumentationNode[], data: EmbeddedHtmlSpanProperties);
+    get attributes(): readonly string[];
+    get singleLine(): false;
+    get tag(): string;
+    readonly type = DocumentationNodeType.EmbeddedHtmlSpan;
+}
+
+// @public
+export interface EmbeddedHtmlSpanProperties {
+    attributes: readonly string[];
+    tag: string;
+}
 
 // @public
 export class FencedCodeBlockNode extends DocumentationParentNodeBase implements MultiLineDocumentationNode {
@@ -433,21 +448,6 @@ export { HtmlRenderer }
 // @alpha
 export interface HtmlRenderers {
     [documentationNodeKind: string]: (node: DocumentationNode, writer: DocumentWriter, context: HtmlRenderContext) => void;
-}
-
-// @public
-export class HtmlSpanNode extends DocumentationParentNodeBase<DocumentationNode, HtmlSpanProperties> implements MultiLineDocumentationNode<HtmlSpanProperties>, HtmlSpanProperties {
-    constructor(children: DocumentationNode[], data: HtmlSpanProperties);
-    get attributes(): readonly string[];
-    get singleLine(): false;
-    get tag(): string;
-    readonly type = DocumentationNodeType.Html;
-}
-
-// @public
-export interface HtmlSpanProperties {
-    attributes: readonly string[];
-    tag: string;
 }
 
 // @public

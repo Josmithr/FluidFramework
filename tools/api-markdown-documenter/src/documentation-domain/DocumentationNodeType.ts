@@ -28,6 +28,11 @@ export enum DocumentationNodeType {
 	Document = "Document",
 
 	/**
+	 * See {@link EmbeddedHtmlSpanNode}
+	 */
+	EmbeddedHtmlSpan = "EmbeddedHtmlSpan",
+
+	/**
 	 * See {@link FencedCodeBlockNode}
 	 */
 	FencedCode = "FencedCode",
@@ -36,11 +41,6 @@ export enum DocumentationNodeType {
 	 * See {@link HeadingNode}
 	 */
 	Heading = "Heading",
-
-	/**
-	 * See {@link HtmlSpanNode}
-	 */
-	Html = "Html",
 
 	/**
 	 * See {@link LineBreakNode}
