@@ -2,7 +2,9 @@
 
 [Packages](docs/) &gt; [simple-suite-test](docs/simple-suite-test)
 
-<b>Test package</b>
+<b>
+  Test package
+</b>
 
 # Remarks {#simple-suite-test-remarks}
 

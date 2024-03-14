@@ -7,6 +7,7 @@ export { renderBlockQuote } from "./RenderBlockQuote.js";
 export { renderCodeSpan } from "./RenderCodeSpan.js";
 export { renderFencedCodeBlock } from "./RenderFencedCodeBlock.js";
 export { renderHeading } from "./RenderHeading.js";
+export { renderHtmlSpan } from "./RenderHtmlSpan.js";
 export { renderSection as renderHierarchicalSection } from "./RenderSection.js";
 export { renderHorizontalRule } from "./RenderHorizontalRule.js";
 export { renderLineBreak } from "./RenderLineBreak.js";

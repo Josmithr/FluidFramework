@@ -19,6 +19,7 @@ import {
 	type TableNode,
 	type TableRowNode,
 	type UnorderedListNode,
+	type HtmlNode,
 } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
@@ -29,6 +30,7 @@ import {
 	renderHeading,
 	renderHierarchicalSection,
 	renderHorizontalRule,
+	renderHtmlSpan,
 	renderLineBreak,
 	renderLink,
 	renderOrderedList,
@@ -89,6 +91,8 @@ export const defaultRenderers: Renderers = {
 		renderHierarchicalSection(node as SectionNode, writer, context),
 	[DocumentationNodeType.HorizontalRule]: (node, writer, context): void =>
 		renderHorizontalRule(writer, context),
+	[DocumentationNodeType.Html]: (node, writer, context): void =>
+		renderHtmlSpan(node as HtmlNode, writer, context),
 	[DocumentationNodeType.OrderedList]: (node, writer, context): void =>
 		renderOrderedList(node as OrderedListNode, writer, context),
 	[DocumentationNodeType.Paragraph]: (node, writer, context): void =>

@@ -21,6 +21,7 @@ import {
 	type TableNode,
 	type TableRowNode,
 	type UnorderedListNode,
+	type HtmlNode,
 } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
@@ -31,6 +32,7 @@ import {
 	renderHeading,
 	renderHierarchicalSection,
 	renderHorizontalRule,
+	renderHtmlSpan,
 	renderLineBreak,
 	renderLink,
 	renderOrderedList,
@@ -83,6 +85,8 @@ export const defaultRenderers: Renderers = {
 		renderFencedCodeBlock(node as FencedCodeBlockNode, writer, context),
 	[DocumentationNodeType.Heading]: (node, writer, context): void =>
 		renderHeading(node as HeadingNode, writer, context),
+	[DocumentationNodeType.Html]: (node, writer, context): void =>
+		renderHtmlSpan(node as HtmlNode, writer, context),
 	[DocumentationNodeType.LineBreak]: (node, writer, context): void =>
 		renderLineBreak(node as LineBreakNode, writer, context),
 	[DocumentationNodeType.Link]: (node, writer, context): void =>
