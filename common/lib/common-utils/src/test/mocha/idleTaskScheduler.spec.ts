@@ -12,6 +12,7 @@ describe("Idle task scheduler", () => {
 
 	beforeEach("setClock", () => {
 		clock = useFakeTimers();
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
 		(globalThis as any).requestIdleCallback = undefined;
 	});
 
@@ -29,8 +30,10 @@ describe("Idle task scheduler", () => {
 
 	it("Should schedule and run a synchronous task during idle time", async () => {
 		const requestIdleCallbackMock = fake((callback, timeout) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 			callback(timeout);
 		});
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
 		(globalThis as any).requestIdleCallback = requestIdleCallbackMock;
 
 		await idleTask.scheduleIdleTask(() => {
@@ -43,6 +46,7 @@ describe("Idle task scheduler", () => {
 
 	it("Should fall back to setTimeout when idle Task API is not available", async () => {
 		let success = false;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
 		assert((globalThis as any).requestIdleCallback === undefined);
 		await new Promise((resolve, reject) => {
 			try {

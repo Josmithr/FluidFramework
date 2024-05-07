@@ -14,10 +14,10 @@
  */
 export async function scheduleIdleTask<T>(callback: () => T, timeout: number): Promise<T> {
 	return new Promise((resolve, reject) => {
-		const doLowPriorityTask = (): any => {
+		const doLowPriorityTask = (): void => {
 			try {
 				resolve(callback());
-			} catch (error: any) {
+			} catch (error: unknown) {
 				reject(error);
 			}
 		};
