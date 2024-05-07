@@ -21,7 +21,7 @@ module.exports = {
 		// This should probably be reconsidered, but until then we will leave an exception for it here.
 		"import/no-nodejs-modules": ["error", { allow: ["events"] }],
 
-		// TODO
+		// Doesn't work well with our Jest tests
 		"unicorn/prefer-node-protocol": "off",
 	},
 	overrides: [
