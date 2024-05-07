@@ -16,12 +16,11 @@
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function safelyParseJSON(json: string): any | undefined {
-	let parsed;
+	let parsed: unknown;
 	try {
 		parsed = JSON.parse(json);
 	} catch {
 		return undefined;
 	}
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 	return parsed;
 }
