@@ -30,6 +30,9 @@ module.exports = {
 			rules: {
 				// It's fine for tests to use node.js modules.
 				"import/no-nodejs-modules": "off",
+
+				// It's fine for tests to use `__dirname`, etc.
+				"unicorn/prefer-module": "off",
 			},
 		},
 	],
