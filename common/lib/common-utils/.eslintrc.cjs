@@ -14,15 +14,15 @@ module.exports = {
 		],
 	},
 	rules: {
-		// TODO: Remove once this config extends `recommended` or `strict` above.
-		"@typescript-eslint/explicit-function-return-type": "error",
-
 		// This package is being deprecated, so it's okay to use deprecated APIs.
 		"import/no-deprecated": "off",
 
 		// This package uses node's events APIs.
 		// This should probably be reconsidered, but until then we will leave an exception for it here.
 		"import/no-nodejs-modules": ["error", { allow: ["events"] }],
+
+		// TODO
+		"unicorn/prefer-node-protocol": "off",
 	},
 	overrides: [
 		{
