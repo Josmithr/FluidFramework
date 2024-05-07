@@ -306,7 +306,7 @@ describe("Timers", () => {
 				(result) => {
 					resolveResult = result.timerResult;
 				},
-				(error) => assert.fail(error),
+				(error: Error) => assert.fail(error),
 			);
 		}
 
