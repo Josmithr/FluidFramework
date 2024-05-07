@@ -18,7 +18,9 @@ export declare class Buffer extends Uint8Array {
 	 * @param encodingOrOffset - (string | number).
 	 * @param length - (number).
 	 */
+	// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 	static from(value, encodingOrOffset?, length?): IsoBuffer;
+	// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
 	static isBuffer(obj: any): obj is Buffer;
 }
 

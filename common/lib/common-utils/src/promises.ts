@@ -12,6 +12,7 @@
 export class Deferred<T> {
 	private readonly p: Promise<T>;
 	private res: ((value: T | PromiseLike<T>) => void) | undefined;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private rej: ((reason?: any) => void) | undefined;
 	private completed: boolean = false;
 
@@ -54,6 +55,7 @@ export class Deferred<T> {
 	 *
 	 * @param value - the value to reject the promise with
 	 */
+	// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
 	public reject(error: any): void {
 		if (this.rej !== undefined) {
 			this.completed = true;
@@ -80,10 +82,11 @@ export class LazyPromise<T> implements Promise<T> {
 
 	constructor(private readonly execute: () => Promise<T>) {}
 
+	// eslint-disable-next-line unicorn/no-thenable
 	public async then<TResult1 = T, TResult2 = never>(
 		// eslint-disable-next-line @rushstack/no-new-null
 		onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-		// eslint-disable-next-line @rushstack/no-new-null
+		// eslint-disable-next-line @rushstack/no-new-null, @typescript-eslint/no-explicit-any
 		onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
 	): Promise<TResult1 | TResult2> {
 		// eslint-disable-next-line prefer-rest-params
@@ -91,7 +94,7 @@ export class LazyPromise<T> implements Promise<T> {
 	}
 
 	public async catch<TResult = never>(
-		// eslint-disable-next-line @rushstack/no-new-null
+		// eslint-disable-next-line @rushstack/no-new-null, @typescript-eslint/no-explicit-any
 		onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined,
 	): Promise<T | TResult> {
 		// eslint-disable-next-line prefer-rest-params

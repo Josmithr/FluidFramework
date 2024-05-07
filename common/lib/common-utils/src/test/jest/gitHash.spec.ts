@@ -36,6 +36,7 @@ async function evaluateBrowserHash(
 	// Buffer/Uint8Array are not directly jsonable
 	const fileCharCodeString = Array.prototype.map
 		.call(file, (byte) => {
+			// eslint-disable-next-line unicorn/prefer-code-point, @typescript-eslint/no-unsafe-argument
 			return String.fromCharCode(byte);
 		})
 		.join("");
@@ -44,22 +45,28 @@ async function evaluateBrowserHash(
 	// so pull in the function as a string and eval it directly instead
 	// there are also issues around nested function calls when using page.exposeFunction, so
 	// do only the crypto.subtle part in page.evaluate and do the other half outside
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
 	const browserHashFn = HashBrowser.__get__("digestBuffer").toString();
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
 	const hashCharCodeString = await (page.evaluate(
 		async (fn, f, alg) => {
 			// convert back into Uint8Array
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			const fileCharCodes = Array.prototype.map.call([...f], (char) => {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, unicorn/prefer-code-point
 				return char.charCodeAt(0) as number;
 			}) as number[];
 			const fileUint8 = Uint8Array.from(fileCharCodes);
 
 			// eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
 			const hashFn = new Function(`"use strict"; return ( ${fn} );`);
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 			const pageHashArray = await (hashFn()(fileUint8, alg) as Promise<Uint8Array>);
 
 			// Similarly, return the hash array as a string instead of a Uint8Array
 			return Array.prototype.map
 				.call(pageHashArray, (byte) => {
+					// eslint-disable-next-line unicorn/prefer-code-point, @typescript-eslint/no-unsafe-argument
 					return String.fromCharCode(byte);
 				})
 				.join("");
@@ -71,9 +78,11 @@ async function evaluateBrowserHash(
 
 	// reconstruct the Uint8Array from the string
 	const charCodes = Array.prototype.map.call([...hashCharCodeString], (char) => {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, unicorn/prefer-code-point
 		return char.charCodeAt(0) as number;
 	}) as number[];
 	const hashArray = Uint8Array.from(charCodes);
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 	return HashBrowser.__get__("encodeDigest")(hashArray, hashEncoding) as string;
 }
 
@@ -84,8 +93,9 @@ async function evaluateBrowserHash(
 async function evaluateBrowserGitHash(page, file: Buffer): Promise<string> {
 	// Add the prefix for git hashing
 	const size = file.byteLength;
+	// eslint-disable-next-line unicorn/prefer-code-point
 	const filePrefix = `blob ${size.toString()}${String.fromCharCode(0)}`;
-	const prefixBuffer = Buffer.from(filePrefix, "utf-8");
+	const prefixBuffer = Buffer.from(filePrefix, "utf8");
 	const hashBuffer = Buffer.concat([prefixBuffer, file], prefixBuffer.length + file.length);
 	return evaluateBrowserHash(page, hashBuffer);
 }
