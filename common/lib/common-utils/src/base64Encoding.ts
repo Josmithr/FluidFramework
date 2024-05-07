@@ -13,7 +13,7 @@ import { IsoBuffer } from "./indexNode";
  * @internal
  */
 export const fromBase64ToUtf8 = (input: string): string =>
-	IsoBuffer.from(input, "base64").toString("utf-8");
+	IsoBuffer.from(input, "base64").toString("utf8");
 
 /**
  * Converts the provided {@link https://en.wikipedia.org/wiki/UTF-8 | utf-8}-encoded string
@@ -37,6 +37,7 @@ export const fromUtf8ToBase64 = (input: string): string =>
 export const toUtf8 = (input: string, encoding: string): string => {
 	switch (encoding) {
 		case "utf8":
+		// eslint-disable-next-line unicorn/text-encoding-identifier-case
 		case "utf-8": {
 			return input;
 		}

@@ -35,6 +35,7 @@ export interface PromiseCacheOptions {
 	/**
 	 * If the stored Promise is rejected with a particular error, should the given key be removed?
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	removeOnError?: (e: any) => boolean;
 }
 
@@ -101,7 +102,7 @@ export class PromiseCache<TKey, TResult> {
 	private readonly cache = new Map<TKey, Promise<TResult>>();
 	private readonly gc: GarbageCollector<TKey>;
 
-	private readonly removeOnError: (error: any) => boolean;
+	private readonly removeOnError: (error: unknown) => boolean;
 
 	/**
 	 * Create the PromiseCache with the given options, with the following defaults:
