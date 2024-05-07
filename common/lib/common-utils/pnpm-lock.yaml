@@ -23,6 +23,7 @@ importers:
       '@types/events': ^3.0.0
       '@types/jest': 22.2.3
       '@types/jest-environment-puppeteer': 2.2.0
+      '@types/lodash': ^4.17.1
       '@types/mocha': ^9.1.1
       '@types/node': ^16.18.38
       '@types/puppeteer': 1.3.0
@@ -73,6 +74,7 @@ importers:
       '@types/benchmark': 2.1.2
       '@types/jest': 22.2.3
       '@types/jest-environment-puppeteer': 2.2.0
+      '@types/lodash': 4.17.1
       '@types/mocha': 9.1.1
       '@types/node': 16.18.38
       '@types/puppeteer': 1.3.0
@@ -3120,6 +3122,10 @@ packages:
     resolution: {integrity: sha512-BQ5aZNSCpj7D6K2ksrRCTmKRLEpnPvWDiLPfoGyhZ++8YtiK9d/3DBKPJgry359X/P1PfruyYwvnvwFjuEiEIg==}
     dependencies:
       '@types/node': 16.18.38
+    dev: true
+
+  /@types/lodash/4.17.1:
+    resolution: {integrity: sha512-X+2qazGS3jxLAIz5JDXDzglAF3KpijdhFxlf/V1+hEsOUc+HnWi81L/uv/EvGuV90WY+7mPGFCUDGfQC3Gj95Q==}
     dev: true
 
   /@types/mime-types/2.1.4:
