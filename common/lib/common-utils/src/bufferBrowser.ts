@@ -22,6 +22,7 @@ export function Uint8ArrayToString(arr: Uint8Array, encoding?: string): string {
 			return base64js.fromByteArray(arr);
 		}
 		case "utf8":
+		// eslint-disable-next-line unicorn/text-encoding-identifier-case
 		case "utf-8":
 		case undefined: {
 			return new TextDecoder().decode(arr);
@@ -69,6 +70,7 @@ export const bufferToString = (blob: ArrayBufferLike, encoding: string): string 
  *
  * @deprecated Moved to the `@fluidframework-internal/client-utils` package.
  */
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
 export function isArrayBuffer(obj: any): obj is ArrayBuffer {
 	const maybe = obj as (Partial<ArrayBuffer> & Partial<Uint8Array>) | undefined;
 	return (
@@ -100,22 +102,27 @@ export class IsoBuffer extends Uint8Array {
 	}
 
 	/**
+	 * Deprecated
 	 * @param value - (string | ArrayBuffer)
 	 * @param encodingOrOffset - (string | number)
 	 * @param length - (number)
 	 */
-	static from(value, encodingOrOffset?, length?): IsoBuffer {
+	// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+	static from(value: any, encodingOrOffset?: any, length?: number): IsoBuffer {
 		if (typeof value === "string") {
 			return IsoBuffer.fromString(value, encodingOrOffset as string | undefined);
 			// Capture any typed arrays, including Uint8Array (and thus - IsoBuffer!)
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 		} else if (value !== null && typeof value === "object" && isArrayBuffer(value.buffer)) {
 			// The version of the from function for the node buffer, which takes a buffer or typed array
 			// as first parameter, does not have any offset or length parameters. Those are just silently
 			// ignored and not taken into account
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
 			return IsoBuffer.fromArrayBuffer(value.buffer, value.byteOffset, value.byteLength);
 		} else if (isArrayBuffer(value)) {
 			return IsoBuffer.fromArrayBuffer(value, encodingOrOffset as number | undefined, length);
 		} else {
+			// eslint-disable-next-line unicorn/error-message
 			throw new TypeError();
 		}
 	}
@@ -133,6 +140,7 @@ export class IsoBuffer extends Uint8Array {
 			validLength < 0 ||
 			validLength + offset > arrayBuffer.byteLength
 		) {
+			// eslint-disable-next-line unicorn/error-message
 			throw new RangeError();
 		}
 
@@ -147,6 +155,7 @@ export class IsoBuffer extends Uint8Array {
 				return new IsoBuffer(encoded.buffer);
 			}
 			case "utf8":
+			// eslint-disable-next-line unicorn/text-encoding-identifier-case
 			case "utf-8":
 			case undefined: {
 				const encoded = new TextEncoder().encode(str);
@@ -158,7 +167,7 @@ export class IsoBuffer extends Uint8Array {
 		}
 	}
 
-	static isBuffer(obj: any): boolean {
+	static isBuffer(obj: unknown): boolean {
 		throw new Error("unimplemented");
 	}
 
