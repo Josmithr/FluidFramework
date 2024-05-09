@@ -1785,18 +1785,10 @@
         "jsdoc": {
             "mode": "typescript",
             "tagNamePreference": {
-                "arg": {
-                    "message": "Please use @param instead of @arg.",
-                    "replacement": "param"
-                },
-                "argument": {
-                    "message": "Please use @param instead of @argument.",
-                    "replacement": "param"
-                },
-                "return": {
-                    "message": "Please use @returns instead of @return.",
-                    "replacement": "returns"
-                }
+                "arg": "param",
+                "argument": "param",
+                "return": "returns",
+                "inheritdoc": "inheritDoc"
             }
         }
     }
