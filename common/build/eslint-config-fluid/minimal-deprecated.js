@@ -398,10 +398,10 @@ module.exports = {
 				"eslint-plugin-tsdoc",
 			],
 			rules: {
-				// /**
-				//  * Superseded by tsdoc/syntax in TypeScript code.
-				//  */
-				// "jsdoc/check-tag-names": "off",
+				/**
+				 * Superseded by tsdoc/syntax in TypeScript code.
+				 */
+				"jsdoc/check-tag-names": "off",
 
 				/**
 				 * This rule ensures that our Intellisense looks good by verifying the TSDoc syntax.

@@ -677,7 +677,7 @@
             "warn"
         ],
         "jsdoc/check-tag-names": [
-            "error"
+            "off"
         ],
         "jsdoc/empty-tags": [
             "error"
