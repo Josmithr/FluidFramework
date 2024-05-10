@@ -124,7 +124,7 @@ module.exports = {
 			},
 		],
 
-		// ENABLED INTENTIONALLY
+		// #region ENABLED INTENTIONALLY
 		"@typescript-eslint/ban-types": "error",
 		"@typescript-eslint/dot-notation": "error",
 		"@typescript-eslint/no-non-null-assertion": "error",
@@ -178,6 +178,8 @@ module.exports = {
 		"unicorn/prefer-switch": "error",
 		"unicorn/prefer-ternary": "error",
 		"unicorn/prefer-type-error": "error",
+
+		// #endregion
 
 		// #region DISABLED INTENTIONALLY
 
