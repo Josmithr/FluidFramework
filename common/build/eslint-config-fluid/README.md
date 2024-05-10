@@ -59,7 +59,8 @@ a diff to review as part of a PR -- just like we do with API reports for code ch
 | `prettier` | `prettier --check .` |
 | `prettier:fix` | `prettier --write .` |
 | `print-config` | Print all the eslint configs. |
-| `print-config:default` | Print the eslint config for regular TypeScript files (`eslint --config index.js --print-config src/file.ts`). |
+| `print-config:default` | Print the default eslint config for regular TypeScript files (`eslint --config index.js --print-config src/file.ts`). |
+| `print-config:javascript` | Print the default eslint config for regular JavaScript files (`eslint --config ./index.js --print-config ./src/file.js`) |
 | `print-config:minimal` | `eslint --config ./minimal-deprecated.js --print-config ./src/file.ts > ./printed-configs/minimal.json` |
 | `print-config:react` | `eslint --config ./index.js --print-config ./src/file.tsx > ./printed-configs/react.json` |
 | `print-config:recommended` | `eslint --config ./recommended.js --print-config ./src/file.ts > ./printed-configs/recommended.json` |
