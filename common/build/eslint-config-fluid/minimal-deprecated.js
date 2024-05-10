@@ -69,8 +69,6 @@ module.exports = {
 		"eslint-plugin-jsdoc",
 		// Plugin documentation: https://www.npmjs.com/package/eslint-plugin-promise
 		"eslint-plugin-promise",
-		// Plugin documentation: https://www.npmjs.com/package/eslint-plugin-tsdoc
-		"eslint-plugin-tsdoc",
 		// Plugin documentation: https://www.npmjs.com/package/eslint-plugin-unused-imports
 		"unused-imports",
 		// Plugin documentation: https://www.npmjs.com/package/eslint-plugin-unicorn
@@ -295,11 +293,6 @@ module.exports = {
 
 		// #region DOCUMENTATION RULES
 
-		/**
-		 * This rule ensures that our Intellisense looks good by verifying the TSDoc syntax.
-		 */
-		"tsdoc/syntax": "error",
-
 		// #region eslint-plugin-jsdoc rules
 
 		/**
@@ -330,9 +323,9 @@ module.exports = {
 		"jsdoc/check-indentation": "error",
 
 		/**
-		 * Covered by `tsdoc/syntax`
+		 * Checks validity of JSDoc tags in comments.
 		 */
-		"jsdoc/check-tag-names": "off",
+		"jsdoc/check-tag-names": "error",
 
 		/**
 		 * Ensures that JSDoc/TSDoc "modifier" tags are empty.
@@ -400,7 +393,21 @@ module.exports = {
 		{
 			// Rules only for TypeScript files
 			files: ["*.ts", "*.tsx"],
+			plugins: [
+				// Plugin documentation: https://www.npmjs.com/package/eslint-plugin-tsdoc
+				"eslint-plugin-tsdoc",
+			],
 			rules: {
+				// /**
+				//  * Superseded by tsdoc/syntax in TypeScript code.
+				//  */
+				// "jsdoc/check-tag-names": "off",
+
+				/**
+				 * This rule ensures that our Intellisense looks good by verifying the TSDoc syntax.
+				 */
+				"tsdoc/syntax": "error",
+
 				"dot-notation": "off", // Superseded by @typescript-eslint/dot-notation
 				"no-unused-expressions": "off", // Superseded by @typescript-eslint/no-unused-expressions
 			},

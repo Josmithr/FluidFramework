@@ -26,12 +26,12 @@
         "@fluid-internal/fluid",
         "unicorn",
         "unused-imports",
-        "tsdoc",
         "promise",
         "jsdoc",
         "@typescript-eslint",
         "@rushstack/security",
-        "@rushstack"
+        "@rushstack",
+        "tsdoc"
     ],
     "reportUnusedDisableDirectives": true,
     "rules": {
@@ -654,7 +654,7 @@
             "warn"
         ],
         "jsdoc/check-tag-names": [
-            "off"
+            "error"
         ],
         "jsdoc/empty-tags": [
             "error"
