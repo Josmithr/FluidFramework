@@ -15534,6 +15534,9 @@ importers:
       '@types/react-dom':
         specifier: ^17.0.18
         version: 17.0.25
+      '@types/rewire':
+        specifier: ^2.5.30
+        version: 2.5.30
       '@types/sinon':
         specifier: ^17.0.3
         version: 17.0.3
