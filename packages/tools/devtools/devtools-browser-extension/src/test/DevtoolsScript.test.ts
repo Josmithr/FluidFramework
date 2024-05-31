@@ -4,27 +4,20 @@
  */
 
 import { expect } from "chai";
-import Proxyquire from "proxyquire";
+import rewire from "rewire";
 import { createSandbox } from "sinon";
 
 import { type Globals } from "../Globals.js";
 
 import { stubGlobals } from "./Utilities.js";
 
-const proxyquire = Proxyquire.noCallThru();
-
 const devtoolsScriptPath = "../devtools/DevtoolsScript"; // Relative to this file
-const globalsModulePath = "../Globals"; // Relative to this file
 
 /**
  * Require the background script using the provided `browser` APIs.
  */
 const loadDevtoolsScript = (globals: Globals): void => {
-	proxyquire(devtoolsScriptPath, {
-		[globalsModulePath]: {
-			...globals,
-		} as unknown,
-	});
+	rewire(devtoolsScriptPath).__with__(globals);
 };
 
 describe("Devtools Script unit tests", () => {
