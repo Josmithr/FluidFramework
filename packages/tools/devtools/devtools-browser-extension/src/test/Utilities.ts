@@ -4,9 +4,19 @@
  */
 
 import { JSDOM } from "jsdom";
+import rewire from "rewire";
 import { type SinonSandbox } from "sinon";
 
 import { type Globals } from "../Globals.js";
+
+/**
+ * Loads the specified module with the provided globals stubbed.
+ * @param modulePath - The module to load.
+ * @param globals - Globals to stub in the module
+ */
+export function loadModuleWithStubbedGlobals(modulePath: string, globals: Globals): void {
+	rewire(modulePath).__with__(globals);
+}
 
 /**
  * Wait for a listener to be registered for the specified event.

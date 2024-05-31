@@ -3,21 +3,22 @@
  * Licensed under the MIT License.
  */
 
+import path from "node:path";
+
 import { expect } from "chai";
-import rewire from "rewire";
 import { createSandbox } from "sinon";
 
 import { type Globals } from "../Globals.js";
 
-import { stubGlobals } from "./Utilities.js";
+import { loadModuleWithStubbedGlobals, stubGlobals } from "./Utilities.js";
 
-const devtoolsScriptPath = "../devtools/DevtoolsScript"; // Relative to this file
+const devtoolsScriptPath = path.resolve("../devtools/DevtoolsScript");
 
 /**
  * Require the background script using the provided `browser` APIs.
  */
 const loadDevtoolsScript = (globals: Globals): void => {
-	rewire(devtoolsScriptPath).__with__(globals);
+	loadModuleWithStubbedGlobals(devtoolsScriptPath, globals);
 };
 
 describe("Devtools Script unit tests", () => {

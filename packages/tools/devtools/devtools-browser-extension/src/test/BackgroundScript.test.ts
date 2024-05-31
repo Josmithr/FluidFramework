@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+import path from "node:path";
+
 import { delay } from "@fluidframework/core-utils/internal";
 import {
 	CloseContainer,
@@ -10,30 +12,22 @@ import {
 	devtoolsMessageSource,
 } from "@fluidframework/devtools-core/internal";
 import { expect } from "chai";
-import Proxyquire from "proxyquire";
 import { createSandbox } from "sinon";
 
 import { type Globals } from "../Globals.js";
 import { type DevToolsInitMessage, extensionViewMessageSource } from "../messaging/index.js";
 
-import { awaitListener, stubGlobals, stubPort } from "./Utilities.js";
+import { awaitListener, loadModuleWithStubbedGlobals, stubGlobals, stubPort } from "./Utilities.js";
 
 type Port = chrome.runtime.Port;
 
-const proxyquire = Proxyquire.noCallThru();
-
-const backgroundScriptPath = "../background/BackgroundScript"; // Relative to this file
-const globalsModulePath = "../Globals"; // Relative to this file
+const backgroundScriptPath = path.resolve("../background/BackgroundScript");
 
 /**
  * Require the background script using the provided `browser` APIs.
  */
 const loadBackgroundScript = (globals: Globals): void => {
-	proxyquire(backgroundScriptPath, {
-		[globalsModulePath]: {
-			...globals,
-		} as unknown,
-	});
+	loadModuleWithStubbedGlobals(backgroundScriptPath, globals);
 };
 
 describe("Background Script unit tests", () => {
