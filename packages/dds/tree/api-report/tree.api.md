@@ -955,7 +955,7 @@ export interface IEmitter<TListeners extends Listeners<TListeners>> {
 
 // @internal
 export interface IForestSubscription extends Listenable<ForestEvents> {
-    allocateCursor(): ITreeSubscriptionCursor;
+    allocateCursor(source?: string): ITreeSubscriptionCursor;
     readonly anchors: AnchorSet;
     clone(schema: TreeStoredSchemaSubscription, anchors: AnchorSet): IEditableForest;
     forgetAnchor(anchor: Anchor): void;
@@ -1144,7 +1144,7 @@ export interface ITreeSubscriptionCursor extends ITreeCursor {
     buildFieldAnchor(): FieldAnchor;
     clear(): void;
     // (undocumented)
-    fork(): ITreeSubscriptionCursor;
+    fork(source?: string): ITreeSubscriptionCursor;
     free(): void;
     readonly state: ITreeSubscriptionCursorState;
 }
@@ -1175,11 +1175,6 @@ export type JsonCompatible = string | number | boolean | null | JsonCompatible[]
 // @internal
 export type JsonCompatibleObject = {
     [P in string]?: JsonCompatible;
-};
-
-// @internal
-export type JsonCompatibleReadOnly = string | number | boolean | null | readonly JsonCompatibleReadOnly[] | {
-    readonly [P in string]?: JsonCompatibleReadOnly;
 };
 
 // @internal
