@@ -4,25 +4,6 @@
 
 ```ts
 
-import * as api from '@fluidframework/protocol-definitions';
-import { AxiosInstance } from 'axios';
-import { AxiosRequestConfig } from 'axios';
-import { ICreateTreeEntry } from '@fluidframework/gitresources';
-import { IQuorumSnapshot } from '@fluidframework/protocol-base';
-import { ISequencedDocumentMessage } from '@fluidframework/protocol-definitions';
-import { ISnapshotTree } from '@fluidframework/protocol-definitions';
-import { ISnapshotTreeEx } from '@fluidframework/protocol-definitions';
-import { ISummaryHandle } from '@fluidframework/protocol-definitions';
-import { ISummaryTree as ISummaryTree_2 } from '@fluidframework/protocol-definitions';
-import { ITokenClaims } from '@fluidframework/protocol-definitions';
-import { ITree } from '@fluidframework/gitresources';
-import { ITreeEntry } from '@fluidframework/protocol-definitions';
-import { IUser } from '@fluidframework/protocol-definitions';
-import { RawAxiosRequestHeaders } from 'axios';
-import * as resources from '@fluidframework/gitresources';
-import { ScopeType } from '@fluidframework/protocol-definitions';
-import { SummaryObject } from '@fluidframework/protocol-definitions';
-
 // @internal (undocumented)
 export class BasicRestWrapper extends RestWrapper {
     constructor(baseurl?: string, defaultQueryString?: Record<string, string | number | boolean>, maxBodyLength?: number, maxContentLength?: number, defaultHeaders?: RawAxiosRequestHeaders, axios?: AxiosInstance, refreshDefaultQueryString?: () => Record<string, string | number | boolean>, refreshDefaultHeaders?: () => RawAxiosRequestHeaders, getCorrelationId?: () => string | undefined);
