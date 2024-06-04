@@ -11,3 +11,6 @@ Each patch is described here, along with any relevant links to issues or PRs and
 
 We have patched our dependency on `@microsoft/api-extractor` in order to ensure we can validate release tag compatibility across package boundaries.
 It is a mitigation of [issue 4430](https://github.com/microsoft/rushstack/issues/4430).
+
+We have also temporarily patched the behavior of API report generation to omit import statements.
+Proper support for this in API-Extractor is tracked by [PR 4756](https://github.com/microsoft/rushstack/pull/4756).
