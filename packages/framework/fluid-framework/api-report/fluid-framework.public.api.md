@@ -4,42 +4,6 @@
 
 ```ts
 
-import { Client } from '@fluidframework/merge-tree/internal';
-import { ErasedType } from '@fluidframework/core-interfaces';
-import { IChannel } from '@fluidframework/datastore-definitions/internal';
-import { IDisposable } from '@fluidframework/core-interfaces';
-import type { IErrorBase } from '@fluidframework/core-interfaces';
-import { IErrorEvent } from '@fluidframework/core-interfaces';
-import { IEvent } from '@fluidframework/core-interfaces';
-import { IEventProvider } from '@fluidframework/core-interfaces';
-import { IEventThisPlaceHolder } from '@fluidframework/core-interfaces';
-import { IFluidHandle } from '@fluidframework/core-interfaces';
-import { IFluidLoadable } from '@fluidframework/core-interfaces';
-import { IGarbageCollectionData } from '@fluidframework/runtime-definitions/internal';
-import { IJSONSegment } from '@fluidframework/merge-tree/internal';
-import { IMergeTreeDeltaCallbackArgs } from '@fluidframework/merge-tree/internal';
-import { IMergeTreeDeltaOpArgs } from '@fluidframework/merge-tree/internal';
-import { IMergeTreeGroupMsg } from '@fluidframework/merge-tree/internal';
-import { IMergeTreeMaintenanceCallbackArgs } from '@fluidframework/merge-tree/internal';
-import { IRelativePosition } from '@fluidframework/merge-tree/internal';
-import { ISegment } from '@fluidframework/merge-tree/internal';
-import { ISegmentAction } from '@fluidframework/merge-tree/internal';
-import { ISharedObjectKind } from '@fluidframework/shared-object-base/internal';
-import { LocalReferencePosition } from '@fluidframework/merge-tree/internal';
-import { Marker } from '@fluidframework/merge-tree/internal';
-import { MergeTreeDeltaOperationType } from '@fluidframework/merge-tree/internal';
-import { MergeTreeDeltaOperationTypes } from '@fluidframework/merge-tree/internal';
-import { MergeTreeMaintenanceType } from '@fluidframework/merge-tree/internal';
-import { MergeTreeRevertibleDriver } from '@fluidframework/merge-tree/internal';
-import { PropertiesManager } from '@fluidframework/merge-tree/internal';
-import { PropertySet } from '@fluidframework/merge-tree/internal';
-import { ReferencePosition } from '@fluidframework/merge-tree/internal';
-import { ReferenceType } from '@fluidframework/merge-tree/internal';
-import { SharedObjectKind as SharedObjectKind_2 } from '@fluidframework/shared-object-base/internal';
-import { SlidingPreference } from '@fluidframework/merge-tree/internal';
-import { TextSegment } from '@fluidframework/merge-tree/internal';
-import { TypedEventEmitter } from '@fluid-internal/client-utils';
-
 // @public
 export type AllowedTypes = readonly LazyItem<TreeNodeSchema>[];
 

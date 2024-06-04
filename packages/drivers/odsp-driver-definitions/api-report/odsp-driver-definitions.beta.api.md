@@ -4,11 +4,6 @@
 
 ```ts
 
-import { DriverError } from '@fluidframework/driver-definitions/internal';
-import { FiveDaysMs } from '@fluidframework/driver-definitions/internal';
-import { IDriverErrorBase } from '@fluidframework/driver-definitions/internal';
-import { IResolvedUrl } from '@fluidframework/driver-definitions/internal';
-
 // @beta
 export interface TokenResponse {
     fromCache?: boolean;
