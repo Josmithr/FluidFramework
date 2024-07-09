@@ -54,6 +54,7 @@ export type FluidErrorTypes = (typeof FluidErrorTypes)[keyof typeof FluidErrorTy
  * Runtime and others will follow soon.
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IErrorBase extends Partial<Error> {
 	/**
 	 * A type tag differentiating kinds of errors emitted by the container.
@@ -97,6 +98,8 @@ export interface IErrorBase extends Partial<Error> {
  * Generic wrapper for an unrecognized/uncategorized error object
  * @internal
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IGenericError extends IErrorBase {
 	/**
 	 * {@inheritDoc IErrorBase.errorType}
@@ -112,6 +115,8 @@ export interface IGenericError extends IErrorBase {
  * Error indicating an API is being used improperly resulting in an invalid operation.
  * @internal
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IUsageError extends IErrorBase {
 	/**
 	 * {@inheritDoc IErrorBase.errorType}
@@ -124,6 +129,7 @@ export interface IUsageError extends IErrorBase {
  * @legacy
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IThrottlingWarning extends IErrorBase {
 	/**
 	 * {@inheritDoc IErrorBase.errorType}

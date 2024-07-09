@@ -7,6 +7,8 @@
  * Base interface for event emitters.
  * @public
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IEvent {
 	/**
 	 * Base event emitter signature.
@@ -26,6 +28,8 @@ export interface IEvent {
  * Base interface for error event emitters.
  * @public
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IErrorEvent extends IEvent {
 	/**
 	 * Base error event emitter signature.
@@ -40,6 +44,8 @@ export interface IErrorEvent extends IEvent {
  * Base interface for event providers.
  * @sealed @public
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IEventProvider<TEvent extends IEvent> {
 	/**
 	 * Registers a callback to be invoked when the corresponding event is triggered.
@@ -103,7 +109,8 @@ export type ExtendEventProvider<
  * The placeholder type that should be used instead of `this` in events.
  * @public
  */
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/naming-convention
 export type IEventThisPlaceHolder = { thisPlaceHolder: "thisPlaceHolder" };
 
 /**
@@ -136,6 +143,8 @@ export type TransformedEvent<TThis, E, A extends any[]> = (
  * If we need to move beyond 15 we should evaluate using a mapped type pattern like `{"event":(listenerArgs)=>void}`
  * @public
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type IEventTransformer<TThis, TEvent extends IEvent> = TEvent extends {
 	(event: infer E0, listener: (...args: infer A0) => void);
 	(event: infer E1, listener: (...args: infer A1) => void);

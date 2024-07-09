@@ -16,6 +16,7 @@ export const IFluidHandleContext: keyof IProvideFluidHandleContext = "IFluidHand
  * @legacy
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IProvideFluidHandleContext {
 	readonly IFluidHandleContext: IFluidHandleContext;
 }
@@ -25,6 +26,7 @@ export interface IProvideFluidHandleContext {
  * @legacy
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IFluidHandleContext extends IProvideFluidHandleContext {
 	/**
 	 * The absolute path to the handle context from the root.
@@ -63,6 +65,7 @@ export const IFluidHandle = "IFluidHandle";
  * @legacy
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IProvideFluidHandle {
 	/**
 	 * @deprecated {@link IFluidHandleInternal} and {@link IFluidHandleInternal} should be identified should be identified using the {@link fluidHandleSymbol} symbol.
@@ -79,6 +82,7 @@ export interface IProvideFluidHandle {
  * @legacy
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IFluidHandleInternal<
 	// REVIEW: Constrain `T` to something? How do we support dds and datastores safely?
 	out T = unknown, // FluidObject & IFluidLoadable,
@@ -123,6 +127,7 @@ export const fluidHandleSymbol: unique symbol = Symbol.for(
  * Handle to a shared {@link FluidObject}.
  * @sealed @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IFluidHandle<out T = unknown> {
 	/**
 	 * Flag indicating whether or not the entity has services attached.
@@ -151,5 +156,5 @@ export interface IFluidHandle<out T = unknown> {
  * Created from {@link IFluidHandleInternal} using {@link toFluidHandleErased}.
  * @sealed @public
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-interface, @typescript-eslint/naming-convention
 export interface IFluidHandleErased<T> extends ErasedType<readonly ["IFluidHandle", T]> {}

@@ -20,6 +20,7 @@ export type ConfigTypes =
  * Base interface for providing configurations to enable/disable/control features.
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IConfigProviderBase {
 	/**
 	 * For the specified config name this function gets the value.

@@ -6,6 +6,8 @@
 /**
  * @internal
  */
+// TODO: Rename this to conform to our naming conventions
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ISignalEnvelope {
 	/**
 	 * The target for the envelope, undefined for the container

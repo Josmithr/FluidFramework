@@ -30,6 +30,7 @@ export interface Tagged<V, T extends string = string> {
  * JSON-serializable properties, which will be logged with telemetry.
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ITelemetryBaseProperties {
 	/**
 	 * Properties of a telemetry event. They are string-indexed, and their values restricted to a known set of
@@ -45,6 +46,7 @@ export interface ITelemetryBaseProperties {
  * @param eventName - name of the event.
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ITelemetryBaseEvent extends ITelemetryBaseProperties {
 	category: string;
 	eventName: string;
@@ -71,6 +73,7 @@ export type LogLevel = (typeof LogLevel)[keyof typeof LogLevel];
  * Implemented by hosting app / loader
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ITelemetryBaseLogger {
 	/**
 	 * Log a telemetry event, if it meets the appropriate log-level threshold (see {@link ITelemetryBaseLogger.minLogLevel}).
@@ -94,6 +97,7 @@ export interface ITelemetryBaseLogger {
  * No replacement intended for FluidFramework consumers.
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ITelemetryErrorEvent extends ITelemetryBaseProperties {
 	eventName: string;
 }
@@ -103,6 +107,7 @@ export interface ITelemetryErrorEvent extends ITelemetryBaseProperties {
  * @legacy
  * @alpha
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ILoggingError extends Error {
 	/**
 	 * Return all properties from this object that should be logged to telemetry
