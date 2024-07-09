@@ -50,6 +50,28 @@ module.exports = {
 				],
 			},
 		],
+
+		/**
+		 * @see {@link https://typescript-eslint.io/rules/naming-convention/}
+		 */
+		"namingConventionRules": [
+			{
+				selector: "accessor",
+				modifiers: ["private"],
+				format: ["camelCase"],
+				leadingUnderscore: "allow",
+			},
+			// See our type naming rules here: https://github.com/microsoft/FluidFramework/wiki/Coding-Guidelines#-do-not-prefix-interfaces-with-i
+			{
+				selector: "typeLike",
+				format: ["PascalCase"],
+				// Forbid "I" prefix for interfaces (and other types).
+				custom: {
+					regex: "^I[A-Z]",
+					match: false,
+				},
+			},
+		],
 	},
 	overrides: [
 		{
