@@ -779,6 +779,29 @@
         "multiline-ternary": [
             "off"
         ],
+        "namingConventionRules": [
+            "error",
+            {
+                "selector": "accessor",
+                "modifiers": [
+                    "private"
+                ],
+                "format": [
+                    "camelCase"
+                ],
+                "leadingUnderscore": "allow"
+            },
+            {
+                "selector": "typeLike",
+                "format": [
+                    "PascalCase"
+                ],
+                "custom": {
+                    "regex": "^I[A-Z]",
+                    "match": false
+                }
+            }
+        ],
         "new-parens": [
             "off"
         ],

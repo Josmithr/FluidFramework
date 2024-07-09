@@ -55,6 +55,7 @@ module.exports = {
 		 * @see {@link https://typescript-eslint.io/rules/naming-convention/}
 		 */
 		"namingConventionRules": [
+			"error",
 			{
 				selector: "accessor",
 				modifiers: ["private"],
