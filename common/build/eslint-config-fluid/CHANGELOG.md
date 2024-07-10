@@ -1,5 +1,11 @@
 # @fluidframework/eslint-config-fluid Changelog
 
+## 6.0.0
+
+### ⚠ BREAKING CHANGES
+
+-   Add rule forbidding the use of `@experimental` tag in JSDoc/TSDoc comments.
+
 ## [5.4.0](https://github.com/microsoft/FluidFramework/releases/tag/eslint-config-fluid_v5.4.0)
 
 ### Disabled rules

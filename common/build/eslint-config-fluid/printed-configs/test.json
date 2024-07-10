@@ -663,7 +663,7 @@
             "warn"
         ],
         "jsdoc/check-tag-names": [
-            "off"
+            "error"
         ],
         "jsdoc/empty-tags": [
             "error"

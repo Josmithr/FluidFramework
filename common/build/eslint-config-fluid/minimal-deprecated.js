@@ -86,6 +86,15 @@ module.exports = {
 		// Don't lint generated packageVersion files.
 		"**/packageVersion.ts",
 	],
+	settings: {
+		jsdoc: {
+			tagNamePreference: {
+				// We do not allow the use of `@experimental`.
+				// For annotating API stability, use release tags (https://github.com/microsoft/FluidFramework/wiki/Release-Tags) instead.
+				"@experimental": false,
+			},
+		},
+	},
 	rules: {
 		/**
 		 * Restricts including release tags inside the member class / interface.
@@ -328,9 +337,10 @@ module.exports = {
 		"jsdoc/check-indentation": "error",
 
 		/**
-		 * Covered by `tsdoc/syntax`
+		 * Ensures consistency / validity of tag names used in comments.
+		 * @see {@link https://github.com/gajus/eslint-plugin-jsdoc#user-content-eslint-plugin-jsdoc-rules-check-tag-names}
 		 */
-		"jsdoc/check-tag-names": "off",
+		"jsdoc/check-tag-names": "error",
 
 		/**
 		 * Ensures that JSDoc/TSDoc "modifier" tags are empty.
