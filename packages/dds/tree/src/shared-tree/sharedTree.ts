@@ -18,6 +18,7 @@ import { type ICodecOptions, noopValidator } from "../codec/index.js";
 import {
 	type JsonableTree,
 	RevisionTagCodec,
+	type SchemaPolicy,
 	type TreeStoredSchema,
 	TreeStoredSchemaRepository,
 	makeDetachedFieldIndex,
@@ -77,6 +78,12 @@ export interface SharedTreeContentSnapshot {
 	 * This is mainly useful for debugging cases where schematize reports an incompatible view schema.
 	 */
 	readonly schema: TreeStoredSchema;
+
+	/**
+	 * Policy associated with the {@link SharedTreeContentSnapshot.schema}.
+	 */
+	readonly schemaPolicy: SchemaPolicy;
+
 	/**
 	 * All {@link TreeStatus.InDocument} content.
 	 */
@@ -285,6 +292,7 @@ export class SharedTree
 			moveToDetachedField(this.checkout.forest, cursor);
 			return {
 				schema: this.storedSchema.clone(),
+				schemaPolicy: defaultSchemaPolicy,
 				tree: jsonableTreeFromFieldCursor(cursor),
 				removed: this.checkout.getRemovedRoots(),
 			};
