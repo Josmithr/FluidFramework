@@ -28,6 +28,9 @@ export {
 	ObjectNodeStoredSchema,
 	MapNodeStoredSchema,
 	LeafNodeStoredSchema,
+	type FieldKindData,
+	type Multiplicity,
+	type SchemaPolicy,
 } from "./core/index.js";
 export { type Brand } from "./util/index.js";
 
@@ -58,6 +61,7 @@ export {
 	type NodeInDocumentConstraint,
 	type RunTransaction,
 	rollback,
+	storedSchemaToSimpleSchema,
 } from "./shared-tree/index.js";
 
 export {

@@ -65,6 +65,8 @@ export type TreeTypeSet = ReadonlySet<TreeNodeSchemaIdentifier> | undefined;
  *
  * @remarks
  * Enough info about a field kind to know if a given tree is is schema.
+ *
+ * @internal
  */
 export interface FieldKindData {
 	readonly identifier: FieldKindIdentifier;
@@ -81,6 +83,8 @@ export interface SchemaAndPolicy {
 
 /**
  * Extra data needed to interpret schema.
+ *
+ * @internal
  */
 export interface SchemaPolicy {
 	/**

@@ -50,3 +50,5 @@ export {
 	type RunTransaction,
 	rollback,
 } from "./treeApi.js";
+
+export { storedSchemaToSimpleSchema } from "./storedSchemaToSimpleSchema.js";
