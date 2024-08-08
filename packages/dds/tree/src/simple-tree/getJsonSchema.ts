@@ -5,7 +5,7 @@
 
 import type { JsonTreeSchema } from "./jsonSchema.js";
 import type { ImplicitAllowedTypes, TreeNodeSchema } from "./schemaTypes.js";
-import { toJsonSchema } from "./simpleSchemaToJsonSchema.js";
+import { simpleSchemaToJsonSchema } from "./simpleSchemaToJsonSchema.js";
 import { getSimpleSchema } from "./getSimpleSchema.js";
 import { getOrCreate } from "../util/index.js";
 
@@ -64,6 +64,6 @@ const jsonSchemaCache = new WeakMap<TreeNodeSchema, JsonTreeSchema>();
 export function getJsonSchema(schema: ImplicitAllowedTypes): JsonTreeSchema {
 	return getOrCreate(jsonSchemaCache, schema, () => {
 		const simpleSchema = getSimpleSchema(schema);
-		return toJsonSchema(simpleSchema);
+		return simpleSchemaToJsonSchema(simpleSchema);
 	});
 }

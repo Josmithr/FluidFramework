@@ -33,7 +33,7 @@ import type {
  * Generates a JSON Schema representation from a simple tree schema.
  * @internal
  */
-export function toJsonSchema(schema: SimpleTreeSchema): JsonTreeSchema {
+export function simpleSchemaToJsonSchema(schema: SimpleTreeSchema): JsonTreeSchema {
 	const definitions = convertDefinitions(schema.definitions);
 
 	const anyOf: JsonSchemaRef[] = [];

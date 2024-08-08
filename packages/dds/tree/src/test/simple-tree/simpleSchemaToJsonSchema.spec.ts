@@ -9,7 +9,7 @@ import { getJsonValidator } from "./jsonSchemaUtilities.js";
 // eslint-disable-next-line import/no-internal-modules
 import type { SimpleNodeSchema, SimpleTreeSchema } from "../../simple-tree/simpleSchema.js";
 // eslint-disable-next-line import/no-internal-modules
-import { toJsonSchema } from "../../simple-tree/simpleSchemaToJsonSchema.js";
+import { simpleSchemaToJsonSchema } from "../../simple-tree/simpleSchemaToJsonSchema.js";
 import { ValueSchema } from "../../core/index.js";
 
 describe("simpleSchemaToJsonSchema", () => {
@@ -21,7 +21,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.string"]),
 		};
 
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {
@@ -57,7 +57,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.handle"]),
 		};
 
-		assert.throws(() => toJsonSchema(input));
+		assert.throws(() => simpleSchemaToJsonSchema(input));
 	});
 
 	it("Array schema", () => {
@@ -72,7 +72,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.array"]),
 		};
 
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {
@@ -117,7 +117,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.map"]),
 		};
 
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {
@@ -190,7 +190,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.object"]),
 		};
 
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {
@@ -281,7 +281,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.object"]),
 		};
 
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {
@@ -331,7 +331,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			allowedTypes: new Set<string>(["test.object"]),
 		};
 
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {
@@ -383,7 +383,7 @@ describe("simpleSchemaToJsonSchema", () => {
 			]),
 			allowedTypes: new Set<string>(["test.recursive-object"]),
 		};
-		const actual = toJsonSchema(input);
+		const actual = simpleSchemaToJsonSchema(input);
 
 		const expected: JsonTreeSchema = {
 			$defs: {

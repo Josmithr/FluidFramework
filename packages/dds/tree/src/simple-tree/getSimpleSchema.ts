@@ -62,6 +62,8 @@ const simpleSchemaCache = new WeakMap<TreeNodeSchema, SimpleTreeSchema>();
  *
  * @privateRemarks In the future, we may wish to move this to a more discoverable API location.
  * For now, while still an experimental API, it is surfaced as a free function.
+ *
+ * @internal
  */
 export function getSimpleSchema(schema: ImplicitAllowedTypes): SimpleTreeSchema {
 	return getOrCreate(simpleSchemaCache, schema, () => toSimpleTreeSchema(schema));
