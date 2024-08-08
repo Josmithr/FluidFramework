@@ -21,17 +21,16 @@ import {
 import { SharedMatrix } from "@fluidframework/matrix/internal";
 import { SharedString } from "@fluidframework/sequence/internal";
 import type { ISharedObject } from "@fluidframework/shared-object-base/internal";
-import type { ISharedTree } from "@fluidframework/tree/internal";
-import { SharedTree } from "@fluidframework/tree/internal";
+import {
+	type ISharedTree,
+	type SimpleTreeSchema,
+	SharedTree,
+	storedSchemaToSimpleSchema,
+} from "@fluidframework/tree/internal";
 
 import { EditType } from "../CommonInterfaces.js";
 
 import type { VisualizeChildData, VisualizeSharedObject } from "./DataVisualization.js";
-import {
-	determineNodeKind,
-	toVisualTree,
-	visualizeSharedTreeNodeBySchema,
-} from "./SharedTreeVisualizer.js";
 import {
 	type FluidObjectNode,
 	type FluidObjectTreeNode,
@@ -41,6 +40,7 @@ import {
 	VisualNodeKind,
 	type VisualTreeNode,
 } from "./VisualTree.js";
+import { visualizeTree } from "./VisualizeSharedTree.js";
 
 /**
  * Default {@link VisualizeSharedObject} for {@link SharedCell}.
@@ -258,31 +258,23 @@ export const visualizeSharedTree: VisualizeSharedObject = async (
 ): Promise<FluidObjectNode> => {
 	const sharedTree = sharedObject as ISharedTree;
 	const contentSnapshot = sharedTree.contentSnapshot();
+	const simpleSchema: SimpleTreeSchema = storedSchemaToSimpleSchema(
+		contentSnapshot.schema,
+		contentSnapshot.schemaPolicy,
+	);
 
 	// Root node of the SharedTree's treeview. Assume there is only one root node.
 	const treeView = contentSnapshot.tree[0];
 
-	// Schema of the tree node.
-	const treeSchema = contentSnapshot.schema.nodeSchema.get(treeView.type);
-
-	// Traverses the SharedTree and generates a visual representation of the tree and its schema.
-	const visualTreeRepresentation = await visualizeSharedTreeNodeBySchema(
-		treeView,
-		treeSchema,
-		contentSnapshot,
-		visualizeChildData,
-	);
-
 	// Maps the `visualTreeRepresentation` in the format compatible to {@link visualizeChildData} function.
-	const visualTree = toVisualTree(visualTreeRepresentation);
+	const visualTree = await visualizeTree(treeView, simpleSchema, visualizeChildData);
 
-	// TODO: Validate the type casting.
 	const visualTreeResult: FluidObjectNode = {
 		...visualTree,
 		fluidObjectId: sharedTree.id,
 		typeMetadata: "SharedTree",
-		nodeKind: determineNodeKind(visualTree.nodeKind),
-	} as unknown as FluidObjectNode;
+		nodeKind: VisualNodeKind.FluidTreeNode,
+	};
 
 	return visualTreeResult;
 };
