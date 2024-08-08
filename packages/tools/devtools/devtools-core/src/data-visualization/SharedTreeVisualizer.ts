@@ -157,7 +157,7 @@ export function toVisualTree(tree: VisualSharedTreeNode): VisualChildNode {
 }
 
 /**
- * Concatenrate allowed types for `ObjectNodeStoredSchema` and `MapNodeStoredSchema`.
+ * Concatenate allowed types for `ObjectNodeStoredSchema` and `MapNodeStoredSchema`.
  */
 function concatenateTypes(fieldKey: string, fieldTypes: TreeTypeSet | undefined): string {
 	let fieldAllowedType = fieldKey === EmptyKey ? "" : `${fieldKey} : `;
