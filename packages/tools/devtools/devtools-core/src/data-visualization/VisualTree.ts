@@ -17,7 +17,7 @@ import type { EditType, FluidObjectId } from "../CommonInterfaces.js";
  *
  * Can be used to type-switch on the particular kind of node being processed.
  *
- * Note: for forwards compatability reasons, consumers of this should not assume it is exhaustive.
+ * Note: for forwards compatibility reasons, consumers of this should not assume it is exhaustive.
  * I.e. consumers should gracefully handle the case where
  *
  * @internal
