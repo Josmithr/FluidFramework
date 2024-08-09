@@ -263,11 +263,7 @@ export const visualizeSharedTree: VisualizeSharedObject = async (
 		contentSnapshot.schemaPolicy,
 	);
 
-	// Root node of the SharedTree's treeview. Assume there is only one root node.
-	const treeView = contentSnapshot.tree[0];
-
-	// Maps the `visualTreeRepresentation` in the format compatible to {@link visualizeChildData} function.
-	const visualTree = await visualizeTree(treeView, simpleSchema, visualizeChildData);
+	const visualTree = await visualizeTree(contentSnapshot.tree, simpleSchema, visualizeChildData);
 
 	const visualTreeResult: FluidObjectNode = {
 		...visualTree,
