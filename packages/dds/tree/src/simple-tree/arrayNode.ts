@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { oob } from "@fluidframework/core-utils/internal";
+import { oob, unreachableCase } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import { EmptyKey, type ExclusiveMapTree } from "../core/index.js";
@@ -892,6 +892,30 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 			}
 		}
 	}
+
+	public applyEdit(edit: ArrayEdit<T>): void {
+		const editType = edit.type;
+		switch (editType) {
+			case "insert":
+				this.insertAt(edit.index, ...edit.value);
+				break;
+			case "remove":
+				this.removeAt(edit.index);
+				break;
+			case "removeRange":
+				this.removeRange(edit.start, edit.end);
+				break;
+			case "move":
+				this.moveToIndex(edit.targetIndex, edit.sourceIndex);
+				break;
+			case "moveRange":
+				this.moveRangeToIndex(edit.targetIndex, edit.sourceStart, edit.sourceEnd);
+				break;
+			default: {
+				unreachableCase(editType);
+			}
+		}
+	}
 }
 
 /**
@@ -1060,3 +1084,43 @@ function validateIndexRange(
 		);
 	}
 }
+
+// #region Edit Schema
+
+// TODO: this set is much narrower than the editing APIs on array nodes themselves.
+// This was to simplify prototyping / hacking.
+// Likely, this set wants to more closely match the APIs.
+export type ArrayEditType = "insert" | "remove" | "removeRange" | "move" | "moveRange";
+
+export interface ArrayEditBase<TEditType extends ArrayEditType> {
+	readonly type: TEditType;
+};
+
+export interface ArrayInsertEdit<T extends ImplicitAllowedTypes> extends ArrayEditBase<"insert"> {
+	readonly index: number;
+	readonly value: Insertable<T>;
+}
+
+export interface ArrayRemoveEdit extends ArrayEditBase<"remove"> {
+	readonly index: number;
+}
+
+export interface ArrayRemoveRangeEdit extends ArrayEditBase<"removeRange"> {
+	readonly start?: number;
+	readonly end?: number;
+}
+
+export interface ArrayMoveEdit extends ArrayEditBase<"move"> {
+	readonly sourceIndex: number;
+	readonly targetIndex: number;
+}
+
+export interface ArrayMoveRangeEdit extends ArrayEditBase<"moveRange"> {
+	readonly sourceStart: number;
+	readonly sourceEnd: number;
+	readonly targetIndex: number;
+}
+
+export type ArrayEdit<TContent extends ImplicitAllowedTypes> = ArrayInsertEdit<TContent> | ArrayRemoveEdit | ArrayRemoveRangeEdit | ArrayMoveEdit | ArrayMoveRangeEdit;
+
+// #endregion
