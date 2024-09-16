@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { unreachableCase } from "@fluidframework/core-utils/internal";
 import {
 	type FlexMapNodeSchema,
 	type FlexTreeNode,
@@ -214,6 +215,23 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 		}
 	}
 	// TODO: add `clear` once we have established merge semantics for it.
+
+	public applyEdit(edit: MapEdit<T>): void {
+		const editType = edit.type;
+		switch (editType) {
+			case "set": {
+				this.set(edit.key, edit.value);
+				break;
+			}
+			case "remove": {
+				this.delete(edit.key);
+				break;
+			}
+			default: {
+				unreachableCase(editType)
+			}
+		}
+	}
 }
 
 /**
@@ -299,3 +317,23 @@ export function mapSchema<
 export type MapNodeInsertableData<T extends ImplicitAllowedTypes> =
 	| Iterable<readonly [string, InsertableTreeNodeFromImplicitAllowedTypes<T>]>
 	| RestrictiveReadonlyRecord<string, InsertableTreeNodeFromImplicitAllowedTypes<T>>;
+
+// #region Edit Schema
+
+export type MapEditType = "set" | "remove";
+
+export interface MapEditBase<TEditType extends MapEditType> {
+	type: TEditType;
+};
+
+export interface MapSetEdit<T extends ImplicitAllowedTypes> extends MapEditBase<"set"> {
+	key: string;
+	value: InsertableTreeNodeFromImplicitAllowedTypes<T>;
+}
+
+export interface MapRemoveEdit extends MapEditBase<"remove"> {
+	key: string;
+}
+
+export type MapEdit<T extends ImplicitAllowedTypes> = MapSetEdit<T> | MapRemoveEdit;
+// #endregion
