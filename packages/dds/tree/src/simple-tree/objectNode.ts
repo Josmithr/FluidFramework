@@ -475,3 +475,12 @@ function assertUniqueKeys<
 		derivedStoredKeys.add(storedKey);
 	}
 }
+
+
+// #region Edit Schema
+
+// TODO: map type from fields
+// - all fields get `set` edit (optionality affects type)
+// - optional fields get `remove` edit.
+
+// #endregion
