@@ -1094,9 +1094,10 @@ export type ArrayEditType = "insert" | "remove" | "removeRange" | "move" | "move
 
 export interface ArrayEditBase<TEditType extends ArrayEditType> {
 	readonly type: TEditType;
-};
+}
 
-export interface ArrayInsertEdit<T extends ImplicitAllowedTypes> extends ArrayEditBase<"insert"> {
+export interface ArrayInsertEdit<T extends ImplicitAllowedTypes>
+	extends ArrayEditBase<"insert"> {
 	readonly index: number;
 	readonly value: Insertable<T>;
 }
@@ -1121,6 +1122,11 @@ export interface ArrayMoveRangeEdit extends ArrayEditBase<"moveRange"> {
 	readonly targetIndex: number;
 }
 
-export type ArrayEdit<TContent extends ImplicitAllowedTypes> = ArrayInsertEdit<TContent> | ArrayRemoveEdit | ArrayRemoveRangeEdit | ArrayMoveEdit | ArrayMoveRangeEdit;
+export type ArrayEdit<TContent extends ImplicitAllowedTypes> =
+	| ArrayInsertEdit<TContent>
+	| ArrayRemoveEdit
+	| ArrayRemoveRangeEdit
+	| ArrayMoveEdit
+	| ArrayMoveRangeEdit;
 
 // #endregion

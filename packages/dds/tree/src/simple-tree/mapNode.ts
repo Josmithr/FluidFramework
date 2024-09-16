@@ -228,7 +228,7 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 				break;
 			}
 			default: {
-				unreachableCase(editType)
+				unreachableCase(editType);
 			}
 		}
 	}
@@ -324,7 +324,7 @@ export type MapEditType = "set" | "remove";
 
 export interface MapEditBase<TEditType extends MapEditType> {
 	type: TEditType;
-};
+}
 
 export interface MapSetEdit<T extends ImplicitAllowedTypes> extends MapEditBase<"set"> {
 	key: string;
