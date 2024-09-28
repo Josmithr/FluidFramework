@@ -3,10 +3,10 @@
  * Licensed under the MIT License.
  */
 
-import { PlainTextNode, type FencedCodeBlockNode } from "../../../documentation-domain/index.js";
+import { type FencedCodeBlockNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
-import { renderContentsUnderTag } from "../Utilities.js";
+import { renderTextUnderTag } from "../Utilities.js";
 
 /**
  * Renders a {@link FencedCodeBlockNode} as HTML.
@@ -20,5 +20,8 @@ export function renderFencedCodeBlock(
 	writer: DocumentWriter,
 	context: RenderContext,
 ): void {
-	renderContentsUnderTag([new PlainTextNode(node.value)], "code", writer, context);
+	// The writer implementation wants to santize line breaks, but we need to preserve them here.
+	// Convert line breaks to `<br>` tags.
+	const modifiedText = node.value.replace(/(\r?\n)/g, "$1<br>$1");
+	renderTextUnderTag(modifiedText, "code", writer, context);
 }
