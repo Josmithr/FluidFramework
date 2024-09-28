@@ -11,7 +11,7 @@ import { h } from "hastscript";
 import { CodeSpanNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("CodeSpan HTML rendering tests", () => {
+describe("CodeSpan to HTMLtransformation tests", () => {
 	it("Empty CodeSpan", () => {
 		assertTransformation(CodeSpanNode.Empty, h("code", []));
 	});

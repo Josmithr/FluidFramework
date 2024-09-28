@@ -2,17 +2,12 @@
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
+import type { TableRow as MdastTableRow } from "mdast";
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
-import type { Element as HastElement } from "hast";
 import type { TableRowNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { transformChildrenUnderTag, type HtmlTag } from "../Utilities.js";
-
-const tableRowTag: HtmlTag = { name: "tr" };
+import { tableRow } from "mdast-builder";
+import { documentationNodesToMarkdown } from "../ToMarkdown.js";
 
 /**
  * Transform a {@link TableRowNode} to HTML.
@@ -23,6 +18,7 @@ const tableRowTag: HtmlTag = { name: "tr" };
 export function tableRowToMarkdown(
 	node: TableRowNode,
 	context: TransformationContext,
-): HastElement {
-	return transformChildrenUnderTag(tableRowTag, node.children, context);
+): MdastTableRow {
+	const transformedChildren = documentationNodesToMarkdown(node.children, context);
+	return tableRow(transformedChildren) as MdastTableRow;
 }

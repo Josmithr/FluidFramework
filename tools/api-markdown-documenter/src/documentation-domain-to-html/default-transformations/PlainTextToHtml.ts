@@ -12,11 +12,6 @@ import type { PlainTextNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
 
 /**
- * This logic was adapted from:
- * {@link https://github.com/microsoft/rushstack/blob/main/apps/api-documenter/src/markdown/MarkdownEmitter.ts}
- */
-
-/**
  * Transform a {@link PlainTextNode} to HTML.
  *
  * @param node - The node to render.

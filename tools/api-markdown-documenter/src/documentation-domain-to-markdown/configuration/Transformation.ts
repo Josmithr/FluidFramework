@@ -3,8 +3,11 @@
  * Licensed under the MIT License.
  */
 
-import type { RootContent as HastTree } from "mdast";
-import { h } from "hastscript";
+import type {
+	Break as MdastBreak,
+	RootContent as MdastRootContent,
+	ThematicBreak as MdastThematicBreak,
+} from "mdast";
 import {
 	DocumentationNodeType,
 	type DocumentationNode,
@@ -42,7 +45,12 @@ import {
 import type { TransformationContext } from "../TransformationContext.js";
 
 /**
- * Configuration for transforming {@link DocumentationNode}s to {@link https://github.com/syntax-tree/hast | hast},
+ * Markdown AST content.
+ */
+export type MdastTree = MdastRootContent | MdastRootContent[];
+
+/**
+ * Configuration for transforming {@link DocumentationNode}s to {@link https://github.com/syntax-tree/mdast | mdast},
  * specified by {@link DocumentationNode."type"}.
  *
  * @remarks
@@ -71,14 +79,14 @@ export interface Transformations {
  *
  * @public
  */
-export type Transformation = (node: DocumentationNode, context: TransformationContext) => HastTree;
+export type Transformation = (node: DocumentationNode, context: TransformationContext) => MdastTree;
 
 // Constants used in transformations below as an allocation optimization.
-const hastLineBreak = h("br");
-const hastHorizontalRule = h("hr");
+const mdastLineBreak: MdastBreak = { type: "break" };
+const mdastHorizontalRule: MdastThematicBreak = { type: "thematicBreak" };
 
 /**
- * Default {@link DocumentationNode} to {@link https://github.com/syntax-tree/hast | hast} transformations.
+ * Default {@link DocumentationNode} to {@link https://github.com/syntax-tree/mdast | mdast} transformations.
  */
 export const defaultTransformations: Transformations = {
 	[DocumentationNodeType.BlockQuote]: (node, context) =>
@@ -89,11 +97,11 @@ export const defaultTransformations: Transformations = {
 		fencedCodeBlockToMarkdown(node as FencedCodeBlockNode, context),
 	[DocumentationNodeType.Heading]: (node, context) =>
 		headingToMarkdown(node as HeadingNode, context),
-	[DocumentationNodeType.LineBreak]: () => hastLineBreak,
+	[DocumentationNodeType.LineBreak]: () => mdastLineBreak,
 	[DocumentationNodeType.Link]: (node, context) => linkToMarkdown(node as LinkNode, context),
 	[DocumentationNodeType.Section]: (node, context) =>
 		sectionToMarkdown(node as SectionNode, context),
-	[DocumentationNodeType.HorizontalRule]: () => hastHorizontalRule,
+	[DocumentationNodeType.HorizontalRule]: () => mdastHorizontalRule,
 	[DocumentationNodeType.OrderedList]: (node, context) =>
 		orderedListToMarkdown(node as OrderedListNode, context),
 	[DocumentationNodeType.Paragraph]: (node, context) =>

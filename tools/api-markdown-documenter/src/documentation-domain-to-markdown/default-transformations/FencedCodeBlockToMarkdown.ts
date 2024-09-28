@@ -3,14 +3,10 @@
  * Licensed under the MIT License.
  */
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
-import type { Element as HastElement } from "hast";
+import type { Code as MdastCode } from "mdast";
 import type { FencedCodeBlockNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { transformChildrenUnderTag } from "../Utilities.js";
+import { code } from "mdast-builder";
 
 /**
  * Transform a {@link FencedCodeBlockNode} to HTML.
@@ -21,7 +17,6 @@ import { transformChildrenUnderTag } from "../Utilities.js";
 export function fencedCodeBlockToMarkdown(
 	node: FencedCodeBlockNode,
 	context: TransformationContext,
-): HastElement {
-	// Note that HTML <code> tags don't support language attributes, so we don't pass anything through here.
-	return transformChildrenUnderTag({ name: "code" }, node.children, context);
+): MdastCode {
+	return code(node.language ?? "", node.value) as MdastCode;
 }

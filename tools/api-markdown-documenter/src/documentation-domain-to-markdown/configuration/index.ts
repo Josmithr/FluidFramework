@@ -6,6 +6,7 @@
 export { getConfigurationWithDefaults, type TransformationConfig } from "./Configuration.js";
 export {
 	defaultTransformations,
+	type MdastTree,
 	type Transformation,
 	type Transformations,
 } from "./Transformation.js";

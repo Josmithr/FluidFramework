@@ -3,15 +3,15 @@
  * Licensed under the MIT License.
  */
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
-import type { Element as HastElement, Nodes as HastNodes } from "hast";
-import { h } from "hastscript";
+import type { Heading as MdastHeading, Strong as MdastStrong } from "mdast";
+import { toHtml } from "hast-util-to-html";
+
 import type { HeadingNode } from "../../documentation-domain/index.js";
+import { documentationNodeToHtml } from "../../documentation-domain-to-html/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { transformChildrenUnderTag } from "../Utilities.js";
+import { heading, strong } from "mdast-builder";
+import { documentationNodesToMarkdown } from "../ToMarkdown.js";
+import type { MdastTree } from "../configuration/index.js";
 
 /**
  * Maximum heading level supported by most systems.
@@ -33,33 +33,27 @@ const maxHeadingLevel = 6;
 export function headingToMarkdown(
 	headingNode: HeadingNode,
 	context: TransformationContext,
-): HastNodes {
+): MdastTree {
 	const { headingLevel } = context;
 
-	// HTML only supports heading levels up to 6. If our level is beyond that, we will transform the input to simple
-	// bold text, with an accompanying anchor to ensure we can still link to the text.
-	const transformAsHeadingElement = headingLevel <= maxHeadingLevel;
-	if (transformAsHeadingElement) {
-		const attributes: Record<string, string> = {};
-		if (headingNode.id !== undefined) {
-			attributes.id = headingNode.id;
-		}
+	// Markdown headings don't support IDs by default.
+	// If the heading has an ID, we will leverage HTML heading syntax instead of Markdown.
 
-		return transformChildrenUnderTag(
-			{ name: `h${headingLevel}`, attributes },
-			headingNode.children,
-			context,
-		);
-	} else {
-		const transformedChildren: HastElement[] = [];
-		if (headingNode.id !== undefined) {
-			transformedChildren.push(h("a", { name: headingNode.id }));
-		}
-		transformedChildren.push(
-			transformChildrenUnderTag({ name: "b" }, headingNode.children, context),
-		);
-
-		// Wrap the 2 child elements in a fragment
-		return h(undefined, transformedChildren);
+	if (headingNode.id !== undefined) {
+		// If the heading has an ID, leverage HTML heading syntax.
+		const html = documentationNodeToHtml(headingNode, { startingHeadingLevel: headingLevel });
+		const htmlString = toHtml(html);
+		return { type: "html", value: htmlString };
 	}
+
+	const transformedChildren = documentationNodesToMarkdown(headingNode.children, context);
+
+	if (headingLevel <= maxHeadingLevel) {
+		// If the heading does not have an ID, and the level is within the max heading level,
+		// leverage Markdown heading syntax as normal.
+		return heading(headingLevel, transformedChildren) as MdastHeading;
+	}
+
+	// If the heading level is beyond the max heading level, transform the content to bold text.
+	return strong(transformedChildren) as MdastStrong;
 }

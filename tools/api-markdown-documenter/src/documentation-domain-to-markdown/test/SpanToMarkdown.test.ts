@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { h } from "hastscript";
+import type { RootContent as MdastTree } from "mdast";
 import {
 	LineBreakNode,
 	PlainTextNode,
@@ -12,9 +12,9 @@ import {
 } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("Span HTML rendering tests", () => {
+describe("Span to Markdown transformation tests", () => {
 	it("Empty span", () => {
-		assertTransformation(SpanNode.Empty, h("span"));
+		assertTransformation(SpanNode.Empty, { type: "text", value: "" });
 	});
 
 	it("Simple span", () => {
@@ -24,7 +24,10 @@ describe("Span HTML rendering tests", () => {
 		const node2 = new PlainTextNode(text2);
 
 		const span = new SpanNode([node1, node2]);
-		const expected = h("span", [text1, text2]);
+		const expected: MdastTree[] = [
+			{ type: "text", value: text1 },
+			{ type: "text", value: text2 },
+		];
 		assertTransformation(span, expected);
 	});
 
@@ -40,7 +43,20 @@ describe("Span HTML rendering tests", () => {
 		const node3 = new PlainTextNode(text2);
 
 		const span = new SpanNode([node1, node2, node3], formatting);
-		const expected = h("span", [h("b", [h("i", [text1, h("br"), text2])])]);
+
+		const expected: MdastTree = {
+			type: "strong",
+			children: [
+				{
+					type: "emphasis",
+					children: [
+						{ type: "text", value: text1 },
+						{ type: "text", value: "\n" },
+						{ type: "text", value: text2 },
+					],
+				},
+			],
+		};
 		assertTransformation(span, expected);
 	});
 
@@ -56,14 +72,28 @@ describe("Span HTML rendering tests", () => {
 				node1,
 				new SpanNode([node2, node3], {
 					bold: true,
-					italic: true,
+					strikethrough: true,
 				}),
 			],
 			{ strikethrough: true },
 		);
-		const expected = h("span", [
-			h("s", [text1, h("span", [h("b", [h("i", [h("br"), text2])])])]),
-		]);
+
+		const expected: MdastTree[] = [
+			{ type: "text", value: text1 },
+			{
+				type: "strong",
+				children: [
+					{
+						type: "delete",
+						children: [
+							{ type: "text", value: "\n" },
+							{ type: "text", value: text2 },
+						],
+					},
+				],
+			},
+		];
+
 		assertTransformation(span, expected);
 	});
 });

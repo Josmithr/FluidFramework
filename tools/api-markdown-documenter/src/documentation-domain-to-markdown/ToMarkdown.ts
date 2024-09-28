@@ -3,13 +3,14 @@
  * Licensed under the MIT License.
  */
 
-import type { Root as MdastRoot, RootContent as MdastTree } from "mdast";
+import type { Root as MdastRoot, RootContent as MdastRootContent } from "mdast";
 import type { DocumentNode, DocumentationNode } from "../documentation-domain/index.js";
 import type { TransformationConfig } from "./configuration/index.js";
 import {
 	createTransformationContext,
 	type TransformationContext,
 } from "./TransformationContext.js";
+import { normalizeMdastTree } from "./Utilities.js";
 
 /**
  * Generates an Markdown AST from the provided {@link DocumentNode}.
@@ -31,7 +32,7 @@ export function documentToMarkdown(
 	);
 	return {
 		type: "root",
-		children: transformedChildren,
+		children: normalizeMdastTree(transformedChildren),
 	};
 }
 
@@ -46,7 +47,7 @@ export function documentToMarkdown(
 export function documentationNodeToMarkdown(
 	node: DocumentationNode,
 	config: TransformationConfig,
-): MdastTree;
+): MdastRootContent[];
 /**
  * Generates an Markdown AST from the provided {@link DocumentationNode}.
  *
@@ -58,14 +59,14 @@ export function documentationNodeToMarkdown(
 export function documentationNodeToMarkdown(
 	node: DocumentationNode,
 	context: TransformationContext,
-): MdastTree;
+): MdastRootContent[];
 /**
  * `documentationNodeToMarkdown` implementation.
  */
 export function documentationNodeToMarkdown(
 	node: DocumentationNode,
 	configOrContext: TransformationConfig | TransformationContext,
-): MdastTree {
+): MdastRootContent[] {
 	const context = getContext(configOrContext);
 
 	if (context.transformations[node.type] === undefined) {
@@ -74,7 +75,9 @@ export function documentationNodeToMarkdown(
 		);
 	}
 
-	return context.transformations[node.type](node, context);
+	const transformed = context.transformations[node.type](node, context);
+	const normalized = normalizeMdastTree(transformed);
+	return normalized;
 }
 
 /**
@@ -85,7 +88,7 @@ export function documentationNodeToMarkdown(
 export function documentationNodesToMarkdown(
 	nodes: DocumentationNode[],
 	config: TransformationConfig,
-): MdastTree[];
+): MdastRootContent[];
 /**
  * Generates a series of Markdown ASTs from the provided {@link DocumentationNode}s.
  *
@@ -94,16 +97,22 @@ export function documentationNodesToMarkdown(
 export function documentationNodesToMarkdown(
 	nodes: DocumentationNode[],
 	transformationContext: TransformationContext,
-): MdastTree[];
+): MdastRootContent[];
 /**
  * `documentationNodesToMarkdown` implementation.
  */
 export function documentationNodesToMarkdown(
 	nodes: DocumentationNode[],
 	configOrContext: TransformationConfig | TransformationContext,
-): MdastTree[] {
+): MdastRootContent[] {
 	const context = getContext(configOrContext);
-	return nodes.map((node) => documentationNodeToMarkdown(node, context));
+
+	const result: MdastRootContent[] = [];
+	for (const node of nodes) {
+		result.push(...documentationNodeToMarkdown(node, context));
+	}
+
+	return result;
 }
 
 function getContext(

@@ -3,13 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { h } from "hastscript";
+import type { BlockContent as MdastBlockContent, List as MdastList } from "mdast";
 import { UnorderedListNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("UnorderedListNode HTML rendering tests", () => {
+describe("UnorderedListNode to Markdown transformation tests", () => {
 	it("Empty list", () => {
-		assertTransformation(UnorderedListNode.Empty, h("ul"));
+		assertTransformation(UnorderedListNode.Empty, {
+			type: "list",
+			ordered: false,
+			children: [],
+		});
 	});
 
 	it("Simple list", () => {
@@ -19,7 +23,25 @@ describe("UnorderedListNode HTML rendering tests", () => {
 
 		const input = UnorderedListNode.createFromPlainTextEntries([text1, text2, text3]);
 
-		const expected = h("ul", [h("li", text1), h("li", text2), h("li", text3)]);
+		const expected: MdastList = {
+			type: "list",
+			ordered: false,
+			children: [
+				// TODO: verify this is okay
+				{
+					type: "listItem",
+					children: [{ type: "text", value: text1 } as unknown as MdastBlockContent],
+				},
+				{
+					type: "listItem",
+					children: [{ type: "text", value: text2 } as unknown as MdastBlockContent],
+				},
+				{
+					type: "listItem",
+					children: [{ type: "text", value: text3 } as unknown as MdastBlockContent],
+				},
+			],
+		};
 
 		assertTransformation(input, expected);
 	});

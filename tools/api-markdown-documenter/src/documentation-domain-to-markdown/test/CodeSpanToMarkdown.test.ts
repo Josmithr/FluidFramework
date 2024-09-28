@@ -11,7 +11,7 @@ import type { InlineCode } from "mdast";
 import { CodeSpanNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("CodeSpan HTML rendering tests", () => {
+describe("CodeSpan to Markdown transformation tests", () => {
 	it("Empty CodeSpan", () => {
 		assertTransformation(CodeSpanNode.Empty, { type: "code", value: "" });
 	});

@@ -4,10 +4,9 @@
  */
 
 import { expect } from "chai";
-import type { RootContent as MdastTree } from "mdast";
 import type { DocumentationNode } from "../../documentation-domain/index.js";
 import { createTransformationContext } from "../TransformationContext.js";
-import { type TransformationConfig } from "../configuration/index.js";
+import { type MdastTree, type TransformationConfig } from "../configuration/index.js";
 import { documentationNodeToMarkdown } from "../ToMarkdown.js";
 
 /**

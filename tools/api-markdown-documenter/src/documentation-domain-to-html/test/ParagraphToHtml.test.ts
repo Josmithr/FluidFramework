@@ -11,7 +11,7 @@ import { h } from "hastscript";
 import { ParagraphNode, PlainTextNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("ParagraphNode HTML rendering tests", () => {
+describe("ParagraphNode to HTMLtransformation tests", () => {
 	it("Empty paragraph", () => {
 		assertTransformation(ParagraphNode.Empty, h("p", []));
 	});

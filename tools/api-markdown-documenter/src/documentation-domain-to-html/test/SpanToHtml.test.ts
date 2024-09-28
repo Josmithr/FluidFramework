@@ -12,7 +12,7 @@ import {
 } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("Span HTML rendering tests", () => {
+describe("Span to HTMLtransformation tests", () => {
 	it("Empty span", () => {
 		assertTransformation(SpanNode.Empty, h("span"));
 	});

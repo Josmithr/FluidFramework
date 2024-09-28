@@ -12,7 +12,7 @@ import { h } from "hastscript";
 import { LinkNode, PlainTextNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("Link HTML rendering tests", () => {
+describe("Link to HTMLtransformation tests", () => {
 	it("Can render a simple LinkNode", () => {
 		const linkText = "Some Website";
 		const linkTarget = "https://www.bing.com";

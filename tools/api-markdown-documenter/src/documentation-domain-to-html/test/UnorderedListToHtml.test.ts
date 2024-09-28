@@ -7,7 +7,7 @@ import { h } from "hastscript";
 import { UnorderedListNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("UnorderedListNode HTML rendering tests", () => {
+describe("UnorderedListNode to HTMLtransformation tests", () => {
 	it("Empty list", () => {
 		assertTransformation(UnorderedListNode.Empty, h("ul"));
 	});

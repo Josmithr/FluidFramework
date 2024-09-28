@@ -48,6 +48,9 @@ export function headingToHtml(headingNode: HeadingNode, context: TransformationC
 			context,
 		);
 	} else {
+		// Note: this won't get an anchor if there is no ID.
+		// But the inner contents may be more than main text, so deriving an anchor name from the inner contents isn't really possible.
+		// TODO: generate something arbitrary so it's selectable? A GUID maybe?
 		const transformedChildren: HastElement[] = [];
 		if (headingNode.id !== undefined) {
 			transformedChildren.push(h("a", { name: headingNode.id }));

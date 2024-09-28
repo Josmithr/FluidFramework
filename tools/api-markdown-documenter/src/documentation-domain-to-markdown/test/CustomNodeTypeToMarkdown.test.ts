@@ -8,7 +8,7 @@
  * Licensed under the MIT License.
  */
 import { expect } from "chai";
-import type { Nodes as HastNodes } from "hast";
+import type { Text as MdastTest } from "mdast";
 import { DocumentationLiteralNodeBase } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
 import { testTransformation } from "./Utilities.js";
@@ -27,24 +27,24 @@ class CustomDocumentationNode extends DocumentationLiteralNodeBase<string> {
 }
 
 /**
- * Mock custom renderer for {@link CustomDocumentationNode}.
+ * Mock custom `documentationNodeToMarkdown` transformation for {@link CustomDocumentationNode}.
  */
-function customDocumentationNodeToHtml(
+function customDocumentationNodeToMarkdown(
 	node: CustomDocumentationNode,
 	context: TransformationContext,
-): HastNodes {
+): MdastTest {
 	return { type: "text", value: `${node.value}!` };
 }
 
 // The following are testing our support for custom DocumentationNode implementations.
 // Assuming an appropriate renderer is supplied, the system should be able to handle them correctly.
-describe("Custom node HTML rendering tests", () => {
+describe("Custom node to Markdown transformation tests", () => {
 	it("Can render a custom node type when given a renderer", () => {
 		const input = new CustomDocumentationNode("foo");
 		const result = testTransformation(input, {
 			customTransformations: {
 				[CustomDocumentationNode.type]: (node, context) =>
-					customDocumentationNodeToHtml(node as CustomDocumentationNode, context),
+					customDocumentationNodeToMarkdown(node as CustomDocumentationNode, context),
 			},
 		});
 

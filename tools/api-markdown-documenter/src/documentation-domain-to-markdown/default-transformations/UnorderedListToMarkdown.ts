@@ -3,15 +3,11 @@
  * Licensed under the MIT License.
  */
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
-import type { Element as HastElement } from "hast";
-import { h } from "hastscript";
+import type { List } from "mdast";
+
 import type { UnorderedListNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { transformListChildren } from "../Utilities.js";
+import { transformListChildren } from "./Utilities.js";
 
 /**
  * Transform a {@link UnorderedListNode} to HTML.
@@ -22,6 +18,11 @@ import { transformListChildren } from "../Utilities.js";
 export function unorderedListToMarkdown(
 	node: UnorderedListNode,
 	context: TransformationContext,
-): HastElement {
-	return h("ul", transformListChildren(node.children, context));
+): List {
+	const transformedChildren = transformListChildren(node.children, context);
+	return {
+		type: "list",
+		ordered: false,
+		children: transformedChildren,
+	};
 }

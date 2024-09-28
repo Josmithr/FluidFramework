@@ -17,7 +17,7 @@ import {
 } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("Table HTML rendering tests", () => {
+describe("Table to HTMLtransformation tests", () => {
 	it("Empty table", () => {
 		assertTransformation(TableNode.Empty, h("table"));
 	});

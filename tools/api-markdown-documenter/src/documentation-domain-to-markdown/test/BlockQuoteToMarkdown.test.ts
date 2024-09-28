@@ -3,13 +3,13 @@
  * Licensed under the MIT License.
  */
 
-import { h } from "hastscript";
+import type { BlockContent, Blockquote } from "mdast";
 import { BlockQuoteNode, LineBreakNode, PlainTextNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("BlockQuote HTML rendering tests", () => {
+describe("BlockQuote to Markdown transformation tests", () => {
 	it("Empty BlockQuote", () => {
-		assertTransformation(BlockQuoteNode.Empty, h("blockquote"));
+		assertTransformation(BlockQuoteNode.Empty, { type: "blockquote", children: [] });
 	});
 
 	it("Simple BlockQuote", () => {
@@ -20,12 +20,16 @@ describe("BlockQuote HTML rendering tests", () => {
 			new PlainTextNode("-BlockQuote"),
 		]);
 
-		const expected = h("blockquote", [
-			"Here's a block quote. ",
-			"It sure is something!",
-			h("br"),
-			"-BlockQuote",
-		]);
+		const expected: Blockquote = {
+			type: "blockquote",
+			children: [
+				// TODO: verify these are okay
+				{ type: "text", value: "Here's a block quote. " } as unknown as BlockContent,
+				{ type: "text", value: "It sure is something!" } as unknown as BlockContent,
+				{ type: "break" } as unknown as BlockContent,
+				{ type: "text", value: "-BlockQuote" } as unknown as BlockContent,
+			],
+		};
 		assertTransformation(input, expected);
 	});
 });

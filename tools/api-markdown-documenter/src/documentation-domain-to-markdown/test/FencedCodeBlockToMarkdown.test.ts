@@ -8,7 +8,7 @@ import type { Code } from "mdast";
 import { FencedCodeBlockNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("FencedCodeBlock HTML rendering tests", () => {
+describe("FencedCodeBlock to Markdown transformation tests", () => {
 	it("Simple FencedCodeBlock", () => {
 		const input = new FencedCodeBlockNode("console.log('hello world');", "typescript");
 

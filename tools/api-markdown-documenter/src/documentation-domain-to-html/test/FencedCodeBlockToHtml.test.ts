@@ -7,7 +7,7 @@ import { h } from "hastscript";
 import { FencedCodeBlockNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("FencedCodeBlock HTML rendering tests", () => {
+describe("FencedCodeBlock to HTMLtransformation tests", () => {
 	it("Simple FencedCodeBlock", () => {
 		const input = new FencedCodeBlockNode("console.log('hello world');", "typescript");
 

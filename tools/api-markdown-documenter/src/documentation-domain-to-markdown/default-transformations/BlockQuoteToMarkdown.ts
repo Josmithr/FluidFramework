@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import type { Blockquote } from "mdast";
+import type { Blockquote as MdastBlockquote } from "mdast";
 import { blockquote } from "mdast-builder";
 
 import type { BlockQuoteNode } from "../../index.js";
@@ -19,7 +19,7 @@ import { documentationNodesToMarkdown } from "../ToMarkdown.js";
 export function blockQuoteToMarkdown(
 	node: BlockQuoteNode,
 	context: TransformationContext,
-): Blockquote {
+): MdastBlockquote {
 	const transformedChildren = documentationNodesToMarkdown(node.children, context);
-	return blockquote(transformedChildren) as Blockquote;
+	return blockquote(transformedChildren) as MdastBlockquote;
 }

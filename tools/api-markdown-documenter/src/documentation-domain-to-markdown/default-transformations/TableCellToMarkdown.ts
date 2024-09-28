@@ -3,14 +3,11 @@
  * Licensed under the MIT License.
  */
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
-import type { Element as HastElement } from "hast";
-import { TableCellKind, type TableCellNode } from "../../documentation-domain/index.js";
-import { transformChildrenUnderTag } from "../Utilities.js";
+import type { TableCell as MdastTableCell } from "mdast";
+import { type TableCellNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
+import { documentationNodesToMarkdown } from "../ToMarkdown.js";
+import { tableCell } from "mdast-builder";
 
 /**
  * Transform a {@link TableCellNode} to HTML.
@@ -21,10 +18,7 @@ import type { TransformationContext } from "../TransformationContext.js";
 export function tableCellToMarkdown(
 	node: TableCellNode,
 	context: TransformationContext,
-): HastElement {
-	return transformChildrenUnderTag(
-		{ name: node.cellKind === TableCellKind.Header ? "th" : "td" },
-		node.children,
-		context,
-	);
+): MdastTableCell {
+	const transformedChildren = documentationNodesToMarkdown(node.children, context);
+	return tableCell(transformedChildren) as MdastTableCell;
 }

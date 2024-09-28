@@ -17,7 +17,7 @@ import {
 } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("HierarchicalSection HTML rendering tests", () => {
+describe("HierarchicalSection to HTMLtransformation tests", () => {
 	it("Simple section", () => {
 		const input = new SectionNode(
 			[

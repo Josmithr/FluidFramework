@@ -38,7 +38,7 @@ function customDocumentationNodeToHtml(
 
 // The following are testing our support for custom DocumentationNode implementations.
 // Assuming an appropriate renderer is supplied, the system should be able to handle them correctly.
-describe("Custom node HTML rendering tests", () => {
+describe("Custom node to HTMLtransformation tests", () => {
 	it("Can render a custom node type when given a renderer", () => {
 		const input = new CustomDocumentationNode("foo");
 		const result = testTransformation(input, {

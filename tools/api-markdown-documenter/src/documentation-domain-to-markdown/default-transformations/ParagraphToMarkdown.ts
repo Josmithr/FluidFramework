@@ -3,14 +3,11 @@
  * Licensed under the MIT License.
  */
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
-import type { Element as HastElement } from "hast";
+import type { Paragraph as MdastParagraph } from "mdast";
 import type { ParagraphNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { transformChildrenUnderTag } from "../Utilities.js";
+import { paragraph } from "mdast-builder";
+import { documentationNodesToMarkdown } from "../ToMarkdown.js";
 
 /**
  * Transform a {@link ParagraphNode} to HTML.
@@ -21,6 +18,7 @@ import { transformChildrenUnderTag } from "../Utilities.js";
 export function paragraphToMarkdown(
 	node: ParagraphNode,
 	context: TransformationContext,
-): HastElement {
-	return transformChildrenUnderTag({ name: "p" }, node.children, context);
+): MdastParagraph {
+	const transformedChildren = documentationNodesToMarkdown(node.children, context);
+	return paragraph(transformedChildren) as MdastParagraph;
 }

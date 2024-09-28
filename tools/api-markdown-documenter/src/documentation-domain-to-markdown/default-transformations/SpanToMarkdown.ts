@@ -33,7 +33,7 @@ export function spanToMarkdown(
 
 	let result: MdastTree | MdastTree[] = transformedChildren;
 
-	// The ordering in which we wrap here is effectively arbitrary, but impacts the order of the tags in the output.
+	// The ordering in which we wrap here is effectively arbitrary, but it does impact the order of the tags in the output.
 	// Note if you're editing: tests may implicitly rely on this ordering.
 	if (node.textFormatting.strikethrough === true) {
 		result = strike(result) as Delete;

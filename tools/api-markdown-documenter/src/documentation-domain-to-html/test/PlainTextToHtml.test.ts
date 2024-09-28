@@ -7,7 +7,7 @@ import type { Nodes as HastNodes } from "hast";
 import { PlainTextNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("PlainText HTML rendering tests", () => {
+describe("PlainText to HTMLtransformation tests", () => {
 	it("Empty text", () => {
 		assertTransformation(PlainTextNode.Empty, { type: "text", value: "" });
 	});
