@@ -6,6 +6,7 @@
 import type { PlainTextNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
+import { escapeTextForHtml } from "../Utilities.js";
 
 /**
  * This logic was adapted from:
@@ -46,7 +47,7 @@ export function renderPlainText(
 		writer.write("<s>");
 	}
 
-	writer.write(node.escaped ? body : getHtmlEscapedText(body));
+	writer.write(node.escaped ? body : escapeTextForHtml(body));
 
 	if (context.strikethrough === true) {
 		writer.write("</s>");
@@ -77,19 +78,4 @@ function splitLeadingAndTrailingWhitespace(text: string): SplitTextResult {
 		body,
 		trailingWhitespace,
 	};
-}
-
-/**
- * Escapes text in a way that makes it usable inside of table elements
- *
- * @param text - Text to escape
- * @returns Escaped text
- */
-function getHtmlEscapedText(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/"/g, "&quot;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/\|/g, "&#124;");
 }

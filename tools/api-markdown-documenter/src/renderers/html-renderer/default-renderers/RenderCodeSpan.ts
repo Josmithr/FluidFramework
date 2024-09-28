@@ -6,6 +6,7 @@
 import type { CodeSpanNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
+import { escapeTextForHtml } from "../Utilities.js";
 
 /**
  * Renders a {@link CodeSpanNode} as HTML.
@@ -22,6 +23,6 @@ export function renderCodeSpan(
 	// Note: we don't bother introducing style nesting for code spans.
 	// This policy is arbitrary and could be changed if there is reason to.
 	writer.write("<code>");
-	writer.write(node.value);
+	writer.write(escapeTextForHtml(node.value));
 	writer.write("</code>");
 }

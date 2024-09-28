@@ -6,7 +6,7 @@
 import { type FencedCodeBlockNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
-import { renderTextUnderTag } from "../Utilities.js";
+import { escapeTextForHtml, renderTextUnderTag } from "../Utilities.js";
 
 /**
  * Renders a {@link FencedCodeBlockNode} as HTML.
@@ -20,8 +20,11 @@ export function renderFencedCodeBlock(
 	writer: DocumentWriter,
 	context: RenderContext,
 ): void {
-	// The writer implementation wants to santize line breaks, but we need to preserve them here.
+	const escapedText = escapeTextForHtml(node.value);
+
+	// The writer implementation wants to sanitize line breaks, but we need to preserve them here.
 	// Convert line breaks to `<br>` tags.
-	const modifiedText = node.value.replace(/(\r?\n)/g, "$1<br>$1");
+	const modifiedText = escapedText.replace(/(\r?\n)+/g, "$1<br>$1");
+
 	renderTextUnderTag(modifiedText, "code", writer, context);
 }

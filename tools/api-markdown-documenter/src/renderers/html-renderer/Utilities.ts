@@ -9,6 +9,21 @@ import { renderNode, renderNodes } from "./Render.js";
 import { type RenderContext } from "./RenderContext.js";
 
 /**
+ * Escapes text in a way that makes it usable inside of table elements
+ *
+ * @param text - Text to escape
+ * @returns Escaped text
+ */
+export function escapeTextForHtml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/\|/g, "&#124;");
+}
+
+/**
  * Renders the provided contents within a tag block of the specified `tagName`.
  *
  * @remarks Handles {@link RenderContext.prettyFormatting}.
