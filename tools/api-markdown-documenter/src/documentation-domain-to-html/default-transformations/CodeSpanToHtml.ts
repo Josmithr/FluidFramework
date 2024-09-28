@@ -8,9 +8,10 @@
  * Licensed under the MIT License.
  */
 import type { Element as HastElement } from "hast";
-import { PlainTextNode, type CodeSpanNode } from "../../index.js";
+import { h } from "hastscript";
+
+import { type CodeSpanNode } from "../../index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { transformChildrenUnderTag } from "../Utilities.js";
 
 /**
  * Transform a {@link BlockQuoteNode} to HTML.
@@ -19,5 +20,5 @@ import { transformChildrenUnderTag } from "../Utilities.js";
  * @param context - See {@link TransformationContext}.
  */
 export function codeSpanToHtml(node: CodeSpanNode, context: TransformationContext): HastElement {
-	return transformChildrenUnderTag({ name: "code" }, [new PlainTextNode(node.value)], context);
+	return h("code", {}, node.value);
 }
