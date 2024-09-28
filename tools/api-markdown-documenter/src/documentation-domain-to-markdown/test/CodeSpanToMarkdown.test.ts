@@ -13,7 +13,7 @@ import { assertTransformation } from "./Utilities.js";
 
 describe("CodeSpan HTML rendering tests", () => {
 	it("Empty CodeSpan", () => {
-		assertTransformation(CodeSpanNode.Empty, {type: "code", value: ""});
+		assertTransformation(CodeSpanNode.Empty, { type: "code", value: "" });
 	});
 
 	it("Simple CodeSpan", () => {

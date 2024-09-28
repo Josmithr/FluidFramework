@@ -50,7 +50,7 @@ function createImportNotice(apiItem) {
 			[
 				new SpanNode([
 					new PlainTextNode("To use, import via "),
-					CodeSpanNode.createFromPlainText(`${packageName}/${importSubpath}`),
+					new CodeSpanNode(`${packageName}/${importSubpath}`),
 					new PlainTextNode("."),
 				]),
 				LineBreakNode.Singleton,

@@ -673,7 +673,7 @@ export function createModifiersCell(
 		if (needsComma) {
 			contents.push(new PlainTextNode(", "));
 		}
-		contents.push(CodeSpanNode.createFromPlainText(modifier));
+		contents.push(new CodeSpanNode(modifier));
 		needsComma = true;
 	}
 
@@ -712,9 +712,7 @@ export function createDefaultValueCell(
  * @param config - See {@link ApiItemTransformationConfiguration}.
  */
 export function createAlertsCell(alerts: string[]): TableBodyCellNode {
-	const alertNodes: DocumentationNode[] = alerts.map((alert) =>
-		CodeSpanNode.createFromPlainText(alert),
-	);
+	const alertNodes: DocumentationNode[] = alerts.map((alert) => new CodeSpanNode(alert));
 
 	return alerts.length === 0
 		? TableBodyCellNode.Empty

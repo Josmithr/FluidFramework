@@ -5,15 +5,12 @@
 
 import { expect } from "chai";
 
-import { FencedCodeBlockNode, PlainTextNode } from "../../../documentation-domain/index.js";
+import { FencedCodeBlockNode } from "../../../documentation-domain/index.js";
 import { testRender } from "./Utilities.js";
 
 describe("FencedCodeBlock HTML rendering tests", () => {
 	it("Simple FencedCodeBlock", () => {
-		const input = new FencedCodeBlockNode(
-			[new PlainTextNode("console.log('hello world');")],
-			"typescript",
-		);
+		const input = new FencedCodeBlockNode("console.log('hello world');", "typescript");
 		const result = testRender(input);
 
 		const expected = ["<code>", "  console.log('hello world');", "</code>", ""].join("\n");

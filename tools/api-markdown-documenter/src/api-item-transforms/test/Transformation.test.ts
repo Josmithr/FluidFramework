@@ -142,12 +142,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 				[
 					wrapInSection([ParagraphNode.createFromPlainText("Test Constant")]),
 					wrapInSection(
-						[
-							FencedCodeBlockNode.createFromPlainText(
-								'TestConst = "Hello world!"',
-								"typescript",
-							),
-						],
+						[new FencedCodeBlockNode('TestConst = "Hello world!"', "typescript")],
 						{
 							title: "Signature",
 							id: `testconst-signature`,
@@ -184,11 +179,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 					wrapInSection(
 						[
 							new FencedCodeBlockNode(
-								[
-									new PlainTextNode(
-										"export declare function testFunction<TTypeParameter>(testParameter: TTypeParameter, testOptionalParameter?: TTypeParameter): TTypeParameter;",
-									),
-								],
+								"export declare function testFunction<TTypeParameter>(testParameter: TTypeParameter, testOptionalParameter?: TTypeParameter): TTypeParameter;",
 								"typescript",
 							),
 							new ParagraphNode([
@@ -317,12 +308,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 
 			// Signature section
 			wrapInSection(
-				[
-					FencedCodeBlockNode.createFromPlainText(
-						"export interface TestInterface",
-						"typescript",
-					),
-				],
+				[new FencedCodeBlockNode("export interface TestInterface", "typescript")],
 				{ title: "Signature", id: "testinterface-signature" },
 			),
 
@@ -344,9 +330,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 										"./test-package/testinterface-interface#testoptionalinterfaceproperty-propertysignature",
 									),
 								]),
-								new TableBodyCellNode([
-									CodeSpanNode.createFromPlainText("optional"),
-								]),
+								new TableBodyCellNode([new CodeSpanNode("optional")]),
 								TableBodyCellNode.createFromPlainText("0"),
 								new TableBodyCellNode([SpanNode.createFromPlainText("number")]),
 								TableBodyCellNode.createFromPlainText("Test optional property"),
@@ -376,7 +360,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 							// Signature section
 							wrapInSection(
 								[
-									FencedCodeBlockNode.createFromPlainText(
+									new FencedCodeBlockNode(
 										"testOptionalInterfaceProperty?: number;",
 										"typescript",
 									),
@@ -439,12 +423,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 
 			// Signature section
 			wrapInSection(
-				[
-					FencedCodeBlockNode.createFromPlainText(
-						"export declare namespace TestNamespace",
-						"typescript",
-					),
-				],
+				[new FencedCodeBlockNode("export declare namespace TestNamespace", "typescript")],
 				{ title: "Signature", id: "testnamespace-signature" },
 			),
 
@@ -461,10 +440,8 @@ describe("ApiItem to Documentation transformation tests", () => {
 										"./test-package/testnamespace-namespace#bar-variable",
 									),
 								]),
-								new TableBodyCellNode([CodeSpanNode.createFromPlainText("Beta")]), // Alert
-								new TableBodyCellNode([
-									CodeSpanNode.createFromPlainText("readonly"),
-								]), // Modifier
+								new TableBodyCellNode([new CodeSpanNode("Beta")]), // Alert
+								new TableBodyCellNode([new CodeSpanNode("readonly")]), // Modifier
 								TableBodyCellNode.Empty, // Type
 								TableBodyCellNode.Empty, // Description
 							]),
@@ -477,9 +454,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 									),
 								]),
 								TableBodyCellNode.Empty, // No alert for `@public`
-								new TableBodyCellNode([
-									CodeSpanNode.createFromPlainText("readonly"),
-								]), // Modifier
+								new TableBodyCellNode([new CodeSpanNode("readonly")]), // Modifier
 								TableBodyCellNode.Empty, // Type
 								TableBodyCellNode.Empty, // Description
 							]),
@@ -508,18 +483,10 @@ describe("ApiItem to Documentation transformation tests", () => {
 							// Beta warning
 							wrapInSection([betaWarningSpan]),
 							// Signature
-							wrapInSection(
-								[
-									FencedCodeBlockNode.createFromPlainText(
-										'bar = "bar"',
-										"typescript",
-									),
-								],
-								{
-									title: "Signature",
-									id: "bar-signature",
-								},
-							),
+							wrapInSection([new FencedCodeBlockNode('bar = "bar"', "typescript")], {
+								title: "Signature",
+								id: "bar-signature",
+							}),
 						],
 						{
 							title: "bar",
@@ -532,18 +499,10 @@ describe("ApiItem to Documentation transformation tests", () => {
 							// Summary
 							wrapInSection([ParagraphNode.Empty]), // No summary docs on `bar`
 							// Signature
-							wrapInSection(
-								[
-									FencedCodeBlockNode.createFromPlainText(
-										'foo = "foo"',
-										"typescript",
-									),
-								],
-								{
-									title: "Signature",
-									id: "foo-signature",
-								},
-							),
+							wrapInSection([new FencedCodeBlockNode('foo = "foo"', "typescript")], {
+								title: "Signature",
+								id: "foo-signature",
+							}),
 						],
 						{
 							title: "foo",
@@ -639,9 +598,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 													"./test-package#hello-variable",
 												),
 											]),
-											new TableBodyCellNode([
-												CodeSpanNode.createFromPlainText("readonly"),
-											]),
+											new TableBodyCellNode([new CodeSpanNode("readonly")]),
 											TableBodyCellNode.Empty, // Type
 											TableBodyCellNode.createFromPlainText("Test Constant"),
 										]),
@@ -670,7 +627,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 										// Signature
 										new SectionNode(
 											[
-												FencedCodeBlockNode.createFromPlainText(
+												new FencedCodeBlockNode(
 													'hello = "Hello"',
 													"typescript",
 												),
@@ -752,7 +709,7 @@ describe("ApiItem to Documentation transformation tests", () => {
 										// Signature
 										new SectionNode(
 											[
-												FencedCodeBlockNode.createFromPlainText(
+												new FencedCodeBlockNode(
 													'world = "world"',
 													"typescript",
 												),

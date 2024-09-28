@@ -155,7 +155,7 @@ export function transformTsdocCodeSpan(
 	node: DocCodeSpan,
 	options: TsdocNodeTransformOptions,
 ): CodeSpanNode {
-	return CodeSpanNode.createFromPlainText(node.code.trim());
+	return new CodeSpanNode(node.code.trim());
 }
 
 /**
@@ -225,7 +225,7 @@ export function transformTsdocFencedCode(
 	node: DocFencedCode,
 	options: TsdocNodeTransformOptions,
 ): FencedCodeBlockNode {
-	return FencedCodeBlockNode.createFromPlainText(node.code.trim(), node.language);
+	return new FencedCodeBlockNode(node.code.trim(), node.language);
 }
 
 /**

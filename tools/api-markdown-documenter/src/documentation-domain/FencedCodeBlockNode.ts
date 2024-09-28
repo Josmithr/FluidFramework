@@ -4,12 +4,10 @@
  */
 
 import {
-	type DocumentationNode,
-	DocumentationParentNodeBase,
+	DocumentationLiteralNodeBase,
 	type MultiLineDocumentationNode,
 } from "./DocumentationNode.js";
 import { DocumentationNodeType } from "./DocumentationNodeType.js";
-import { createNodesFromPlainText } from "./Utilities.js";
 
 /**
  * A fenced code block, with an optional associated code language.
@@ -33,7 +31,7 @@ import { createNodesFromPlainText } from "./Utilities.js";
  * @public
  */
 export class FencedCodeBlockNode
-	extends DocumentationParentNodeBase
+	extends DocumentationLiteralNodeBase<string>
 	implements MultiLineDocumentationNode
 {
 	/**
@@ -49,21 +47,17 @@ export class FencedCodeBlockNode
 	/**
 	 * {@inheritDoc DocumentationNode.singleLine}
 	 */
-	public override get singleLine(): false {
-		return false;
-	}
-
-	public constructor(children: DocumentationNode[], language?: string) {
-		super(children);
-		this.language = language;
-	}
+	public readonly singleLine = false;
 
 	/**
-	 * Generates an `FencedCodeBlockNode` from the provided string.
-	 * @param text - The node contents.
-	 * @param language - (optional) code language to associated with the code block.
+	 * {@inheritDoc DocumentationNode.isEmpty}
 	 */
-	public static createFromPlainText(text: string, language?: string): FencedCodeBlockNode {
-		return new FencedCodeBlockNode(createNodesFromPlainText(text), language);
+	public get isEmpty(): boolean {
+		return this.value.length === 0;
+	}
+
+	public constructor(value: string, language?: string) {
+		super(value);
+		this.language = language;
 	}
 }
