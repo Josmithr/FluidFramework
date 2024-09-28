@@ -77,7 +77,8 @@
 		"@rushstack/node-core-library": "^3.55.2",
 		"chalk": "^4.1.2",
 		"hast-util-raw": "^9.0.2",
-		"hastscript": "^9.0.0"
+		"hastscript": "^9.0.0",
+		"mdast-builder": "^1.1.1"
 	},
 	"devDependencies": {
 		"@fluid-internal/mocha-test-setup": "~2.0.0-rc.3.0.3",

@@ -29,6 +29,9 @@ importers:
       hastscript:
         specifier: ^9.0.0
         version: 9.0.0
+      mdast-builder:
+        specifier: ^1.1.1
+        version: 1.1.1
     devDependencies:
       '@fluid-internal/mocha-test-setup':
         specifier: ~2.0.0-rc.3.0.3
@@ -3710,6 +3713,12 @@ packages:
     dependencies:
       repeat-string: 1.6.1
     dev: true
+
+  /mdast-builder@1.1.1:
+    resolution: {integrity: sha512-a3KBk/LmYD6wKsWi8WJrGU/rXR4yuF4Men0JO0z6dSZCm5FrXXWTRDjqK0vGSqa+1M6p9edeuypZAZAzSehTUw==}
+    dependencies:
+      '@types/unist': 2.0.6
+    dev: false
 
   /mdast-util-find-and-replace@1.1.1:
     resolution: {integrity: sha512-9cKl33Y21lyckGzpSmEQnIDjEfeeWelN5s1kUW1LwdB0Fkuq2u+4GdqcGEygYxJE8GVqCl0741bYXHgamfWAZA==}
