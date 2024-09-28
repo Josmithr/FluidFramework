@@ -4,6 +4,8 @@
  */
 
 import { expect } from "chai";
+import type { RootContent as MdastRootContent } from "mdast";
+
 import type { DocumentationNode } from "../../documentation-domain/index.js";
 import { createTransformationContext } from "../TransformationContext.js";
 import { type MdastTree, type TransformationConfig } from "../configuration/index.js";
@@ -15,7 +17,7 @@ import { documentationNodeToMarkdown } from "../ToMarkdown.js";
 export function testTransformation(
 	node: DocumentationNode,
 	config?: Partial<TransformationConfig>,
-): MdastTree {
+): MdastRootContent[] {
 	return documentationNodeToMarkdown(node, createTransformationContext(config));
 }
 
@@ -29,5 +31,11 @@ export function assertTransformation(
 	transformationConfig?: TransformationConfig,
 ): void {
 	const actual = testTransformation(input, transformationConfig);
-	expect(actual).to.deep.equal(expected);
+
+	if (Array.isArray(expected)) {
+		expect(actual).to.deep.equal(expected);
+	} else {
+		expect(actual.length).to.equal(1);
+		expect(actual[0]).to.deep.equal(expected);
+	}
 }

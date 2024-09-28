@@ -11,7 +11,8 @@ import { expect } from "chai";
 import type { Text as MdastTest } from "mdast";
 import { DocumentationLiteralNodeBase } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
-import { testTransformation } from "./Utilities.js";
+import { assertTransformation, testTransformation } from "./Utilities.js";
+import type { Transformations } from "../configuration/Transformation.js";
 
 /**
  * Mock custom {@link DocumentationNode} for use in the tests below.
@@ -41,14 +42,12 @@ function customDocumentationNodeToMarkdown(
 describe("Custom node to Markdown transformation tests", () => {
 	it("Can render a custom node type when given a renderer", () => {
 		const input = new CustomDocumentationNode("foo");
-		const result = testTransformation(input, {
-			customTransformations: {
-				[CustomDocumentationNode.type]: (node, context) =>
-					customDocumentationNodeToMarkdown(node as CustomDocumentationNode, context),
-			},
-		});
+		const customTransformations: Transformations = {
+			[CustomDocumentationNode.type]: (node, context) =>
+				customDocumentationNodeToMarkdown(node as CustomDocumentationNode, context),
+		};
 
-		expect(result).to.deep.equal({ type: "text", value: "foo!" });
+		assertTransformation(input, { type: "text", value: "foo!" }, { customTransformations });
 	});
 
 	it("Throws rendering a custom node type when no renderer is provided for it", () => {

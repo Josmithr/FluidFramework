@@ -17,7 +17,7 @@ import {
 } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 
-describe("HierarchicalSection to Markdown transformation tests", () => {
+describe("Section to Markdown transformation tests", () => {
 	it("Simple section", () => {
 		const input = new SectionNode(
 			[
@@ -80,18 +80,22 @@ describe("HierarchicalSection to Markdown transformation tests", () => {
 				value: '<h1 id="root-heading">Root Heading</h1>',
 			},
 			{
-				type: "paragraph",
-				children: [{ type: "text", value: "Foo" }],
-			},
-			{
 				type: "html",
 				value: '<h2 id="sub-heading">Sub-Heading</h2>',
 			},
 			{
 				type: "paragraph",
+				children: [{ type: "text", value: "Foo" }],
+			},
+			{
+				type: "heading",
+				depth: 3,
+				children: [{ type: "text", value: "Sub-Sub-Heading" }],
+			},
+			{
+				type: "paragraph",
 				children: [{ type: "text", value: "Bar" }],
 			},
-			{ type: "heading", depth: 3, children: [{ type: "text", value: "Sub-Sub-Heading" }] },
 		];
 
 		assertTransformation(input, expected);

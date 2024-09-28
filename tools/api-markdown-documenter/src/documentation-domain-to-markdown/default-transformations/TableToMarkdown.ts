@@ -53,5 +53,10 @@ export function tableToMarkdown(node: TableNode, context: TransformationContext)
 		transformedChildren.push(...documentationNodesToMarkdown(node.children, context));
 	}
 
-	return table(undefined, transformedChildren) as MdastTable;
+	const output = table(undefined, transformedChildren) as MdastTable;
+	// mdast-builder likes to explicitly set the `align` property to `null` when it's not provided.
+	// But this makes testing annoying, so we'll remove it.
+	// If we ever add alignment support in the future, we'll need to not do this.
+	delete output.align;
+	return output;
 }

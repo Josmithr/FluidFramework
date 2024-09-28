@@ -56,11 +56,13 @@ describe("Span to HTMLtransformation tests", () => {
 				node1,
 				new SpanNode([node2, node3], {
 					bold: true,
-					italic: true,
+					strikethrough: false,
 				}),
 			],
 			{ strikethrough: true },
 		);
+
+		// TODO
 		const expected = h("span", [
 			h("s", [text1, h("span", [h("b", [h("i", [h("br"), text2])])])]),
 		]);

@@ -20,5 +20,5 @@ import type { TransformationContext } from "../TransformationContext.js";
  * @param context - See {@link TransformationContext}.
  */
 export function codeSpanToHtml(node: CodeSpanNode, context: TransformationContext): HastElement {
-	return h("code", {}, node.value);
+	return h("code", {}, node.isEmpty ? [] : [{ type: "text", value: node.value }]);
 }

@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import type { RootContent as MdastTree } from "mdast";
+import type { Delete as MdastDelete, RootContent as MdastTree } from "mdast";
 import {
 	LineBreakNode,
 	PlainTextNode,
@@ -14,7 +14,7 @@ import { assertTransformation } from "./Utilities.js";
 
 describe("Span to Markdown transformation tests", () => {
 	it("Empty span", () => {
-		assertTransformation(SpanNode.Empty, { type: "text", value: "" });
+		assertTransformation(SpanNode.Empty, []);
 	});
 
 	it("Simple span", () => {
@@ -51,7 +51,7 @@ describe("Span to Markdown transformation tests", () => {
 					type: "emphasis",
 					children: [
 						{ type: "text", value: text1 },
-						{ type: "text", value: "\n" },
+						{ type: "break" },
 						{ type: "text", value: text2 },
 					],
 				},
@@ -72,27 +72,22 @@ describe("Span to Markdown transformation tests", () => {
 				node1,
 				new SpanNode([node2, node3], {
 					bold: true,
-					strikethrough: true,
+					strikethrough: false,
 				}),
 			],
 			{ strikethrough: true },
 		);
 
-		const expected: MdastTree[] = [
-			{ type: "text", value: text1 },
-			{
-				type: "strong",
-				children: [
-					{
-						type: "delete",
-						children: [
-							{ type: "text", value: "\n" },
-							{ type: "text", value: text2 },
-						],
-					},
-				],
-			},
-		];
+		const expected: MdastDelete = {
+			type: "delete",
+			children: [
+				{ type: "text", value: text1 },
+				{
+					type: "strong",
+					children: [{ type: "break" }, { type: "text", value: text2 }],
+				},
+			],
+		};
 
 		assertTransformation(span, expected);
 	});

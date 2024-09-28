@@ -13,7 +13,7 @@ import { assertTransformation } from "./Utilities.js";
 
 describe("CodeSpan to Markdown transformation tests", () => {
 	it("Empty CodeSpan", () => {
-		assertTransformation(CodeSpanNode.Empty, { type: "code", value: "" });
+		assertTransformation(CodeSpanNode.Empty, { type: "inlineCode", value: "" });
 	});
 
 	it("Simple CodeSpan", () => {

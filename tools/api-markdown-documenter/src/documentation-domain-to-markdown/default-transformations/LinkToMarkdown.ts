@@ -17,5 +17,9 @@ import { link } from "mdast-builder";
  */
 export function linkToMarkdown(node: LinkNode, context: TransformationContext): MdastLink {
 	const transformedChildren = documentationNodesToMarkdown(node.children, context);
-	return link(node.target, undefined, transformedChildren) as MdastLink;
+	const output = link(node.target, undefined, transformedChildren) as MdastLink;
+	// mdast-builder likes to explicitly set the `title` property to an empty string when one is not provided.
+	// This makes testing annoying, so we'll remove it.
+	delete output.title;
+	return output;
 }
