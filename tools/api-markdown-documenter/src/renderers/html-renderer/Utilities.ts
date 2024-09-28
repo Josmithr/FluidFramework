@@ -13,6 +13,49 @@ import { type RenderContext } from "./RenderContext.js";
  *
  * @remarks Handles {@link RenderContext.prettyFormatting}.
  *
+ * @param text - The text to render within the tag.
+ * @param tagName - Tag name to use. E.g. "p" for a \<p\> node.
+ * @param writer - Writer context object into which the document contents will be written.
+ * @param context - See {@link RenderContext}.
+ */
+export function renderTextUnderTag(
+	text: string,
+	tagName: string,
+	writer: DocumentWriter,
+	context: RenderContext,
+): void {
+	const prettyFormatting = context.prettyFormatting !== false;
+
+	if (prettyFormatting) {
+		writer.ensureNewLine(); // Ensure line break before tag
+	}
+
+	writer.write(`<${tagName}>`);
+
+	if (prettyFormatting) {
+		writer.ensureNewLine();
+		writer.increaseIndent();
+	}
+
+	writer.write(text);
+
+	if (prettyFormatting) {
+		writer.ensureNewLine();
+		writer.decreaseIndent();
+	}
+
+	writer.write(`</${tagName}>`);
+
+	if (prettyFormatting) {
+		writer.ensureNewLine(); // Ensure line break after tag
+	}
+}
+
+/**
+ * Renders the provided contents within a tag block of the specified `tagName`.
+ *
+ * @remarks Handles {@link RenderContext.prettyFormatting}.
+ *
  * @param contents - The contents to render within the tag.
  * @param tagName - Tag name to use. E.g. "p" for a \<p\> node.
  * @param writer - Writer context object into which the document contents will be written.
