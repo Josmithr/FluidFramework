@@ -5,7 +5,6 @@
 
 import type { FencedCodeBlockNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
-import { renderNodes } from "../Render.js";
 import type { RenderContext } from "../RenderContext.js";
 import { renderNodeWithHtmlSyntax } from "../Utilities.js";
 
@@ -40,11 +39,7 @@ function renderFencedCodeBlockWithMarkdownSyntax(
 	writer.ensureSkippedLine(); // Code blocks require a leading blank line
 	writer.write("```");
 	writer.writeLine(node.language);
-	renderNodes(node.children, writer, {
-		...context,
-		insideCodeBlock: true,
-	});
-	writer.ensureNewLine(); // Ensure newline after body content
+	writer.writeLine(node.value);
 	writer.writeLine("```");
 	writer.ensureSkippedLine(); // Code blocks require a trailing blank line
 }

@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import type { FencedCodeBlockNode } from "../../../documentation-domain/index.js";
+import { PlainTextNode, type FencedCodeBlockNode } from "../../../documentation-domain/index.js";
 import type { DocumentWriter } from "../../DocumentWriter.js";
 import type { RenderContext } from "../RenderContext.js";
 import { renderContentsUnderTag } from "../Utilities.js";
@@ -20,5 +20,5 @@ export function renderFencedCodeBlock(
 	writer: DocumentWriter,
 	context: RenderContext,
 ): void {
-	renderContentsUnderTag(node.children, "code", writer, context);
+	renderContentsUnderTag([new PlainTextNode(node.value)], "code", writer, context);
 }
