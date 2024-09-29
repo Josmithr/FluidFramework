@@ -80,7 +80,8 @@
 		"hast-util-to-html": "^9.0.3",
 		"hastscript": "^9.0.0",
 		"mdast-builder": "^1.1.1",
-		"mdast-util-gfm": "^3.0.0"
+		"mdast-util-gfm": "^3.0.0",
+		"mdast-util-to-markdown": "^2.1.0"
 	},
 	"devDependencies": {
 		"@fluid-internal/mocha-test-setup": "~2.0.0-rc.3.0.3",
@@ -105,7 +106,6 @@
 		"eslint-plugin-chai-expect": "^3.0.0",
 		"eslint-plugin-chai-friendly": "^0.7.2",
 		"good-fences": "^1.2.0",
-		"mdast-util-to-markdown": "^2.1.0",
 		"mocha": "^10.2.0",
 		"mocha-json-output-reporter": "^2.1.0",
 		"mocha-multi-reporters": "^1.5.1",
