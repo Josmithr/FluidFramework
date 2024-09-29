@@ -12,7 +12,7 @@ import type { Text as MdastTest } from "mdast";
 import { DocumentationLiteralNodeBase } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
 import { assertTransformation, testTransformation } from "./Utilities.js";
-import type { Transformations } from "../configuration/Transformation.js";
+import type { Transformations } from "../configuration/index.js";
 
 /**
  * Mock custom {@link DocumentationNode} for use in the tests below.
