@@ -18,5 +18,6 @@ export function fencedCodeBlockToMarkdown(
 	node: FencedCodeBlockNode,
 	context: TransformationContext,
 ): MdastCode {
+	// Note: we can ignore user-specified text formatting here, because fenced code blocks cannot be formatted in Markdown.
 	return code(node.language ?? "", node.value) as MdastCode;
 }

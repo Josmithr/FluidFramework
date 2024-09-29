@@ -10,6 +10,7 @@
 import type { InlineCode } from "mdast";
 import { CodeSpanNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
+import type { MdastTree } from "../configuration/index.js";
 
 describe("CodeSpan to Markdown transformation tests", () => {
 	it("Empty CodeSpan", () => {
@@ -21,5 +22,15 @@ describe("CodeSpan to Markdown transformation tests", () => {
 		const expected: InlineCode = { type: "inlineCode", value: "console.log('hello world');" };
 
 		assertTransformation(input, expected);
+	});
+
+	it("CodeSpan with formatting", () => {
+		const input = new CodeSpanNode("console.log('hello world');");
+		const expected: MdastTree = {
+			type: "emphasis",
+			children: [{ type: "inlineCode", value: "console.log('hello world');" }],
+		};
+
+		assertTransformation(input, expected, { rootFormatting: { italic: true } });
 	});
 });

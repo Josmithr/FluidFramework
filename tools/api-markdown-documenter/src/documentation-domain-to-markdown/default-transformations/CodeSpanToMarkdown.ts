@@ -8,6 +8,8 @@ import { inlineCode } from "mdast-builder";
 
 import type { CodeSpanNode } from "../../index.js";
 import type { TransformationContext } from "../TransformationContext.js";
+import { applyFormatting } from "./Utilities.js";
+import type { MdastTree } from "../configuration/index.js";
 
 /**
  * Transform a {@link BlockQuoteNode} to Markdown.
@@ -15,9 +17,9 @@ import type { TransformationContext } from "../TransformationContext.js";
  * @param node - The node to render.
  * @param context - See {@link TransformationContext}.
  */
-export function codeSpanToMarkdown(
-	node: CodeSpanNode,
-	context: TransformationContext,
-): MdastInlineCode {
-	return inlineCode(node.value) as MdastInlineCode;
+export function codeSpanToMarkdown(node: CodeSpanNode, context: TransformationContext): MdastTree {
+	const transformed = inlineCode(node.value) as MdastInlineCode;
+
+	// Code spans can have formatting in Markdown, so we need to apply it here.
+	return applyFormatting(transformed, context);
 }

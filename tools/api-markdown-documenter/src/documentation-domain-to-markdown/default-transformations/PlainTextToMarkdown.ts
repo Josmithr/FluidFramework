@@ -3,10 +3,10 @@
  * Licensed under the MIT License.
  */
 
-import type { Text as MdastText } from "mdast";
-
 import type { PlainTextNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
+import { applyFormatting } from "./Utilities.js";
+import type { MdastTree } from "../configuration/index.js";
 
 /**
  * Transform a {@link PlainTextNode} to HTML.
@@ -17,10 +17,13 @@ import type { TransformationContext } from "../TransformationContext.js";
 export function plainTextToMarkdown(
 	node: PlainTextNode,
 	context: TransformationContext,
-): MdastText {
+): MdastTree {
 	// TODO: verify escaped-ness
-	return {
-		type: "text",
-		value: node.text,
-	};
+	return applyFormatting(
+		{
+			type: "text",
+			value: node.text,
+		},
+		context,
+	);
 }
