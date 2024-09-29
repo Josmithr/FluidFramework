@@ -44,7 +44,7 @@ function renderTableWithMarkdownSyntax(
 
 	writer.ensureSkippedLine(); // Ensure blank line before table
 
-	if (node.headerRow !== undefined) {
+	if (node.headerRow !== undefined && !node.headerRow.isEmpty) {
 		const headerCellCount = node.headerRow.children.length;
 
 		// Render heading row
