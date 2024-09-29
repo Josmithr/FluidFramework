@@ -135,11 +135,11 @@ export class BlockQuoteNode extends DocumentationParentNodeBase implements Multi
 }
 
 // @public
-export class CodeSpanNode extends DocumentationParentNodeBase<SingleLineDocumentationNode> implements SingleLineDocumentationNode {
-    constructor(children: SingleLineDocumentationNode[]);
-    static createFromPlainText(text: string): CodeSpanNode;
+export class CodeSpanNode extends DocumentationLiteralNodeBase<string> implements SingleLineDocumentationNode {
+    constructor(text: string);
     static readonly Empty: CodeSpanNode;
-    get singleLine(): true;
+    get isEmpty(): boolean;
+    readonly singleLine = true;
     readonly type = DocumentationNodeType.CodeSpan;
 }
 
@@ -337,11 +337,11 @@ export namespace DocumentWriter {
 function doesItemRequireOwnDocument(apiItem: ApiItem, documentBoundaries: DocumentBoundaries): boolean;
 
 // @public
-export class FencedCodeBlockNode extends DocumentationParentNodeBase implements MultiLineDocumentationNode {
-    constructor(children: DocumentationNode[], language?: string);
-    static createFromPlainText(text: string, language?: string): FencedCodeBlockNode;
+export class FencedCodeBlockNode extends DocumentationLiteralNodeBase<string> implements MultiLineDocumentationNode {
+    constructor(value: string, language?: string);
+    get isEmpty(): boolean;
     readonly language?: string;
-    get singleLine(): false;
+    readonly singleLine = false;
     readonly type = DocumentationNodeType.FencedCode;
 }
 
@@ -734,11 +734,12 @@ export interface TextFormatting {
 export interface ToHtmlConfig extends ConfigurationBase {
     readonly customTransformations?: ToHtmlTransformations;
     readonly language?: string;
+    readonly rootFormatting?: TextFormatting;
     readonly startingHeadingLevel?: number;
 }
 
 // @public
-export interface ToHtmlContext {
+export interface ToHtmlContext extends TextFormatting {
     readonly headingLevel: number;
     readonly logger: Logger;
     readonly transformations: ToHtmlTransformations;
