@@ -3,24 +3,11 @@
  * Licensed under the MIT License.
  */
 
-import type {
-	Table as MdastTable,
-	RootContent as MdastRootContent,
-	TableCell,
-	TableRow,
-} from "mdast";
+import type { Table as MdastTable, RootContent as MdastRootContent } from "mdast";
 import type { TableNode } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
 import { table } from "mdast-builder";
 import { documentationNodesToMarkdown, documentationNodeToMarkdown } from "../ToMarkdown.js";
-
-/**
- * A cell containing separator string, used to separate table header rows from body rows.
- */
-export const tableSeparatorRowCell: TableCell = {
-	type: "tableCell",
-	children: [{ type: "text", value: "---" }],
-};
 
 /**
  * Transform a {@link TableNode} to HTML.
@@ -32,22 +19,13 @@ export const tableSeparatorRowCell: TableCell = {
  */
 export function tableToMarkdown(node: TableNode, context: TransformationContext): MdastTable {
 	const transformedChildren: MdastRootContent[] = [];
-	if (node.headerRow !== undefined) {
-		transformedChildren.push(...documentationNodeToMarkdown(node.headerRow, context));
-
-		// Mdast doesn't support a formal "header row" concept.
-		// To separate a header from the body, we need to push a row of separator cells.
-		const headerRowLength = node.headerRow.children.length;
-		const separatorRowCells: TableCell[] = Array.from(
-			{ length: headerRowLength },
-			() => tableSeparatorRowCell,
-		);
-		const separatorRow: TableRow = {
-			type: "tableRow",
-			children: separatorRowCells,
-		};
-		transformedChildren.push(separatorRow);
+	if (node.headerRow === undefined) {
+		throw new Error("TableNode must have a header row in order to be converted to MDAST.");
 	}
+
+	// MDAST tables require a header row.
+	// TODO: I guess our tables should require headers too? All of the production code provides one already.
+	transformedChildren.push(...documentationNodeToMarkdown(node.headerRow, context));
 
 	if (node.children.length > 0) {
 		transformedChildren.push(...documentationNodesToMarkdown(node.children, context));

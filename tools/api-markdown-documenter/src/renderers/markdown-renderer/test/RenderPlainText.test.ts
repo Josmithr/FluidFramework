@@ -16,7 +16,12 @@ describe("PlainText Markdown rendering tests", () => {
 		});
 
 		it("No formatting", () => {
-			const text = `This is some text!`;
+			const text = "This is some text!";
+			expect(testRender(new PlainTextNode(text))).to.equal(text);
+		});
+
+		it("Text with special characters", () => {
+			const text = "Hello\t World! 😁é \t ";
 			expect(testRender(new PlainTextNode(text))).to.equal(text);
 		});
 

@@ -85,30 +85,6 @@ describe("Document to Markdown transformation tests", () => {
 			],
 		};
 
-		// const expected = h(undefined, [
-		// 	{ type: "doctype" },
-		// 	h("html", { lang: "en" }, [
-		// 		h("head", [
-		// 			// eslint-disable-next-line unicorn/text-encoding-identifier-case
-		// 			h("meta", { charset: "utf-8" }),
-		// 		]),
-		// 		h("body", [
-		// 			h("section", [
-		// 				h("h1", "Sample Document"),
-		// 				h("p", ["This is a sample document. ", "It has very basic content.\t"]),
-		// 				h("section", [
-		// 					h("h2", "Section Heading"),
-		// 					h("p", [
-		// 						"This is test inside of a paragraph. ",
-		// 						"It is also inside of a hierarchical section node. ",
-		// 						h("span", [h("i", "That's real neat-o.")]),
-		// 					]),
-		// 				]),
-		// 			]),
-		// 		]),
-		// 	]),
-		// ]);
-
 		expect(result).to.deep.equal(expected);
 	});
 });

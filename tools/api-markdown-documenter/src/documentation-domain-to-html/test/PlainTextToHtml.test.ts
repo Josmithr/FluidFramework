@@ -19,6 +19,13 @@ describe("PlainText to HTMLtransformation tests", () => {
 		});
 	});
 
+	it("Text with special characters", () => {
+		assertTransformation(new PlainTextNode("Hello\t World! 😁é \t "), {
+			type: "text",
+			value: "Hello\t World! 😁é \t ",
+		});
+	});
+
 	it("HTML content (escaped: true)", () => {
 		const input = new PlainTextNode("This is some <b>bold</b> text!", /* escaped: */ true);
 		const expected: HastNodes = { type: "raw", value: "This is some <b>bold</b> text!" };
