@@ -32,7 +32,7 @@ export function renderTable(node: TableNode, writer: DocumentWriter, context: Re
 	}
 
 	// Write header row if one was specified
-	if (node.headerRow !== undefined) {
+	if (node.headerRow !== undefined && !node.headerRow.isEmpty) {
 		renderContentsUnderTag([node.headerRow], "thead", writer, context);
 	}
 

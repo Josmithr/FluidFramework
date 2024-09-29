@@ -23,7 +23,7 @@ import type { TransformationContext } from "../TransformationContext.js";
  */
 export function tableToHtml(node: TableNode, context: TransformationContext): HastElement {
 	const transformedChildren: HastElement[] = [];
-	if (node.headerRow !== undefined) {
+	if (node.headerRow !== undefined && !node.headerRow.isEmpty) {
 		transformedChildren.push(
 			transformChildrenUnderTag({ name: "thead" }, [node.headerRow], context),
 		);
