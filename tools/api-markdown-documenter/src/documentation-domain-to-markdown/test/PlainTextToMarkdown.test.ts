@@ -17,4 +17,11 @@ describe("PlainText to Markdown transformation tests", () => {
 			value: "This is some text!",
 		});
 	});
+
+	it("Text with special characters", () => {
+		assertTransformation(new PlainTextNode("Hello\t World! 😁é \t "), {
+			type: "text",
+			value: "Hello\t World! 😁é \t ",
+		});
+	});
 });
