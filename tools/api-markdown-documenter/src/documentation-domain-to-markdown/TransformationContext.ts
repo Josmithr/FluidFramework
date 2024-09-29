@@ -50,10 +50,11 @@ export function createTransformationContext(
 		...defaultTransformations,
 		...config?.customTransformations,
 	};
+	const rootFormatting = config?.rootFormatting;
 	return {
 		headingLevel,
 		transformations,
 		logger: config?.logger ?? defaultConsoleLogger,
-		...config?.rootFormatting,
+		...rootFormatting,
 	};
 }
