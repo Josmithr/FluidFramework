@@ -32,6 +32,16 @@ export {
 // eslint-disable-next-line no-restricted-syntax
 export * from "./documentation-domain/index.js";
 
+export type {
+	documentToMarkdown,
+	documentationNodeToMarkdown,
+	documentationNodesToMarkdown,
+	MdastTree, // TODO: don't export this
+	Transformation as ToMarkdownTransformation,
+	TransformationConfig as ToMarkdownTransformationConfig,
+	TransformationContext as ToMarkdownTransformationContext,
+	Transformations as ToMarkdownTransformations,
+} from "./documentation-domain-to-markdown/index.js";
 export {
 	documentToHtml,
 	documentationNodeToHtml,

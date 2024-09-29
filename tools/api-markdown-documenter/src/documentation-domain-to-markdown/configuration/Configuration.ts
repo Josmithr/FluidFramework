@@ -9,7 +9,7 @@ import { defaultConsoleLogger } from "../../Logging.js";
 import { type Transformations } from "./Transformation.js";
 
 /**
- * Configuration for transforming {@link DocumentationNode}s to HTML.
+ * Configuration for transforming {@link DocumentationNode}s to Markdown.
  *
  * @public
  */

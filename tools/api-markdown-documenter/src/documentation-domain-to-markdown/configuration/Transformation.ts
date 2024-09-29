@@ -46,6 +46,8 @@ import type { TransformationContext } from "../TransformationContext.js";
 
 /**
  * Markdown AST content.
+ *
+ * @public
  */
 export type MdastTree = MdastRootContent | MdastRootContent[];
 

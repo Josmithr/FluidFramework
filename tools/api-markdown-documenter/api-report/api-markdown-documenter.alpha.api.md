@@ -34,7 +34,9 @@ import type { Node as Node_2 } from 'unist';
 import type { Nodes } from 'hast';
 import type { Parent } from 'unist';
 import { ReleaseTag } from '@microsoft/api-extractor-model';
-import type { Root } from 'hast';
+import type { Root } from 'mdast';
+import type { Root as Root_2 } from 'hast';
+import type { RootContent } from 'mdast';
 import { TypeParameter } from '@microsoft/api-extractor-model';
 
 // @public
@@ -231,10 +233,22 @@ export function documentationNodesToHtml(nodes: DocumentationNode[], config: ToH
 export function documentationNodesToHtml(nodes: DocumentationNode[], transformationContext: ToHtmlContext): Nodes[];
 
 // @public
+export function documentationNodesToMarkdown(nodes: DocumentationNode[], config: ToMarkdownTransformationConfig): RootContent[];
+
+// @public
+export function documentationNodesToMarkdown(nodes: DocumentationNode[], transformationContext: ToMarkdownTransformationContext): RootContent[];
+
+// @public
 export function documentationNodeToHtml(node: DocumentationNode, config: ToHtmlConfig): Nodes;
 
 // @public
 export function documentationNodeToHtml(node: DocumentationNode, context: ToHtmlContext): Nodes;
+
+// @public
+export function documentationNodeToMarkdown(node: DocumentationNode, config: ToMarkdownTransformationConfig): RootContent[];
+
+// @public
+export function documentationNodeToMarkdown(node: DocumentationNode, context: ToMarkdownTransformationContext): RootContent[];
 
 // @public
 export enum DocumentationNodeType {
@@ -313,7 +327,10 @@ export interface DocumentNodeProps {
 }
 
 // @public
-export function documentToHtml(document: DocumentNode, config: ToHtmlConfig): Root;
+export function documentToHtml(document: DocumentNode, config: ToHtmlConfig): Root_2;
+
+// @public
+export function documentToMarkdown(document: DocumentNode, config: ToMarkdownTransformationConfig): Root;
 
 // @public
 export interface DocumentWriter {
@@ -595,6 +612,9 @@ export interface MarkdownRenderers {
 }
 
 // @public
+export type MdastTree = RootContent | RootContent[];
+
+// @public
 export interface MultiLineDocumentationNode<TData extends object = Data> extends DocumentationNode<TData> {
     readonly singleLine: false;
 }
@@ -642,7 +662,7 @@ function renderApiModelAsMarkdown(transformConfig: Omit<ApiItemTransformationCon
 function renderDocument(document: DocumentNode, config: HtmlRenderConfiguration): string;
 
 // @public
-function renderDocument_2(document: DocumentNode, config: MarkdownRenderConfiguration): string;
+function renderDocument_2(document: DocumentNode, config: ToMarkdownTransformationConfig): string;
 
 // @alpha
 function renderDocumentsAsHtml(documents: DocumentNode[], renderConfig: Omit<HtmlRenderConfiguration, "logger">, fileSystemConfig: FileSystemConfiguration, logger?: Logger): Promise<void>;
@@ -785,6 +805,28 @@ export type ToHtmlTransformation = (node: DocumentationNode, context: ToHtmlCont
 // @public
 export interface ToHtmlTransformations {
     [documentationNodeKind: string]: ToHtmlTransformation;
+}
+
+// @public
+export type ToMarkdownTransformation = (node: DocumentationNode, context: ToMarkdownTransformationContext) => MdastTree;
+
+// @public
+export interface ToMarkdownTransformationConfig extends ConfigurationBase {
+    readonly customTransformations?: ToMarkdownTransformations;
+    readonly rootFormatting?: TextFormatting;
+    readonly startingHeadingLevel?: number;
+}
+
+// @public
+export interface ToMarkdownTransformationContext extends TextFormatting {
+    readonly headingLevel: number;
+    readonly logger: Logger;
+    readonly transformations: ToMarkdownTransformations;
+}
+
+// @public
+export interface ToMarkdownTransformations {
+    [documentationNodeKind: string]: ToMarkdownTransformation;
 }
 
 // @public

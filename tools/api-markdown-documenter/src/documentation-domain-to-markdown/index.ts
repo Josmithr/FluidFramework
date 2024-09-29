@@ -4,6 +4,7 @@
  */
 
 export type {
+	MdastTree,
 	TransformationConfig,
 	Transformation,
 	Transformations,
