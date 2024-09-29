@@ -8,13 +8,13 @@ import type {
 	Emphasis as MdastEmphasis,
 	ListItem as MdastListItem,
 	Strong as MdastStrong,
+	RootContent as MdastRootContent,
 } from "mdast";
 import { emphasis, listItem, strike, strong } from "mdast-builder";
 
 import type { DocumentationNode, TextFormatting } from "../../documentation-domain/index.js";
 import type { TransformationContext } from "../TransformationContext.js";
 import { documentationNodeToMarkdown } from "../ToMarkdown.js";
-import type { MdastTree } from "../configuration/index.js";
 
 /**
  * Transforms a list of {@link DocumentationNode}s under a List into a series of {@link MdastListItem}.
@@ -31,8 +31,8 @@ export function transformListChildren(
 /**
  * Wraps the provided tree in the appropriate formatting tags based on the provided context.
  */
-export function applyFormatting(tree: MdastTree, context: TextFormatting): MdastTree {
-	let result: MdastTree = tree;
+export function applyFormatting(tree: MdastRootContent, context: TextFormatting): MdastRootContent {
+	let result: MdastRootContent = tree;
 
 	// The ordering in which we wrap here is effectively arbitrary, but it does impact the order of the tags in the output.
 	// Note if you're editing: tests may implicitly rely on this ordering.
