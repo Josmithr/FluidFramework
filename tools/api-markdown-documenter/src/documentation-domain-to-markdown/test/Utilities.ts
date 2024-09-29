@@ -5,6 +5,8 @@
 
 import { expect } from "chai";
 import type { RootContent as MdastRootContent } from "mdast";
+import { toMarkdown } from "mdast-util-to-markdown";
+import { gfmToMarkdown } from "mdast-util-gfm";
 
 import type { DocumentationNode } from "../../documentation-domain/index.js";
 import { createTransformationContext } from "../TransformationContext.js";
@@ -18,7 +20,12 @@ export function testTransformation(
 	node: DocumentationNode,
 	config?: Partial<TransformationConfig>,
 ): MdastRootContent[] {
-	return documentationNodeToMarkdown(node, createTransformationContext(config));
+	const result = documentationNodeToMarkdown(node, createTransformationContext(config));
+
+	// Will throw if the result is not a valid `mdast` tree.
+	toMarkdown({ type: "root", children: result }, { extensions: [gfmToMarkdown()] });
+
+	return result;
 }
 
 /**
