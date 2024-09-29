@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import type { Html as MdastHtml, Heading as MdastHeading } from "mdast";
+import type { Heading as MdastHeading } from "mdast";
 import { HeadingNode } from "../../documentation-domain/index.js";
 import { assertTransformation } from "./Utilities.js";
 import type { MdastTree } from "../configuration/index.js";
@@ -12,7 +12,10 @@ describe("HeadingNode to Markdown transformation tests", () => {
 	describe("With ID", () => {
 		it("Default level", () => {
 			const input = HeadingNode.createFromPlainText("Foo", "foo-id");
-			const expected: MdastHtml = { type: "html", value: '<h1 id="foo-id">Foo</h1>' };
+			const expected: MdastTree = [
+				{ type: "html", value: '<a name="foo-id"></a>' },
+				{ type: "heading", depth: 1, children: [{ type: "text", value: "Foo" }] },
+			];
 			assertTransformation(input, expected);
 		});
 
@@ -20,7 +23,10 @@ describe("HeadingNode to Markdown transformation tests", () => {
 			// Heading levels are dynamic depending on context (depth in the document tree).
 			// Verify that the specified starting heading level in the config is respected when transforming the heading.
 			const input = HeadingNode.createFromPlainText("Foo", "foo-id");
-			const expected: MdastHtml = { type: "html", value: '<h4 id="foo-id">Foo</h4>' };
+			const expected: MdastTree = [
+				{ type: "html", value: '<a name="foo-id"></a>' },
+				{ type: "heading", depth: 4, children: [{ type: "text", value: "Foo" }] },
+			];
 			assertTransformation(input, expected, { startingHeadingLevel: 4 });
 		});
 
@@ -29,7 +35,10 @@ describe("HeadingNode to Markdown transformation tests", () => {
 			// As a policy, if we have a heading nested deeper than that, we transform the content to bold text with an
 			// anchor tag above it.
 			const input = HeadingNode.createFromPlainText("Foo", "foo-id");
-			const expected: MdastHtml = { type: "html", value: '<a name="foo-id"></a><b>Foo</b>' };
+			const expected: MdastTree = [
+				{ type: "html", value: '<a name="foo-id"></a>' },
+				{ type: "strong", children: [{ type: "text", value: "Foo" }] },
+			];
 			assertTransformation(input, expected, { startingHeadingLevel: 7 });
 		});
 	});

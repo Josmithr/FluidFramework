@@ -31,8 +31,9 @@ describe("Section to Markdown transformation tests", () => {
 		const expected: MdastRootContent[] = [
 			{
 				type: "html",
-				value: '<h1 id="heading-id">Hello World</h1>',
+				value: '<a name="heading-id"></a>',
 			},
+			{ type: "heading", depth: 1, children: [{ type: "text", value: "Hello World" }] },
 			{ type: "paragraph", children: [{ type: "text", value: "Foo" }] },
 			{ type: "thematicBreak" },
 			{ type: "paragraph", children: [{ type: "text", value: "Bar" }] },
@@ -77,11 +78,21 @@ describe("Section to Markdown transformation tests", () => {
 		const expected: MdastRootContent[] = [
 			{
 				type: "html",
-				value: '<h1 id="root-heading">Root Heading</h1>',
+				value: '<a name="root-heading"></a>',
+			},
+			{
+				type: "heading",
+				depth: 1,
+				children: [{ type: "text", value: "Root Heading" }],
 			},
 			{
 				type: "html",
-				value: '<h2 id="sub-heading">Sub-Heading</h2>',
+				value: '<a name="sub-heading"></a>',
+			},
+			{
+				type: "heading",
+				depth: 2,
+				children: [{ type: "text", value: "Sub-Heading" }],
 			},
 			{
 				type: "paragraph",
