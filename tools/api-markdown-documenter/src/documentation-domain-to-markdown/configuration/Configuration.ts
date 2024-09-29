@@ -34,15 +34,6 @@ export interface TransformationConfig extends ConfigurationBase {
 	 * Optional formatting to apply to the entire document.
 	 */
 	readonly rootFormatting?: TextFormatting;
-
-	/**
-	 * HTML language attribute.
-	 *
-	 * @defaultValue "en"
-	 *
-	 * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/lang}
-	 */
-	readonly language?: string;
 }
 
 /**

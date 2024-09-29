@@ -20,28 +20,8 @@ import { documentationNodesToHtml } from "../ToHtml.js";
  * @param context - See {@link TransformationContext}.
  */
 export function spanToHtml(node: SpanNode, context: TransformationContext): HastElement {
-	const transformedChildren = documentationNodesToHtml(node.children, context);
+	const childContext = { ...context, ...node.textFormatting };
+	const transformedChildren = documentationNodesToHtml(node.children, childContext);
 
-	if (node.textFormatting === undefined) {
-		return h("span", transformedChildren);
-	}
-
-	let formatWrapped: HastElement | undefined;
-	function wrapWithTag(tag: string): void {
-		formatWrapped = h(tag, formatWrapped === undefined ? transformedChildren : [formatWrapped]);
-	}
-
-	// The ordering in which we wrap here is effectively arbitrary, but impacts the order of the tags in the output.
-	// Note if you're editing: tests may implicitly rely on this ordering.
-	if (node.textFormatting.strikethrough === true) {
-		wrapWithTag("s");
-	}
-	if (node.textFormatting.italic === true) {
-		wrapWithTag("i");
-	}
-	if (node.textFormatting.bold === true) {
-		wrapWithTag("b");
-	}
-
-	return h("span", formatWrapped ?? transformedChildren);
+	return h("span", transformedChildren);
 }

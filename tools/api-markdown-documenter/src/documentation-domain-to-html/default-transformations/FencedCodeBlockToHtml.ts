@@ -24,5 +24,6 @@ export function fencedCodeBlockToHtml(
 	context: TransformationContext,
 ): HastElement {
 	// Note that HTML <code> tags don't support language attributes, so we don't pass anything through here.
+	// Also note: fenced code blocks are not intended to be formatted, so we will ignore formatting in the output here.
 	return h("code", {}, node.value);
 }

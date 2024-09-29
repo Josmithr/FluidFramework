@@ -3,10 +3,6 @@
  * Licensed under the MIT License.
  */
 
-/*!
- * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
- * Licensed under the MIT License.
- */
 import type { Element as HastElement } from "hast";
 import { h } from "hastscript";
 import type { UnorderedListNode } from "../../documentation-domain/index.js";
