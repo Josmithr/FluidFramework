@@ -8,9 +8,9 @@
  *
  * @remarks The following distributed data structures are defined in this library:
  *
- * - {@link SharedMap}
+ * - {@link ISharedMap}
  *
- * - {@link SharedDirectory}
+ * - {@link ISharedDirectory}
  *
  * @packageDocumentation
  */

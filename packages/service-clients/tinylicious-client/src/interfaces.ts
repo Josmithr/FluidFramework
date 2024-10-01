@@ -47,11 +47,10 @@ export interface TinyliciousConnectionConfig {
 	readonly domain?: string;
 
 	/**
-	 * Optional. Override of tokenProvider. If a param is not provided, TinyliciousConnectionConfig
-	 * will use the default tokenProvider which is InsecureTinyliciousTokenProvider with default scopes,
-	 * which are document read, write and summarizer write.
+	 * Optional. Override of tokenProvider.
 	 *
-	 * @defaultValue {@link @fluidframework/tinylicious-driver#InsecureTinyliciousTokenProvider}
+	 * @defaultValue An `InsecureTinyliciousTokenProvider` with default scopes,
+	 * which are document read, write and summarizer write.
 	 */
 	readonly tokenProvider?: ITokenProvider;
 }
@@ -78,7 +77,7 @@ export interface TinyliciousContainerServices {
 }
 
 /**
- * Tinylicious {@link @fluidframework/fluid-static#IUser}.
+ * Tinylicious {@link @fluidframework/driver-definitions#IUser}.
  * @sealed
  * @public
  */

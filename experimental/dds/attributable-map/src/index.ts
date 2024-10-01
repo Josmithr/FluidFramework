@@ -4,11 +4,7 @@
  */
 
 /**
- * The `map` library provides interfaces and implementing classes for map-like distributed data structures.
- *
- * @remarks The following distributed data structures are defined in this library:
- *
- * - {@link AttributableMap}
+ * The `attributable-map` library provides interfaces and implementing classes for map-like distributed data structures.
  *
  * @packageDocumentation
  */

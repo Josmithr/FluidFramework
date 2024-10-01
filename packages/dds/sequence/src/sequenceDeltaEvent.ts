@@ -159,7 +159,7 @@ export class SequenceMaintenanceEvent extends SequenceEvent<MergeTreeMaintenance
 	 */
 	constructor(
 		/**
-		 * Defined iff `deltaArgs.operation` is {@link @fluidframework/merge-tree#MergeTreeMaintenanceType.ACKNOWLEDGED|MergeTreeMaintenanceType.ACKNOWLEDGED}.
+		 * Defined if and only if `deltaArgs.operation` is {@link @fluidframework/merge-tree#(MergeTreeMaintenanceType:variable).ACKNOWLEDGED}.
 		 *
 		 * In that case, this argument provides information about the change which was acknowledged.
 		 */

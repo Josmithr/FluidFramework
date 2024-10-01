@@ -159,7 +159,7 @@ export abstract class SharedObjectCore<
 	}
 
 	/**
-	 * Accessor for `this.runtime`'s {@link @fluidframework/datastore-definitions#IFluidDataStoreRuntime.deltaManager} as a {@link @fluidframework/container-definitions/internal#IDeltaManager}
+	 * Accessor for `this.runtime`'s {@link @fluidframework/datastore-definitions#IFluidDataStoreRuntime.deltaManager} as a {@link @fluidframework/container-definitions#IDeltaManager}
 	 */
 	protected get deltaManager(): IDeltaManager<ISequencedDocumentMessage, IDocumentMessage> {
 		return toDeltaManagerInternal(this.runtime.deltaManager);
@@ -873,7 +873,7 @@ export interface ISharedObjectKind<TSharedObject> {
 export interface SharedObjectKind<out TSharedObject = unknown>
 	extends ErasedType<readonly ["SharedObjectKind", TSharedObject]> {
 	/**
-	 * Check whether an {@link @fluidframework/core-interfaces#IFluidLoadable} is an instance of this shared object kind.
+	 * Check whether an {@link @fluidframework/core-interfaces#(IFluidLoadable:interface)} is an instance of this shared object kind.
 	 * @remarks This should be used in place of `instanceof` checks for shared objects, as their actual classes are not exported in Fluid's public API.
 	 */
 	is(value: IFluidLoadable): value is IFluidLoadable & TSharedObject;

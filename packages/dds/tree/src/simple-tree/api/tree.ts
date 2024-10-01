@@ -99,8 +99,8 @@ export interface ITreeConfigurationOptions {
 	 * When this is true, it ensures that the compile time type safety for data when constructing nodes is sufficient to ensure that the runtime behavior will not give node data ambiguity errors.
 	 *
 	 * This ensures that the canonical JSON-like representation of all unions in the tree are lossless and unambiguous.
-	 * This canonical JSON-like representation consists of arrays, plain old JavaScript objects with string keys, booleans, numbers (excluding NaN, -0 and infinities), strings, null and {@link @fluidframework/core-interfaces#IFluidHandle}s.
-	 * It is compatible with the node creation APIs (such as schema class constructors) and is also compatible with JSON assuming any IFluidHandles get special handling (since they are not JSON compatible).
+	 * This canonical JSON-like representation consists of arrays, plain old JavaScript objects with string keys, booleans, numbers (excluding NaN, -0 and infinities), strings, null and {@link @fluidframework/core-interfaces#(IFluidHandle:interface)}s.
+	 * It is compatible with the node creation APIs (such as schema class constructors) and is also compatible with JSON assuming any `IFluidHandle`s get special handling (since they are not JSON compatible).
 	 * Currently these cases can cause ambiguity in a union:
 	 *
 	 * - More than one ArrayNode type: it's impossible to tell which array type is intended in the case of empty arrays (`[]`).
