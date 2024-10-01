@@ -4,6 +4,12 @@
 
 ```ts
 
+// @public
+export const defaultTinyliciousEndpoint = "http://localhost";
+
+// @public
+export const defaultTinyliciousPort = 7070;
+
 // (No @packageDocumentation comment for this package)
 
 ```
