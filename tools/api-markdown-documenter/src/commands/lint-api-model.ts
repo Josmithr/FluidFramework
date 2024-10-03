@@ -11,8 +11,8 @@ import Chalk from "chalk";
 
 import { lintApiModel, type LinterErrors, type LinterReferenceError } from "../LintApiModel.js";
 import { loadModel } from "../LoadModel.js";
-import { silentLogger, type Logger } from "../Logging.js";
 import { DocumentWriter } from "../renderers/index.js";
+import { adaptLogger } from "./utilities/index.js";
 
 const commandDescription = `Runs a validation pass over the specified API model, reporting any errors found.
 This includes broken \`{@link}\` and \`{@inheritDoc}\` tag references, which can not be evaluated on a package-by-package basis by API-Extractor.`;
@@ -64,35 +64,8 @@ export default class LintApiModelCommand extends Command {
 		const { apiModelDirectory } = args;
 		const { verbose, workingDirectory, quiet } = flags;
 
-		// eslint-disable-next-line unicorn/consistent-function-scoping
-		function getMessage(messageOrError: string | Error): string | undefined {
-			if (messageOrError instanceof Error) {
-				return messageOrError.message;
-			}
-			return messageOrError;
-		}
-
-		let logger: Logger = {
-			...silentLogger,
-		};
-		if (!quiet) {
-			logger = {
-				...logger,
-				info: (message, ...parameters) =>
-					this.log(Chalk.blue(getMessage(message)), ...parameters),
-				error: (message) => this.error(message),
-				warning: (message) => this.warn(message),
-				success: (message, ...parameters) =>
-					this.log(Chalk.green(getMessage(message)), ...parameters),
-			};
-		}
-		if (verbose) {
-			logger = {
-				...logger,
-				verbose: (message, ...parameters) =>
-					this.log(Chalk.gray(getMessage(message)), ...parameters),
-			};
-		}
+		const loggerVerbosity = quiet ? "quiet" : verbose ? "verbose" : "normal";
+		const logger = adaptLogger(this, loggerVerbosity);
 
 		const resolvedApiModelDirectoryPath = Path.resolve(workingDirectory, apiModelDirectory);
 
