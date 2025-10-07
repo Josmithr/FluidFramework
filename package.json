@@ -391,7 +391,8 @@
 			]
 		},
 		"patchedDependencies": {
-			"@microsoft/api-extractor@7.52.11": "patches/@microsoft__api-extractor@7.52.11.patch"
+			"@microsoft/api-extractor@7.52.11": "patches/@microsoft__api-extractor@7.52.11.patch",
+			"@microsoft/tsdoc@0.15.1": "patches/@microsoft__tsdoc@0.15.1.patch"
 		},
 		"onlyBuiltDependencies": [
 			"@azure/msal-node-extensions",
