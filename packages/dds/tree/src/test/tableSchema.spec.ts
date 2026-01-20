@@ -570,6 +570,46 @@ describe("TableFactory unit tests", () => {
 				),
 			);
 		});
+
+		it("Cannot insert columns at negative index", () => {
+				const table = initializeTree(
+					Table,
+					Table.create({
+						columns: [new Column({ id: "column-0", props: {} })],
+						rows: [],
+					}),
+				);
+
+				assert.throws(
+					() =>
+						table.insertColumns({
+							index: -1,
+							columns: [new Column({ id: "column-1", props: {} })],
+						}),
+					validateUsageError(/Expected non-negative index passed to Table.insertColumns, got -1./),
+				);
+			});
+
+			it("Cannot insert columns at index greater than length", () => {
+				const table = initializeTree(
+					Table,
+					Table.create({
+						columns: [new Column({ id: "column-0", props: {} })],
+						rows: [],
+					}),
+				);
+
+				assert.throws(
+					() =>
+						table.insertColumns({
+							index: 10,
+							columns: [new Column({ id: "column-1", props: {} })],
+						}),
+					validateUsageError(
+						/Index value passed to Table.insertColumns is out of bounds. Expected at most 1, got 10./,
+					),
+				);
+			});
 	});
 
 	describeHydration("insertRows", (initializeTree) => {
@@ -773,6 +813,47 @@ describe("TableFactory unit tests", () => {
 			);
 		});
 
+
+			it("Cannot insert rows at negative index", () => {
+				const table = initializeTree(
+					Table,
+					Table.create({
+						columns: [],
+						rows: [new Row({ id: "row-0", cells: {} })],
+					}),
+				);
+
+				assert.throws(
+					() =>
+						table.insertRows({
+							index: -1,
+							rows: [new Row({ id: "row-1", cells: {} })],
+						}),
+					validateUsageError(/Expected non-negative index passed to Table.insertRows, got -1./),
+				);
+			});
+
+			it("Cannot insert rows at index greater than length", () => {
+				const table = initializeTree(
+					Table,
+					Table.create({
+						columns: [],
+						rows: [new Row({ id: "row-0", cells: {} })],
+					}),
+				);
+
+				assert.throws(
+					() =>
+						table.insertRows({
+							index: 10,
+							rows: [new Row({ id: "row-1", cells: {} })],
+						}),
+					validateUsageError(
+						/Index value passed to Table.insertRows is out of bounds. Expected at most 1, got 10./,
+					),
+				);
+			});
+
 		it("Cannot insert row with cells under non-existent columns", () => {
 			const table = initializeTree(
 				Table,
@@ -807,57 +888,62 @@ describe("TableFactory unit tests", () => {
 	});
 
 	describeHydration("setCell", (initializeTree) => {
-		it("Set cell in a valid location", () => {
+		it("Overwrite existing cell with new value", () => {
 			const table = initializeTree(
 				Table,
 				Table.create({
-					columns: [
-						{
-							id: "column-0",
-							props: {},
-						},
-					],
+					columns: [new Column({ id: "column-0", props: {} })],
 					rows: [
-						{
+						new Row({
 							id: "row-0",
-							cells: {},
-							props: {},
-						},
+							cells: { "column-0": { value: "Original" } },
+						}),
 					],
 				}),
 			);
 
-			// By not specifying an index, the column should be appended to the end of the list.
-			table.setCell({
-				key: {
-					row: "row-0",
-					column: "column-0",
-				},
-				cell: { value: "Hello world!" },
-			});
+			// Set initial cell
+			const cellKey = { row: "row-0", column: "column-0" };
+			assert.equal(table.getCell(cellKey)?.value, "Original");
 
-			assertEqualTrees(table, {
-				table: {
-					columns: [
-						{
-							id: "column-0",
-							props: {},
-						},
-					],
-					rows: [
-						{
-							id: "row-0",
-							cells: {
-								"column-0": {
-									value: "Hello world!",
-								},
-							},
-							props: {},
-						},
-					],
-				},
-			});
+			// Overwrite with new value
+			table.setCell({ key: cellKey, cell: { value: "Updated" } });
+
+			// Verify old value is replaced
+			const updatedCell = table.getCell(cellKey);
+			assert(updatedCell !== undefined);
+			assert.equal(updatedCell.value, "Updated");
 		});
+
+		it("Overwrite empty cell with value", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [new Row({ id: "row-0", cells: {} })],
+				}),
+			);
+
+			const cellKey = { row: "row-0", column: "column-0" };
+
+			// Initially no cell
+			assert.equal(table.getCell(cellKey), undefined);
+
+			// Set cell
+			table.setCell({ key: cellKey, cell: { value: "New Value" } });
+
+			// Verify cell is set
+			assert.equal(table.getCell(cellKey)?.value, "New Value");
+
+			// Overwrite with different value
+			table.setCell({ key: cellKey, cell: { value: "Overwritten" } });
+
+			// Verify cell is overwritten
+			assert.equal(table.getCell(cellKey)?.value, "Overwritten");
+		});
+
+		// TODO: set cell using row/column indices
+		// TODO: set cell using row/column nodes
 
 		it("Setting cell in an invalid location errors", () => {
 			const table = initializeTree(
@@ -1113,6 +1199,55 @@ describe("TableFactory unit tests", () => {
 			});
 		});
 
+		// TODO: Remove all (by omitting index and count)
+		// TODO: Remove range from start with count (`removeColumns(undefined, count)`)
+		// TODO: Remove range to end with starting index (`removeColumns(index, undefined)`)
+		// TODO: Remove range of rows by index and count
+		// TODO: Remove disjoint set of rows via nodes
+		// TODO: Remove disjoint set of rows via IDs
+
+		it("Removing multiple columns emits only a single change event", () => {
+			const column0 = new Column({ id: "column-0", props: {} });
+			const column1 = new Column({ id: "column-1", props: {} });
+			const column2 = new Column({ id: "column-2", props: {} });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [column0, column1, column2],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+								"column-2": { value: "0-2" },
+							},
+						}),
+					],
+				}),
+			);
+
+			let eventCount = 0;
+			Tree.on(table, "treeChanged", () => {
+				eventCount++;
+			});
+
+			// Remove multiple columns - should trigger only one event
+			table.removeColumns([column0, column2]);
+
+			// Event should fire once for the entire batch operation
+			assert.equal(eventCount, 1);
+
+			// Verify both columns were removed
+			assert.equal(table.columns.length, 1);
+			assert.equal(table.columns[0].id, "column-1");
+
+			// Verify corresponding cells were removed
+			assert.equal(table.getCell({ row: "row-0", column: "column-0" }), undefined);
+			assert.equal(table.getCell({ row: "row-0", column: "column-2" }), undefined);
+			assert.notEqual(table.getCell({ row: "row-0", column: "column-1" }), undefined);
+		});
+
 		it("Removing a single column that doesn't exist on table errors", () => {
 			const table = initializeTree(
 				Table,
@@ -1288,6 +1423,41 @@ describe("TableFactory unit tests", () => {
 					rows: [],
 				},
 			});
+		});
+
+		// TODO: Remove all (by omitting index and count)
+		// TODO: Remove range from start with count (`removeRows(undefined, count)`)
+		// TODO: Remove range to end with starting index (`removeRows(index, undefined)`)
+		// TODO: Remove range of rows by index and count
+		// TODO: Remove disjoint set of rows via nodes
+		// TODO: Remove disjoint set of rows via IDs
+
+		it("Removing multiple rows emits a single change event", () => {
+			const row0 = new Row({ id: "row-0", cells: {} });
+			const row1 = new Row({ id: "row-1", cells: {} });
+			const row2 = new Row({ id: "row-2", cells: {} });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [],
+					rows: [row0, row1, row2],
+				}),
+			);
+
+			let eventCount = 0;
+			Tree.on(table, "treeChanged", () => {
+				eventCount++;
+			});
+
+			// Remove multiple rows - should trigger only one event
+			table.removeRows([row0, row2]);
+
+			// Event should fire once for the entire batch operation
+			assert.equal(eventCount, 1);
+
+			// Verify both rows were removed
+			assert.equal(table.rows.length, 1);
+			assert.equal(table.rows[0].id, "row-1");
 		});
 
 		it("Removing single row that doesn't exist on table errors", () => {
@@ -1505,6 +1675,10 @@ describe("TableFactory unit tests", () => {
 				},
 			});
 		});
+
+
+		// TODO: remove cell using row/column indices
+		// TODO: remove cell using row/column nodes
 
 		it("Removing cell from nonexistent row and column errors", () => {
 			const table = initializeTree(
