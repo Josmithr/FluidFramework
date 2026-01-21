@@ -1199,10 +1199,127 @@ describe("TableFactory unit tests", () => {
 			});
 		});
 
-		// TODO: Remove all (by omitting index and count)
-		// TODO: Remove range from start with count (`removeColumns(undefined, count)`)
-		// TODO: Remove range to end with starting index (`removeColumns(index, undefined)`)
-		// TODO: Remove range of rows by index and count
+		it("Remove all columns by omitting index and count", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [
+						new Column({ id: "column-0", props: {} }),
+						new Column({ id: "column-1", props: {} }),
+						new Column({ id: "column-2", props: {} }),
+					],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+								"column-2": { value: "0-2" },
+							},
+						}),
+					],
+				}),
+			);
+
+			// Remove all columns
+			table.removeColumns();
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [],
+					rows: [{ id: "row-0", cells: {} }],
+				},
+			});
+		});
+
+		it("Remove range to end with starting index only", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [
+						new Column({ id: "column-0", props: {} }),
+						new Column({ id: "column-1", props: {} }),
+						new Column({ id: "column-2", props: {} }),
+						new Column({ id: "column-3", props: {} }),
+					],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+								"column-2": { value: "0-2" },
+								"column-3": { value: "0-3" },
+							},
+						}),
+					],
+				}),
+			);
+
+			// Remove from index 2 to end (default count removes all remaining)
+			table.removeColumns(2);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }, { id: "column-1", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+							},
+						},
+					],
+				},
+			});
+		});
+
+		it("Remove range from start with count only", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [
+						new Column({ id: "column-0", props: {} }),
+						new Column({ id: "column-1", props: {} }),
+						new Column({ id: "column-2", props: {} }),
+						new Column({ id: "column-3", props: {} }),
+					],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+								"column-2": { value: "0-2" },
+								"column-3": { value: "0-3" },
+							},
+						}),
+					],
+				}),
+			);
+
+			// Remove first 2 columns (default start index is 0)
+			table.removeColumns(undefined, 2);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-2", props: {} }, { id: "column-3", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: {
+								"column-2": { value: "0-2" },
+								"column-3": { value: "0-3" },
+							},
+						},
+					],
+				},
+			});
+		});
+
+
+
 		// TODO: Remove disjoint set of rows via nodes
 		// TODO: Remove disjoint set of rows via IDs
 
@@ -1424,11 +1541,88 @@ describe("TableFactory unit tests", () => {
 				},
 			});
 		});
-
-		// TODO: Remove all (by omitting index and count)
-		// TODO: Remove range from start with count (`removeRows(undefined, count)`)
-		// TODO: Remove range to end with starting index (`removeRows(index, undefined)`)
 		// TODO: Remove range of rows by index and count
+
+		it("Remove all rows by omitting index and count", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [
+						new Row({ id: "row-0", cells: { "column-0": { value: "0-0" } } }),
+						new Row({ id: "row-1", cells: { "column-0": { value: "1-0" } } }),
+						new Row({ id: "row-2", cells: { "column-0": { value: "2-0" } } }),
+					],
+				}),
+			);
+
+			// Remove all rows
+			table.removeRows();
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [],
+				},
+			});
+		});
+
+		it("Remove range to end with starting index only", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [
+						new Row({ id: "row-0", cells: { "column-0": { value: "0-0" } } }),
+						new Row({ id: "row-1", cells: { "column-0": { value: "1-0" } } }),
+						new Row({ id: "row-2", cells: { "column-0": { value: "2-0" } } }),
+						new Row({ id: "row-3", cells: { "column-0": { value: "3-0" } } }),
+					],
+				}),
+			);
+
+			// Remove from index 2 to end (default count removes all remaining)
+			table.removeRows(2);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [
+						{ id: "row-0", cells: { "column-0": { value: "0-0" } } },
+						{ id: "row-1", cells: { "column-0": { value: "1-0" } } },
+					],
+				},
+			});
+		});
+
+		it("Remove range from start with count only", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [
+						new Row({ id: "row-0", cells: { "column-0": { value: "0-0" } } }),
+						new Row({ id: "row-1", cells: { "column-0": { value: "1-0" } } }),
+						new Row({ id: "row-2", cells: { "column-0": { value: "2-0" } } }),
+						new Row({ id: "row-3", cells: { "column-0": { value: "3-0" } } }),
+					],
+				}),
+			);
+
+			// Remove first 2 rows (default start index is 0)
+			table.removeRows(undefined, 2);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [
+						{ id: "row-2", cells: { "column-0": { value: "2-0" } } },
+						{ id: "row-3", cells: { "column-0": { value: "3-0" } } },
+					],
+				},
+			});
+		});
+
 		// TODO: Remove disjoint set of rows via nodes
 		// TODO: Remove disjoint set of rows via IDs
 
