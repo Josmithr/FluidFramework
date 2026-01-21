@@ -942,8 +942,70 @@ describe("TableFactory unit tests", () => {
 			assert.equal(table.getCell(cellKey)?.value, "Overwritten");
 		});
 
-		// TODO: set cell using row/column indices
-		// TODO: set cell using row/column nodes
+		it("Set cell using row and column indices", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [
+						new Column({ id: "column-0", props: {} }),
+						new Column({ id: "column-1", props: {} }),
+					],
+					rows: [
+						new Row({ id: "row-0", cells: {} }),
+						new Row({ id: "row-1", cells: {} }),
+					],
+				}),
+			);
+
+			// Set cell (by column/row indices)
+			table.setCell({
+				key: { column: 1, row: 0 },
+				cell: { value: "Test" },
+			});
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }, { id: "column-1", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: { "column-1": { value: "Test" } },
+						},
+						{ id: "row-1", cells: {} },
+					],
+				},
+			});
+		});
+
+		it("Set cell using row and column node references", () => {
+			const column = new Column({ id: "column-0", props: {} });
+			const row = new Row({ id: "row-0", cells: {} });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [column],
+					rows: [row],
+				}),
+			);
+
+			// Set cell (by column/row nodes)
+			table.setCell({
+				key: { column, row },
+				cell: { value: "Test" },
+			});
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: { "column-0": { value: "Test" } },
+						},
+					],
+				},
+			});
+		});
 
 		it("Setting cell in an invalid location errors", () => {
 			const table = initializeTree(
@@ -1320,8 +1382,89 @@ describe("TableFactory unit tests", () => {
 
 
 
-		// TODO: Remove disjoint set of rows via nodes
-		// TODO: Remove disjoint set of rows via IDs
+		it("Remove disjoint set of columns via node references", () => {
+			const column0 = new Column({ id: "column-0", props: {} });
+			const column1 = new Column({ id: "column-1", props: {} });
+			const column2 = new Column({ id: "column-2", props: {} });
+			const column3 = new Column({ id: "column-3", props: {} });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [column0, column1, column2, column3],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+								"column-2": { value: "0-2" },
+								"column-3": { value: "0-3" },
+							},
+						}),
+					],
+				}),
+			);
+
+			// Remove non-contiguous columns (0 and 2)
+			table.removeColumns([column0, column2]);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-1", props: {} }, { id: "column-3", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: {
+								"column-1": { value: "0-1" },
+								"column-3": { value: "0-3" },
+							},
+						},
+					],
+				},
+			});
+		});
+
+		it("Remove disjoint set of columns via IDs", () => {
+			const column0 = new Column({ id: "column-0", props: {} });
+			const column1 = new Column({ id: "column-1", props: {} });
+			const column2 = new Column({ id: "column-2", props: {} });
+			const column3 = new Column({ id: "column-3", props: {} });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [column0, column1, column2, column3],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+								"column-2": { value: "0-2" },
+								"column-3": { value: "0-3" },
+							},
+						}),
+					],
+				}),
+			);
+
+			// Remove non-contiguous columns by IDs (1 and 3)
+			table.removeColumns(["column-1", "column-3"]);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }, { id: "column-2", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-2": { value: "0-2" },
+							},
+						},
+					],
+				},
+			});
+		});
 
 		it("Removing multiple columns emits only a single change event", () => {
 			const column0 = new Column({ id: "column-0", props: {} });
@@ -1541,7 +1684,35 @@ describe("TableFactory unit tests", () => {
 				},
 			});
 		});
-		// TODO: Remove range of rows by index and count
+
+		it("Remove range of rows by index and count", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [
+						new Row({ id: "row-0", cells: { "column-0": { value: "0-0" } } }),
+						new Row({ id: "row-1", cells: { "column-0": { value: "1-0" } } }),
+						new Row({ id: "row-2", cells: { "column-0": { value: "2-0" } } }),
+						new Row({ id: "row-3", cells: { "column-0": { value: "3-0" } } }),
+						new Row({ id: "row-4", cells: { "column-0": { value: "4-0" } } }),
+					],
+				}),
+			);
+
+			// Remove rows 1-3 (indices 1, 2, 3)
+			table.removeRows(1, 3);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [
+						{ id: "row-0", cells: { "column-0": { value: "0-0" } } },
+						{ id: "row-4", cells: { "column-0": { value: "4-0" } } },
+					],
+				},
+			});
+		});
 
 		it("Remove all rows by omitting index and count", () => {
 			const table = initializeTree(
@@ -1623,8 +1794,59 @@ describe("TableFactory unit tests", () => {
 			});
 		});
 
-		// TODO: Remove disjoint set of rows via nodes
-		// TODO: Remove disjoint set of rows via IDs
+		it("Remove disjoint set of rows via node references", () => {
+			const row0 = new Row({ id: "row-0", cells: { "column-0": { value: "0-0" } } });
+			const row1 = new Row({ id: "row-1", cells: { "column-0": { value: "1-0" } } });
+			const row2 = new Row({ id: "row-2", cells: { "column-0": { value: "2-0" } } });
+			const row3 = new Row({ id: "row-3", cells: { "column-0": { value: "3-0" } } });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [row0, row1, row2, row3],
+				}),
+			);
+
+			// Remove non-contiguous rows (0 and 2)
+			table.removeRows([row0, row2]);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [
+						{ id: "row-1", cells: { "column-0": { value: "1-0" } } },
+						{ id: "row-3", cells: { "column-0": { value: "3-0" } } },
+					],
+				},
+			});
+		});
+
+		it("Remove disjoint set of rows via IDs", () => {
+			const row0 = new Row({ id: "row-0", cells: { "column-0": { value: "0-0" } } });
+			const row1 = new Row({ id: "row-1", cells: { "column-0": { value: "1-0" } } });
+			const row2 = new Row({ id: "row-2", cells: { "column-0": { value: "2-0" } } });
+			const row3 = new Row({ id: "row-3", cells: { "column-0": { value: "3-0" } } });
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [new Column({ id: "column-0", props: {} })],
+					rows: [row0, row1, row2, row3],
+				}),
+			);
+
+			// Remove non-contiguous rows by IDs (1 and 3)
+			table.removeRows(["row-1", "row-3"]);
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [
+						{ id: "row-0", cells: { "column-0": { value: "0-0" } } },
+						{ id: "row-2", cells: { "column-0": { value: "2-0" } } },
+					],
+				},
+			});
+		});
 
 		it("Removing multiple rows emits a single change event", () => {
 			const row0 = new Row({ id: "row-0", cells: {} });
@@ -1871,8 +2093,82 @@ describe("TableFactory unit tests", () => {
 		});
 
 
-		// TODO: remove cell using row/column indices
-		// TODO: remove cell using row/column nodes
+		it("Remove cell using row and column indices", () => {
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [
+						new Column({ id: "column-0", props: {} }),
+						new Column({ id: "column-1", props: {} }),
+					],
+					rows: [
+						new Row({
+							id: "row-0",
+							cells: {
+								"column-0": { value: "0-0" },
+								"column-1": { value: "0-1" },
+							},
+						}),
+						new Row({
+							id: "row-1",
+							cells: {
+								"column-0": { value: "1-0" },
+								"column-1": { value: "1-1" },
+							},
+						}),
+					],
+				}),
+			);
+
+			// Remove cell at column index 1, row index 0
+			const removedCell = table.removeCell({ column: 1, row: 0 });
+			assert.equal(removedCell?.value, "0-1");
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }, { id: "column-1", props: {} }],
+					rows: [
+						{
+							id: "row-0",
+							cells: { "column-0": { value: "0-0" } },
+						},
+						{
+							id: "row-1",
+							cells: {
+								"column-0": { value: "1-0" },
+								"column-1": { value: "1-1" },
+							},
+						},
+					],
+				},
+			});
+		});
+
+		it("Remove cell using row and column node references", () => {
+			const column = new Column({ id: "column-0", props: {} });
+			const row = new Row({
+				id: "row-0",
+				cells: { "column-0": { value: "0-0" } },
+			});
+			const table = initializeTree(
+				Table,
+				Table.create({
+					columns: [column],
+					rows: [row],
+				}),
+			);
+
+			// Remove cell using node references
+			const removedCell = table.removeCell({ column, row });
+			assert.equal(removedCell?.value, "0-0");
+
+			assertEqualTrees(table, {
+				table: {
+					columns: [{ id: "column-0", props: {} }],
+					rows: [{ id: "row-0", cells: {} }],
+				},
+			});
+		});
 
 		it("Removing cell from nonexistent row and column errors", () => {
 			const table = initializeTree(
