@@ -4,15 +4,27 @@
  */
 
 import type { Linter } from "eslint";
-import { minimalDeprecated } from "../../../common/build/eslint-config-fluid/flat.mts";
+import { recommended } from "../../../common/build/eslint-config-fluid/flat.mts";
 import sharedConfig from "../../eslint.config.data.mts";
 
 const config: Linter.Config[] = [
-	...minimalDeprecated,
+	...recommended,
 	...sharedConfig,
 	{
 		rules: {
 			"@fluid-internal/fluid/no-unchecked-record-access": "warn",
+		},
+	},
+	{
+		files: ["*.spec.ts", "*.test.ts", "src/test/**"],
+		rules: {
+			"import-x/no-nodejs-modules": [
+				"error",
+				{
+					"allow": ["node:assert", "node:process"],
+				},
+			],
+			"unicorn/consistent-function-scoping": "off",
 		},
 	},
 ];
