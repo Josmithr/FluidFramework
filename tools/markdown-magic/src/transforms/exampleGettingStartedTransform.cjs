@@ -49,11 +49,11 @@ const generateExampleGettingStartedSection = (
 	}
 
 	sectionBody.push(
-		`1. Run \`pnpm start\` from this directory and open <http://localhost:8080> in a web browser to see the app running.`,
+		`1. Run \`pnpm start\` from this directory and open [http://localhost:8080](http://localhost:8080) in a web browser to see the app running.`,
 	);
 
 	sectionBody.push(
-		`1. If you want to run the app against SharePoint, follow the instructions in [webpack-fluid-loader](https://github.com/microsoft/FluidFramework/blob/main/examples/utils/webpack-fluid-loader/README.md#sharepoint) to get auth credentials. Then run \`pnpm start:spo\` or \`pnpm start:spo-df\` and open <http://localhost:8080> like above.`,
+		`1. If you want to run the app against SharePoint, follow the instructions in [webpack-fluid-loader](https://github.com/microsoft/FluidFramework/blob/main/examples/utils/webpack-fluid-loader/README.md#sharepoint) to get auth credentials. Then run \`pnpm start:spo\` or \`pnpm start:spo-df\` and open [http://localhost:8080](http://localhost:8080) like above.`,
 	);
 
 	return formattedSectionText(sectionBody.join("\n"), {
@@ -89,6 +89,7 @@ function exampleGettingStartedTransform(content, options, config) {
 	);
 	return formattedGeneratedContentBody(
 		generateExampleGettingStartedSection(packageJsonPath, usesTinylicious, headingOptions),
+		config,
 	);
 }
 

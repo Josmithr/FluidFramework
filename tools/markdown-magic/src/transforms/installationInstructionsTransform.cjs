@@ -69,6 +69,7 @@ function installationInstructionsTransform(content, options, config) {
 	const packageName = packageMetadata.name;
 	return formattedGeneratedContentBody(
 		generateInstallationInstructionsSection(packageName, devDependency, headingOptions),
+		config,
 	);
 }
 

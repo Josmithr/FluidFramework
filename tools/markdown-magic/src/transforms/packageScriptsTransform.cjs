@@ -48,6 +48,7 @@ function packageScriptsTransform(content, options, config) {
 	const scriptsTable = scripts(content, options, config);
 	return formattedGeneratedContentBody(
 		generatePackageScriptsSection(scriptsTable, headingOptions),
+		config,
 	);
 }
 

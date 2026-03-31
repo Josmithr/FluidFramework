@@ -49,7 +49,7 @@ function includeTransform(content, options, config) {
 		const fileContents = readFile(resolvedFilePath, startLine, endLine);
 		const section = formattedSectionText(fileContents, /* headingOptions: */ undefined);
 
-		return formattedEmbeddedContentBody(section);
+		return formattedEmbeddedContentBody(section, config);
 	} catch (error) {
 		console.error(`Exception processing "${resolvedFilePath}":`, error);
 		throw error;

@@ -184,7 +184,7 @@ function readmeFooterTransform(content, options, config) {
 		sections.push(generateTrademarkSection(sectionHeadingOptions));
 	}
 
-	return formattedGeneratedContentBody(sections.join(""));
+	return formattedGeneratedContentBody(sections.join(""), config);
 }
 
 /**
@@ -289,7 +289,7 @@ function libraryReadmeHeaderTransform(content, options, config) {
 		sections.push(generateApiDocsSection(packageName, sectionHeadingOptions));
 	}
 
-	return formattedGeneratedContentBody(sections.join(""));
+	return formattedGeneratedContentBody(sections.join(""), config);
 }
 
 /**
@@ -331,7 +331,7 @@ function exampleAppReadmeHeaderTransform(content, options, config) {
 		);
 	}
 
-	return formattedGeneratedContentBody(sections.join(""));
+	return formattedGeneratedContentBody(sections.join(""), config);
 }
 
 /**
@@ -344,9 +344,10 @@ function exampleAppReadmeHeaderTransform(content, options, config) {
  * Must be a positive integer.
  * @param {string} headingOptions.headingText - Text to display in the section heading, if one was requested.
  */
-function templateTransform(templateFileName, headingOptions) {
+function templateTransform(templateFileName, headingOptions, config) {
 	return formattedGeneratedContentBody(
 		generateSectionFromTemplate(templateFileName, headingOptions),
+		config,
 	);
 }
 
@@ -495,6 +496,7 @@ module.exports = {
 			templateTransform(
 				"Client-Requirements-Template.md",
 				parseHeadingOptions(options, "Client Requirements"),
+				config,
 			),
 
 		/**
@@ -518,7 +520,7 @@ module.exports = {
 		 * ```
 		 */
 		TRADEMARK: (content, options, config) =>
-			templateTransform("Trademark-Template.md", parseHeadingOptions(options, "Trademark")),
+			templateTransform("Trademark-Template.md", parseHeadingOptions(options, "Trademark"), config),
 
 		/**
 		 * Generates a README section with fluid-framework contribution guidelines.
@@ -544,6 +546,7 @@ module.exports = {
 			templateTransform(
 				"Contribution-Guidelines-Template.md",
 				parseHeadingOptions(options, "Contribution Guidelines"),
+				config,
 			),
 
 		/**
@@ -570,6 +573,7 @@ module.exports = {
 			templateTransform(
 				"Dependency-Guidelines-Template.md",
 				parseHeadingOptions(options, "Using Fluid Framework libraries"),
+				config,
 			),
 
 		/**
@@ -593,7 +597,7 @@ module.exports = {
 		 * ```
 		 */
 		HELP: (content, options, config) =>
-			templateTransform("Help-Template.md", parseHeadingOptions(options, "Help")),
+			templateTransform("Help-Template.md", parseHeadingOptions(options, "Help"), config),
 
 		/**
 		 * See {@link packageScriptsTransform}.

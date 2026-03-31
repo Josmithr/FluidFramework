@@ -24,7 +24,7 @@ const {
  */
 const generateApiDocsSection = (packageName, headingOptions) => {
 	const shortName = PackageName.getUnscopedName(packageName);
-	const sectionBody = `API documentation for **${packageName}** is available at <https://fluidframework.com/docs/apis/${shortName}>.`;
+	const sectionBody = `API documentation for **${packageName}** is available at [https://fluidframework.com/docs/apis/${shortName}](https://fluidframework.com/docs/apis/${shortName}).`;
 	return formattedSectionText(sectionBody, {
 		...headingOptions,
 		headingText: "API Documentation",
@@ -55,7 +55,7 @@ function apiDocsTransform(content, options, config) {
 	const packageMetadata = getPackageMetadata(resolvedPackageJsonPath);
 	const packageName = packageMetadata.name;
 
-	return formattedGeneratedContentBody(generateApiDocsSection(packageName, headingOptions));
+	return formattedGeneratedContentBody(generateApiDocsSection(packageName, headingOptions), config);
 }
 
 module.exports = {

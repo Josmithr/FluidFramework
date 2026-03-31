@@ -11,6 +11,8 @@ const {
 	defaultSectionHeadingLevel,
 	embeddedContentNotice,
 	generatedContentNotice,
+	mdxEmbeddedContentNotice,
+	mdxGeneratedContentNotice,
 	templatesDirectoryPath,
 } = require("./constants.cjs");
 
@@ -193,35 +195,58 @@ function formattedSectionText(sectionBody, headingOptions) {
 }
 
 /**
- * Wraps the provided generated / embedded content in prettier-ignore pragma comments.
- * @param {string} contents - The Markdown contents to be wrapped.
+ * Determines if the file being processed is an MDX file, based on the path in the transform config.
+ *
+ * @param {object | undefined} config - The transform config object.
+ * @returns {boolean}
  */
-function bundlePrettierPragmas(contents) {
+function isMdxFile(config) {
+	return path.extname(config?.originalPath ?? "").toLowerCase() === ".mdx";
+}
+
+/**
+ * Wraps the provided generated / embedded content in prettier-ignore pragma comments.
+ *
+ * For MDX files, prettier-ignore directives are omitted entirely because Prettier does not
+ * support the version of MDX used in this repo (MDX v3 / @mdx-js/mdx).
+ * See: https://github.com/prettier/prettier/issues/12209
+ *
+ * @param {string} contents - The Markdown contents to be wrapped.
+ * @param {object | undefined} config - The transform config object. Used to detect the file format.
+ */
+function bundlePrettierPragmas(contents, config) {
+	if (isMdxFile(config)) {
+		return contents;
+	}
 	return ["\n<!-- prettier-ignore-start -->", contents, "<!-- prettier-ignore-end -->\n"].join(
 		"\n",
 	);
 }
 
 /**
- * Bundles the provided generated contents with the {@link generatedContentNotice}, as well as
- * prettier-ignore pragmas to ensure there is not contention between our content generation and prettier's
- * formatting opinions.
+ * Bundles the provided generated contents with the appropriate "do not edit" notice, as well as
+ * prettier-ignore pragmas (for .md files) to ensure there is not contention between our content
+ * generation and prettier's formatting opinions.
  *
  * @param {string} contents - The generated Markdown contents to be included.
+ * @param {object | undefined} config - The transform config object. Used to detect the file format.
  */
-function formattedGeneratedContentBody(contents) {
-	return bundlePrettierPragmas([generatedContentNotice, contents].join("\n"));
+function formattedGeneratedContentBody(contents, config) {
+	const notice = isMdxFile(config) ? mdxGeneratedContentNotice : generatedContentNotice;
+	return bundlePrettierPragmas([notice, contents].join("\n"), config);
 }
 
 /**
- * Bundles the provided generated contents with the {@link generatedContentNotice}, as well as
- * prettier-ignore pragmas to ensure there is not contention between our content generation and prettier's
- * formatting opinions.
+ * Bundles the provided embedded contents with the appropriate "do not edit" notice, as well as
+ * prettier-ignore pragmas (for .md files) to ensure there is not contention between our content
+ * generation and prettier's formatting opinions.
  *
  * @param {string} contents - The generated Markdown contents to be included.
+ * @param {object | undefined} config - The transform config object. Used to detect the file format.
  */
-function formattedEmbeddedContentBody(contents) {
-	return bundlePrettierPragmas([embeddedContentNotice, contents].join("\n"));
+function formattedEmbeddedContentBody(contents, config) {
+	const notice = isMdxFile(config) ? mdxEmbeddedContentNotice : embeddedContentNotice;
+	return bundlePrettierPragmas([notice, contents].join("\n"), config);
 }
 
 /**

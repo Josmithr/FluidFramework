@@ -98,6 +98,7 @@ function importInstructionsTransform(content, options, config) {
 
 	return formattedGeneratedContentBody(
 		generateImportInstructionsSection(packageMetadata, headingOptions),
+		config,
 	);
 }
 

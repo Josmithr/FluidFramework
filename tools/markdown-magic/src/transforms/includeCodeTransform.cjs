@@ -61,7 +61,7 @@ function includeCodeTransform(content, options, config) {
 
 		const section = formattedSectionText(codeBlock, /* headingOptions: */ undefined);
 
-		return formattedEmbeddedContentBody(section);
+		return formattedEmbeddedContentBody(section, config);
 	} catch (error) {
 		console.error(`Exception processing "${resolvedFilePath}":`, error);
 		throw error;
