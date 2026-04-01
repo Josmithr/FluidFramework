@@ -3,9 +3,47 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
 const fs = require("fs");
 const path = require("path");
 const { PackageName } = require("@rushstack/node-core-library");
+
+/**
+ * Configuration object injected by the processor into every transform function call.
+ * In addition to the base processor config fields, three extra fields are injected:
+ * - `originalPath` — path of the file being processed
+ * - `originalContent` — full source as read from disk (before any transforms this run)
+ * - `outputContent` — running output after any previously applied transforms this run
+ *
+ * @typedef {object} TransformConfig
+ * @property {string} originalPath - Path to the document being modified.
+ * @property {string} [originalContent] - Full original source of the file.
+ * @property {string} [outputContent] - Current state of the source after previous transforms.
+ */
+
+/**
+ * Options parsed from the pragma spec string and passed to transform functions.
+ * All values are plain strings (as received from URL-style `key=value` pragma parsing)
+ * or `undefined` when not provided. Use string comparisons (e.g. `=== "TRUE"`) to
+ * interpret boolean-like option values.
+ *
+ * @typedef {Record<string, string | undefined>} TransformOptions
+ */
+
+/**
+ * The recognized package scope kinds used in the Fluid Framework monorepo.
+ *
+ * - `""` — the package has no npm scope (e.g. `fluid-framework`)
+ * - `"FRAMEWORK"` — `@fluidframework` scope
+ * - `"EXAMPLE"` — `@fluid-example` scope
+ * - `"EXPERIMENTAL"` — `@fluid-experimental` scope
+ * - `"INTERNAL"` — `@fluid-internal` scope
+ * - `"PRIVATE"` — `@fluid-private` scope
+ * - `"TOOLS"` — `@fluid-tools` scope
+ *
+ * @typedef {"" | "FRAMEWORK" | "EXAMPLE" | "EXPERIMENTAL" | "INTERNAL" | "PRIVATE" | "TOOLS"} ScopeKind
+ */
 
 const {
 	defaultSectionHeadingLevel,
@@ -45,13 +83,19 @@ const readTemplate = (templateFileName, headingOffset = 0) => {
  *
  * @param {string} filePath - Path to the file being read.
  * @param {number | undefined} startLine - (optional) 0-based index of the first line from the target file to be embedded (inclusive).
- * Default: Start from the first line of the file..
+ * Default: Start from the first line of the file.
  * Constraints are the same as those for the `start` parameter to
  * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice#parameters | Array.slice}
  * @param {number | undefined} endLine - (optional) 0-based index of the last line of the target file to be embedded (exclusive).
  * Default: Include through the last line of the file.
  * Constraints are the same as those for the `end` parameter to
  * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice#parameters | Array.slice}
+ *
+ * @returns {string} The (trimmed) file contents within the requested line range.
+ *
+ * @remarks `startLine` uses a falsy check, so `startLine === 0` is treated the same as
+ * `startLine === undefined` (i.e., the slice starts from the beginning of the file).
+ * To start from line 0 explicitly, omit `startLine` and rely on the default behaviour.
  */
 function readFile(filePath, startLine, endLine) {
 	let fileContents = fs.readFileSync(filePath, "utf8");
@@ -117,10 +161,9 @@ function getPackageMetadata(packageJsonFilePath) {
  * @remarks for an overview of the Fluid Framework's package scopes, see {@link https://github.com/microsoft/FluidFramework/wiki/npm-package-scopes}.
  *
  * @param {string} packageName
- * @returns {"" | "FRAMEWORK" | "EXAMPLE" | "EXPERIMENTAL" | "INTERNAL" | "PRIVATE" | "TOOLS" | undefined}
- * A scope kind based on the package's scope (namespace).
- * Will be an empty string if the package has no scope.
- * Will be `undefined` if the package has an unrecognized scope.
+ * @returns {ScopeKind | undefined}
+ * A {@link ScopeKind} based on the package's npm scope.
+ * Returns `undefined` for unrecognized scopes.
  */
 const getScopeKindFromPackage = (packageName) => {
 	const packageScope = PackageName.getScope(packageName);
@@ -180,6 +223,7 @@ const isPublic = (packageMetadata) => {
  * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
  * Must be a positive integer.
  * @param {string} headingOptions.headingText - Text to display in the section heading, if one was requested.
+ * @returns {string} The formatted section text, with an optional heading and surrounding newlines.
  */
 function formattedSectionText(sectionBody, headingOptions) {
 	let heading = "";
@@ -197,7 +241,7 @@ function formattedSectionText(sectionBody, headingOptions) {
 /**
  * Determines if the file being processed is an MDX file, based on the path in the transform config.
  *
- * @param {object | undefined} config - The transform config object.
+ * @param {TransformConfig | undefined} config - The transform config object.
  * @returns {boolean}
  */
 function isMdxFile(config) {
@@ -212,7 +256,7 @@ function isMdxFile(config) {
  * See: https://github.com/prettier/prettier/issues/12209
  *
  * @param {string} contents - The Markdown contents to be wrapped.
- * @param {object | undefined} config - The transform config object. Used to detect the file format.
+ * @param {TransformConfig | undefined} config - The transform config object. Used to detect the file format.
  */
 function bundlePrettierPragmas(contents, config) {
 	if (isMdxFile(config)) {
@@ -229,7 +273,7 @@ function bundlePrettierPragmas(contents, config) {
  * generation and prettier's formatting opinions.
  *
  * @param {string} contents - The generated Markdown contents to be included.
- * @param {object | undefined} config - The transform config object. Used to detect the file format.
+ * @param {TransformConfig | undefined} config - The transform config object. Used to detect the file format.
  */
 function formattedGeneratedContentBody(contents, config) {
 	const notice = isMdxFile(config) ? mdxGeneratedContentNotice : generatedContentNotice;
@@ -242,7 +286,7 @@ function formattedGeneratedContentBody(contents, config) {
  * generation and prettier's formatting opinions.
  *
  * @param {string} contents - The generated Markdown contents to be included.
- * @param {object | undefined} config - The transform config object. Used to detect the file format.
+ * @param {TransformConfig | undefined} config - The transform config object. Used to detect the file format.
  */
 function formattedEmbeddedContentBody(contents, config) {
 	const notice = isMdxFile(config) ? mdxEmbeddedContentNotice : embeddedContentNotice;
@@ -252,18 +296,14 @@ function formattedEmbeddedContentBody(contents, config) {
 /**
  * Parses the provided MarkdownMagic transform options to generate the appropriate section heading options.
  *
- * @param {object} options - Transform options.
- * @param {"TRUE" | "FALSE" | undefined} includeHeading - (optional) Whether or not to include a top-level heading in the generated section.
- * default: `TRUE`.
- * @param {number | undefined} options.headingLevel - (optional) Heading level for the section.
- * Must be a positive integer.
- * Default: {@link defaultSectionHeadingLevel}.
- * @param {string} headingText - The text to display in the section heading.
+ * @param {TransformOptions} transformationOptions - Transform options passed to the transform function.
+ * @param {string} [headingText] - The text to display in the section heading.
+ * Optional because individual `generate*` helpers override `headingText` themselves.
  *
  * @typedef {Object} HeadingOptions
  * @property {boolean} includeHeading - Whether or not to include a heading in the generated content.
  * @property {number} headingLevel - The heading level for the section.
- * @property {string} headingText - The text to display in the section heading.
+ * @property {string | undefined} headingText - The text to display in the section heading.
  *
  * @returns {HeadingOptions} Heading generation options.
  */
@@ -280,9 +320,9 @@ function parseHeadingOptions(transformationOptions, headingText) {
 /**
  * Parses a provided "boolean" (i.e., "TRUE" | "FALSE") MarkdownMagic transform option.
  * Returns the provided default if no option was specified.
- * @param {"TRUE" | "FALSE" | undefined} option
- * @param {function} defaultValue - The default value, or a callback that returns the default value to use for the option.
- * Used if the option is not explicitly provided.
+ * @param {string | undefined} option - The string option value. Only `"TRUE"` and `"FALSE"` (exact, case-sensitive) are meaningful; all other values fall through to `defaultValue`.
+ * @param {boolean | (() => boolean)} defaultValue - The default value, or a zero-argument callback that returns it.
+ * Used if the option is not explicitly provided (`"TRUE"` or `"FALSE"`).
  */
 function parseBooleanOption(option, defaultValue) {
 	if (option === "TRUE") {

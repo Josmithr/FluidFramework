@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
 /**
  * IMPORTANT: Transform output must be valid in both Markdown (.md) and MDX (.mdx).
  *

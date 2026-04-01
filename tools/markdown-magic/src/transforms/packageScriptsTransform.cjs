@@ -3,6 +3,13 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
+/**
+ * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ */
+
 const scripts = require("markdown-magic-package-scripts");
 
 const {
@@ -20,6 +27,7 @@ const {
  * @param {boolean} headingOptions.includeHeading - Whether or not to include a top-level heading in the generated section.
  * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
  * Must be a positive integer.
+ * @returns {string} The formatted Markdown section text.
  */
 const generatePackageScriptsSection = (scriptsTable, headingOptions) => {
 	return formattedSectionText(scriptsTable, {
@@ -31,17 +39,13 @@ const generatePackageScriptsSection = (scriptsTable, headingOptions) => {
 /**
  * Generates a README section with a table enumerating the dev scripts in the specified package.json.
  *
- * @param {object} content - The original document file contents.
- * @param {object} options - Transform options.
- * @param {string} options.packageJsonPath - (optional) Relative file path to the package.json file for the package.
- * Default: "./package.json".
- * @param {"TRUE" | "FALSE" | undefined} includeHeading - (optional) Whether or not to include a top-level heading in the generated section.
- * default: `TRUE`.
- * @param {number | undefined} options.headingLevel - (optional) Heading level for the section.
- * Must be a positive integer.
- * Default: {@link defaultSectionHeadingLevel}.
- * @param {object} config - Transform configuration.
- * @param {string} config.originalPath - Path to the document being modified.
+ * @param {string} content - The original document file contents.
+ * @param {TransformOptions} options - Transform options.
+ * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
+ * `options.includeHeading` — `"TRUE"|"FALSE"`, default `"TRUE"`.
+ * `options.headingLevel` — positive integer string, default `"2"`.
+ * @param {TransformConfig} config - Transform configuration.
+ * @returns {string} The formatted Markdown section text.
  */
 function packageScriptsTransform(content, options, config) {
 	const headingOptions = parseHeadingOptions(options);

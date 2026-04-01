@@ -3,6 +3,13 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
+/**
+ * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ */
+
 const {
 	formattedGeneratedContentBody,
 	formattedSectionText,
@@ -21,6 +28,7 @@ const {
  * @param {boolean} headingOptions.includeHeading - Whether or not to include a top-level heading in the generated section.
  * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
  * Must be a positive integer.
+ * @returns {string} The formatted Markdown section text, or an empty string if the package has no relevant export paths.
  */
 const generateImportInstructionsSection = (packageMetadata, headingOptions) => {
 	const packageName = packageMetadata.name;
@@ -76,16 +84,12 @@ const generateImportInstructionsSection = (packageMetadata, headingOptions) => {
  * Note: this function will only generate contents if one of our special export paths is found (`/alpha`, `/beta`, or `/legacy`).
  *
  * @param {object} content - The original document file contents.
- * @param {object} options - Transform options.
- * @param {string} options.packageJsonPath - (optional) Relative file path to the package.json file for the package.
- * Default: "./package.json".
- * @param {"TRUE" | "FALSE" | undefined} includeHeading - (optional) Whether or not to include a top-level heading in the generated section.
- * default: `TRUE`.
- * @param {number | undefined} options.headingLevel - (optional) Heading level for the section.
- * Must be a positive integer.
- * Default: {@link defaultSectionHeadingLevel}.
- * @param {object} config - Transform configuration.
- * @param {string} config.originalPath - Path to the document being modified.
+ * @param {TransformOptions} options - Transform options.
+ * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
+ * `options.includeHeading` — `"TRUE"|"FALSE"`, default `"TRUE"`.
+ * `options.headingLevel` — positive integer string, default `"2"`.
+ * @param {TransformConfig} config - Transform configuration.
+ * @returns {string} The formatted Markdown section text.
  */
 function importInstructionsTransform(content, options, config) {
 	const headingOptions = parseHeadingOptions(options);

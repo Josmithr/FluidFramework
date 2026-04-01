@@ -3,6 +3,13 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
+/**
+ * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ */
+
 const {
 	formattedGeneratedContentBody,
 	formattedSectionText,
@@ -69,15 +76,11 @@ const generateExampleGettingStartedSection = (
  * @param {object} options - Transform options.
  * @param {string} options.packageJsonPath - (optional) Relative file path to the package.json file for the package.
  * Default: "./package.json".
- * @param {"TRUE" | "FALSE" | undefined} options.usesTinylicious - (optional) Whether or not the example app workflow uses {@link https://github.com/microsoft/FluidFramework/tree/main/server/routerlicious/packages/tinylicious | Tinylicious}.
- * Default: `TRUE`.
- * @param {"TRUE" | "FALSE" | undefined} includeHeading - (optional) Whether or not to include a top-level heading in the generated section.
- * default: `TRUE`.
- * @param {number | undefined} options.headingLevel - (optional) Heading level for the section.
- * Must be a positive integer.
- * Default: {@link defaultSectionHeadingLevel}.
- * @param {object} config - Transform configuration.
- * @param {string} config.originalPath - Path to the document being modified.
+ * @param {TransformOptions} options - Transform options.
+ * `options.usesTinylicious` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+ * `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+ * `options.headingLevel` (positive integer string, default `"2"`).
+ * @param {TransformConfig} config - Transform configuration.
  */
 function exampleGettingStartedTransform(content, options, config) {
 	const usesTinylicious = options.usesTinylicious !== "FALSE";

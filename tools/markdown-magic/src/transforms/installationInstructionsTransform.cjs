@@ -3,6 +3,13 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
+/**
+ * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ */
+
 const { defaultSectionHeadingLevel } = require("../constants.cjs");
 const {
 	formattedGeneratedContentBody,
@@ -44,17 +51,14 @@ npm i ${packageName}${devDependency ? " -D" : ""}
  *
  * @param {object} content - The original document file contents.
  * @param {object} options - Transform options.
- * @param {string} options.packageJsonPath - (optional) Relative file path to the package.json file for the package.
- * Default: "./package.json".
- * @param {"TRUE" | "FALSE" | undefined} includeHeading - (optional) Whether or not to include a top-level heading in the generated section.
- * default: `TRUE`.
- * @param {number | undefined} options.headingLevel - (optional) Heading level for the section.
- * Must be a positive integer.
- * Default: {@link defaultSectionHeadingLevel}.
- * @param {"TRUE" | "FALSE" | undefined} options.devDependency - (optional) Whether or not the package is intended to be installed as a dev dependency.
- * Default: `FALSE`.
- * @param {object} config - Transform configuration.
- * @param {string} config.originalPath - Path to the document being modified.
+ * @param {TransformOptions} options - Transform options.
+ * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
+ * `options.includeHeading` — `"TRUE"|"FALSE"`, default `"TRUE"`.
+ * `options.headingLevel` — positive integer string, default `"2"`.
+ * `options.devDependency` — `"TRUE"` to append `-D` to the install command. Default: `"FALSE"`.
+ * Note: only the exact string `"TRUE"` (case-sensitive) enables dev-dependency mode.
+ * @param {TransformConfig} config - Transform configuration.
+ * @returns {string} The formatted Markdown section text.
  */
 function installationInstructionsTransform(content, options, config) {
 	const headingOptions = parseHeadingOptions(options);

@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
 const chalk = require("chalk");
 const path = require("path");
 const process = require("process");

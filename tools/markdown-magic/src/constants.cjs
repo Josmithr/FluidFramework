@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
 const path = require("path");
 
 /**

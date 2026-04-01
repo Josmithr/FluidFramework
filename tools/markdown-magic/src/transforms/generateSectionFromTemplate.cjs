@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
 const { formattedSectionText, readTemplate } = require("../utilities.cjs");
 
 /**

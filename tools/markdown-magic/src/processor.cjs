@@ -3,11 +3,50 @@
  * Licensed under the MIT License.
  */
 
+// @ts-check
+
 "use strict";
 
 const fs = require("fs");
 const path = require("path");
 const globby = require("globby");
+
+/**
+ * Type alias for the `unified` factory function imported from the "unified" ESM package.
+ * @typedef {import("unified").unified} UnifiedFn
+ */
+
+/**
+ * Type alias for a unified plugin function.
+ * @typedef {import("unified").Plugin} UnifiedPlugin
+ */
+
+/**
+ * A remark/mdx AST node that carries a string value and source position offsets.
+ * Covers both `html` nodes (Markdown) and `mdxFlowExpression` nodes (MDX).
+ * @typedef {{ value: string, position: { start: { offset: number }, end: { offset: number } } }} PragmaNode
+ */
+
+/**
+ * A pragma entry collected during AST traversal.
+ * @typedef {{ type: "start", node: PragmaNode, spec: string } | { type: "end", node: PragmaNode }} PragmaEntry
+ */
+
+/**
+ * The lazily loaded ESM dependencies bundle returned by {@link getDeps}.
+ * @typedef {object} EsmDeps
+ * @property {UnifiedFn} unified - The unified pipeline factory.
+ * @property {UnifiedPlugin} remarkParse - The remark-parse plugin (default export).
+ * @property {UnifiedPlugin} remarkMdx - The remark-mdx plugin (default export).
+ * @property {Function} visit - The unist-util-visit visitor function.
+ */
+
+/**
+ * Configuration object passed to {@link processFiles} and {@link processFile}.
+ * @typedef {object} ProcessorConfig
+ * @property {Record<string, Function>} transforms - Map of transform name to transform function.
+ * @property {object} [globbyOptions] - Additional options passed to globby for file matching.
+ */
 
 /**
  * The keyword used to identify auto-generated content blocks.
@@ -47,6 +86,7 @@ function parseTransformSpec(spec) {
 	}
 	const cmd = spec.slice(0, colonIndex).trim();
 	const optionsStr = spec.slice(colonIndex + 1);
+	/** @type {Record<string, string>} */
 	const cmdOptions = {};
 	for (const part of optionsStr.split("&")) {
 		const eqIndex = part.indexOf("=");
@@ -61,9 +101,16 @@ function parseTransformSpec(spec) {
  * Lazily loaded ESM dependencies. The unified ecosystem (unified, remark-parse,
  * remark-mdx, unist-util-visit) is ESM-only, so we use dynamic import() to load
  * them from this CommonJS module.
+ * @type {EsmDeps | undefined}
  */
 let _deps;
 
+/**
+ * Returns the lazily loaded ESM dependencies, importing them on the first call.
+ * Subsequent calls return the cached result without re-importing.
+ *
+ * @returns {Promise<EsmDeps>}
+ */
 async function getDeps() {
 	if (!_deps) {
 		const [{ unified }, { default: remarkParse }, { default: remarkMdx }, { visit }] =
@@ -87,8 +134,21 @@ async function getDeps() {
  * fences) and string-offset splicing for content replacement (preserves all
  * non-generated content exactly).
  *
+ * Before calling each transform, a `fileConfig` object is assembled by spreading the
+ * base `config` and injecting three additional fields that transforms may use:
+ * - `originalPath` {string} — path of the file being processed
+ * - `originalContent` {string} — full source of the file as it was read from disk
+ * - `outputContent` {string} — current state of the source after any previously
+ *   applied transforms within this run (updated after each block)
+ *
+ * Note: the `content` argument passed to each transform function is the trimmed text
+ * currently between the START and END pragma markers — leading/trailing whitespace is
+ * removed before the transform sees it.
+ *
  * @param {string} filePath - Absolute or cwd-relative path to the file.
- * @param {object} config - Configuration object (transforms, globbyOptions, etc.)
+ * @param {ProcessorConfig} config - Configuration object (transforms, globbyOptions, etc.)
+ * @returns {Promise<void>}
+ * @throws If the file cannot be read, or if a transform throws an error.
  */
 async function processFile(filePath, config) {
 	const { unified, remarkParse, remarkMdx, visit } = await getDeps();
@@ -118,8 +178,9 @@ async function processFile(filePath, config) {
 	const startPattern = isMdx ? MDX_START_PATTERN : MD_START_PATTERN;
 	const endPattern = isMdx ? MDX_END_PATTERN : MD_END_PATTERN;
 
+	/** @type {PragmaEntry[]} */
 	const pragmaNodes = [];
-	visit(tree, nodeType, (node) => {
+	visit(tree, nodeType, /** @param {PragmaNode} node */ (node) => {
 		const value = node.value ?? "";
 		const startMatch = value.match(startPattern);
 		if (startMatch) {
@@ -226,9 +287,8 @@ async function processFile(filePath, config) {
  * comment pragma syntax) through a single unified code path.
  *
  * @param {string | string[]} patterns - Glob pattern(s) to match files against.
- * @param {object} config - Configuration object.
- * @param {object} config.transforms - Map of transform name to transform function.
- * @param {object} [config.globbyOptions] - Options forwarded to globby for file matching.
+ * @param {ProcessorConfig} config - Configuration object.
+ * The defaults applied before any `config.globbyOptions` overrides are: `{ gitignore: true, onlyFiles: true, deep: 5 }`.
  * @returns {Promise<void>}
  */
 async function processFiles(patterns, config) {
