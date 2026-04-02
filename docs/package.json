@@ -70,7 +70,7 @@
 		"@docusaurus/tsconfig": "^3.6.2",
 		"@docusaurus/types": "^3.6.2",
 		"@fluid-tools/api-markdown-documenter": "^0.23.2",
-		"@fluid-tools/markdown-magic": "file:../tools/markdown-magic",
+		"@fluid-tools/markdown-magic": "workspace:~",
 		"@fluidframework/build-common": "^2.0.3",
 		"@fluidframework/eslint-config-fluid": "^6.1.0",
 		"@microsoft/applicationinsights-react-js": "^17.3.4",
