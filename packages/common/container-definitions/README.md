@@ -42,7 +42,7 @@ To access the `legacy` APIs, import via `@fluidframework/container-definitions/l
 
 ## API Documentation
 
-API documentation for **@fluidframework/container-definitions** is available at <https://fluidframework.com/docs/apis/container-definitions>.
+API documentation for **@fluidframework/container-definitions** is available at [https://fluidframework.com/docs/apis/container-definitions](https://fluidframework.com/docs/apis/container-definitions).
 
 <!-- prettier-ignore-end -->
 

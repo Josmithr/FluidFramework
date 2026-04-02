@@ -30,7 +30,7 @@ npm i @fluid-experimental/ot
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/ot** is available at <https://fluidframework.com/docs/apis/ot>.
+API documentation for **@fluid-experimental/ot** is available at [https://fluidframework.com/docs/apis/ot](https://fluidframework.com/docs/apis/ot).
 
 <!-- prettier-ignore-end -->
 

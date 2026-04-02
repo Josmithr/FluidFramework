@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/sequence/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/sequence** is available at <https://fluidframework.com/docs/apis/sequence>.
+API documentation for **@fluidframework/sequence** is available at [https://fluidframework.com/docs/apis/sequence](https://fluidframework.com/docs/apis/sequence).
 
 <!-- prettier-ignore-end -->
 

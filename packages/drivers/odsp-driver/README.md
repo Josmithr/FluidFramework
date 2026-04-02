@@ -58,7 +58,7 @@ To access the `legacy` APIs, import via `@fluidframework/odsp-driver/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/odsp-driver** is available at <https://fluidframework.com/docs/apis/odsp-driver>.
+API documentation for **@fluidframework/odsp-driver** is available at [https://fluidframework.com/docs/apis/odsp-driver](https://fluidframework.com/docs/apis/odsp-driver).
 
 <!-- prettier-ignore-end -->
 

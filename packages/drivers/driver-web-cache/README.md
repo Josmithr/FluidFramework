@@ -37,7 +37,7 @@ To access the `legacy` APIs, import via `@fluidframework/driver-web-cache/legacy
 
 ## API Documentation
 
-API documentation for **@fluidframework/driver-web-cache** is available at <https://fluidframework.com/docs/apis/driver-web-cache>.
+API documentation for **@fluidframework/driver-web-cache** is available at [https://fluidframework.com/docs/apis/driver-web-cache](https://fluidframework.com/docs/apis/driver-web-cache).
 
 <!-- prettier-ignore-end -->
 

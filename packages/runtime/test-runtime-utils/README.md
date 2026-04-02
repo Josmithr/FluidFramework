@@ -35,7 +35,7 @@ To access the `legacy` APIs, import via `@fluidframework/test-runtime-utils/lega
 
 ## API Documentation
 
-API documentation for **@fluidframework/test-runtime-utils** is available at <https://fluidframework.com/docs/apis/test-runtime-utils>.
+API documentation for **@fluidframework/test-runtime-utils** is available at [https://fluidframework.com/docs/apis/test-runtime-utils](https://fluidframework.com/docs/apis/test-runtime-utils).
 
 <!-- prettier-ignore-end -->
 

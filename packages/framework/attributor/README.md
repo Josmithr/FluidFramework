@@ -30,7 +30,7 @@ npm i @fluid-experimental/attributor
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/attributor** is available at <https://fluidframework.com/docs/apis/attributor>.
+API documentation for **@fluid-experimental/attributor** is available at [https://fluidframework.com/docs/apis/attributor](https://fluidframework.com/docs/apis/attributor).
 
 <!-- prettier-ignore-end -->
 

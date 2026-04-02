@@ -35,7 +35,7 @@ To access the `legacy` APIs, import via `@fluidframework/shared-summary-block/le
 
 ## API Documentation
 
-API documentation for **@fluidframework/shared-summary-block** is available at <https://fluidframework.com/docs/apis/shared-summary-block>.
+API documentation for **@fluidframework/shared-summary-block** is available at [https://fluidframework.com/docs/apis/shared-summary-block](https://fluidframework.com/docs/apis/shared-summary-block).
 
 <!-- prettier-ignore-end -->
 

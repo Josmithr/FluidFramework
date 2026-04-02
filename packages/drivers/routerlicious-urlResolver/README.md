@@ -25,7 +25,7 @@ npm i @fluidframework/routerlicious-urlresolver
 
 ## API Documentation
 
-API documentation for **@fluidframework/routerlicious-urlresolver** is available at <https://fluidframework.com/docs/apis/routerlicious-urlresolver>.
+API documentation for **@fluidframework/routerlicious-urlresolver** is available at [https://fluidframework.com/docs/apis/routerlicious-urlresolver](https://fluidframework.com/docs/apis/routerlicious-urlresolver).
 
 <!-- prettier-ignore-end -->
 

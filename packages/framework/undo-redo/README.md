@@ -26,7 +26,7 @@ npm i @fluidframework/undo-redo
 
 ## API Documentation
 
-API documentation for **@fluidframework/undo-redo** is available at <https://fluidframework.com/docs/apis/undo-redo>.
+API documentation for **@fluidframework/undo-redo** is available at [https://fluidframework.com/docs/apis/undo-redo](https://fluidframework.com/docs/apis/undo-redo).
 
 <!-- prettier-ignore-end -->
 

@@ -37,7 +37,7 @@ To access the `legacy` APIs, import via `@fluidframework/merge-tree/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/merge-tree** is available at <https://fluidframework.com/docs/apis/merge-tree>.
+API documentation for **@fluidframework/merge-tree** is available at [https://fluidframework.com/docs/apis/merge-tree](https://fluidframework.com/docs/apis/merge-tree).
 
 <!-- prettier-ignore-end -->
 

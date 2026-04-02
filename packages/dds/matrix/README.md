@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/matrix/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/matrix** is available at <https://fluidframework.com/docs/apis/matrix>.
+API documentation for **@fluidframework/matrix** is available at [https://fluidframework.com/docs/apis/matrix](https://fluidframework.com/docs/apis/matrix).
 
 <!-- prettier-ignore-end -->
 

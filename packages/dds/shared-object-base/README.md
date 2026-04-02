@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/shared-object-base/lega
 
 ## API Documentation
 
-API documentation for **@fluidframework/shared-object-base** is available at <https://fluidframework.com/docs/apis/shared-object-base>.
+API documentation for **@fluidframework/shared-object-base** is available at [https://fluidframework.com/docs/apis/shared-object-base](https://fluidframework.com/docs/apis/shared-object-base).
 
 <!-- prettier-ignore-end -->
 

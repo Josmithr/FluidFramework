@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/azure-client/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/azure-client** is available at <https://fluidframework.com/docs/apis/azure-client>.
+API documentation for **@fluidframework/azure-client** is available at [https://fluidframework.com/docs/apis/azure-client](https://fluidframework.com/docs/apis/azure-client).
 
 <!-- prettier-ignore-end -->
 

@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/datastore-definitions/l
 
 ## API Documentation
 
-API documentation for **@fluidframework/datastore-definitions** is available at <https://fluidframework.com/docs/apis/datastore-definitions>.
+API documentation for **@fluidframework/datastore-definitions** is available at [https://fluidframework.com/docs/apis/datastore-definitions](https://fluidframework.com/docs/apis/datastore-definitions).
 
 <!-- prettier-ignore-end -->
 

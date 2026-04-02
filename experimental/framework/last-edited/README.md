@@ -38,7 +38,7 @@ npm i @fluid-experimental/last-edited
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/last-edited** is available at <https://fluidframework.com/docs/apis/last-edited>.
+API documentation for **@fluid-experimental/last-edited** is available at [https://fluidframework.com/docs/apis/last-edited](https://fluidframework.com/docs/apis/last-edited).
 
 <!-- prettier-ignore-end -->
 

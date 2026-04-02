@@ -37,7 +37,7 @@ To access the `legacy` APIs, import via `@fluid-experimental/oldest-client-obser
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/oldest-client-observer** is available at <https://fluidframework.com/docs/apis/oldest-client-observer>.
+API documentation for **@fluid-experimental/oldest-client-observer** is available at [https://fluidframework.com/docs/apis/oldest-client-observer](https://fluidframework.com/docs/apis/oldest-client-observer).
 
 <!-- prettier-ignore-end -->
 

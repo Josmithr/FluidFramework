@@ -26,7 +26,7 @@ npm i @fluidframework/replay-driver
 
 ## API Documentation
 
-API documentation for **@fluidframework/replay-driver** is available at <https://fluidframework.com/docs/apis/replay-driver>.
+API documentation for **@fluidframework/replay-driver** is available at [https://fluidframework.com/docs/apis/replay-driver](https://fluidframework.com/docs/apis/replay-driver).
 
 <!-- prettier-ignore-end -->
 

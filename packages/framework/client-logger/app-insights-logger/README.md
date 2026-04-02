@@ -43,7 +43,7 @@ To access the `beta` APIs, import via `@fluidframework/app-insights-logger/beta`
 
 ## API Documentation
 
-API documentation for **@fluidframework/app-insights-logger** is available at <https://fluidframework.com/docs/apis/app-insights-logger>.
+API documentation for **@fluidframework/app-insights-logger** is available at [https://fluidframework.com/docs/apis/app-insights-logger](https://fluidframework.com/docs/apis/app-insights-logger).
 
 <!-- prettier-ignore-end -->
 

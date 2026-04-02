@@ -46,7 +46,7 @@ To access the `legacy` APIs, import via `fluid-framework/legacy`.
 
 ## API Documentation
 
-API documentation for **fluid-framework** is available at <https://fluidframework.com/docs/apis/fluid-framework>.
+API documentation for **fluid-framework** is available at [https://fluidframework.com/docs/apis/fluid-framework](https://fluidframework.com/docs/apis/fluid-framework).
 
 <!-- prettier-ignore-end -->
 

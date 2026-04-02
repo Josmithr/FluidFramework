@@ -36,7 +36,7 @@ To access the `legacy` APIs, import via `@fluidframework/core-interfaces/legacy`
 
 ## API Documentation
 
-API documentation for **@fluidframework/core-interfaces** is available at <https://fluidframework.com/docs/apis/core-interfaces>.
+API documentation for **@fluidframework/core-interfaces** is available at [https://fluidframework.com/docs/apis/core-interfaces](https://fluidframework.com/docs/apis/core-interfaces).
 
 <!-- prettier-ignore-end -->
 

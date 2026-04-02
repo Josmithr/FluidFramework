@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/agent-scheduler/legacy`
 
 ## API Documentation
 
-API documentation for **@fluidframework/agent-scheduler** is available at <https://fluidframework.com/docs/apis/agent-scheduler>.
+API documentation for **@fluidframework/agent-scheduler** is available at [https://fluidframework.com/docs/apis/agent-scheduler](https://fluidframework.com/docs/apis/agent-scheduler).
 
 <!-- prettier-ignore-end -->
 

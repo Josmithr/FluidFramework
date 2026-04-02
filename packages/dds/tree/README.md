@@ -45,7 +45,7 @@ To access the `legacy` APIs, import via `@fluidframework/tree/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/tree** is available at <https://fluidframework.com/docs/apis/tree>.
+API documentation for **@fluidframework/tree** is available at [https://fluidframework.com/docs/apis/tree](https://fluidframework.com/docs/apis/tree).
 
 <!-- prettier-ignore-end -->
 

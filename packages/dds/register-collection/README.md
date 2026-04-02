@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/register-collection/leg
 
 ## API Documentation
 
-API documentation for **@fluidframework/register-collection** is available at <https://fluidframework.com/docs/apis/register-collection>.
+API documentation for **@fluidframework/register-collection** is available at [https://fluidframework.com/docs/apis/register-collection](https://fluidframework.com/docs/apis/register-collection).
 
 <!-- prettier-ignore-end -->
 

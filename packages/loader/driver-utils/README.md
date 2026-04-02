@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/driver-utils/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/driver-utils** is available at <https://fluidframework.com/docs/apis/driver-utils>.
+API documentation for **@fluidframework/driver-utils** is available at [https://fluidframework.com/docs/apis/driver-utils](https://fluidframework.com/docs/apis/driver-utils).
 
 <!-- prettier-ignore-end -->
 

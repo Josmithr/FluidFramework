@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/id-compressor/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/id-compressor** is available at <https://fluidframework.com/docs/apis/id-compressor>.
+API documentation for **@fluidframework/id-compressor** is available at [https://fluidframework.com/docs/apis/id-compressor](https://fluidframework.com/docs/apis/id-compressor).
 
 <!-- prettier-ignore-end -->
 

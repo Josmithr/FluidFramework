@@ -34,7 +34,7 @@ To access the `beta` APIs, import via `@fluidframework/odsp-client/beta`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/odsp-client** is available at <https://fluidframework.com/docs/apis/odsp-client>.
+API documentation for **@fluidframework/odsp-client** is available at [https://fluidframework.com/docs/apis/odsp-client](https://fluidframework.com/docs/apis/odsp-client).
 
 <!-- prettier-ignore-end -->
 

@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/aqueduct/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/aqueduct** is available at <https://fluidframework.com/docs/apis/aqueduct>.
+API documentation for **@fluidframework/aqueduct** is available at [https://fluidframework.com/docs/apis/aqueduct](https://fluidframework.com/docs/apis/aqueduct).
 
 <!-- prettier-ignore-end -->
 

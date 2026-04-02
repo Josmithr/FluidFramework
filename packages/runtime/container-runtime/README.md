@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/container-runtime/legac
 
 ## API Documentation
 
-API documentation for **@fluidframework/container-runtime** is available at <https://fluidframework.com/docs/apis/container-runtime>.
+API documentation for **@fluidframework/container-runtime** is available at [https://fluidframework.com/docs/apis/container-runtime](https://fluidframework.com/docs/apis/container-runtime).
 
 <!-- prettier-ignore-end -->
 

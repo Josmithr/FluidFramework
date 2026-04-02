@@ -32,7 +32,7 @@ npm i @fluid-experimental/tree
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/tree** is available at <https://fluidframework.com/docs/apis/tree>.
+API documentation for **@fluid-experimental/tree** is available at [https://fluidframework.com/docs/apis/tree](https://fluidframework.com/docs/apis/tree).
 
 <!-- prettier-ignore-end -->
 

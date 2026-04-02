@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/request-handler/legacy`
 
 ## API Documentation
 
-API documentation for **@fluidframework/request-handler** is available at <https://fluidframework.com/docs/apis/request-handler>.
+API documentation for **@fluidframework/request-handler** is available at [https://fluidframework.com/docs/apis/request-handler](https://fluidframework.com/docs/apis/request-handler).
 
 <!-- prettier-ignore-end -->
 

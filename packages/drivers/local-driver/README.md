@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/local-driver/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/local-driver** is available at <https://fluidframework.com/docs/apis/local-driver>.
+API documentation for **@fluidframework/local-driver** is available at [https://fluidframework.com/docs/apis/local-driver](https://fluidframework.com/docs/apis/local-driver).
 
 <!-- prettier-ignore-end -->
 

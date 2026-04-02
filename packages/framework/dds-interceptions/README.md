@@ -30,7 +30,7 @@ npm i @fluid-experimental/dds-interceptions
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/dds-interceptions** is available at <https://fluidframework.com/docs/apis/dds-interceptions>.
+API documentation for **@fluid-experimental/dds-interceptions** is available at [https://fluidframework.com/docs/apis/dds-interceptions](https://fluidframework.com/docs/apis/dds-interceptions).
 
 <!-- prettier-ignore-end -->
 

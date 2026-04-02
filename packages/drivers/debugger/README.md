@@ -36,7 +36,7 @@ To access the `legacy` APIs, import via `@fluidframework/debugger/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/debugger** is available at <https://fluidframework.com/docs/apis/debugger>.
+API documentation for **@fluidframework/debugger** is available at [https://fluidframework.com/docs/apis/debugger](https://fluidframework.com/docs/apis/debugger).
 
 <!-- prettier-ignore-end -->
 

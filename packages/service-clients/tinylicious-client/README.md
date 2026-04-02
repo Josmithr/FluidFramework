@@ -34,7 +34,7 @@ To access the `beta` APIs, import via `@fluidframework/tinylicious-client/beta`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/tinylicious-client** is available at <https://fluidframework.com/docs/apis/tinylicious-client>.
+API documentation for **@fluidframework/tinylicious-client** is available at [https://fluidframework.com/docs/apis/tinylicious-client](https://fluidframework.com/docs/apis/tinylicious-client).
 
 <!-- prettier-ignore-end -->
 

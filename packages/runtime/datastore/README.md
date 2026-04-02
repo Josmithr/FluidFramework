@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/datastore/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/datastore** is available at <https://fluidframework.com/docs/apis/datastore>.
+API documentation for **@fluidframework/datastore** is available at [https://fluidframework.com/docs/apis/datastore](https://fluidframework.com/docs/apis/datastore).
 
 <!-- prettier-ignore-end -->
 

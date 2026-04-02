@@ -35,7 +35,7 @@ To access the `legacy` APIs, import via `@fluidframework/synthesize/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/synthesize** is available at <https://fluidframework.com/docs/apis/synthesize>.
+API documentation for **@fluidframework/synthesize** is available at [https://fluidframework.com/docs/apis/synthesize](https://fluidframework.com/docs/apis/synthesize).
 
 <!-- prettier-ignore-end -->
 

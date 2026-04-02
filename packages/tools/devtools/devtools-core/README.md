@@ -40,7 +40,7 @@ To access the `alpha` APIs, import via `@fluidframework/devtools-core/alpha`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/devtools-core** is available at <https://fluidframework.com/docs/apis/devtools-core>.
+API documentation for **@fluidframework/devtools-core** is available at [https://fluidframework.com/docs/apis/devtools-core](https://fluidframework.com/docs/apis/devtools-core).
 
 <!-- prettier-ignore-end -->
 

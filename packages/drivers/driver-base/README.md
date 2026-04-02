@@ -26,7 +26,7 @@ npm i @fluidframework/driver-base
 
 ## API Documentation
 
-API documentation for **@fluidframework/driver-base** is available at <https://fluidframework.com/docs/apis/driver-base>.
+API documentation for **@fluidframework/driver-base** is available at [https://fluidframework.com/docs/apis/driver-base](https://fluidframework.com/docs/apis/driver-base).
 
 <!-- prettier-ignore-end -->
 

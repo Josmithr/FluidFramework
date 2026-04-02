@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/odsp-doclib-utils/legac
 
 ## API Documentation
 
-API documentation for **@fluidframework/odsp-doclib-utils** is available at <https://fluidframework.com/docs/apis/odsp-doclib-utils>.
+API documentation for **@fluidframework/odsp-doclib-utils** is available at [https://fluidframework.com/docs/apis/odsp-doclib-utils](https://fluidframework.com/docs/apis/odsp-doclib-utils).
 
 <!-- prettier-ignore-end -->
 

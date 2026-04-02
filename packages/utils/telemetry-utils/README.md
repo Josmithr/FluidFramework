@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/telemetry-utils/legacy`
 
 ## API Documentation
 
-API documentation for **@fluidframework/telemetry-utils** is available at <https://fluidframework.com/docs/apis/telemetry-utils>.
+API documentation for **@fluidframework/telemetry-utils** is available at [https://fluidframework.com/docs/apis/telemetry-utils](https://fluidframework.com/docs/apis/telemetry-utils).
 
 <!-- prettier-ignore-end -->
 

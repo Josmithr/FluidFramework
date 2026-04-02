@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/map/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/map** is available at <https://fluidframework.com/docs/apis/map>.
+API documentation for **@fluidframework/map** is available at [https://fluidframework.com/docs/apis/map](https://fluidframework.com/docs/apis/map).
 
 <!-- prettier-ignore-end -->
 

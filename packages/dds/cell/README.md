@@ -28,7 +28,7 @@ npm i @fluidframework/cell
 
 ## API Documentation
 
-API documentation for **@fluidframework/cell** is available at <https://fluidframework.com/docs/apis/cell>.
+API documentation for **@fluidframework/cell** is available at [https://fluidframework.com/docs/apis/cell](https://fluidframework.com/docs/apis/cell).
 
 <!-- prettier-ignore-end -->
 

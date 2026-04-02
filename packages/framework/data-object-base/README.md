@@ -30,7 +30,7 @@ npm i @fluid-experimental/data-object-base
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/data-object-base** is available at <https://fluidframework.com/docs/apis/data-object-base>.
+API documentation for **@fluid-experimental/data-object-base** is available at [https://fluidframework.com/docs/apis/data-object-base](https://fluidframework.com/docs/apis/data-object-base).
 
 <!-- prettier-ignore-end -->
 

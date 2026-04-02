@@ -72,7 +72,7 @@ To access the `legacy` APIs, import via `@fluidframework/container-loader/legacy
 
 ## API Documentation
 
-API documentation for **@fluidframework/container-loader** is available at <https://fluidframework.com/docs/apis/container-loader>.
+API documentation for **@fluidframework/container-loader** is available at [https://fluidframework.com/docs/apis/container-loader](https://fluidframework.com/docs/apis/container-loader).
 
 <!-- prettier-ignore-end -->
 

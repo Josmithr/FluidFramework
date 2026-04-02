@@ -32,7 +32,7 @@ To access the `legacy` APIs, import via `@fluidframework/counter/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/counter** is available at <https://fluidframework.com/docs/apis/counter>.
+API documentation for **@fluidframework/counter** is available at [https://fluidframework.com/docs/apis/counter](https://fluidframework.com/docs/apis/counter).
 
 <!-- prettier-ignore-end -->
 

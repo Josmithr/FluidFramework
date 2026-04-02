@@ -42,7 +42,7 @@ To access the `alpha` APIs, import via `@fluidframework/quill-react/alpha`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/quill-react** is available at <https://fluidframework.com/docs/apis/quill-react>.
+API documentation for **@fluidframework/quill-react** is available at [https://fluidframework.com/docs/apis/quill-react](https://fluidframework.com/docs/apis/quill-react).
 
 <!-- prettier-ignore-end -->
 

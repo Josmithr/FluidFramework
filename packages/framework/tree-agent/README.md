@@ -36,7 +36,7 @@ To access the `alpha` APIs, import via `@fluidframework/tree-agent/alpha`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/tree-agent** is available at <https://fluidframework.com/docs/apis/tree-agent>.
+API documentation for **@fluidframework/tree-agent** is available at [https://fluidframework.com/docs/apis/tree-agent](https://fluidframework.com/docs/apis/tree-agent).
 
 <!-- prettier-ignore-end -->
 

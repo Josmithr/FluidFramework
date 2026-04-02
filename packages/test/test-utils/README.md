@@ -36,7 +36,7 @@ To access the `legacy` APIs, import via `@fluidframework/test-utils/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/test-utils** is available at <https://fluidframework.com/docs/apis/test-utils>.
+API documentation for **@fluidframework/test-utils** is available at [https://fluidframework.com/docs/apis/test-utils](https://fluidframework.com/docs/apis/test-utils).
 
 <!-- prettier-ignore-end -->
 

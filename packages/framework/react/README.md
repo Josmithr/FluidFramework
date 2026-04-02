@@ -56,7 +56,7 @@ To access the `alpha` APIs, import via `@fluidframework/react/alpha`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/react** is available at <https://fluidframework.com/docs/apis/react>.
+API documentation for **@fluidframework/react** is available at [https://fluidframework.com/docs/apis/react](https://fluidframework.com/docs/apis/react).
 
 <!-- prettier-ignore-end -->
 

@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/task-manager/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/task-manager** is available at <https://fluidframework.com/docs/apis/task-manager>.
+API documentation for **@fluidframework/task-manager** is available at [https://fluidframework.com/docs/apis/task-manager](https://fluidframework.com/docs/apis/task-manager).
 
 <!-- prettier-ignore-end -->
 

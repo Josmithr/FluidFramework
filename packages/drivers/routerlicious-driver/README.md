@@ -36,7 +36,7 @@ To access the `legacy` APIs, import via `@fluidframework/routerlicious-driver/le
 
 ## API Documentation
 
-API documentation for **@fluidframework/routerlicious-driver** is available at <https://fluidframework.com/docs/apis/routerlicious-driver>.
+API documentation for **@fluidframework/routerlicious-driver** is available at [https://fluidframework.com/docs/apis/routerlicious-driver](https://fluidframework.com/docs/apis/routerlicious-driver).
 
 <!-- prettier-ignore-end -->
 

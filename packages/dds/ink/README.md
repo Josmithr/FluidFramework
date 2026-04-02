@@ -30,7 +30,7 @@ npm i @fluid-experimental/ink
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/ink** is available at <https://fluidframework.com/docs/apis/ink>.
+API documentation for **@fluid-experimental/ink** is available at [https://fluidframework.com/docs/apis/ink](https://fluidframework.com/docs/apis/ink).
 
 <!-- prettier-ignore-end -->
 

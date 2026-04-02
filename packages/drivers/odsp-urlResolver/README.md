@@ -25,7 +25,7 @@ npm i @fluidframework/odsp-urlresolver
 
 ## API Documentation
 
-API documentation for **@fluidframework/odsp-urlresolver** is available at <https://fluidframework.com/docs/apis/odsp-urlresolver>.
+API documentation for **@fluidframework/odsp-urlresolver** is available at [https://fluidframework.com/docs/apis/odsp-urlresolver](https://fluidframework.com/docs/apis/odsp-urlresolver).
 
 <!-- prettier-ignore-end -->
 

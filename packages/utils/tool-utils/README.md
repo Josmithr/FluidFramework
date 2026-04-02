@@ -25,7 +25,7 @@ npm i @fluidframework/tool-utils
 
 ## API Documentation
 
-API documentation for **@fluidframework/tool-utils** is available at <https://fluidframework.com/docs/apis/tool-utils>.
+API documentation for **@fluidframework/tool-utils** is available at [https://fluidframework.com/docs/apis/tool-utils](https://fluidframework.com/docs/apis/tool-utils).
 
 <!-- prettier-ignore-end -->
 

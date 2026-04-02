@@ -29,7 +29,7 @@ npm i @fluidframework/azure-local-service
 
 ## API Documentation
 
-API documentation for **@fluidframework/azure-local-service** is available at <https://fluidframework.com/docs/apis/azure-local-service>.
+API documentation for **@fluidframework/azure-local-service** is available at [https://fluidframework.com/docs/apis/azure-local-service](https://fluidframework.com/docs/apis/azure-local-service).
 
 <!-- prettier-ignore-end -->
 

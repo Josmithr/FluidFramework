@@ -38,7 +38,7 @@ To access the `legacy` APIs, import via `@fluidframework/azure-service-utils/leg
 
 ## API Documentation
 
-API documentation for **@fluidframework/azure-service-utils** is available at <https://fluidframework.com/docs/apis/azure-service-utils>.
+API documentation for **@fluidframework/azure-service-utils** is available at [https://fluidframework.com/docs/apis/azure-service-utils](https://fluidframework.com/docs/apis/azure-service-utils).
 
 <!-- prettier-ignore-end -->
 

@@ -25,7 +25,7 @@ npm i @fluidframework/file-driver
 
 ## API Documentation
 
-API documentation for **@fluidframework/file-driver** is available at <https://fluidframework.com/docs/apis/file-driver>.
+API documentation for **@fluidframework/file-driver** is available at [https://fluidframework.com/docs/apis/file-driver](https://fluidframework.com/docs/apis/file-driver).
 
 <!-- prettier-ignore-end -->
 

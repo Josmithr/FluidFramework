@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/fluid-static/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/fluid-static** is available at <https://fluidframework.com/docs/apis/fluid-static>.
+API documentation for **@fluidframework/fluid-static** is available at [https://fluidframework.com/docs/apis/fluid-static](https://fluidframework.com/docs/apis/fluid-static).
 
 <!-- prettier-ignore-end -->
 

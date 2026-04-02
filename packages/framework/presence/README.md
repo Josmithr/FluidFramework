@@ -37,7 +37,7 @@ To access the `alpha` APIs, import via `@fluidframework/presence/alpha`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/presence** is available at <https://fluidframework.com/docs/apis/presence>.
+API documentation for **@fluidframework/presence** is available at [https://fluidframework.com/docs/apis/presence](https://fluidframework.com/docs/apis/presence).
 
 <!-- prettier-ignore-end -->
 

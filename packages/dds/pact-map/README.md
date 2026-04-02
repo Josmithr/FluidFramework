@@ -30,7 +30,7 @@ npm i @fluid-experimental/pact-map
 
 ## API Documentation
 
-API documentation for **@fluid-experimental/pact-map** is available at <https://fluidframework.com/docs/apis/pact-map>.
+API documentation for **@fluid-experimental/pact-map** is available at [https://fluidframework.com/docs/apis/pact-map](https://fluidframework.com/docs/apis/pact-map).
 
 <!-- prettier-ignore-end -->
 

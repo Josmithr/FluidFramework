@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/runtime-utils/legacy`.
 
 ## API Documentation
 
-API documentation for **@fluidframework/runtime-utils** is available at <https://fluidframework.com/docs/apis/runtime-utils>.
+API documentation for **@fluidframework/runtime-utils** is available at [https://fluidframework.com/docs/apis/runtime-utils](https://fluidframework.com/docs/apis/runtime-utils).
 
 <!-- prettier-ignore-end -->
 

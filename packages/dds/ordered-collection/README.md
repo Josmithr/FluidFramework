@@ -34,7 +34,7 @@ To access the `legacy` APIs, import via `@fluidframework/ordered-collection/lega
 
 ## API Documentation
 
-API documentation for **@fluidframework/ordered-collection** is available at <https://fluidframework.com/docs/apis/ordered-collection>.
+API documentation for **@fluidframework/ordered-collection** is available at [https://fluidframework.com/docs/apis/ordered-collection](https://fluidframework.com/docs/apis/ordered-collection).
 
 <!-- prettier-ignore-end -->
 
