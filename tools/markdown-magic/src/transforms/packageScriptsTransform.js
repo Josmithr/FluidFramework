@@ -6,17 +6,17 @@
 // @ts-check
 
 /**
- * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
- * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ * @typedef {import("../utilities.js").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.js").TransformOptions} TransformOptions
  */
 
-const scripts = require("markdown-magic-package-scripts");
+import scripts from "markdown-magic-package-scripts";
 
-const {
+import {
 	formattedGeneratedContentBody,
 	formattedSectionText,
 	parseHeadingOptions,
-} = require("../utilities.cjs");
+} from "../utilities.js";
 
 /**
  * Generates a simple Markdown heading and contents with a table describing all of the package's npm scripts.
@@ -56,7 +56,4 @@ function packageScriptsTransform(content, options, config) {
 	);
 }
 
-module.exports = {
-	generatePackageScriptsSection,
-	packageScriptsTransform,
-};
+export { generatePackageScriptsSection, packageScriptsTransform };

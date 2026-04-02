@@ -6,18 +6,18 @@
 // @ts-check
 
 /**
- * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
- * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ * @typedef {import("../utilities.js").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.js").TransformOptions} TransformOptions
  */
 
-const { defaultSectionHeadingLevel } = require("../constants.cjs");
-const {
+import { defaultSectionHeadingLevel } from "../constants.js";
+import {
 	formattedGeneratedContentBody,
 	formattedSectionText,
 	getPackageMetadata,
 	resolveRelativePackageJsonPath,
 	parseHeadingOptions,
-} = require("../utilities.cjs");
+} from "../utilities.js";
 
 /**
  * Generates a simple Markdown heading and contents with package installation instructions.
@@ -49,8 +49,7 @@ npm i ${packageName}${devDependency ? " -D" : ""}
 /**
  * Generates a README section with package installation instructions.
  *
- * @param {object} content - The original document file contents.
- * @param {object} options - Transform options.
+ * @param {string} content - The original document file contents.
  * @param {TransformOptions} options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
  * `options.includeHeading` — `"TRUE"|"FALSE"`, default `"TRUE"`.
@@ -77,7 +76,4 @@ function installationInstructionsTransform(content, options, config) {
 	);
 }
 
-module.exports = {
-	generateInstallationInstructionsSection,
-	installationInstructionsTransform,
-};
+export { generateInstallationInstructionsSection, installationInstructionsTransform };

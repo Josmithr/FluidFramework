@@ -6,18 +6,18 @@
 // @ts-check
 
 /**
- * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
- * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
- * @typedef {import("../utilities.cjs").ScopeKind} ScopeKind
+ * @typedef {import("../utilities.js").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.js").TransformOptions} TransformOptions
+ * @typedef {import("../utilities.js").ScopeKind} ScopeKind
  */
 
-const {
+import {
 	formattedSectionText,
 	getPackageMetadata,
 	getScopeKindFromPackage,
 	readTemplate,
 	resolveRelativePackageJsonPath,
-} = require("../utilities.cjs");
+} from "../utilities.js";
 
 /**
  * Generates simple Markdown contents indicating implications of the specified kind of package scope.
@@ -28,7 +28,7 @@ const {
  * PRIVATE: See templates/Private-Package-Notice-Template.md.
  * TOOLS: See templates/Tools-Package-Notice-Template.md.
  *
- * @returns The appropriate notice, if applicable. Otherwise, `undefined`.
+ * @returns {string | undefined} The appropriate notice, if applicable. Otherwise, `undefined`.
  */
 const generatePackageScopeNotice = (kind) => {
 	let rawContents;
@@ -58,9 +58,9 @@ const generatePackageScopeNotice = (kind) => {
 /**
  * Generates simple Markdown contents indicating implications of the specified kind of package scope.
  *
- * @param {object} content - The original document file contents.
+ * @param {string} content - The original document file contents.
  * @param {TransformOptions} options - Transform options.
- * @param { string } options.packageJsonPath — (optional) Relative path to package.json. Default: `"./package.json"`.
+ * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
  * `options.scopeKind` — (optional) Explicit scope kind to override the inferred value.
  * EXAMPLE: See templates/Example-Package-Notice-Template.md.
  * EXPERIMENTAL: See templates/Experimental-Package-Notice-Template.md.
@@ -92,7 +92,4 @@ function packageScopeNoticeTransform(content, options, config) {
 	return generatePackageScopeNotice(scopeKindWithInheritance);
 }
 
-module.exports = {
-	generatePackageScopeNotice,
-	packageScopeNoticeTransform,
-};
+export { generatePackageScopeNotice, packageScopeNoticeTransform };

@@ -5,21 +5,13 @@
 
 // @ts-check
 
-"use strict";
-
-const fs = require("fs");
-const path = require("path");
-const globby = require("globby");
-
-/**
- * Type alias for the `unified` factory function imported from the "unified" ESM package.
- * @typedef {import("unified").unified} UnifiedFn
- */
-
-/**
- * Type alias for a unified plugin function.
- * @typedef {import("unified").Plugin} UnifiedPlugin
- */
+import fs from "node:fs";
+import path from "node:path";
+import globby from "globby";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkMdx from "remark-mdx";
+import { visit } from "unist-util-visit";
 
 /**
  * A remark/mdx AST node that carries a string value and source position offsets.
@@ -30,15 +22,6 @@ const globby = require("globby");
 /**
  * A pragma entry collected during AST traversal.
  * @typedef {{ type: "start", node: PragmaNode, spec: string } | { type: "end", node: PragmaNode }} PragmaEntry
- */
-
-/**
- * The lazily loaded ESM dependencies bundle returned by {@link getDeps}.
- * @typedef {object} EsmDeps
- * @property {UnifiedFn} unified - The unified pipeline factory.
- * @property {UnifiedPlugin} remarkParse - The remark-parse plugin (default export).
- * @property {UnifiedPlugin} remarkMdx - The remark-mdx plugin (default export).
- * @property {Function} visit - The unist-util-visit visitor function.
  */
 
 /**
@@ -98,34 +81,6 @@ function parseTransformSpec(spec) {
 }
 
 /**
- * Lazily loaded ESM dependencies. The unified ecosystem (unified, remark-parse,
- * remark-mdx, unist-util-visit) is ESM-only, so we use dynamic import() to load
- * them from this CommonJS module.
- * @type {EsmDeps | undefined}
- */
-let _deps;
-
-/**
- * Returns the lazily loaded ESM dependencies, importing them on the first call.
- * Subsequent calls return the cached result without re-importing.
- *
- * @returns {Promise<EsmDeps>}
- */
-async function getDeps() {
-	if (!_deps) {
-		const [{ unified }, { default: remarkParse }, { default: remarkMdx }, { visit }] =
-			await Promise.all([
-				import("unified"),
-				import("remark-parse"),
-				import("remark-mdx"),
-				import("unist-util-visit"),
-			]);
-		_deps = { unified, remarkParse, remarkMdx, visit };
-	}
-	return _deps;
-}
-
-/**
  * Processes a single file: finds all AUTO-GENERATED-CONTENT pragma blocks, runs the
  * associated transforms, and splices the new content back into the source string.
  * The file is written back only if content changed.
@@ -151,8 +106,6 @@ async function getDeps() {
  * @throws If the file cannot be read, or if a transform throws an error.
  */
 async function processFile(filePath, config) {
-	const { unified, remarkParse, remarkMdx, visit } = await getDeps();
-
 	let source;
 	try {
 		source = fs.readFileSync(filePath, "utf8");
@@ -307,4 +260,4 @@ async function processFiles(patterns, config) {
 	await Promise.all(files.map((filePath) => processFile(filePath, config)));
 }
 
-module.exports = { processFiles };
+export { processFiles };

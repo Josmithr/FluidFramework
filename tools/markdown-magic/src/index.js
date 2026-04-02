@@ -5,18 +5,18 @@
 
 // @ts-check
 
-const chalk = require("chalk");
-const path = require("path");
-const process = require("process");
-const yargs = require("yargs/yargs");
-const { hideBin } = require("yargs/helpers");
+import chalk from "chalk";
+import path from "node:path";
+import process from "node:process";
+import yargs from "yargs/yargs";
+import { hideBin } from "yargs/helpers";
 
-const config = require("./md-magic.config.cjs");
-const { processFiles } = require("./processor.cjs");
+import config from "./md-magic.config.js";
+import { processFiles } from "./processor.js";
 
 const defaultMatchPattern = "**/*.{md,mdx}";
 
-const argv = yargs(hideBin(process.argv))
+const argv = await yargs(hideBin(process.argv))
 	.usage("Usage: $0 [options]")
 	.option("f", {
 		alias: "files",
@@ -48,16 +48,14 @@ console.log(
 	`Searching for files matching pattern(s) "${matchPattern}" under "${workingDirectory}"...`,
 );
 
-processFiles(matchPattern, config).then(
-	() => {
-		console.log(chalk.green("SUCCESS: Documentation updated!"));
-		process.exit(0);
-	},
-	(error) => {
-		console.error(
-			chalk.red("FAILURE: Markdown Magic could not be completed due to an error: "),
-			error,
-		);
-		process.exit(1);
-	},
-);
+try {
+	await processFiles(matchPattern, config);
+	console.log(chalk.green("SUCCESS: Documentation updated!"));
+	process.exit(0);
+} catch (error) {
+	console.error(
+		chalk.red("FAILURE: Markdown Magic could not be completed due to an error: "),
+		error,
+	);
+	process.exit(1);
+}

@@ -6,17 +6,17 @@
 // @ts-check
 
 /**
- * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
- * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ * @typedef {import("../utilities.js").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.js").TransformOptions} TransformOptions
  */
 
-const {
+import {
 	formattedGeneratedContentBody,
 	formattedSectionText,
 	getPackageMetadata,
 	parseHeadingOptions,
 	resolveRelativePackageJsonPath,
-} = require("../utilities.cjs");
+} from "../utilities.js";
 
 /**
  * Generates a simple Markdown heading and contents with information about how to import from the package's export options.
@@ -83,7 +83,7 @@ const generateImportInstructionsSection = (packageMetadata, headingOptions) => {
  *
  * Note: this function will only generate contents if one of our special export paths is found (`/alpha`, `/beta`, or `/legacy`).
  *
- * @param {object} content - The original document file contents.
+ * @param {string} content - The original document file contents.
  * @param {TransformOptions} options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
  * `options.includeHeading` — `"TRUE"|"FALSE"`, default `"TRUE"`.
@@ -106,7 +106,4 @@ function importInstructionsTransform(content, options, config) {
 	);
 }
 
-module.exports = {
-	generateImportInstructionsSection,
-	importInstructionsTransform,
-};
+export { generateImportInstructionsSection, importInstructionsTransform };

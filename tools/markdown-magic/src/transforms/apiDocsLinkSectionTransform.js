@@ -6,19 +6,19 @@
 // @ts-check
 
 /**
- * @typedef {import("../utilities.cjs").TransformConfig} TransformConfig
- * @typedef {import("../utilities.cjs").TransformOptions} TransformOptions
+ * @typedef {import("../utilities.js").TransformConfig} TransformConfig
+ * @typedef {import("../utilities.js").TransformOptions} TransformOptions
  */
 
-const { PackageName } = require("@rushstack/node-core-library");
+import { PackageName } from "@rushstack/node-core-library";
 
-const {
+import {
 	formattedGeneratedContentBody,
 	formattedSectionText,
 	getPackageMetadata,
 	parseHeadingOptions,
 	resolveRelativePackageJsonPath,
-} = require("../utilities.cjs");
+} from "../utilities.js";
 
 /**
  * Generates a simple Markdown heading and contents with information about API documentation for the package.
@@ -42,10 +42,7 @@ const generateApiDocsSection = (packageName, headingOptions) => {
 /**
  * Generates a README section pointing readers to the published library API docs on <fluidframework.com>.
  *
- * @param {object} content - The original document file contents.
- * @param {object} options - Transform options.
- * @param {string} options.packageJsonPath - (optional) Relative file path to the package.json file for the package.
- * Default: "./package.json".
+ * @param {string} content - The original document file contents.
  * @param {TransformOptions} options - Transform options.
  * `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`), `options.headingLevel` (positive integer string, default `"2"`).
  * @param {TransformConfig} config - Transform configuration.
@@ -63,7 +60,4 @@ function apiDocsTransform(content, options, config) {
 	return formattedGeneratedContentBody(generateApiDocsSection(packageName, headingOptions), config);
 }
 
-module.exports = {
-	generateApiDocsSection,
-	apiDocsTransform,
-};
+export { generateApiDocsSection, apiDocsTransform };

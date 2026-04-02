@@ -5,7 +5,7 @@
 
 // @ts-check
 
-const { formattedSectionText, readTemplate } = require("../utilities.cjs");
+import { formattedSectionText, readTemplate } from "../utilities.js";
 
 /**
  * Generates a simple Markdown heading with the contents of the specified template file and (optionally) a heading.
@@ -23,6 +23,4 @@ const generateSectionFromTemplate = (templateFileName, headingOptions) => {
 	return formattedSectionText(sectionBody, headingOptions);
 };
 
-module.exports = {
-	generateSectionFromTemplate,
-};
+export { generateSectionFromTemplate };

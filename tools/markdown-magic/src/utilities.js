@@ -5,9 +5,18 @@
 
 // @ts-check
 
-const fs = require("fs");
-const path = require("path");
-const { PackageName } = require("@rushstack/node-core-library");
+import fs from "node:fs";
+import path from "node:path";
+import { PackageName } from "@rushstack/node-core-library";
+
+import {
+	defaultSectionHeadingLevel,
+	embeddedContentNotice,
+	generatedContentNotice,
+	mdxEmbeddedContentNotice,
+	mdxGeneratedContentNotice,
+	templatesDirectoryPath,
+} from "./constants.js";
 
 /**
  * Configuration object injected by the processor into every transform function call.
@@ -44,15 +53,6 @@ const { PackageName } = require("@rushstack/node-core-library");
  *
  * @typedef {"" | "FRAMEWORK" | "EXAMPLE" | "EXPERIMENTAL" | "INTERNAL" | "PRIVATE" | "TOOLS"} ScopeKind
  */
-
-const {
-	defaultSectionHeadingLevel,
-	embeddedContentNotice,
-	generatedContentNotice,
-	mdxEmbeddedContentNotice,
-	mdxGeneratedContentNotice,
-	templatesDirectoryPath,
-} = require("./constants.cjs");
 
 /**
  * Reads and returns the contents from the specified template file.
@@ -337,7 +337,7 @@ function parseBooleanOption(option, defaultValue) {
 	return defaultValue;
 }
 
-module.exports = {
+export {
 	formattedSectionText,
 	formattedGeneratedContentBody,
 	formattedEmbeddedContentBody,

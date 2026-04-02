@@ -6,15 +6,15 @@
 // @ts-check
 
 /**
- * @typedef {import("./utilities.cjs").TransformConfig} TransformConfig
- * @typedef {import("./utilities.cjs").TransformOptions} TransformOptions
- * @typedef {import("./utilities.cjs").ScopeKind} ScopeKind
+ * @typedef {import("./utilities.js").TransformConfig} TransformConfig
+ * @typedef {import("./utilities.js").TransformOptions} TransformOptions
+ * @typedef {import("./utilities.js").ScopeKind} ScopeKind
  */
 
-const scripts = require("markdown-magic-package-scripts");
+import scripts from "markdown-magic-package-scripts";
 
-const { defaultSectionHeadingLevel } = require("./constants.cjs");
-const {
+import { defaultSectionHeadingLevel } from "./constants.js";
+import {
 	formattedGeneratedContentBody,
 	getPackageMetadata,
 	getScopeKindFromPackage,
@@ -22,8 +22,8 @@ const {
 	parseBooleanOption,
 	parseHeadingOptions,
 	resolveRelativePackageJsonPath,
-} = require("./utilities.cjs");
-const {
+} from "./utilities.js";
+import {
 	apiDocsTransform,
 	exampleGettingStartedTransform,
 	generateApiDocsSection,
@@ -39,7 +39,7 @@ const {
 	importInstructionsTransform,
 	packageScopeNoticeTransform,
 	packageScriptsTransform,
-} = require("./transforms/index.cjs");
+} from "./transforms/index.js";
 
 /**
  * Generates a simple Markdown heading and contents with guidelines for taking dependencies on Fluid libraries.
@@ -153,7 +153,6 @@ function readmeFooterTransform(content, options, config) {
 		relativePackageJsonPath,
 	);
 	const packageMetadata = getPackageMetadata(resolvedPackageJsonPath);
-	const packageName = packageMetadata.name;
 
 	const sectionHeadingOptions = {
 		includeHeading: true,
@@ -265,10 +264,7 @@ function libraryReadmeHeaderTransform(content, options, config) {
 		);
 	}
 
-	const includeImportInstructionsSection = parseBooleanOption(
-		options.importInstructions,
-		true,
-	);
+	const includeImportInstructionsSection = parseBooleanOption(options.importInstructions, true);
 	if (includeImportInstructionsSection) {
 		sections.push(generateImportInstructionsSection(packageMetadata, sectionHeadingOptions));
 	}
@@ -340,7 +336,7 @@ function templateTransform(templateFileName, headingOptions, config) {
 /**
  * markdown-magic config
  */
-module.exports = {
+export default {
 	transforms: {
 		/**
 		 * See {@link includeTransform}.
@@ -496,7 +492,11 @@ module.exports = {
 		 * ```
 		 */
 		TRADEMARK: (content, options, config) =>
-			templateTransform("Trademark-Template.md", parseHeadingOptions(options, "Trademark"), config),
+			templateTransform(
+				"Trademark-Template.md",
+				parseHeadingOptions(options, "Trademark"),
+				config,
+			),
 
 		/**
 		 * Generates a README section with fluid-framework contribution guidelines.
