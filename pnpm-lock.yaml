@@ -17109,6 +17109,9 @@ importers:
       globby:
         specifier: ^11.1.0
         version: 11.1.0
+      jiti:
+        specifier: ^2.6.1
+        version: 2.6.1
       markdown-magic-package-scripts:
         specifier: ^1.2.2
         version: 1.2.2(markdown-magic@2.6.1)
@@ -17137,9 +17140,6 @@ importers:
       '@types/node':
         specifier: ~20.19.30
         version: 20.19.30
-      jiti:
-        specifier: ^2.6.1
-        version: 2.6.1
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
