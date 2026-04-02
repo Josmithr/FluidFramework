@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
 import fs from "node:fs";
 import path from "node:path";
 import globby from "globby";
@@ -13,23 +11,45 @@ import remarkParse from "remark-parse";
 import remarkMdx from "remark-mdx";
 import { visit } from "unist-util-visit";
 
+import type { TransformConfig, TransformOptions } from "./utilities.js";
+
 /**
  * A remark/mdx AST node that carries a string value and source position offsets.
  * Covers both `html` nodes (Markdown) and `mdxFlowExpression` nodes (MDX).
- * @typedef {{ value: string, position: { start: { offset: number }, end: { offset: number } } }} PragmaNode
  */
+interface PragmaNode {
+	value: string;
+	position: {
+		start: { offset: number };
+		end: { offset: number };
+	};
+}
 
 /**
  * A pragma entry collected during AST traversal.
- * @typedef {{ type: "start", node: PragmaNode, spec: string } | { type: "end", node: PragmaNode }} PragmaEntry
  */
+type PragmaEntry =
+	| { type: "start"; node: PragmaNode; spec: string }
+	| { type: "end"; node: PragmaNode };
+
+/**
+ * A transform function registered in a {@link ProcessorConfig}.
+ */
+type Transform = (
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+) => string | undefined | Promise<string | undefined>;
 
 /**
  * Configuration object passed to {@link processFiles} and {@link processFile}.
- * @typedef {object} ProcessorConfig
- * @property {Record<string, Function>} transforms - Map of transform name to transform function.
- * @property {object} [globbyOptions] - Additional options passed to globby for file matching.
  */
+export interface ProcessorConfig {
+	/** Map of transform name to transform function. */
+	transforms: Record<string, Transform>;
+	/** Additional options passed to globby for file matching. */
+	globbyOptions?: object;
+}
 
 /**
  * The keyword used to identify auto-generated content blocks.
@@ -59,18 +79,16 @@ const MDX_END_PATTERN = new RegExp(`\\/\\*\\s*${MATCH_WORD}:END\\s*\\*\\/`);
  * Parses a transform spec string into a command name and options object.
  * The spec format is "TRANSFORM_NAME:opt1=val1&opt2=val2" (options are optional).
  *
- * @param {string} spec - The transform spec string.
- * @returns {{ cmd: string, cmdOptions: object }}
+ * @param spec - The transform spec string.
  */
-function parseTransformSpec(spec) {
+function parseTransformSpec(spec: string): { cmd: string; cmdOptions: TransformOptions } {
 	const colonIndex = spec.indexOf(":");
 	if (colonIndex === -1) {
 		return { cmd: spec.trim(), cmdOptions: {} };
 	}
 	const cmd = spec.slice(0, colonIndex).trim();
 	const optionsStr = spec.slice(colonIndex + 1);
-	/** @type {Record<string, string>} */
-	const cmdOptions = {};
+	const cmdOptions: TransformOptions = {};
 	for (const part of optionsStr.split("&")) {
 		const eqIndex = part.indexOf("=");
 		if (eqIndex !== -1) {
@@ -100,13 +118,12 @@ function parseTransformSpec(spec) {
  * currently between the START and END pragma markers — leading/trailing whitespace is
  * removed before the transform sees it.
  *
- * @param {string} filePath - Absolute or cwd-relative path to the file.
- * @param {ProcessorConfig} config - Configuration object (transforms, globbyOptions, etc.)
- * @returns {Promise<void>}
+ * @param filePath - Absolute or cwd-relative path to the file.
+ * @param config - Configuration object (transforms, globbyOptions, etc.)
  * @throws If the file cannot be read, or if a transform throws an error.
  */
-async function processFile(filePath, config) {
-	let source;
+async function processFile(filePath: string, config: ProcessorConfig): Promise<void> {
+	let source: string;
 	try {
 		source = fs.readFileSync(filePath, "utf8");
 	} catch (e) {
@@ -131,17 +148,17 @@ async function processFile(filePath, config) {
 	const startPattern = isMdx ? MDX_START_PATTERN : MD_START_PATTERN;
 	const endPattern = isMdx ? MDX_END_PATTERN : MD_END_PATTERN;
 
-	/** @type {PragmaEntry[]} */
-	const pragmaNodes = [];
-	visit(tree, nodeType, /** @param {PragmaNode} node */ (node) => {
-		const value = node.value ?? "";
+	const pragmaNodes: PragmaEntry[] = [];
+	visit(tree, nodeType, (node) => {
+		const pragmaNode = node as unknown as PragmaNode;
+		const value = pragmaNode.value ?? "";
 		const startMatch = value.match(startPattern);
 		if (startMatch) {
-			pragmaNodes.push({ type: "start", node, spec: startMatch[1] });
+			pragmaNodes.push({ type: "start", node: pragmaNode, spec: startMatch[1] });
 			return;
 		}
 		if (endPattern.test(value)) {
-			pragmaNodes.push({ type: "end", node });
+			pragmaNodes.push({ type: "end", node: pragmaNode });
 		}
 	});
 
@@ -150,7 +167,7 @@ async function processFile(filePath, config) {
 	}
 
 	// Pair each START pragma with its immediately following END pragma.
-	const pairs = [];
+	const pairs: { startNode: PragmaNode; endNode: PragmaNode; spec: string }[] = [];
 	for (let i = 0; i < pragmaNodes.length; i++) {
 		const current = pragmaNodes[i];
 		if (current.type === "start") {
@@ -185,7 +202,8 @@ async function processFile(filePath, config) {
 	for (const { startNode, endNode, spec } of [...pairs].reverse()) {
 		const { cmd, cmdOptions } = parseTransformSpec(spec);
 
-		if (!config.transforms?.[cmd]) {
+		const transform = config.transforms[cmd];
+		if (!transform) {
 			console.warn(
 				`[markdown-magic] Warning: Transform "${cmd}" not found. Block skipped in "${filePath}".`,
 			);
@@ -198,11 +216,15 @@ async function processFile(filePath, config) {
 		const contentEnd = endNode.position.start.offset;
 		const originalContent = source.slice(contentStart, contentEnd).replace(/^\s+|\s+$/g, "");
 
-		let newContent;
+		let newContent: string | undefined;
 		try {
-			newContent = await config.transforms[cmd](originalContent, cmdOptions, fileConfig);
+			newContent = await transform(originalContent, cmdOptions, fileConfig);
 			if (typeof newContent === "function") {
-				newContent = await newContent(originalContent, cmdOptions, fileConfig);
+				newContent = await (newContent as Transform)(
+					originalContent,
+					cmdOptions,
+					fileConfig,
+				);
 			}
 		} catch (err) {
 			console.error(
@@ -239,12 +261,14 @@ async function processFile(filePath, config) {
  * Handles both .md files (HTML comment pragma syntax) and .mdx files (JSX expression
  * comment pragma syntax) through a single unified code path.
  *
- * @param {string | string[]} patterns - Glob pattern(s) to match files against.
- * @param {ProcessorConfig} config - Configuration object.
+ * @param patterns - Glob pattern(s) to match files against.
+ * @param config - Configuration object.
  * The defaults applied before any `config.globbyOptions` overrides are: `{ gitignore: true, onlyFiles: true, deep: 5 }`.
- * @returns {Promise<void>}
  */
-async function processFiles(patterns, config) {
+async function processFiles(
+	patterns: string | string[],
+	config: ProcessorConfig,
+): Promise<void> {
 	const files = await globby(patterns, {
 		gitignore: true,
 		onlyFiles: true,

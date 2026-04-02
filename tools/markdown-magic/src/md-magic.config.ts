@@ -3,17 +3,10 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
-/**
- * @typedef {import("./utilities.js").TransformConfig} TransformConfig
- * @typedef {import("./utilities.js").TransformOptions} TransformOptions
- * @typedef {import("./utilities.js").ScopeKind} ScopeKind
- */
-
 import scripts from "markdown-magic-package-scripts";
 
 import { defaultSectionHeadingLevel } from "./constants.js";
+import type { HeadingOptions, ScopeKind, TransformConfig, TransformOptions } from "./utilities.js";
 import {
 	formattedGeneratedContentBody,
 	getPackageMetadata,
@@ -44,14 +37,10 @@ import {
 /**
  * Generates a simple Markdown heading and contents with guidelines for taking dependencies on Fluid libraries.
  *
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a heading in the generated content.
- * If not specified, no top-level heading will be included in the section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @returns {string} The formatted Markdown section text.
+ * @param headingOptions - Heading generation options.
+ * @returns The formatted Markdown section text.
  */
-const generateDependencyGuidelines = (headingOptions) =>
+const generateDependencyGuidelines = (headingOptions: HeadingOptions): string =>
 	generateSectionFromTemplate("Dependency-Guidelines-Template.md", {
 		...headingOptions,
 		headingText: "Using Fluid Framework libraries",
@@ -60,14 +49,10 @@ const generateDependencyGuidelines = (headingOptions) =>
 /**
  * Generates a Markdown section listing Fluid Framework's minimum client requirements.
  *
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a heading in the generated content.
- * If not specified, no top-level heading will be included in the section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @returns {string} The formatted Markdown section text.
+ * @param headingOptions - Heading generation options.
+ * @returns The formatted Markdown section text.
  */
-const generateClientRequirementsSection = (headingOptions) =>
+const generateClientRequirementsSection = (headingOptions: HeadingOptions): string =>
 	generateSectionFromTemplate("Client-Requirements-Template.md", {
 		...headingOptions,
 		headingText: "Minimum Client Requirements",
@@ -76,14 +61,10 @@ const generateClientRequirementsSection = (headingOptions) =>
 /**
  * Generates a Markdown heading and contents with a section pointing developers to our contribution guidelines.
  *
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a heading in the generated content.
- * If not specified, no top-level heading will be included in the section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @returns {string} The formatted Markdown section text.
+ * @param headingOptions - Heading generation options.
+ * @returns The formatted Markdown section text.
  */
-const generateContributionGuidelinesSection = (headingOptions) =>
+const generateContributionGuidelinesSection = (headingOptions: HeadingOptions): string =>
 	generateSectionFromTemplate("Contribution-Guidelines-Template.md", {
 		...headingOptions,
 		headingText: "Contribution Guidelines",
@@ -92,14 +73,10 @@ const generateContributionGuidelinesSection = (headingOptions) =>
 /**
  * Generates a simple Markdown heading and contents with help information.
  *
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a heading in the generated content.
- * If not specified, no top-level heading will be included in the section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @returns {string} The formatted Markdown section text.
+ * @param headingOptions - Heading generation options.
+ * @returns The formatted Markdown section text.
  */
-const generateHelpSection = (headingOptions) =>
+const generateHelpSection = (headingOptions: HeadingOptions): string =>
 	generateSectionFromTemplate("Help-Template.md", {
 		...headingOptions,
 		headingText: "Help",
@@ -108,14 +85,10 @@ const generateHelpSection = (headingOptions) =>
 /**
  * Generates a simple Markdown heading and contents with trademark information.
  *
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a heading in the generated content.
- * If not specified, no top-level heading will be included in the section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @returns {string} The formatted Markdown section text.
+ * @param headingOptions - Heading generation options.
+ * @returns The formatted Markdown section text.
  */
-const generateTrademarkSection = (headingOptions) =>
+const generateTrademarkSection = (headingOptions: HeadingOptions): string =>
 	generateSectionFromTemplate("Trademark-Template.md", {
 		...headingOptions,
 		headingText: "Trademark",
@@ -136,17 +109,21 @@ const generateTrademarkSection = (headingOptions) =>
  *
  * - Microsoft trademark info
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path from the document to the package.json file. Default: `"./package.json"`.
  * `options.scripts` — `"TRUE"` to include a section enumerating the package.json scripts. Default: `"FALSE"`.
  * `options.clientRequirements` — `"TRUE"|"FALSE"` to include/exclude minimum client requirements. Default: inferred from package scope.
  * `options.contributionGuidelines` — `"FALSE"` to suppress contribution guidelines. Default: included.
  * `options.help` — `"FALSE"` to suppress help section. Default: included.
  * `options.trademark` — `"FALSE"` to suppress trademark section. Default: included.
- * @param {TransformConfig} config - Transform configuration.
+ * @param config - Transform configuration.
  */
-function readmeFooterTransform(content, options, config) {
+function readmeFooterTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string {
 	const { packageJsonPath: relativePackageJsonPath } = options;
 	const resolvedPackageJsonPath = resolveRelativePackageJsonPath(
 		config.originalPath,
@@ -154,12 +131,12 @@ function readmeFooterTransform(content, options, config) {
 	);
 	const packageMetadata = getPackageMetadata(resolvedPackageJsonPath);
 
-	const sectionHeadingOptions = {
+	const sectionHeadingOptions: HeadingOptions = {
 		includeHeading: true,
 		headingLevel: defaultSectionHeadingLevel,
 	};
 
-	const sections = [];
+	const sections: string[] = [];
 
 	if (options.scripts === "TRUE") {
 		// markdown-magic-package-scripts reads the package path from `options.pkg`.
@@ -206,8 +183,8 @@ function readmeFooterTransform(content, options, config) {
  *
  * - Link to API documentation for the package on <fluidframework.com>
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path from the document to the package.json file. Default: `"./package.json"`.
  * `options.packageScopeNotice` — (optional) Explicit scope kind (`"EXAMPLE"`, `"EXPERIMENTAL"`, `"INTERNAL"`, `"PRIVATE"`, `"TOOLS"`). Default: inferred from package namespace.
  * `options.dependencyGuidelines` — `"TRUE"|"FALSE"`. Default: `"TRUE"` for public packages.
@@ -215,9 +192,13 @@ function readmeFooterTransform(content, options, config) {
  * `options.devDependency` — `"TRUE"` if the package should be installed as a devDependency. Default: `"FALSE"`.
  * `options.importInstructions` — `"FALSE"` to suppress import instructions. Default: always included.
  * `options.apiDocs` — `"TRUE"|"FALSE"`. Default: `"TRUE"` for public packages.
- * @param {TransformConfig} config - Transform configuration.
+ * @param config - Transform configuration.
  */
-function libraryReadmeHeaderTransform(content, options, config) {
+function libraryReadmeHeaderTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string {
 	const { packageJsonPath: relativePackageJsonPath } = options;
 	const resolvedPackageJsonPath = resolveRelativePackageJsonPath(
 		config.originalPath,
@@ -227,19 +208,19 @@ function libraryReadmeHeaderTransform(content, options, config) {
 	const packageName = packageMetadata.name;
 	const isPackagePublic = isPublic(packageMetadata);
 
-	const sectionHeadingOptions = {
+	const sectionHeadingOptions: HeadingOptions = {
 		includeHeading: true,
 		headingLevel: defaultSectionHeadingLevel,
 	};
 
-	const sections = [];
+	const sections: string[] = [];
 
 	// Note: if the user specified an explicit scope, that takes precedence over the package namespace.
 	// Cast: options.packageScopeNotice comes from TransformOptions (string | undefined); callers are
 	// expected to supply a valid ScopeKind string. Unrecognized values are handled gracefully.
-	const scopeKind = /** @type {ScopeKind | undefined} */ (
-		options.packageScopeNotice ?? getScopeKindFromPackage(packageName)
-	);
+	const scopeKind = (options.packageScopeNotice ?? getScopeKindFromPackage(packageName)) as
+		| ScopeKind
+		| undefined;
 	const scopeNoticeSection = generatePackageScopeNotice(scopeKind);
 	if (scopeNoticeSection !== undefined) {
 		sections.push(scopeNoticeSection);
@@ -280,14 +261,18 @@ function libraryReadmeHeaderTransform(content, options, config) {
 /**
  * Generates simple README contents for a example app package.
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path from the document to the package.json file. Default: `"./package.json"`.
  * `options.gettingStarted` — `"FALSE"` to suppress getting-started instructions. Default: included.
  * `options.usesTinylicious` — `"FALSE"` if the app does not use Tinylicious. Default: `"TRUE"`.
- * @param {TransformConfig} config - Transform configuration.
+ * @param config - Transform configuration.
  */
-function exampleAppReadmeHeaderTransform(content, options, config) {
+function exampleAppReadmeHeaderTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string {
 	const { packageJsonPath: relativePackageJsonPath } = options;
 
 	const resolvedPackageJsonPath = resolveRelativePackageJsonPath(
@@ -295,12 +280,12 @@ function exampleAppReadmeHeaderTransform(content, options, config) {
 		relativePackageJsonPath,
 	);
 
-	const sectionHeadingOptions = {
+	const sectionHeadingOptions: HeadingOptions = {
 		includeHeading: true,
 		headingLevel: defaultSectionHeadingLevel,
 	};
 
-	const sections = [];
+	const sections: string[] = [];
 	if (options.gettingStarted !== "FALSE") {
 		sections.push(
 			generateExampleGettingStartedSection(
@@ -317,16 +302,16 @@ function exampleAppReadmeHeaderTransform(content, options, config) {
 /**
  * Generates a README section by embedding the named template file.
  *
- * @param {string} templateFileName - The name of the template file to be embedded.
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a top-level heading in the generated section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @param {string} headingOptions.headingText - Text to display in the section heading, if one was requested.
- * @param {TransformConfig} config - Transform configuration. Forwarded to {@link formattedGeneratedContentBody}.
- * @returns {string} The formatted Markdown section text (with notice comment and, for .md files, prettier-ignore pragmas).
+ * @param templateFileName - The name of the template file to be embedded.
+ * @param headingOptions - Heading generation options.
+ * @param config - Transform configuration. Forwarded to {@link formattedGeneratedContentBody}.
+ * @returns The formatted Markdown section text (with notice comment and, for .md files, prettier-ignore pragmas).
  */
-function templateTransform(templateFileName, headingOptions, config) {
+function templateTransform(
+	templateFileName: string,
+	headingOptions: HeadingOptions,
+	config: TransformConfig,
+): string {
 	return formattedGeneratedContentBody(
 		generateSectionFromTemplate(templateFileName, headingOptions),
 		config,
@@ -457,10 +442,10 @@ export default {
 		/**
 		 * Generates a README section with Fluid Framework client requirements.
 		 *
-		 * @param {string} content - The original document file contents.
-		 * @param {TransformOptions} options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+		 * @param content - The original document file contents.
+		 * @param options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
 		 * `options.headingLevel` (positive integer string, default `"2"`).
-		 * @param {TransformConfig} config - Transform configuration.
+		 * @param config - Transform configuration.
 		 *
 		 * @example
 		 *
@@ -469,7 +454,11 @@ export default {
 		 * <!-- AUTO-GENERATED-CONTENT:END -->
 		 * ```
 		 */
-		CLIENT_REQUIREMENTS: (content, options, config) =>
+		CLIENT_REQUIREMENTS: (
+			content: string,
+			options: TransformOptions,
+			config: TransformConfig,
+		) =>
 			templateTransform(
 				"Client-Requirements-Template.md",
 				parseHeadingOptions(options, "Client Requirements"),
@@ -479,10 +468,10 @@ export default {
 		/**
 		 * Generates a README section with Microsoft trademark info.
 		 *
-		 * @param {string} content - The original document file contents.
-		 * @param {TransformOptions} options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+		 * @param content - The original document file contents.
+		 * @param options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
 		 * `options.headingLevel` (positive integer string, default `"2"`).
-		 * @param {TransformConfig} config - Transform configuration.
+		 * @param config - Transform configuration.
 		 *
 		 * @example
 		 *
@@ -491,7 +480,7 @@ export default {
 		 * <!-- AUTO-GENERATED-CONTENT:END -->
 		 * ```
 		 */
-		TRADEMARK: (content, options, config) =>
+		TRADEMARK: (content: string, options: TransformOptions, config: TransformConfig) =>
 			templateTransform(
 				"Trademark-Template.md",
 				parseHeadingOptions(options, "Trademark"),
@@ -501,10 +490,10 @@ export default {
 		/**
 		 * Generates a README section with fluid-framework contribution guidelines.
 		 *
-		 * @param {string} content - The original document file contents.
-		 * @param {TransformOptions} options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+		 * @param content - The original document file contents.
+		 * @param options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
 		 * `options.headingLevel` (positive integer string, default `"2"`).
-		 * @param {TransformConfig} config - Transform configuration.
+		 * @param config - Transform configuration.
 		 *
 		 * @example
 		 *
@@ -513,7 +502,11 @@ export default {
 		 * <!-- AUTO-GENERATED-CONTENT:END -->
 		 * ```
 		 */
-		CONTRIBUTION_GUIDELINES: (content, options, config) =>
+		CONTRIBUTION_GUIDELINES: (
+			content: string,
+			options: TransformOptions,
+			config: TransformConfig,
+		) =>
 			templateTransform(
 				"Contribution-Guidelines-Template.md",
 				parseHeadingOptions(options, "Contribution Guidelines"),
@@ -523,10 +516,10 @@ export default {
 		/**
 		 * Generates a README section with fluid-framework dependency guidelines.
 		 *
-		 * @param {string} content - The original document file contents.
-		 * @param {TransformOptions} options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+		 * @param content - The original document file contents.
+		 * @param options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
 		 * `options.headingLevel` (positive integer string, default `"2"`).
-		 * @param {TransformConfig} config - Transform configuration.
+		 * @param config - Transform configuration.
 		 *
 		 * @example
 		 *
@@ -535,7 +528,11 @@ export default {
 		 * <!-- AUTO-GENERATED-CONTENT:END -->
 		 * ```
 		 */
-		DEPENDENCY_GUIDELINES: (content, options, config) =>
+		DEPENDENCY_GUIDELINES: (
+			content: string,
+			options: TransformOptions,
+			config: TransformConfig,
+		) =>
 			templateTransform(
 				"Dependency-Guidelines-Template.md",
 				parseHeadingOptions(options, "Using Fluid Framework libraries"),
@@ -545,10 +542,10 @@ export default {
 		/**
 		 * Generates a README "Help" section.
 		 *
-		 * @param {string} content - The original document file contents.
-		 * @param {TransformOptions} options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
+		 * @param content - The original document file contents.
+		 * @param options - `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
 		 * `options.headingLevel` (positive integer string, default `"2"`).
-		 * @param {TransformConfig} config - Transform configuration.
+		 * @param config - Transform configuration.
 		 *
 		 * @example
 		 *
@@ -557,7 +554,7 @@ export default {
 		 * <!-- AUTO-GENERATED-CONTENT:END -->
 		 * ```
 		 */
-		HELP: (content, options, config) =>
+		HELP: (content: string, options: TransformOptions, config: TransformConfig) =>
 			templateTransform("Help-Template.md", parseHeadingOptions(options, "Help"), config),
 
 		/**

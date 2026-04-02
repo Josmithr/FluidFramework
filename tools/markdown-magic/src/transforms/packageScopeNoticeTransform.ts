@@ -3,14 +3,7 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
-/**
- * @typedef {import("../utilities.js").TransformConfig} TransformConfig
- * @typedef {import("../utilities.js").TransformOptions} TransformOptions
- * @typedef {import("../utilities.js").ScopeKind} ScopeKind
- */
-
+import type { ScopeKind, TransformConfig, TransformOptions } from "../utilities.js";
 import {
 	formattedSectionText,
 	getPackageMetadata,
@@ -22,16 +15,16 @@ import {
 /**
  * Generates simple Markdown contents indicating implications of the specified kind of package scope.
  *
- * @param {ScopeKind | undefined} kind - Scope kind to switch on.
+ * @param kind - Scope kind to switch on.
  * EXPERIMENTAL: See templates/Experimental-Package-Notice-Template.md.
  * INTERNAL: See templates/Internal-Package-Notice-Template.md.
  * PRIVATE: See templates/Private-Package-Notice-Template.md.
  * TOOLS: See templates/Tools-Package-Notice-Template.md.
  *
- * @returns {string | undefined} The appropriate notice, if applicable. Otherwise, `undefined`.
+ * @returns The appropriate notice, if applicable. Otherwise, `undefined`.
  */
-const generatePackageScopeNotice = (kind) => {
-	let rawContents;
+const generatePackageScopeNotice = (kind: ScopeKind | undefined): string | undefined => {
+	let rawContents: string;
 	switch (kind) {
 		case "EXAMPLE":
 			rawContents = readTemplate("Example-Package-Notice-Template.md");
@@ -58,8 +51,8 @@ const generatePackageScopeNotice = (kind) => {
 /**
  * Generates simple Markdown contents indicating implications of the specified kind of package scope.
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
  * `options.scopeKind` — (optional) Explicit scope kind to override the inferred value.
  * EXAMPLE: See templates/Example-Package-Notice-Template.md.
@@ -68,11 +61,15 @@ const generatePackageScopeNotice = (kind) => {
  * PRIVATE: See templates/Private-Package-Notice-Template.md.
  * TOOLS: See templates/Tools-Package-Notice-Template.md.
  * `undefined`: Inherit from package namespace (`fluid-experimental`, `fluid-internal`, `fluid-private`, `fluid-tools`, etc.).
- * @param {TransformConfig} config - Transform configuration.
- * @returns {string | undefined} The formatted scope notice, or `undefined` if the package has no applicable scope.
+ * @param config - Transform configuration.
+ * @returns The formatted scope notice, or `undefined` if the package has no applicable scope.
  * The caller (e.g. {@link libraryReadmeHeaderTransform}) is responsible for guarding against `undefined`.
  */
-function packageScopeNoticeTransform(content, options, config) {
+function packageScopeNoticeTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string | undefined {
 	const { packageJsonPath, scopeKind } = options;
 
 	const resolvedPackageJsonPath = resolveRelativePackageJsonPath(
@@ -86,9 +83,9 @@ function packageScopeNoticeTransform(content, options, config) {
 	// Cast: scopeKind comes from TransformOptions (string | undefined); callers are expected to
 	// supply a valid ScopeKind string. Unrecognized values fall through to the default case in
 	// generatePackageScopeNotice and return undefined harmlessly.
-	const scopeKindWithInheritance = /** @type {ScopeKind | undefined} */ (
-		scopeKind ?? getScopeKindFromPackage(packageName)
-	);
+	const scopeKindWithInheritance = (scopeKind ?? getScopeKindFromPackage(packageName)) as
+		| ScopeKind
+		| undefined;
 	return generatePackageScopeNotice(scopeKindWithInheritance);
 }
 

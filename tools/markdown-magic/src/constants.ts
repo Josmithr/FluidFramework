@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 

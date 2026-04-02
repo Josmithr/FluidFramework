@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
 import chalk from "chalk";
 import path from "node:path";
 import process from "node:process";
@@ -36,11 +34,11 @@ const argv = await yargs(hideBin(process.argv))
 	.help("h")
 	.alias("h", "--help").argv;
 
-const matchPattern = argv.files ?? defaultMatchPattern;
+const matchPattern = argv.f ?? defaultMatchPattern;
 
 let workingDirectory = process.cwd();
-if (argv.workingDirectory) {
-	workingDirectory = path.resolve(argv.workingDirectory);
+if (argv.w) {
+	workingDirectory = path.resolve(argv.w);
 	process.chdir(workingDirectory);
 }
 
@@ -49,7 +47,7 @@ console.log(
 );
 
 try {
-	await processFiles(matchPattern, config);
+	await processFiles(matchPattern as string | string[], config);
 	console.log(chalk.green("SUCCESS: Documentation updated!"));
 	process.exit(0);
 } catch (error) {

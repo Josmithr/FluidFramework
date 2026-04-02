@@ -3,13 +3,7 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
-/**
- * @typedef {import("../utilities.js").TransformConfig} TransformConfig
- * @typedef {import("../utilities.js").TransformOptions} TransformOptions
- */
-
+import type { TransformConfig, TransformOptions } from "../utilities.js";
 import {
 	formattedEmbeddedContentBody,
 	formattedSectionText,
@@ -20,16 +14,20 @@ import {
 /**
  * Embeds contents from the specified file paths within the provided (optional) line boundaries.
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.path` — Relative path from the document to the file being embedded (required).
  * `options.start` — (optional) 0-based start line (inclusive), as a string-formatted integer.
  * `options.end` — (optional) 0-based end line (exclusive), as a string-formatted integer.
- * @param {TransformConfig} config - Transform configuration.
- * @returns {string} The formatted embedded file contents.
+ * @param config - Transform configuration.
+ * @returns The formatted embedded file contents.
  * @throws If `options.path` is not provided, or if the referenced file does not exist.
  */
-function includeTransform(content, options, config) {
+function includeTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string {
 	const { path: relativeFilePath, start: startLineString, end: endLineString } = options;
 	const { originalPath: documentFilePath } = config;
 

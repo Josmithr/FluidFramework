@@ -3,13 +3,7 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
-/**
- * @typedef {import("../utilities.js").TransformConfig} TransformConfig
- * @typedef {import("../utilities.js").TransformOptions} TransformOptions
- */
-
+import type { HeadingOptions, TransformConfig, TransformOptions } from "../utilities.js";
 import {
 	formattedGeneratedContentBody,
 	formattedSectionText,
@@ -21,22 +15,19 @@ import {
 /**
  * Generates a `Getting Started` heading and contents for the specified example package.
  *
- * @param {string} packageJsonPath - The path to the package's `package.json` file.
- * @param {boolean} includeTinyliciousStep - Whether or not to include the `Tinylicious` step in the instructions.
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a top-level heading in the generated section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
+ * @param packageJsonPath - The path to the package's `package.json` file.
+ * @param includeTinyliciousStep - Whether or not to include the `Tinylicious` step in the instructions.
+ * @param headingOptions - Heading generation options.
  */
 const generateExampleGettingStartedSection = (
-	packageJsonPath,
-	includeTinyliciousStep,
-	headingOptions,
-) => {
+	packageJsonPath: string,
+	includeTinyliciousStep: boolean,
+	headingOptions: HeadingOptions,
+): string => {
 	const packageJsonMetadata = getPackageMetadata(packageJsonPath);
 	const packageName = packageJsonMetadata.name;
 
-	const sectionBody = [];
+	const sectionBody: string[] = [];
 	sectionBody.push("You can run this example using the following steps:\n");
 	sectionBody.push(
 		"1. Enable [corepack](https://nodejs.org/docs/latest-v16.x/api/corepack.html) by running `corepack enable`.",
@@ -72,14 +63,18 @@ const generateExampleGettingStartedSection = (
 /**
  * Generates a "Getting Started" section for an example app README.
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.usesTinylicious` (`"TRUE"|"FALSE"`, default `"TRUE"`),
  * `options.includeHeading` (`"TRUE"|"FALSE"`, default `"TRUE"`),
  * `options.headingLevel` (positive integer string, default `"2"`).
- * @param {TransformConfig} config - Transform configuration.
+ * @param config - Transform configuration.
  */
-function exampleGettingStartedTransform(content, options, config) {
+function exampleGettingStartedTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string {
 	const usesTinylicious = options.usesTinylicious !== "FALSE";
 	const headingOptions = parseHeadingOptions(options);
 

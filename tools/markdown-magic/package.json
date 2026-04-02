@@ -17,13 +17,14 @@
 		"markdown-magic": "bin/markdown-magic.mjs"
 	},
 	"scripts": {
-		"build": "npm run build:docs",
-		"build:docs": "node src/index.js --files README.md",
+		"build": "npm run check:types && npm run build:docs",
+		"build:docs": "node --import jiti/register src/index.ts --files README.md",
 		"check:biome": "biome check .",
 		"check:format": "npm run check:biome",
+		"check:types": "tsc --noEmit",
 		"format": "npm run format:biome",
 		"format:biome": "biome check . --write",
-		"test": "node src/index.js --files \"test/**/*.md\" \"test/**/*.mdx\" !test/README.md"
+		"test": "node --import jiti/register src/index.ts --files \"test/**/*.md\" \"test/**/*.mdx\" !test/README.md"
 	},
 	"dependencies": {
 		"@rushstack/node-core-library": "^3.61.0",
@@ -39,9 +40,11 @@
 	"devDependencies": {
 		"@biomejs/biome": "~2.4.5",
 		"@fluidframework/build-common": "^2.0.3",
-		"jiti": "^2.6.1"
+		"@types/node": "^18.19.0",
+		"jiti": "^2.6.1",
+		"typescript": "~5.9.2"
 	},
-"typeValidation": {
+	"typeValidation": {
 		"disabled": true
 	}
 }

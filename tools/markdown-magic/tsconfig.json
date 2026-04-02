@@ -1,0 +1,17 @@
+{
+	"extends": "../../common/build/build-common/tsconfig.node16.json",
+	"compilerOptions": {
+		"rootDir": "src",
+		"noEmit": true,
+		"composite": false,
+		"declaration": false,
+		"declarationMap": false,
+		"sourceMap": false,
+		"inlineSources": false,
+		"incremental": false,
+		"types": ["node"],
+		"exactOptionalPropertyTypes": false,
+		"noUncheckedIndexedAccess": false,
+	},
+	"include": ["src"],
+}

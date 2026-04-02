@@ -3,13 +3,7 @@
  * Licensed under the MIT License.
  */
 
-// @ts-check
-
-/**
- * @typedef {import("../utilities.js").TransformConfig} TransformConfig
- * @typedef {import("../utilities.js").TransformOptions} TransformOptions
- */
-
+import type { HeadingOptions, TransformConfig, TransformOptions } from "../utilities.js";
 import {
 	formattedGeneratedContentBody,
 	formattedSectionText,
@@ -23,14 +17,15 @@ import {
  *
  * Note: this function will only generate contents if one of our special export paths is found (`/alpha`, `/beta`, or `/legacy`).
  *
- * @param {object} packageMetadata - package.json file contents.
- * @param {object} headingOptions - Heading generation options.
- * @param {boolean} headingOptions.includeHeading - Whether or not to include a top-level heading in the generated section.
- * @param {number} headingOptions.headingLevel - Root heading level for the generated section.
- * Must be a positive integer.
- * @returns {string} The formatted Markdown section text, or an empty string if the package has no relevant export paths.
+ * @param packageMetadata - package.json file contents.
+ * @param headingOptions - Heading generation options.
+ * @returns The formatted Markdown section text, or an empty string if the package has no relevant export paths.
  */
-const generateImportInstructionsSection = (packageMetadata, headingOptions) => {
+const generateImportInstructionsSection = (
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	packageMetadata: any,
+	headingOptions: HeadingOptions,
+): string => {
 	const packageName = packageMetadata.name;
 	const packageExports = packageMetadata.exports;
 
@@ -83,15 +78,19 @@ const generateImportInstructionsSection = (packageMetadata, headingOptions) => {
  *
  * Note: this function will only generate contents if one of our special export paths is found (`/alpha`, `/beta`, or `/legacy`).
  *
- * @param {string} content - The original document file contents.
- * @param {TransformOptions} options - Transform options.
+ * @param content - The original document file contents.
+ * @param options - Transform options.
  * `options.packageJsonPath` — (optional) Relative path to package.json. Default: `"./package.json"`.
  * `options.includeHeading` — `"TRUE"|"FALSE"`, default `"TRUE"`.
  * `options.headingLevel` — positive integer string, default `"2"`.
- * @param {TransformConfig} config - Transform configuration.
- * @returns {string} The formatted Markdown section text.
+ * @param config - Transform configuration.
+ * @returns The formatted Markdown section text.
  */
-function importInstructionsTransform(content, options, config) {
+function importInstructionsTransform(
+	content: string,
+	options: TransformOptions,
+	config: TransformConfig,
+): string {
 	const headingOptions = parseHeadingOptions(options);
 
 	const resolvedPackageJsonPath = resolveRelativePackageJsonPath(

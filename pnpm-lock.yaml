@@ -17134,9 +17134,15 @@ importers:
       '@fluidframework/build-common':
         specifier: ^2.0.3
         version: 2.0.3
+      '@types/node':
+        specifier: ~20.19.30
+        version: 20.19.30
       jiti:
         specifier: ^2.6.1
         version: 2.6.1
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
 
 packages:
 
