@@ -116,7 +116,7 @@ consumers are migrated, this package and its `workspace:~` references can be del
 These packages use `jest` with a jsdom test environment (no puppeteer). They are the most
 straightforward to migrate.
 
-- [ ] **`@fluidframework/driver-web-cache`** (`packages/drivers/driver-web-cache`)
+- [x] **`@fluidframework/driver-web-cache`** (`packages/drivers/driver-web-cache`) — [branch](https://github.com/Josmithr/FluidFramework/tree/driver-web-cache/migrate-to-mocha)
   - 3 test files; `testEnvironment: "jsdom"` in jest config
   - Uses `jest.fn()` and `jest.spyOn()` — replace with `sinon.stub()` / `sinon.spy()`
   - No puppeteer
