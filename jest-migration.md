@@ -127,7 +127,7 @@ straightforward to migrate.
   - Needs `global-jsdom` and build pipeline switch to pre-built output
   - Needs `fetch` / `Headers` / `Response` polyfills (currently injected as jest globals)
 
-- [ ] **`@fluid-internal/devtools-view`** (`packages/tools/devtools/devtools-view`)
+- [x] **`@fluid-internal/devtools-view`** (`packages/tools/devtools/devtools-view`) — [branch](https://github.com/Josmithr/FluidFramework/tree/devtools-view/migrate-to-mocha)
   - 11 test files; React component tests using `@testing-library/react` + `@testing-library/jest-dom`
   - 3 test files use `jest.fn()` / `jest.spyOn()` (`DynamicComposedChart`, `NoDevtoolsErrorBar`, `OpLatencyView`)
   - `jest.setup.cjs` mocks canvas via `jest.fn()` — replace with a plain stub
