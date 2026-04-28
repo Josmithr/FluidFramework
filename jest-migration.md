@@ -121,7 +121,7 @@ straightforward to migrate.
   - Uses `jest.fn()` and `jest.spyOn()` — replace with `sinon.stub()` / `sinon.spy()`
   - No puppeteer
 
-- [ ] **`@fluid-example/app-insights-logger`** (`examples/client-logger/app-insights-logger`)
+- [x] **`@fluid-example/app-insights-logger`** (`examples/client-logger/app-insights-logger`) — [branch](https://github.com/Josmithr/FluidFramework/tree/app-insights-logger/migrate-to-mocha)
   - 1 test file; `testEnvironment: "jsdom"` in jest config
   - Uses `@testing-library/react`; tests run against TypeScript source via `ts-jest`
   - Needs `global-jsdom` and build pipeline switch to pre-built output
