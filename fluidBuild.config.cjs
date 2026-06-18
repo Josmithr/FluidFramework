@@ -182,6 +182,10 @@ module.exports = {
 		"good-fences": [],
 		"format:biome": [],
 		"format:prettier": [],
+		// Markdown linting has no dependency on compiled output. Not included in the "lint" aggregate yet;
+		// see build-tools/plans/markdownlint-task.md for the rollout plan.
+		"markdownlint": [],
+		"markdownlint:fix": [],
 		"prettier": [],
 		"prettier:fix": [],
 		"webpack": ["^api-extractor:esnext", "^build:esnext"],

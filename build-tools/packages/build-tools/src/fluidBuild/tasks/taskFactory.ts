@@ -16,6 +16,7 @@ import { FlubCheckLayerTask, FlubCheckPolicyTask, FlubListTask } from "./leaf/fl
 import { GenerateEntrypointsTask } from "./leaf/generateEntrypointsTask.js";
 import { type LeafTask, UnknownLeafTask } from "./leaf/leafTask.js";
 import { EsLintTask } from "./leaf/lintTasks.js";
+import { MarkdownLintTask } from "./leaf/markdownLintTask.js";
 import {
 	CopyfilesTask,
 	DepCruiseTask,
@@ -46,6 +47,7 @@ const executableToLeafTask: {
 	"copyfiles": CopyfilesTask,
 	"echo": EchoTask,
 	"prettier": PrettierTask,
+	"markdownlint-cli2": MarkdownLintTask,
 	"gen-version": GenVerTask,
 	"gf": GoodFence,
 	"api-extractor": ApiExtractorTask,

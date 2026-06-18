@@ -45,6 +45,12 @@ interface TaskExecResult extends ExecAsyncResult {
 	worker?: boolean;
 }
 
+/**
+ * Executables that count as "lint" for `--nolint` / `--lintonly` gating. Keep this aligned
+ * with the handler registrations in `taskFactory.ts`.
+ */
+const LINT_EXECUTABLES = new Set<string>(["eslint", "prettier", "markdownlint-cli2"]);
+
 export abstract class LeafTask extends Task {
 	// initialize during initializeDependentLeafTasks
 	private dependentLeafTasks?: Set<LeafTask>;
@@ -164,7 +170,7 @@ export abstract class LeafTask extends Task {
 		if (this.isTemp) {
 			return true;
 		}
-		const isLintTask = this.executable === "eslint" || this.executable === "prettier";
+		const isLintTask = LINT_EXECUTABLES.has(this.executable);
 		return (options.nolint && isLintTask) || (options.lintonly && !isLintTask);
 	}
 

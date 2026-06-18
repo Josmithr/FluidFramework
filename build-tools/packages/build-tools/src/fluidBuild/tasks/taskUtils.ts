@@ -40,6 +40,63 @@ export function getEsLintConfigFilePath(dir: string): string | undefined {
 	return undefined;
 }
 
+/**
+ * Returns the markdownlint-cli2 config files that could affect linting under `dir`, ordered
+ * closest-first. Walks from `dir` up to and including `repoRoot`. At each level, records the
+ * first match within each group (markdownlint-cli2 group, then plain markdownlint group), since
+ * the tool consumes only the first match per group at a given level. Both groups are recorded
+ * because markdownlint-cli2 cascades both and any of them could affect the linter's output.
+ *
+ * @param dir - Absolute path to the starting directory.
+ * @param repoRoot - Absolute path to the repository root. The walk stops after this directory.
+ * @returns Absolute paths to existing config files, ordered from `dir` (closest) up to `repoRoot`.
+ */
+export function getMarkdownLintConfigFilePaths(dir: string, repoRoot: string): string[] {
+	const cli2Names = [
+		".markdownlint-cli2.jsonc",
+		".markdownlint-cli2.yaml",
+		".markdownlint-cli2.cjs",
+		".markdownlint-cli2.mjs",
+	];
+	const cliNames = [
+		".markdownlint.jsonc",
+		".markdownlint.json",
+		".markdownlint.yaml",
+		".markdownlint.yml",
+		".markdownlint.cjs",
+		".markdownlint.mjs",
+	];
+	const results: string[] = [];
+	const normalizedRoot = path.resolve(repoRoot);
+	let current = path.resolve(dir);
+	// Walk upward until we pass the repo root.
+	while (true) {
+		for (const name of cli2Names) {
+			const candidate = path.join(current, name);
+			if (existsSync(candidate)) {
+				results.push(candidate);
+				break;
+			}
+		}
+		for (const name of cliNames) {
+			const candidate = path.join(current, name);
+			if (existsSync(candidate)) {
+				results.push(candidate);
+				break;
+			}
+		}
+		if (current === normalizedRoot) {
+			break;
+		}
+		const parent = path.dirname(current);
+		if (parent === current) {
+			break; // filesystem root reached before repo root (defensive)
+		}
+		current = parent;
+	}
+	return results;
+}
+
 export async function getInstalledPackageVersion(
 	packageName: string,
 	cwd: string,
