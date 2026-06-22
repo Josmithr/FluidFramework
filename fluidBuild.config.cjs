@@ -80,7 +80,14 @@ module.exports = {
 			script: false,
 		},
 		"lint": {
-			dependsOn: ["eslint", "good-fences", "depcruise", "check:exports", "check:release-tags"],
+			dependsOn: [
+				"eslint",
+				"good-fences",
+				"depcruise",
+				"check:exports",
+				"check:release-tags",
+				"markdownlint",
+			],
 			script: false,
 		},
 		"checks": {
@@ -182,10 +189,15 @@ module.exports = {
 		"good-fences": [],
 		"format:biome": [],
 		"format:prettier": [],
-		// Markdown linting has no dependency on compiled output. Not included in the "lint" aggregate yet;
-		// see build-tools/plans/markdownlint-task.md for the rollout plan.
+		// Markdown linting has no dependency on compiled output and is run per-package via the
+		// dedicated MarkdownLintTask handler in @fluidframework/build-tools.
 		"markdownlint": [],
 		"markdownlint:fix": [],
+		// Root-only leaf tasks that lint markdown files at the repo root (i.e., files not owned by
+		// any package). They are folded into the root's `markdownlint`/`markdownlint:fix` target
+		// tasks alongside `^markdownlint`/`^markdownlint:fix`; see the root package.json.
+		"markdownlint:root": [],
+		"markdownlint:root:fix": [],
 		"prettier": [],
 		"prettier:fix": [],
 		"webpack": ["^api-extractor:esnext", "^build:esnext"],
@@ -495,6 +507,20 @@ module.exports = {
 				"^experimental/PropertyDDS/",
 				"^packages/framework/quill-react/",
 				"^tools/api-markdown-documenter/",
+			],
+			"npm-package-shared-markdownlint-config": [
+				// Scoped to the client release group only. Exclude every other release group and the
+				// repo root (whose markdownlint scripts are dispatchers, not leaves).
+				"^build-tools/",
+				"^common/",
+				"^server/",
+				"^website/",
+				// All `tools/` packages except markdown-magic (the only one in the client release group).
+				"^tools/(?!markdown-magic/).*",
+				// Repo root package.json itself.
+				"^package\\.json$",
+				// Compat sub-workspaces have their own frozen lockfile and synthetic package.json files.
+				"/compat-workspaces/",
 			],
 			"npm-package-exports-field": [
 				// This policy is no longer correct or applicable to our packages, so all files are excluded.

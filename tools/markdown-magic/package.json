@@ -22,6 +22,8 @@
 		"check:format": "npm run check:biome",
 		"format": "npm run format:biome",
 		"format:biome": "biome check . --write",
+		"markdownlint": "markdownlint-cli2 \"**/*.md\"",
+		"markdownlint:fix": "markdownlint-cli2 --fix \"**/*.md\"",
 		"test": "node src/index.cjs --files \"test/**/*.md\" !test/README.md"
 	},
 	"dependencies": {
@@ -34,7 +36,8 @@
 	"devDependencies": {
 		"@biomejs/biome": "~2.4.5",
 		"@fluidframework/build-common": "^2.0.3",
-		"jiti": "^2.6.1"
+		"jiti": "^2.6.1",
+		"markdownlint-cli2": "^0.22.0"
 	},
 	"dependencyComments": [
 		"chalk is left at version 4 (not 5) to keep CommonJS support."

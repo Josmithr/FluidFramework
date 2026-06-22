@@ -17,11 +17,14 @@
 		"check:biome": "biome check .",
 		"check:format": "npm run check:biome",
 		"format": "npm run format:biome",
-		"format:biome": "biome check . --write"
+		"format:biome": "biome check . --write",
+		"markdownlint": "markdownlint-cli2 \"**/*.md\"",
+		"markdownlint:fix": "markdownlint-cli2 --fix \"**/*.md\""
 	},
 	"devDependencies": {
 		"@biomejs/biome": "~2.4.5",
-		"jiti": "^2.6.1"
+		"jiti": "^2.6.1",
+		"markdownlint-cli2": "^0.22.0"
 	},
 	"typeValidation": {
 		"disabled": true

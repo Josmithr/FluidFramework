@@ -22,6 +22,8 @@
 		"format:biome": "biome check . --write",
 		"lint": "fluid-build . --task lint",
 		"lint:fix": "fluid-build . --task eslint:fix --task format",
+		"markdownlint": "markdownlint-cli2 \"**/*.md\"",
+		"markdownlint:fix": "markdownlint-cli2 --fix \"**/*.md\"",
 		"start": "pm2 start -n azure-local-service index.js",
 		"start:debug": "node --inspect=0.0.0.0:9229 index.js",
 		"stop": "pm2 stop azure-local-service",
@@ -38,6 +40,7 @@
 		"eslint": "catalog:eslint",
 		"eslint-config-prettier": "catalog:eslint",
 		"jiti": "^2.6.1",
+		"markdownlint-cli2": "^0.22.0",
 		"pm2": "^5.4.2",
 		"rimraf": "^6.1.3"
 	},

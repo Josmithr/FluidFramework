@@ -16,7 +16,12 @@
 	"exports": {
 		"./package.json": "./package.json"
 	},
+	"scripts": {
+		"markdownlint": "markdownlint-cli2 \"**/*.md\"",
+		"markdownlint:fix": "markdownlint-cli2 --fix \"**/*.md\""
+	},
 	"devDependencies": {
+		"markdownlint-cli2": "^0.22.0",
 		"typescript-5.4": "npm:typescript@~5.4.5",
 		"typescript-5.5": "npm:typescript@~5.5.4",
 		"typescript-5.6": "npm:typescript@~5.6.3",
