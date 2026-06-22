@@ -17,18 +17,7 @@ import {
 } from "../taskUtils.js";
 import { LeafWithDoneFileTask } from "./leafTask.js";
 
-const MARKDOWN_EXTENSIONS = new Set([".md", ".markdown"]);
-
-// Pruning ignore patterns applied to every glob expansion. Without them, `**/*.md` walks the
-// repo's pnpm store (10k+ extra files) before any other filter is applied, which is fatal on
-// large repos. Tracked inputs never include these paths.
-const BASELINE_IGNORE: readonly string[] = [
-	"**/node_modules/**",
-	"**/lib/**",
-	"**/dist/**",
-	"**/.next/**",
-	"**/_api-extractor-temp/**",
-];
+const MARKDOWN_EXTENSIONS = new Set([".md"]);
 
 /**
  * Parsed representation of a `markdownlint-cli2` command line.
@@ -194,7 +183,7 @@ export class MarkdownLintTask extends LeafWithDoneFileTask {
 			// Treat as a glob.
 			const matches = await globby([entry], {
 				cwd,
-				ignore: [...BASELINE_IGNORE, ...parsed.negativeEntries],
+				ignore: [...parsed.negativeEntries],
 				absolute: false,
 			});
 			for (const m of matches) {
