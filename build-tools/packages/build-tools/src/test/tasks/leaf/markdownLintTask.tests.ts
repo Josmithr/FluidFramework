@@ -4,7 +4,15 @@
  */
 
 import { strict as assert } from "node:assert/strict";
-import { parseMarkdownLintCommand } from "../../../fluidBuild/tasks/leaf/markdownLintTask.js";
+import path from "node:path";
+
+import {
+	parseMarkdownLintCommand,
+	resolveMarkdownLintCli2ConfigChain,
+} from "../../../fluidBuild/tasks/leaf/markdownLintTask.js";
+import { testDataPath } from "../../init.js";
+
+const fixtureRoot = path.resolve(testDataPath, "markdownlint");
 
 describe("MarkdownLintTask", () => {
 	describe("parseMarkdownLintCommand", () => {
@@ -79,6 +87,66 @@ describe("MarkdownLintTask", () => {
 				negativeEntries: ["node_modules"],
 				noGlobs: false,
 			});
+		});
+	});
+
+	describe("resolveMarkdownLintCli2ConfigChain", () => {
+		it("walks the require graph for a .cjs config", async () => {
+			const dir = path.resolve(fixtureRoot, "cjs-chain");
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, fixtureRoot);
+			const relative = chain.map((p) => path.relative(dir, p)).sort();
+			assert.deepEqual(relative, ["base.cjs", ".markdownlint-cli2.cjs"].sort());
+		});
+
+		it("follows `extends` for a .jsonc config", async () => {
+			const dir = path.resolve(fixtureRoot, "jsonc-extends");
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, fixtureRoot);
+			const relative = chain.map((p) => path.relative(dir, p)).sort();
+			assert.deepEqual(relative, ["base.jsonc", ".markdownlint-cli2.jsonc"].sort());
+		});
+
+		it("follows `extends` for a .yaml config", async () => {
+			const dir = path.resolve(fixtureRoot, "yaml-extends");
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, fixtureRoot);
+			const relative = chain.map((p) => path.relative(dir, p)).sort();
+			assert.deepEqual(relative, ["base.yaml", ".markdownlint-cli2.yaml"].sort());
+		});
+
+		it("includes the sibling main markdownlint config", async () => {
+			const dir = path.resolve(fixtureRoot, "sibling-main");
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, fixtureRoot);
+			const relative = chain.map((p) => path.relative(dir, p)).sort();
+			assert.deepEqual(relative, [".markdownlint-cli2.cjs", ".markdownlint.json"].sort());
+		});
+
+		it("returns an empty list when no config exists", async () => {
+			const dir = path.resolve(fixtureRoot, "no-config");
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, fixtureRoot);
+			assert.deepEqual(chain, []);
+		});
+
+		it("honors an explicit --config path", async () => {
+			const dir = path.resolve(fixtureRoot, "no-config");
+			// Point at a config that lives outside the lint dir but inside the fixture root.
+			const explicit = path.resolve(fixtureRoot, "jsonc-extends/.markdownlint-cli2.jsonc");
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, fixtureRoot, explicit);
+			const relative = chain.map((p) => path.relative(fixtureRoot, p)).sort();
+			assert.deepEqual(
+				relative,
+				[
+					path.join("jsonc-extends", ".markdownlint-cli2.jsonc"),
+					path.join("jsonc-extends", "base.jsonc"),
+				].sort(),
+			);
+		});
+
+		it("ignores files outside the repo root", async () => {
+			const dir = path.resolve(fixtureRoot, "cjs-chain");
+			// Use the fixture itself as the repo root; everything resolves inside it.
+			const chain = await resolveMarkdownLintCli2ConfigChain(dir, dir);
+			for (const p of chain) {
+				assert.ok(!path.relative(dir, p).startsWith(".."), `expected ${p} to be under ${dir}`);
+			}
 		});
 	});
 });

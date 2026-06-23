@@ -5,6 +5,7 @@
 
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import * as glob from "glob";
 import globby from "globby";
@@ -41,60 +42,63 @@ export function getEsLintConfigFilePath(dir: string): string | undefined {
 }
 
 /**
- * Returns the markdownlint-cli2 config files that could affect linting under `dir`, ordered
- * closest-first. Walks from `dir` up to and including `repoRoot`. At each level, records the
- * first match within each group (markdownlint-cli2 group, then plain markdownlint group), since
- * the tool consumes only the first match per group at a given level. Both groups are recorded
- * because markdownlint-cli2 cascades both and any of them could affect the linter's output.
+ * Loads `entry` via `require()` and returns the absolute paths of every file it pulls in
+ * transitively (the entry itself plus everything walked through `Module.children`).
  *
- * @param dir - Absolute path to the starting directory.
- * @param repoRoot - Absolute path to the repository root. The walk stops after this directory.
- * @returns Absolute paths to existing config files, ordered from `dir` (closest) up to `repoRoot`.
+ * The require cache for `entry` is cleared first so that edits to the file or its dependencies
+ * are reflected. If `require` throws (e.g. the file is `.mjs`/`.ts` or the module has a runtime
+ * error), the function returns `[entry]` — the caller can decide how to handle the degraded
+ * fingerprint.
+ *
+ * Used by tasks that need to fingerprint config files written as `.cjs`/`.js` modules
+ * (markdownlint-cli2 shims, flat eslint configs, etc.) where the inheritance chain is expressed
+ * as `require()` calls rather than a declarative `extends` field.
+ *
+ * @param entry - Absolute path to the entry file.
+ * @param options.requireFn - `NodeRequire` used to load `entry`. Defaults to a `createRequire`
+ * rooted at `entry`, which gives the most accurate resolution for the file's own imports.
+ * @param options.filter - Predicate that returns `true` for paths that should be included.
+ * Files that fail the predicate are still skipped when walking children. Defaults to allowing
+ * everything.
  */
-export function getMarkdownLintConfigFilePaths(dir: string, repoRoot: string): string[] {
-	const cli2Names = [
-		".markdownlint-cli2.jsonc",
-		".markdownlint-cli2.yaml",
-		".markdownlint-cli2.cjs",
-		".markdownlint-cli2.mjs",
-	];
-	const cliNames = [
-		".markdownlint.jsonc",
-		".markdownlint.json",
-		".markdownlint.yaml",
-		".markdownlint.yml",
-		".markdownlint.cjs",
-		".markdownlint.mjs",
-	];
-	const results: string[] = [];
-	const normalizedRoot = path.resolve(repoRoot);
-	let current = path.resolve(dir);
-	// Walk upward until we pass the repo root.
-	while (true) {
-		for (const name of cli2Names) {
-			const candidate = path.join(current, name);
-			if (existsSync(candidate)) {
-				results.push(candidate);
-				break;
-			}
-		}
-		for (const name of cliNames) {
-			const candidate = path.join(current, name);
-			if (existsSync(candidate)) {
-				results.push(candidate);
-				break;
-			}
-		}
-		if (current === normalizedRoot) {
-			break;
-		}
-		const parent = path.dirname(current);
-		if (parent === current) {
-			break; // filesystem root reached before repo root (defensive)
-		}
-		current = parent;
+export function walkRequireGraph(
+	entry: string,
+	options: {
+		requireFn?: NodeRequire;
+		filter?: (filePath: string) => boolean;
+	} = {},
+): string[] {
+	const absEntry = path.resolve(entry);
+	const filter = options.filter ?? (() => true);
+	const requireFn = options.requireFn ?? createRequire(absEntry);
+	if (!filter(absEntry)) {
+		return [];
 	}
-	return results;
+	const found = new Set<string>([absEntry]);
+	try {
+		delete requireFn.cache[absEntry];
+		requireFn(absEntry);
+	} catch {
+		// Fall through with just the entry recorded.
+		return [...found];
+	}
+	const root = requireFn.cache[absEntry];
+	if (root === undefined) {
+		return [...found];
+	}
+	const stack: NodeModule[] = [root];
+	while (stack.length > 0) {
+		const current = stack.pop() as NodeModule;
+		for (const child of current.children) {
+			const childPath = path.resolve(child.filename);
+			if (found.has(childPath) || !filter(childPath)) {
+				continue;
+			}
+			found.add(childPath);
+			stack.push(child);
+		}
+	}
+	return [...found];
 }
 
 export async function getInstalledPackageVersion(

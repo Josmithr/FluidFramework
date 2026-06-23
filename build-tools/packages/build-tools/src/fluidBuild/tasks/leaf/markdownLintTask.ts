@@ -3,17 +3,20 @@
  * Licensed under the MIT License.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import * as path from "node:path";
 import globby from "globby";
+import * as JSON5 from "json5";
+import { parse as parseYamlString } from "yaml";
 
 import type { BuildContext } from "../../buildContext.js";
 import type { BuildPackage } from "../../buildGraph.js";
 import {
 	getInstalledPackageVersion,
-	getMarkdownLintConfigFilePaths,
 	getRecursiveFiles,
+	walkRequireGraph,
 } from "../taskUtils.js";
 import { LeafWithDoneFileTask } from "./leafTask.js";
 
@@ -94,11 +97,13 @@ export function parseMarkdownLintCommand(
  *
  * The fingerprint is `{ version, configs, hashes }`:
  *  - `version`: installed `markdownlint-cli2` package version, so tool bumps invalidate.
- *  - `configs`: every markdownlint config file from the package directory up to the repo root.
+ *  - `configs`: the cli2 options file at `cwd` (or `--config`) and the sibling main config,
+ *    plus every file they transitively pull in via `require()` / `import()` or `extends`.
+ *    See {@link resolveMarkdownLintCli2ConfigChain} for the resolution rules.
  *  - `hashes`: every input file the cli would scan, hashed via the shared file-hash cache.
  *
  * In-config `ignores` / `gitignore` settings are not honored in v1 — only CLI `#`/`!` negations
- * are. See `build-tools/plans/markdownlint-task.md` for the design and rollout plan.
+ * are.
  */
 export class MarkdownLintTask extends LeafWithDoneFileTask {
 	private readonly parsed: ParsedMarkdownLintCommand | undefined;
@@ -127,19 +132,20 @@ export class MarkdownLintTask extends LeafWithDoneFileTask {
 
 			const cwd = this.node.pkg.directory;
 			const repoRoot = this.node.context.repoRoot;
-			const configPaths =
-				parsed.explicitConfigPath !== undefined
-					? [this.getPackageFileFullPath(parsed.explicitConfigPath)]
-					: getMarkdownLintConfigFilePaths(cwd, repoRoot);
+			const configPaths = await resolveMarkdownLintCli2ConfigChain(
+				cwd,
+				repoRoot,
+				parsed.explicitConfigPath,
+			);
 
-			const configs = await Promise.all(
-				configPaths
-					.filter((p) => existsSync(p))
-					.map(async (p) => ({
+			const configs = (
+				await Promise.all(
+					configPaths.map(async (p) => ({
 						path: path.relative(cwd, p),
 						hash: await this.node.context.fileHashCache.getFileHash(p),
 					})),
-			);
+				)
+			).sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
 			const files = await this.enumerateInputFiles(parsed);
 			const hashes = (
@@ -234,4 +240,177 @@ function stripQuotes(s: string): string {
 		return s.slice(1, -1);
 	}
 	return s;
+}
+
+/**
+ * `markdownlint-cli2` options files, in the priority order cli2 itself uses.
+ * Only the first match in a given directory is honored.
+ */
+const MARKDOWNLINT_CLI2_OPTIONS_FILE_NAMES = [
+	".markdownlint-cli2.jsonc",
+	".markdownlint-cli2.yaml",
+	".markdownlint-cli2.cjs",
+	".markdownlint-cli2.mjs",
+];
+
+/**
+ * Sibling "main" markdownlint config files cli2 also reads, in priority order.
+ */
+const MARKDOWNLINT_MAIN_CONFIG_FILE_NAMES = [
+	".markdownlint.jsonc",
+	".markdownlint.json",
+	".markdownlint.yaml",
+	".markdownlint.yml",
+	".markdownlint.cjs",
+	".markdownlint.mjs",
+];
+
+/**
+ * Resolves the full set of `markdownlint-cli2` configuration files that influence an invocation
+ * run from `cwd`, by following the configs' own inheritance chain.
+ *
+ * Unlike most tools, `markdownlint-cli2` does *not* walk up parent directories looking for a
+ * config: it loads the first matching options file at the working directory (or whatever
+ * `--config` points to), plus an optional sibling "main" config, and then cascades downward into
+ * subdirectories of the linted tree. The inheritance between configs is expressed inside the
+ * config files themselves:
+ *
+ *  - `.cjs` / `.mjs` configs can pull in other files via `require()` / `import()`.
+ *  - `.jsonc` / `.json` / `.yaml` / `.yml` configs use an `extends` field (string or array)
+ *    and, for cli2 options files, a `config` field that can point to another file.
+ *
+ * This function:
+ *  1. Picks the cli2 options file at `cwd` (or `explicitConfigPath` if supplied) and the sibling
+ *     main config, in cli2's documented priority order.
+ *  2. For `.cjs` configs: `require()`s the module and walks `Module.children` to enumerate every
+ *     transitively-loaded file.
+ *  3. For JSONC/JSON/YAML configs: parses and recursively follows the `extends` field (and the
+ *     `config` field for cli2 options files when it is a string path).
+ *  4. `.mjs` configs are recorded but their import graph is not expanded (would require dynamic
+ *     `import()` machinery that isn't worth the complexity until we have one in the repo).
+ *
+ * Exported for unit tests.
+ *
+ * @param cwd - Absolute path to the directory cli2 would run from.
+ * @param repoRoot - Absolute path to the repository root; the search ignores files outside it.
+ * @param explicitConfigPath - Optional argument from `--config`, resolved against `cwd`.
+ * @returns Absolute paths to every existing file in the resolved chain. Order is not significant.
+ *
+ * @remarks
+ * Does not enumerate per-subdirectory configs that cli2 would load when descending into the
+ * linted tree. Today every Fluid package places its config only at the package root, so this is
+ * sufficient; revisit if nested configs become a thing.
+ */
+export async function resolveMarkdownLintCli2ConfigChain(
+	cwd: string,
+	repoRoot: string,
+	explicitConfigPath?: string,
+): Promise<string[]> {
+	const found = new Set<string>();
+	const repoRootResolved = path.resolve(repoRoot);
+	const requireFromCwd = createRequire(path.join(cwd, "noop.js"));
+
+	const isUnderRepoRoot = (abs: string): boolean => {
+		const rel = path.relative(repoRootResolved, abs);
+		return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+	};
+
+	const visit = (file: string): void => {
+		const abs = path.resolve(file);
+		if (found.has(abs) || !existsSync(abs) || !isUnderRepoRoot(abs)) {
+			return;
+		}
+		found.add(abs);
+		const ext = path.extname(abs).toLowerCase();
+		switch (ext) {
+			case ".cjs":
+			case ".js": {
+				const dependencies = walkRequireGraph(abs, {
+					requireFn: requireFromCwd,
+					filter: isUnderRepoRoot,
+				});
+				for (const dependency of dependencies) {
+					found.add(dependency);
+				}
+				break;
+			}
+			case ".jsonc":
+			case ".json": {
+				followExtends(abs, visit, parseJsoncLike);
+				break;
+			}
+			case ".yaml":
+			case ".yml": {
+				followExtends(abs, visit, parseYamlLike);
+				break;
+			}
+			default: {
+				// `.mjs`: just record the file itself.
+			}
+		}
+	};
+
+	if (explicitConfigPath !== undefined) {
+		visit(path.resolve(cwd, explicitConfigPath));
+	} else {
+		for (const name of MARKDOWNLINT_CLI2_OPTIONS_FILE_NAMES) {
+			const candidate = path.join(cwd, name);
+			if (existsSync(candidate)) {
+				visit(candidate);
+				break;
+			}
+		}
+	}
+	for (const name of MARKDOWNLINT_MAIN_CONFIG_FILE_NAMES) {
+		const candidate = path.join(cwd, name);
+		if (existsSync(candidate)) {
+			visit(candidate);
+			break;
+		}
+	}
+
+	return Array.from(found);
+}
+
+function followExtends(
+	absPath: string,
+	visit: (next: string) => void,
+	parse: (raw: string) => unknown,
+): void {
+	let parsed: unknown;
+	try {
+		parsed = parse(readFileSync(absPath, "utf8"));
+	} catch {
+		return;
+	}
+	if (typeof parsed !== "object" || parsed === null) {
+		return;
+	}
+	const obj = parsed as Record<string, unknown>;
+	const dir = path.dirname(absPath);
+	const recur = (target: string): void => visit(path.resolve(dir, target));
+
+	const extendsValue = obj.extends;
+	if (typeof extendsValue === "string") {
+		recur(extendsValue);
+	} else if (Array.isArray(extendsValue)) {
+		for (const entry of extendsValue) {
+			if (typeof entry === "string") {
+				recur(entry);
+			}
+		}
+	}
+	// cli2 options files can point `config` at another file (relative path).
+	if (typeof obj.config === "string") {
+		recur(obj.config);
+	}
+}
+
+function parseJsoncLike(raw: string): unknown {
+	// JSON5 accepts JSONC's comments and trailing commas, which is enough for our purposes.
+	return JSON5.parse(raw);
+}
+
+function parseYamlLike(raw: string): unknown {
+	return parseYamlString(raw);
 }

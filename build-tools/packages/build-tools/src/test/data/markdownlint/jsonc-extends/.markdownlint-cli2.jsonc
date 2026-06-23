@@ -1,0 +1,5 @@
+// JSONC supports comments.
+{
+	"extends": "./base.jsonc",
+	"ignores": ["**/lib/**"]
+}
