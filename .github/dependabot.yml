@@ -1,0 +1,60 @@
+# Dependabot configuration for the Fluid Framework monorepo.
+#
+# This repo is a collection of independent pnpm workspaces ("release groups"), each with its
+# own pnpm-lock.yaml. Dependabot processes each directory below independently.
+#
+# SECURITY-ONLY SETUP
+# -------------------
+# `open-pull-requests-limit: 0` disables routine (version) update PRs while leaving Dependabot
+# *security* update PRs unaffected. This keeps day-to-day PR noise at zero and only surfaces
+# fixes for known vulnerabilities.
+#
+# IMPORTANT: Security update PRs also require the following to be enabled in the repository
+# settings (these cannot be configured from this file):
+#   Settings -> Advanced Security / Code security -> "Dependabot alerts" and
+#   "Dependabot security updates".
+#
+# See https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # -------------------------------------------------------------------------------------------
+  # npm (pnpm) — all release groups. `directories` lists every folder containing a pnpm-lock.yaml.
+  # -------------------------------------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directories:
+      - "/" # client release group (root)
+      - "/build-tools"
+      - "/server/routerlicious"
+      - "/server/historian"
+      - "/server/gitrest"
+      - "/docs"
+      - "/website"
+      - "/tools/test-tools"
+      - "/tools/getkeys"
+      - "/tools/api-markdown-documenter"
+      - "/tools/benchmark"
+      - "/common/lib/protocol-definitions"
+      - "/common/lib/common-utils"
+      - "/common/build/eslint-config-fluid"
+      - "/common/build/build-common"
+      - "/common/build/eslint-plugin-fluid"
+    schedule:
+      interval: "weekly"
+    # Security-only: disable routine version update PRs. Security update PRs are unaffected.
+    # Each security fix opens its own individual PR (no grouping).
+    open-pull-requests-limit: 0
+
+  # -------------------------------------------------------------------------------------------
+  # GitHub Actions — workflows live in .github/workflows at the repo root.
+  #
+  # NOTE: `open-pull-requests-limit: 0` keeps this security-only, consistent with npm above.
+  # Dependabot security updates for the github-actions ecosystem depend on available advisories.
+  # If you'd rather keep actions continuously up to date, remove the limit line below to enable
+  # weekly grouped version updates.
+  # -------------------------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Each security fix opens its own individual PR (no grouping).
+    open-pull-requests-limit: 0
