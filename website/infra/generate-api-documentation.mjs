@@ -15,20 +15,29 @@ import chalk from "chalk";
 
 import DocsVersions from "../config/docs-versions.mjs";
 import { renderApiDocumentation } from "./api-markdown-documenter/index.mjs";
+import { validateApiEntrypoints } from "./validate-api-entrypoints.mjs";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const includeLocalApiDocs = process.env.LOCAL_API_DOCS === "true";
 
-// Get versions from config
+// Fail fast if any version's configured API entrypoints have drifted from its sidebar.
+await validateApiEntrypoints();
+
+// Get versions from config.
+// `entrypointPackages` lives alongside `apiDocs` on each version config; merge it in so the renderer can
+// scope generation to the reachable set of packages.
 const versionConfigs = {};
-versionConfigs[DocsVersions.currentVersion.version] = DocsVersions.currentVersion.apiDocs;
+function toVersionConfig(versionConfig) {
+	return { ...versionConfig.apiDocs, entrypointPackages: versionConfig.entrypointPackages };
+}
+versionConfigs[DocsVersions.currentVersion.version] = toVersionConfig(DocsVersions.currentVersion);
 for (const versionConfig of DocsVersions.otherVersions) {
-	versionConfigs[versionConfig.version] = versionConfig.apiDocs;
+	versionConfigs[versionConfig.version] = toVersionConfig(versionConfig);
 }
 
 if (includeLocalApiDocs) {
-	versionConfigs[DocsVersions.local.version] = DocsVersions.local.apiDocs;
+	versionConfigs[DocsVersions.local.version] = toVersionConfig(DocsVersions.local);
 }
 
 try {
@@ -40,6 +49,7 @@ try {
 				config.outputPath,
 				config.uriRoot,
 				version,
+				config.entrypointPackages,
 			);
 
 			console.log(

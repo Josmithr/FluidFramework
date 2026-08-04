@@ -32,10 +32,11 @@
 		"build:full:compile": "fluid-build --task compile --task webpack",
 		"build:gendocs": "concurrently npm:build:gendocs:client npm:build:gendocs:server && cd website && npm run build",
 		"build:gendocs:client": "fluid-build --task build:gendocs:client",
-		"build:gendocs:client:azure": "copyfiles \"azure/**/*.api.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
-		"build:gendocs:client:examples": "copyfiles \"examples/**/*.api.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
-		"build:gendocs:client:experimental": "copyfiles \"experimental/**/*.api.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
-		"build:gendocs:client:packages": "copyfiles \"packages/**/*.api.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
+		"build:gendocs:client:azure": "copyfiles \"azure/**/*.api.json\" \"azure/**/*.dependencies.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
+		"build:gendocs:client:examples": "copyfiles \"examples/**/*.api.json\" \"examples/**/*.dependencies.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
+		"build:gendocs:client:experimental": "copyfiles \"experimental/**/*.api.json\" \"experimental/**/*.dependencies.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
+		"build:gendocs:client:model": "flub generate apiModel --releaseGroup client",
+		"build:gendocs:client:packages": "copyfiles \"packages/**/*.api.json\" \"packages/**/*.dependencies.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
 		"build:gendocs:server": "concurrently \"npm:build:gendocs:server:*\"",
 		"build:gendocs:server:routerlicious": "copyfiles \"server/routerlicious/**/*.api.json\" ./_api-extractor-temp/doc-models/ -e \"**/node_modules/**\" -f -V",
 		"build:readme": "markdown-magic --files \"**/*.md\" !website",
@@ -226,6 +227,7 @@
 			},
 			"build:gendocs:client": {
 				"dependsOn": [
+					"build:gendocs:client:model",
 					"build:gendocs:client:azure",
 					"build:gendocs:client:examples",
 					"build:gendocs:client:experimental",
@@ -233,28 +235,29 @@
 				],
 				"script": false
 			},
+			"build:gendocs:client:model": {
+				"after": [
+					"^build:esnext"
+				]
+			},
 			"build:gendocs:client:azure": {
 				"after": [
-					"^build:docs",
-					"^ci:build:docs"
+					"build:gendocs:client:model"
 				]
 			},
 			"build:gendocs:client:examples": {
 				"after": [
-					"^build:docs",
-					"^ci:build:docs"
+					"build:gendocs:client:model"
 				]
 			},
 			"build:gendocs:client:experimental": {
 				"after": [
-					"^build:docs",
-					"^ci:build:docs"
+					"build:gendocs:client:model"
 				]
 			},
 			"build:gendocs:client:packages": {
 				"after": [
-					"^build:docs",
-					"^ci:build:docs"
+					"build:gendocs:client:model"
 				]
 			},
 			"build:readme": {

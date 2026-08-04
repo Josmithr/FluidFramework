@@ -168,22 +168,24 @@ Notes:
   graph.
 - These files must not collide when the publish pipeline flattens everything into one folder — see below.
 
-### 2. Generating the metadata (pipeline)
+### 2. Generating the model and metadata
 
-Each dependency metadata file is produced next to its `*.api.json` during the package's own `ci:build:docs` step
-(or a tiny follow-on step), from the `package.json` already on disk at that commit. This keeps the metadata coupled
-to the built commit with no extra checkout and no central aggregation.
+Both the API model (`*.api.json`) and its sibling dependency metadata (`*.dependencies.json`) are produced by a
+single build-tools command, [`flub generate apiModel`](build-tools/packages/build-cli/src/commands/generate/apiModel.ts).
+For each package that produces an API model, the command invokes API Extractor through its programmatic API to
+emit the `*.api.json`, then writes the `*.dependencies.json` next to it from the `package.json` already on disk at
+that commit. This keeps the metadata coupled to the built commit with no extra checkout and no central aggregation,
+and replaces the previous two-pass approach (a separate `api-extractor run` followed by a standalone metadata step).
 
 **File-name collision under flatten.** [publish-api-model-artifact.yml](tools/pipelines/publish-api-model-artifact.yml)
 flattens all matched files into a single folder (`CopyFiles@2` with `flattenFolders: true`). `*.api.json` names
-are unique per package, but raw `package.json` files would all collide. So emit each metadata file under a
+are unique per package, but raw `package.json` files would all collide. So each metadata file is emitted under a
 package-qualified name that mirrors its `*.api.json` sibling — e.g. `<name>.api.json` →
-`<name>.dependencies.json` — and broaden the pipeline's copy glob, which currently matches only `**/*.api.json`,
-to include `**/*.dependencies.json`.
+`<name>.dependencies.json` — and the pipeline's copy glob, which previously matched only `**/*.api.json`, is
+broadened to include `**/*.dependencies.json`.
 
-This can be a trivial `copyfiles`/script step (or a small `flub` helper that reads a `package.json` and writes the
-trimmed version). No workspace-graph computation is required at build time — the graph is reconstructed by the
-consumer from the collected files.
+No workspace-graph computation is required at build time — the graph is reconstructed by the consumer from the
+collected files.
 
 ### 3. Entrypoint package set (website config)
 

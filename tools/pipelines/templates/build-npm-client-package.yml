@@ -478,6 +478,10 @@ extends:
 
                   # Copy files so all artifacts we publish end up under the same parent folder.
                   # The sourceFolder should be wherever the 'npm run ci:build:docs' task places its output.
+                  # This includes both the API model files (*.api.json) and the per-package dependency
+                  # metadata (*.dependencies.json) generated alongside them by the `build:gendocs:client`
+                  # scripts. The website uses that metadata to scope API documentation generation to only the
+                  # packages reachable from its navigation entrypoints. See website/docs-api-scoping-design.md.
                   - task: CopyFiles@2
                     displayName: Copy _api-extractor-temp files to artifact staging directory
                     inputs:

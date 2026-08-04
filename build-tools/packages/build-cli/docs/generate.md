@@ -3,6 +3,7 @@
 
 Generate commands are used to create/update code, docs, readmes, etc.
 
+* [`flub generate apiModel`](#flub-generate-apimodel)
 * [`flub generate assertTags`](#flub-generate-asserttags)
 * [`flub generate buildVersion`](#flub-generate-buildversion)
 * [`flub generate bundleAnalysisRepo`](#flub-generate-bundleanalysisrepo)
@@ -17,6 +18,73 @@ Generate commands are used to create/update code, docs, readmes, etc.
 * [`flub generate releaseNotes`](#flub-generate-releasenotes)
 * [`flub generate typetests`](#flub-generate-typetests)
 * [`flub generate upcoming`](#flub-generate-upcoming)
+
+## `flub generate apiModel`
+
+Generates the API model (api.json) and its dependency metadata (dependencies.json) for each package.
+
+```
+USAGE
+  $ flub generate apiModel [-v | --quiet] [--local] [--concurrency <value>] [--branch <value> [--changed | [--all |
+    --dir <value>... | --packages | -g client|server|azure|build-tools|gitrest|historian|all... | --releaseGroupRoot
+    client|server|azure|build-tools|gitrest|historian|all...]]] [--private] [--scope <value>... | --skipScope
+    <value>...]
+
+FLAGS
+  --concurrency=<value>  [default: 25] The number of tasks to execute concurrently.
+  --local                Run API Extractor in "local" mode, equivalent to `api-extractor run --local`. When omitted, API
+                         Extractor runs in CI mode, equivalent to `api-extractor run`.
+
+PACKAGE SELECTION FLAGS
+  -g, --releaseGroup=<option>...      Run on all child packages within the specified release groups. This does not
+                                      include release group root packages. To include those, use the --releaseGroupRoot
+                                      argument. Cannot be used with --all.
+                                      <options: client|server|azure|build-tools|gitrest|historian|all>
+      --all                           Run on all packages and release groups. Cannot be used with --dir, --packages,
+                                      --releaseGroup, or --releaseGroupRoot.
+      --branch=<value>                [default: main] Select only packages that have been changed when compared to this
+                                      base branch. Can only be used with --changed.
+      --changed                       Select packages that have changed when compared to a base branch. Use the --branch
+                                      option to specify a different base branch. Cannot be used with --all.
+      --dir=<value>...                Run on the package in this directory. Cannot be used with --all.
+      --packages                      Run on all independent packages in the repo. Cannot be used with --all.
+      --releaseGroupRoot=<option>...  Run on the root package of the specified release groups. This does not include any
+                                      child packages within the release group. To include those, use the --releaseGroup
+                                      argument. Cannot be used with --all.
+                                      <options: client|server|azure|build-tools|gitrest|historian|all>
+
+LOGGING FLAGS
+  -v, --verbose  Enable verbose logging.
+      --quiet    Disable all logging.
+
+PACKAGE FILTER FLAGS
+  --[no-]private          Only include private packages. Use --no-private to exclude private packages instead.
+  --scope=<value>...      Package scopes to filter to. If provided, only packages whose scope matches the flag will be
+                          included. Cannot be used with --skipScope.
+  --skipScope=<value>...  Package scopes to filter out. If provided, packages whose scope matches the flag will be
+                          excluded. Cannot be used with --scope.
+
+DESCRIPTION
+  Generates the API model (api.json) and its dependency metadata (dependencies.json) for each package.
+
+  For each selected package that produces an API model (i.e. one whose API Extractor configuration enables the doc model
+  output), this command:
+
+  1. Runs API Extractor through its programmatic API to generate the API model file (`<unscopedPackageName>.api.json`),
+  equivalent to running `api-extractor run` via the package's `ci:build:docs` script.
+  2. Writes a sibling `<unscopedPackageName>.dependencies.json` file recording the package's name and its production
+  dependencies (`dependencies` and `peerDependencies`).
+
+  The website uses the dependency metadata to reconstruct the (version-accurate) local dependency graph and scope API
+  documentation generation to only the packages reachable from a curated set of entrypoint packages. See the website's
+  `docs-api-scoping-design.md` for details.
+
+  Packages that do not define a `ci:build:docs` script, that have no API Extractor configuration, or whose configuration
+  does not enable the doc model output are skipped. This command must run after the packages have been compiled, since
+  API Extractor consumes the generated type declarations.
+```
+
+_See code: [src/commands/generate/apiModel.ts](https://github.com/microsoft/FluidFramework/blob/main/build-tools/packages/build-cli/src/commands/generate/apiModel.ts)_
 
 ## `flub generate assertTags`
 

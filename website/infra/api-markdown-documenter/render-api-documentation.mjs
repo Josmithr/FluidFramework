@@ -41,6 +41,81 @@ function isPackage(apiItem) {
 }
 
 /**
+ * Loads per-package dependency metadata (`*.dependencies.json`) from `inputDir`, if present.
+ *
+ * These files are published alongside the API model (`*.api.json`) files and record each package's `name`,
+ * `dependencies`, and `peerDependencies`. See the `flub generate apiModel` command.
+ *
+ * @param {string} inputDir - The directory containing the API model and dependency metadata files.
+ * @returns {Promise<Map<string, { dependencies?: Record<string, string>, peerDependencies?: Record<string, string> }> | undefined>}
+ * A map from package name to its production dependency records, or `undefined` if no metadata files are
+ * present (in which case callers should fall back to generating all non-excluded packages).
+ */
+async function loadDependencyMetadata(inputDir) {
+	const entries = await fs.readdir(inputDir).catch(() => []);
+	const metadataFiles = entries.filter((entry) => entry.endsWith(".dependencies.json"));
+	if (metadataFiles.length === 0) {
+		return undefined;
+	}
+
+	/** @type {Map<string, { dependencies?: Record<string, string>, peerDependencies?: Record<string, string> }>} */
+	const map = new Map();
+	await Promise.all(
+		metadataFiles.map(async (fileName) => {
+			const parsed = JSON.parse(await fs.readFile(path.join(inputDir, fileName), "utf8"));
+			if (typeof parsed?.name === "string") {
+				map.set(parsed.name, {
+					dependencies: parsed.dependencies,
+					peerDependencies: parsed.peerDependencies,
+				});
+			}
+		}),
+	);
+	return map;
+}
+
+/**
+ * Computes the set of packages reachable from `entrypointPackages` by walking local production dependency
+ * edges (`dependencies` + `peerDependencies`) recorded in `dependencyMetadata`.
+ *
+ * An edge is only followed when the dependency has its own entry in the metadata map; external dependencies
+ * (which have no metadata file) naturally terminate traversal.
+ *
+ * @param {Map<string, { dependencies?: Record<string, string>, peerDependencies?: Record<string, string> }>} dependencyMetadata
+ * @param {readonly string[]} entrypointPackages
+ * @param {(message: string) => void} logWarning - Called when an entrypoint is missing from the metadata.
+ * @returns {Set<string>} The set of reachable package names.
+ */
+function computeReachablePackages(dependencyMetadata, entrypointPackages, logWarning) {
+	/** @type {Set<string>} */
+	const reachable = new Set();
+	const queue = [...entrypointPackages];
+	while (queue.length > 0) {
+		const name = queue.pop();
+		if (reachable.has(name)) {
+			continue;
+		}
+		const metadata = dependencyMetadata.get(name);
+		if (metadata === undefined) {
+			// A missing entrypoint indicates a configuration error (typo, or a package that no longer
+			// produces API documentation). A missing transitive dependency simply means it is external
+			// (or otherwise excluded) and should terminate traversal.
+			if (entrypointPackages.includes(name)) {
+				logWarning(
+					`Entrypoint package "${name}" was not found in the API model's dependency metadata. It will not be included in the generated documentation.`,
+				);
+			}
+			continue;
+		}
+		reachable.add(name);
+		for (const dep of Object.keys({ ...metadata.dependencies, ...metadata.peerDependencies })) {
+			queue.push(dep);
+		}
+	}
+	return reachable;
+}
+
+/**
  * Generates a documentation suite for the API model saved under `inputDir`, saving the output to `outputDir`.
  *
  * @param {string} inputDir - The directory path containing the API model to be processed.
@@ -49,8 +124,20 @@ function isPackage(apiItem) {
  * @param {string} apiVersion - The "version" of the API model being processed, represented as a string.
  * E.g. "1", "2", "2.1", etc.
  * Used for some policy decisions, and for logging purposes.
+ * @param {readonly string[] | undefined} entrypointPackages - The set of packages surfaced in the site's API
+ * navigation for this version. When provided, and when per-package dependency metadata
+ * (`*.dependencies.json`) is present alongside the API model, documentation is only generated for these
+ * packages and the packages reachable from them via local (production) dependencies.
+ * When metadata is absent (e.g. older published artifacts), this is ignored and all non-excluded packages
+ * are generated. See `docs-api-scoping-design.md` for details.
  */
-export async function renderApiDocumentation(inputDir, outputDir, uriRootDir, apiVersion) {
+export async function renderApiDocumentation(
+	inputDir,
+	outputDir,
+	uriRootDir,
+	apiVersion,
+	entrypointPackages,
+) {
 	/**
 	 * Logs a progress message, prefaced with the API version number to help differentiate parallel logging output.
 	 * @param {string} message - The progress message to log.
@@ -85,6 +172,28 @@ export async function renderApiDocumentation(inputDir, outputDir, uriRootDir, ap
 	logProgress("Loading API model...");
 
 	const apiModel = await loadModel({ modelDirectoryPath: inputDir });
+
+	// Compute the set of packages reachable from the site's API navigation entrypoints, if we have both the
+	// entrypoint config and per-package dependency metadata. When either is missing, `reachablePackages`
+	// stays `undefined` and we fall back to generating all non-excluded packages.
+	let reachablePackages;
+	if (entrypointPackages !== undefined && entrypointPackages.length > 0) {
+		const dependencyMetadata = await loadDependencyMetadata(inputDir);
+		if (dependencyMetadata === undefined) {
+			logProgress(
+				"No dependency metadata (*.dependencies.json) found; generating docs for all non-excluded packages.",
+			);
+		} else {
+			reachablePackages = computeReachablePackages(
+				dependencyMetadata,
+				entrypointPackages,
+				(message) => console.warn(chalk.yellow(`(v${apiVersion}) ${message}`)),
+			);
+			logProgress(
+				`Scoping API documentation to ${reachablePackages.size} package(s) reachable from ${entrypointPackages.length} entrypoint(s).`,
+			);
+		}
+	}
 
 	const config = getApiItemTransformationConfigurationWithDefaults({
 		apiModel,
@@ -159,13 +268,10 @@ export async function renderApiDocumentation(inputDir, outputDir, uriRootDir, ap
 				const packageName = apiItem.name;
 				const packageScope = PackageName.getScope(packageName);
 
-				// Skip packages that are published, but are not intended for direct public consumption.
-				// TODO: Also skip `@fluid-internal` packages once we no longer have public, user-facing APIs that reference their contents.
-				if (
-					["@fluid-example", "@fluid-experimental", "@fluid-private"].includes(
-						packageScope,
-					)
-				) {
+				// Skip packages that are not reachable from the site's API navigation entrypoints via local
+				// (production) dependencies. Only applies when dependency metadata was available (otherwise
+				// `reachablePackages` is `undefined` and we fall back to generating all non-excluded packages).
+				if (reachablePackages !== undefined && !reachablePackages.has(packageName)) {
 					return true;
 				}
 			}

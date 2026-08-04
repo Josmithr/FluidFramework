@@ -29,6 +29,21 @@ const config = {
 			outputPath: path.resolve(currentDocsPath, "api"),
 			uriRoot: "/docs/api",
 		},
+		// The set of packages surfaced in the site's API navigation for this version. API documentation is only
+		// generated for these packages and the packages reachable from them via local (production) dependencies.
+		// See `docs-api-scoping-design.md` for details.
+		//
+		// IMPORTANT: Keep this list in sync with the "API Documentation" section of the current-version sidebar in
+		// `sidebars.ts`. A validation (see `website/test`) enforces that every package surfaced in that sidebar
+		// appears here.
+		entrypointPackages: [
+			"fluid-framework",
+			"@fluidframework/azure-client",
+			"@fluidframework/odsp-client",
+			"@fluidframework/tinylicious-client",
+			"@fluidframework/devtools",
+			"@fluidframework/presence",
+		],
 	},
 
 	// Other site versions to include in the build.
@@ -44,6 +59,17 @@ const config = {
 				uriRoot: "/docs/v1/api",
 			},
 			maintained: true,
+			// IMPORTANT: Keep this list in sync with the "API Documentation" section of
+			// `versioned_sidebars/version-1-sidebars.json`. See `currentVersion.entrypointPackages` above for details.
+			entrypointPackages: [
+				"fluid-framework",
+				"@fluidframework/map",
+				"@fluidframework/sequence",
+				"@fluidframework/fluid-static",
+				"@fluidframework/container-definitions",
+				"@fluidframework/azure-client",
+				"@fluidframework/tinylicious-client",
+			],
 		},
 	],
 
@@ -58,6 +84,17 @@ const config = {
 			outputPath: path.resolve(versionedDocsPath, "version-local", "api"),
 			uriRoot: "/docs/local/api",
 		},
+		// Local API docs preview the current ("v2") API surface, so it uses the same entrypoints.
+		// IMPORTANT: Keep this list in sync with the "API Documentation" section of
+		// `versioned_sidebars/version-local-sidebars.json`. See `currentVersion.entrypointPackages` above for details.
+		entrypointPackages: [
+			"fluid-framework",
+			"@fluidframework/azure-client",
+			"@fluidframework/odsp-client",
+			"@fluidframework/tinylicious-client",
+			"@fluidframework/devtools",
+			"@fluidframework/presence",
+		],
 	},
 };
 

@@ -184,7 +184,12 @@ stages:
                 displayName: 'Copy all api-extractor output JSON files into a single folder'
                 inputs:
                   SourceFolder: $(Pipeline.Workspace)
-                  Contents: '**/*.api.json'
+                  # Include both the API model files (*.api.json) and their sibling dependency metadata
+                  # (*.dependencies.json), which the website uses to scope API doc generation to the packages
+                  # reachable from its navigation entrypoints. See website/docs-api-scoping-design.md.
+                  Contents: |
+                    **/*.api.json
+                    **/*.dependencies.json
                   TargetFolder: '$(Pipeline.Workspace)/${{ variables.FluidFrameworkDirectory }}/_api-extractor-temp'
                   OverWrite: false
                   flattenFolders: true

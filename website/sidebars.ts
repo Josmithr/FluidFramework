@@ -52,6 +52,10 @@ const sidebars: SidebarsConfig = {
 		{
 			type: "category",
 			label: "API Documentation",
+			// IMPORTANT: The packages surfaced here must stay in sync with `currentVersion.entrypointPackages`
+			// in config/docs-versions.mjs — API documentation is only generated for the entrypoint packages
+			// and the packages reachable from them. A build-time validation (infra/validate-api-entrypoints.mjs)
+			// enforces this. See docs-api-scoping-design.md.
 			items: [
 				{
 					type: "category",
