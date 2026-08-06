@@ -9,5 +9,8 @@
 		"@fluid-experimental/*",
 		"@fluid-private/*",
 		"@fluid-tools/*"
-	]
+	],
+	"apiReport": {
+		"reportVariants": ["beta"]
+	}
 }

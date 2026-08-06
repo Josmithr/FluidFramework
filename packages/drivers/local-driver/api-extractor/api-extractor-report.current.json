@@ -3,7 +3,7 @@
 	"extends": "<projectFolder>/../../../common/build/build-common/api-extractor-report.esm.current.json",
 	"mainEntryPointFilePath": "<projectFolder>/lib/alpha.d.ts",
 	"apiReport": {
-		"reportVariants": ["public", "beta", "alpha"]
+		"reportVariants": ["public", "alpha"]
 	},
 	// Note: excluding server packages until we can update their tags (and release new server versions)
 	// TODO: remove this override once server dependencies have been updated.

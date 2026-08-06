@@ -3,7 +3,7 @@
 	"extends": "<projectFolder>/../../../common/build/build-common/api-extractor-report.esm.current.json",
 	"mainEntryPointFilePath": "<projectFolder>/lib/alpha.d.ts",
 	"apiReport": {
-		"reportVariants": ["public", "beta", "alpha"]
+		"reportVariants": ["public", "alpha"]
 	},
 	"compiler": {
 		// api-extractor has trouble with Node16 moduleResolution, but Bundler looks okay.
