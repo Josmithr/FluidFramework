@@ -2,8 +2,8 @@
 
 ## Status
 
-Implemented on `tools/reduce-api-reports`. This document records the design and implementation
-decisions for future maintenance.
+Implemented repository-wide. This document records the design and implementation decisions for
+future maintenance.
 
 ## Summary
 
@@ -86,11 +86,11 @@ The handler matches `package.json` files.
 
 A package is in scope when its `package.json` does not set `private` to `true`. This matches npm's publication semantics: an omitted or false `private` field means the package is publishable.
 
-Every in-scope package must have API report configuration and direct report tasks. A package without direct `ci:build:api-reports:*` API Extractor commands fails the policy. The diagnostic should direct the developer to either configure API reports or mark the package `private` when it is not intended to be published.
+Every in-scope package must have API report configuration and a direct API Extractor report task. A package with one current report should invoke API Extractor directly from `ci:build:api-reports`. Packages with multiple report families or channels use direct `ci:build:api-reports:*` leaf commands. Packages that intentionally publish without a declaration contract must use an exact repository-policy exclusion; publication status must not be changed merely to bypass this policy.
 
 Packages marked `private: true` are ignored, even if they happen to have API report scripts. A separate policy could validate voluntarily generated reports for private packages if that becomes useful.
 
-After scope is established, use direct leaf CI scripts rather than the aggregate `ci:build:api-reports` script. This avoids parsing `concurrently` or npm script expansion.
+After scope is established, use direct leaf CI scripts when they exist. Otherwise, accept the aggregate `ci:build:api-reports` script only when it directly invokes API Extractor, and treat it as the default current report. This avoids parsing `concurrently` or npm script expansion while keeping single-report packages simple.
 
 ## Terminology
 
@@ -161,18 +161,24 @@ Some published packages expose a single declaration named `index.d.ts` or anothe
 - In `exports` mode, first classify every referenced declaration with the filename rules above.
 - If at least one declaration has an explicit release-level filename, use only explicitly classified declarations. This prevents ordinary runtime declarations such as Client Utils' `indexBrowser.d.ts` from creating an unintended public report requirement.
 - If no declaration has an explicit release-level filename, classify the declaration referenced by the root `.` export as `current.public`.
+- If there is no typed root export, classify typed non-internal subpath exports as current-public channels. This supports packages whose reusable API consists entirely of published feature entrypoints.
 
-Ignore unclassified declarations associated only with non-root exports, such as internal, test, or feature-specific subpaths.
+Ignore declarations exposed through internal subpaths. Typed public feature subpaths participate only
+in the fallback above, when the package has neither explicit release-level declarations nor a typed
+root export.
 
-If no reportable TypeScript entrypoint can be discovered, fail with a targeted diagnostic. A non-private package must either expose a typed API surface that can be reported or be explicitly marked private. The policy should not silently exempt publishable packages because their API shape is unclear.
+If no reportable TypeScript entrypoint can be discovered, fail with a targeted diagnostic. A published
+package must either expose a typed API surface that can be reported or receive an exact policy
+exclusion when its publication shape intentionally has no declaration contract. The policy should not
+silently exempt publishable packages because their API shape is unclear.
 
 ## Discovering Report Configurations
 
-For every in-scope package, require direct `ci:build:api-reports:*` scripts. Obtain each API Extractor command's `--config` argument using the existing `getApiExtractorConfigFilePath()` helper.
+For every in-scope package, require either a direct aggregate `ci:build:api-reports` command or direct `ci:build:api-reports:*` leaf commands. Obtain each API Extractor command's `--config` argument using the existing `getApiExtractorConfigFilePath()` helper.
 
 Missing report scripts are a policy failure, not a scope exclusion. The aggregate `ci:build:api-reports` script should also be required to ensure the leaf tasks participate in the standard build, but leaf commands remain the source of config metadata.
 
-Classify a report command as legacy when its script name contains a `legacy` segment. Other report commands are current. Script names may contain additional channel segments, such as `browser` or `node`.
+Classify the direct aggregate command as current with no channel. Classify a leaf report command as legacy when its script name contains a `legacy` segment; other leaf commands are current. Leaf script names may contain additional channel segments, such as `browser` or `node`.
 
 For each config, call `ExtractorConfig.loadFile()` to parse JSON5, resolve its `extends` chain, merge defaults, and validate the schema. Then call `ExtractorConfig.prepare()` with `ignoreMissingEntryPoint: true` to expand tokens and compute effective report metadata:
 
@@ -222,7 +228,7 @@ Multiple configs may map to the same output file. Browser and Node Client Utils 
 For each in-scope package:
 
 1. Derive the required `ReportLevel` set independently from entrypoint generation.
-2. Verify the aggregate and direct CI report scripts exist.
+2. Verify a direct aggregate or direct leaf CI report command exists.
 3. Discover and prepare current and legacy report configs through API Extractor's public API.
 4. For each required declaration channel and level:
     1. Find its associated config in the corresponding current or legacy family.
@@ -289,7 +295,7 @@ The first form is authoritative. File-only detection is constrained to each effe
 Diagnostics should identify:
 
 - Package name.
-- Missing aggregate or leaf report scripts.
+- Missing or indirect aggregate/leaf report scripts.
 - Missing current or legacy release level.
 - Relevant report config paths.
 - Expected report file paths.
@@ -352,7 +358,7 @@ The policy should fail with a targeted diagnostic when:
 - `package.json` cannot be parsed.
 - An in-scope package has no discoverable reportable TypeScript entrypoint.
 - An in-scope package has no aggregate or direct CI report scripts.
-- A direct report command does not provide a usable config path.
+- A direct aggregate or leaf report command does not provide a usable config path.
 - A config file does not exist.
 - JSON5 parsing fails.
 - An `extends` target cannot be resolved.
@@ -398,7 +404,8 @@ Add focused unit tests using temporary package directories and small JSON5 fixtu
 - Multiple browser and Node declaration channels are combined.
 - If explicit release-level filenames exist, unclassified runtime declarations are ignored.
 - If no explicit release-level filename exists, the root export's declaration maps to current public.
-- Unclassified declarations under internal, test, and feature subpaths are ignored.
+- If no typed root export exists, typed non-internal subpath exports map to current-public channels.
+- Unclassified declarations under internal subpaths are ignored.
 - Missing reportable declaration metadata fails.
 
 ### Config resolution
@@ -425,7 +432,7 @@ Add focused unit tests using temporary package directories and small JSON5 fixtu
 - Missing current or legacy config family fails.
 - Multiple distinct channel outputs must all exist.
 - Multiple channels converging on one output pass with one file.
-- Non-private package without direct report tasks fails.
+- Non-private package without a direct aggregate or leaf report task fails.
 - Non-private package without a discoverable typed entrypoint fails with guidance to configure its API surface or mark it private.
 - Package with `types` or `typings` but no `exports` field requires a current public report.
 - Private package is ignored regardless of report scripts.
@@ -455,9 +462,21 @@ The initial inventory covered the client pnpm workspace: 100 non-private package
 
 Repository policy-check traverses all tracked package manifests, including independent common, server, and tools workspaces. The first production policy run therefore found 62 non-private packages with failures: 59 without aggregate/direct report scripts, 27 without reportable declaration metadata, and 36 with declaration rollups but no matching report config family. It also found three extraneous configured variants and their three stale report files. These categories overlap.
 
-This broader result is rollout debt rather than a reason to weaken the handler's `private !== true` scope. Existing packages must add report support and explicit declaration metadata, be marked private where publication is unintended, or receive explicit temporary handler exclusions while they are migrated. Broad directory exclusions would allow new publishable packages to bypass the policy and should not be used.
+The repository rollout remediated reportable published packages rather than changing their
+publication status. The remaining exclusions in `fluidBuild.config.cjs` are exact and document
+publication shapes to which API reports do not apply: synthetic fixture manifests, published test
+workloads without reusable entrypoints, and executable or configuration packages without declaration
+contracts. Broad directory exclusions are not used, so newly added published packages remain covered.
 
-The handler is activated repository-wide with package-specific temporary exclusions in `fluidBuild.config.cjs` for this existing debt. The only grouped exclusion covers synthetic manifests under the build-infrastructure test fixture directory, which are not repository packages. This makes policy-check pass while continuing to enforce every conforming package and every newly added package. Each package exclusion should be removed in the same change that remediates that package.
+`@fluid-experimental/property-properties` is separately exempted because API Extractor 7.58.1
+crashes internally while analyzing its generated declaration. Its publication status and declaration
+metadata remain unchanged. This exemption should be revisited when the extractor defect is resolved.
+
+Some established packages contain release-tag or TSDoc diagnostics that predate report onboarding.
+Their report configs extend
+`common/build/build-common/api-extractor-report.esm.current.compatibility.json`, which suppresses only
+report-generation diagnostics needed to produce review artifacts. API lint configs remain strict and
+unchanged; new packages should use the normal report base.
 
 ## Proposed Implementation Sequence
 
@@ -490,4 +509,5 @@ No design questions remain open.
 - The fixer uses a targeted edit for an existing `reportVariants` array or inserts a local override into an existing `apiReport` object. It refuses config shapes that would require a broad rewrite.
 - Stale report discovery does not enumerate arbitrary Markdown. It probes only recognized variant filenames derived from effective report folders and basenames.
 - ESM and CommonJS declaration paths are deduplicated by logical `(channel, report level)`, not by physical `lib` or `dist` path.
-- The initial repository activation processed 9,885 files successfully after applying exact temporary exclusions for existing rollout debt.
+- The completed repository activation processed 9,953 files with 13 exact exclusions and no policy
+    failures.

@@ -1,0 +1,8 @@
+{
+	"$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+	"extends": "<projectFolder>/../../build/build-common/api-extractor-report.esm.current.json",
+	"mainEntryPointFilePath": "<projectFolder>/dist/indexNode.d.ts",
+	"apiReport": {
+		"reportVariants": ["public"]
+	}
+}

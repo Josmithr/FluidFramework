@@ -28,6 +28,7 @@
 	"types": "dist/indexBrowser.d.ts",
 	"scripts": {
 		"build": "fluid-build . --task build",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:commonjs": "fluid-build . --task commonjs",
 		"build:compile": "fluid-build . --task compile",
 		"build:docs": "api-extractor run --local --config api-extractor/api-extractor-model-browser.json",
@@ -41,6 +42,7 @@
 		"check:exports:cjs:indexBrowser": "api-extractor run --config api-extractor/api-extractor-lint-indexBrowser.cjs.json",
 		"check:exports:cjs:indexNode": "api-extractor run --config api-extractor/api-extractor-lint-indexNode.cjs.json",
 		"ci:build": "fluid-build . --task ci:build",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"ci:build:docs": "api-extractor run --config api-extractor/api-extractor-model-browser.json",
 		"ci:test": "npm test",
 		"ci:test:coverage": "npm run test:coverage",

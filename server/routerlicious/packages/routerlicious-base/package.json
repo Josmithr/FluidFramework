@@ -14,7 +14,9 @@
 	"types": "dist/index.d.ts",
 	"scripts": {
 		"build": "concurrently npm:build:compile npm:lint",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:compile": "npm run tsc && npm run typetests:gen",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"clean": "rimraf --glob dist lib \"**/*.tsbuildinfo\" \"**/*.build.log\" nyc",
 		"eslint": "eslint --format stylish src",
 		"eslint:fix": "eslint --format stylish src --fix --fix-type problem,suggestion,layout",
@@ -94,6 +96,7 @@
 		"@fluidframework/server-local-server": "workspace:~",
 		"@fluidframework/server-routerlicious-base-previous": "npm:@fluidframework/server-routerlicious-base@7.0.0",
 		"@fluidframework/server-test-utils": "workspace:~",
+		"@microsoft/api-extractor": "^7.58.1",
 		"@types/body-parser": "^1.19.2",
 		"@types/bytes": "^3.0.0",
 		"@types/compression": "0.0.33",

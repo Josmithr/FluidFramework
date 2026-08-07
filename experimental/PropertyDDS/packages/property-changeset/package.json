@@ -32,6 +32,7 @@
 	],
 	"scripts": {
 		"build": "fluid-build . --task build",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:commonjs": "fluid-build . --task commonjs",
 		"build:compile": "fluid-build . --task compile",
 		"build:esnext": "tsc --project ./tsconfig.json",
@@ -41,6 +42,7 @@
 		"check:are-the-types-wrong": "attw --pack .",
 		"check:biome": "biome check .",
 		"check:format": "npm run check:biome",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"clean": "rimraf --glob dist lib \"**/*.tsbuildinfo\" \"**/*.build.log\" nyc",
 		"coverage": "npx nyc --silent --cwd --nycrc-path `pwd`/.nycrc npm run test",
 		"eslint": "eslint --quiet --format stylish src",
@@ -94,6 +96,7 @@
 		"@fluid-internal/mocha-test-setup": "workspace:~",
 		"@fluidframework/build-common": "^2.0.3",
 		"@fluidframework/build-tools": "catalog:buildTools",
+		"@microsoft/api-extractor": "7.58.1",
 		"@types/lodash": "^4.14.118",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "catalog:types",

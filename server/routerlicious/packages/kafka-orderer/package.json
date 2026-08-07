@@ -14,7 +14,9 @@
 	"types": "dist/index.d.ts",
 	"scripts": {
 		"build": "concurrently npm:build:compile npm:lint",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:compile": "npm run tsc && npm run typetests:gen",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"clean": "rimraf --glob dist lib \"**/*.tsbuildinfo\" \"**/*.build.log\"",
 		"eslint": "eslint --format stylish src",
 		"eslint:fix": "eslint --format stylish src --fix --fix-type problem,suggestion,layout",
@@ -36,6 +38,7 @@
 		"@fluidframework/build-tools": "^0.65.0",
 		"@fluidframework/eslint-config-fluid": "^9.0.0",
 		"@fluidframework/server-kafka-orderer-previous": "npm:@fluidframework/server-kafka-orderer@7.0.0",
+		"@microsoft/api-extractor": "^7.58.1",
 		"@types/node": "~22.19.17",
 		"concurrently": "^10.0.3",
 		"eslint": "~8.57.0",

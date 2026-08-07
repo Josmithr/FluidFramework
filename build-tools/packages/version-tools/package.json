@@ -14,6 +14,7 @@
 	"type": "commonjs",
 	"exports": {
 		".": {
+			"types": "./lib/index.d.ts",
 			"default": "./lib/index.js"
 		}
 	},
@@ -27,6 +28,7 @@
 	],
 	"scripts": {
 		"build": "fluid-build --task build",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:commonjs": "npm run tsc && npm run build:test",
 		"build:compile": "fluid-build --task compile",
 		"build:docs": "api-extractor run --local",
@@ -36,6 +38,7 @@
 		"check:biome": "biome check .",
 		"check:format": "npm run check:biome",
 		"check:inexactOptionalPropertyTypes": "tsc --project ./tsconfig.inexactOptionalPropertyTypes.json",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"ci:build:docs": "api-extractor run",
 		"clean": "rimraf --glob dist lib oclif.manifest.json \"**/*.tsbuildinfo\" \"**/*.build.log\" _api-extractor-temp nyc",
 		"clean:manifest": "rimraf --glob oclif.manifest.json",

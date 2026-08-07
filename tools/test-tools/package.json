@@ -17,8 +17,10 @@
 	},
 	"scripts": {
 		"build": "fluid-build --task build",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:compile": "fluid-build --task compile",
 		"build:test": "tsc --project ./src/test/tsconfig.json",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"clean": "rimraf --glob dist \"**/*.tsbuildinfo\" \"**/*.build.log\" nyc",
 		"eslint": "eslint src",
 		"eslint:fix": "eslint src --fix",
@@ -34,6 +36,7 @@
 		"@fluidframework/build-common": "^2.0.3",
 		"@fluidframework/build-tools": "^0.65.0",
 		"@fluidframework/eslint-config-fluid": "^9.0.0",
+		"@microsoft/api-extractor": "7.58.1",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "~22.19.17",
 		"eslint": "~9.39.1",

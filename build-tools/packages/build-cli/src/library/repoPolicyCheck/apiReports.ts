@@ -163,6 +163,26 @@ export function getRequiredReportEntrypoints(
 		}
 	}
 
+	const subpathEntrypoints = new Map<string, RequiredReportEntrypoint>();
+	for (const [declarationPath, exportPaths] of mapTypesPathToExportPaths) {
+		for (const { exportPath } of exportPaths) {
+			if (exportPath.startsWith("./internal/")) {
+				continue;
+			}
+			const channel = exportPath.replace(/^\.\//, "").replaceAll("/", ".");
+			if (channel.length > 0 && !subpathEntrypoints.has(channel)) {
+				subpathEntrypoints.set(channel, {
+					channel,
+					declarationPath,
+					level: "current.public",
+				});
+			}
+		}
+	}
+	if (subpathEntrypoints.size > 0) {
+		return [...subpathEntrypoints.values()];
+	}
+
 	throw new Error("package.json does not expose a reportable TypeScript entrypoint");
 }
 
@@ -208,6 +228,24 @@ function configMatchesEntrypoint(
 	return entrypoint.channel?.split(".").at(-1) === config.channel;
 }
 
+/**
+ * Resolves the API Extractor report configurations referenced by a package's CI scripts.
+ *
+ * @remarks
+ * Packages with multiple report families or channels expose direct
+ * `ci:build:api-reports:*` leaf scripts. When any leaf scripts exist, they are authoritative and
+ * the aggregate script is not parsed. A package with one report may instead invoke API Extractor
+ * directly from `ci:build:api-reports`; that configuration is treated as the default current
+ * report.
+ *
+ * Leaf script suffixes determine report metadata: a `legacy` segment selects the legacy family,
+ * and the remaining non-`current` segment identifies the channel. Each selected script must invoke
+ * API Extractor directly so its config path can be resolved without expanding package-manager or
+ * concurrency commands.
+ *
+ * @returns Resolved report metadata together with configuration or script-shape failures. A
+ * failure for one script does not prevent valid sibling scripts from being returned.
+ */
 function getReportConfigs(
 	packageJson: PackageJson,
 	packageDirectory: string,
@@ -217,9 +255,18 @@ function getReportConfigs(
 } {
 	const configs: ReportConfigMetadata[] = [];
 	const failures: CoverageFailure[] = [];
-	const directScripts = Object.entries(packageJson.scripts ?? {}).filter(([scriptName]) =>
+	const leafScripts = Object.entries(packageJson.scripts ?? {}).filter(([scriptName]) =>
 		scriptName.startsWith("ci:build:api-reports:"),
 	);
+	const aggregateCommand = packageJson.scripts?.["ci:build:api-reports"];
+	// Leaf scripts encode multiple families or channels and are therefore authoritative. Only use
+	// the aggregate as a config source when it is itself a direct, single-report command.
+	const directScripts =
+		leafScripts.length > 0
+			? leafScripts
+			: typeof aggregateCommand === "string" && aggregateCommand.includes("api-extractor run")
+				? [["ci:build:api-reports", aggregateCommand]]
+				: [];
 
 	if (directScripts.length === 0) {
 		failures.push({ kind: "missing-direct-script" });
@@ -235,7 +282,12 @@ function getReportConfigs(
 			continue;
 		}
 
-		const suffix = scriptName.slice("ci:build:api-reports:".length).split(":");
+		// The aggregate has no suffix and defaults to current. For leaf scripts, reserved segments
+		// select the family while the remaining segment associates the config with an API channel.
+		const suffix = scriptName
+			.slice("ci:build:api-reports".length)
+			.split(":")
+			.filter((part) => part.length > 0);
 		const family = suffix.includes("legacy") ? "legacy" : "current";
 		const channel = suffix.find((part) => part !== "current" && part !== "legacy");
 		const configPath = path.resolve(packageDirectory, getApiExtractorConfigFilePath(command));

@@ -1,0 +1,9 @@
+{
+	"$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+	"extends": "<projectFolder>/../../../common/build/build-common/api-extractor-report.esm.current.compatibility.json",
+	"mainEntryPointFilePath": "<projectFolder>/lib/workspace/index.d.ts",
+	"apiReport": {
+		"reportFileName": "presence-runtime.workspace.api.md",
+		"reportVariants": ["public"]
+	}
+}

@@ -1,0 +1,25 @@
+{
+	"$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+	"extends": "./api-extractor-report.esm.current.json",
+	"messages": {
+		"extractorMessageReporting": {
+			"ae-incompatible-release-tags": {
+				"logLevel": "none"
+			},
+			"ae-missing-getter": {
+				"logLevel": "none"
+			},
+			"ae-missing-release-tag": {
+				"logLevel": "none"
+			},
+			"ae-unresolved-inheritdoc-reference": {
+				"logLevel": "none"
+			}
+		},
+		"tsdocMessageReporting": {
+			"default": {
+				"logLevel": "none"
+			}
+		}
+	}
+}

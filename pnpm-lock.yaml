@@ -6534,6 +6534,9 @@ importers:
       '@fluidframework/build-tools':
         specifier: catalog:buildTools
         version: 0.65.0(@types/node@22.19.17)(supports-color@10.2.2)
+      '@microsoft/api-extractor':
+        specifier: 7.58.1
+        version: 7.58.1(patch_hash=949a26f6cec9ac4e37522f178b8e4982136ccfeb8c6d0835130ef2aa6788f4fa)(@types/node@22.19.17)
       '@types/lodash':
         specifier: ^4.14.118
         version: 4.17.13

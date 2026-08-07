@@ -13,6 +13,7 @@
 	"type": "module",
 	"exports": {
 		".": {
+			"types": "./lib/index.d.ts",
 			"default": "./lib/index.js"
 		}
 	},
@@ -27,6 +28,7 @@
 	],
 	"scripts": {
 		"build": "fluid-build --task build",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:compile": "fluid-build --task compile",
 		"build:docs": "api-extractor run --local",
 		"build:manifest": "oclif manifest",
@@ -35,6 +37,7 @@
 		"check:biome": "biome check .",
 		"check:format": "npm run check:biome",
 		"check:inexactOptionalPropertyTypes": "tsc --project ./tsconfig.inexactOptionalPropertyTypes.json",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"clean": "rimraf --glob dist lib \"**/*.tsbuildinfo\" \"**/*.build.log\" nyc _api-extractor-temp",
 		"compile": "fluid-build . --task compile",
 		"eslint": "eslint --quiet --format stylish src",

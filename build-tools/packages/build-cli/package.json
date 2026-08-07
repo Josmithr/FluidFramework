@@ -14,9 +14,11 @@
 	"type": "module",
 	"exports": {
 		".": {
+			"types": "./lib/index.d.ts",
 			"default": "./lib/index.js"
 		},
 		"./policy": {
+			"types": "./lib/library/repoPolicyCheck/index.d.ts",
 			"default": "./lib/library/repoPolicyCheck/index.js"
 		}
 	},
@@ -31,6 +33,7 @@
 	],
 	"scripts": {
 		"build": "fluid-build --task build",
+		"build:api-reports": "api-extractor run --local --config api-extractor/api-extractor-report.json",
 		"build:compile": "fluid-build --task compile",
 		"build:copy": "copyfiles -u 1 \"src/**/*.fsl\" \"src/test/**/fixtures/**/*\" \"src/library/buildPerf/templates/*\" lib",
 		"build:diagrams": "jssm-viz -i \"./src/machines/*.fsl\"",
@@ -41,6 +44,7 @@
 		"check:biome": "biome check .",
 		"check:format": "npm run check:biome",
 		"check:inexactOptionalPropertyTypes": "tsc --project ./tsconfig.inexactOptionalPropertyTypes.json",
+		"ci:build:api-reports": "api-extractor run --config api-extractor/api-extractor-report.json",
 		"ci:build:docs": "api-extractor run",
 		"clean": "rimraf --glob dist lib oclif.manifest.json \"**/*.tsbuildinfo\" \"**/*.build.log\" _api-extractor-temp nyc",
 		"clean:manifest": "rimraf --glob oclif.manifest.json",

@@ -116,6 +116,32 @@ describe("API report entrypoint discovery", () => {
 		]);
 	});
 
+	it("uses non-internal typed subpaths as public channels when no root is exported", () => {
+		const packageJson = {
+			exports: {
+				"./states": {
+					import: { types: "./lib/states/index.d.ts" },
+					require: { types: "./dist/states/index.d.ts" },
+				},
+				"./workspace": { types: "./lib/workspace/index.d.ts" },
+				"./internal/protocol": { types: "./lib/runtime/protocol.d.ts" },
+			},
+		};
+
+		assert.deepEqual(getRequiredReportEntrypoints(packageJson), [
+			{
+				channel: "states",
+				declarationPath: "./lib/states/index.d.ts",
+				level: "current.public",
+			},
+			{
+				channel: "workspace",
+				declarationPath: "./lib/workspace/index.d.ts",
+				level: "current.public",
+			},
+		]);
+	});
+
 	it("rejects exports without a reportable declaration", () => {
 		assert.throws(
 			() =>
@@ -179,8 +205,7 @@ describe("API report coverage policy", () => {
 				scripts: {
 					"build:api-reports":
 						"api-extractor run --local --config api-extractor/api-extractor-report.json",
-					"ci:build:api-reports": "npm run ci:build:api-reports:current",
-					"ci:build:api-reports:current":
+					"ci:build:api-reports":
 						"api-extractor run --config api-extractor/api-extractor-report.json",
 				},
 			}),

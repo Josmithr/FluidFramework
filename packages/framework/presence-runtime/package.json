@@ -24,16 +24,34 @@
 			}
 		},
 		"./extension": {
-			"import": "./lib/runtime/extension/index.js",
-			"require": "./dist/runtime/extension/index.js"
+			"import": {
+				"types": "./lib/runtime/extension/index.d.ts",
+				"default": "./lib/runtime/extension/index.js"
+			},
+			"require": {
+				"types": "./dist/runtime/extension/index.d.ts",
+				"default": "./dist/runtime/extension/index.js"
+			}
 		},
 		"./utils": {
-			"import": "./lib/utils/index.js",
-			"require": "./dist/utils/index.js"
+			"import": {
+				"types": "./lib/utils/index.d.ts",
+				"default": "./lib/utils/index.js"
+			},
+			"require": {
+				"types": "./dist/utils/index.d.ts",
+				"default": "./dist/utils/index.js"
+			}
 		},
 		"./workspace": {
-			"import": "./lib/workspace/index.js",
-			"require": "./dist/workspace/index.js"
+			"import": {
+				"types": "./lib/workspace/index.d.ts",
+				"default": "./lib/workspace/index.js"
+			},
+			"require": {
+				"types": "./dist/workspace/index.d.ts",
+				"default": "./dist/workspace/index.js"
+			}
 		},
 		"./internal/protocol": {
 			"allow-ff-test-exports": {
@@ -63,6 +81,11 @@
 	],
 	"scripts": {
 		"build": "fluid-build . --task build",
+		"build:api-reports": "concurrently \"npm:build:api-reports:*\"",
+		"build:api-reports:extension:current": "api-extractor run --local --config api-extractor/api-extractor-report-extension.json",
+		"build:api-reports:states:current": "api-extractor run --local --config api-extractor/api-extractor-report-states.json",
+		"build:api-reports:utils:current": "api-extractor run --local --config api-extractor/api-extractor-report-utils.json",
+		"build:api-reports:workspace:current": "api-extractor run --local --config api-extractor/api-extractor-report-workspace.json",
 		"build:commonjs": "fluid-build . --task commonjs",
 		"build:compile": "fluid-build . --task compile",
 		"build:esnext": "tsc --project ./tsconfig.esm.json",
@@ -77,6 +100,11 @@
 		"check:exports:states:cjs": "api-extractor run --config api-extractor/api-extractor-lint-states.cjs.json",
 		"check:exports:states:esm": "api-extractor run --config api-extractor/api-extractor-lint-states.esm.json",
 		"check:format": "npm run check:biome",
+		"ci:build:api-reports": "concurrently \"npm:ci:build:api-reports:*\"",
+		"ci:build:api-reports:extension:current": "api-extractor run --config api-extractor/api-extractor-report-extension.json",
+		"ci:build:api-reports:states:current": "api-extractor run --config api-extractor/api-extractor-report-states.json",
+		"ci:build:api-reports:utils:current": "api-extractor run --config api-extractor/api-extractor-report-utils.json",
+		"ci:build:api-reports:workspace:current": "api-extractor run --config api-extractor/api-extractor-report-workspace.json",
 		"clean": "rimraf --glob dist lib \"**/*.tsbuildinfo\" \"**/*.build.log\" _api-extractor-temp nyc",
 		"eslint": "eslint --quiet --format stylish src",
 		"eslint:fix": "eslint --quiet --format stylish src --fix --fix-type problem,suggestion,layout",
