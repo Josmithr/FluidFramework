@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { handler as apiReportHandler } from "./apiReports.js";
 import type { Handler } from "./common.js";
 import { handlers as copyrightFileHeaderHandlers } from "./copyrightFileHeader.js";
 import { handler as dockerfilePackageHandler } from "./dockerfilePackages.js";
@@ -20,6 +21,7 @@ import { handler as yamlTabsHandler } from "./spacesOverTabsInYaml.js";
 export const policyHandlers: Handler[] = [
 	...copyrightFileHeaderHandlers,
 	...npmPackageContentsHandlers,
+	apiReportHandler,
 	dockerfilePackageHandler,
 	fluidCaseHandler,
 	...lockfileHandlers,

@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed. This document is intended for design review before implementation.
+Implemented on `tools/reduce-api-reports`. This document records the design and implementation
+decisions for future maintenance.
 
 ## Summary
 
@@ -16,7 +17,7 @@ release levels referenced by package declaration metadata ⊆ configured API rep
 configured API report levels with checked-in report files ⊆ release levels referenced by package declaration metadata
 ```
 
-The missing-report direction is the implementation priority. Extraneous configured variants and report files should also be diagnosed, but may be delivered as a follow-up phase if implementing both directions together would delay missing-report enforcement.
+The missing-report direction was the implementation priority. The implementation also diagnoses extraneous configured variants and conservatively recognized stale report files.
 
 The policy should derive required release levels independently from API Extractor report configuration. This is necessary because the defect being prevented is adding an entrypoint rollup without updating report configuration.
 
@@ -77,7 +78,7 @@ A dedicated module is preferable to adding more logic to `npmPackages.ts` becaus
 - The existing `npm-package-exports-apis-linted` policy validates API lint configuration, not generated review artifacts.
 - The package policy test suite currently has little coverage, so exported pure helpers in a focused module will be easier to test.
 
-Static API Extractor config resolution should be implemented as a shared build-cli utility rather than embedded in the policy module. The policy remains its first consumer, but inheritance, token handling, and effective API report settings are general API Extractor concerns and should not need to be reimplemented by future commands or policies.
+API Extractor configuration loading should be exposed through a small shared build-cli wrapper rather than embedded in the policy module. The wrapper must use API Extractor's public configuration APIs so inheritance, schema validation, defaults, token handling, and effective report filenames retain upstream semantics.
 
 ## Policy Scope
 
@@ -173,21 +174,21 @@ Missing report scripts are a policy failure, not a scope exclusion. The aggregat
 
 Classify a report command as legacy when its script name contains a `legacy` segment. Other report commands are current. Script names may contain additional channel segments, such as `browser` or `node`.
 
-For each config, statically resolve its JSON5 `extends` chain and merge only the API report properties needed by this policy:
+For each config, call `ExtractorConfig.loadFile()` to parse JSON5, resolve its `extends` chain, merge defaults, and validate the schema. Then call `ExtractorConfig.prepare()` with `ignoreMissingEntryPoint: true` to expand tokens and compute effective report metadata:
 
 - `apiReport.enabled`
 - `apiReport.reportFolder`
-- `apiReport.reportFileName`
-- `apiReport.reportVariants`
+- `reportConfigs`, including each final filename and variant
 
-Resolution must support:
+The wrapper relies on API Extractor for:
 
 - Config-relative `extends` paths.
 - `<projectFolder>` substitution.
 - `<unscopedPackageName>` substitution.
 - Leaf properties overriding inherited properties.
+- API Extractor defaults and schema validation.
 
-Do not use `ExtractorConfig.loadFileAndPrepare()`. That API validates `mainEntryPointFilePath` and can fail before `lib/` or `dist/` has been built. Policy-check must be independent of generated declaration files.
+Do not use `ExtractorConfig.loadFileAndPrepare()`, which does not expose preparation options. Calling `loadFile()` and `prepare()` separately allows `ignoreMissingEntryPoint: true`, API Extractor's supported mode for preparing an unbuilt project. Other configuration validation remains enabled.
 
 If an `extends` target cannot be read or parsed, return a policy error identifying the config and the resolution failure.
 
@@ -222,7 +223,7 @@ For each in-scope package:
 
 1. Derive the required `ReportLevel` set independently from entrypoint generation.
 2. Verify the aggregate and direct CI report scripts exist.
-3. Discover and statically resolve current and legacy report configs.
+3. Discover and prepare current and legacy report configs through API Extractor's public API.
 4. For each required declaration channel and level:
     1. Find its associated config in the corresponding current or legacy family.
     2. Verify the config's effective `reportVariants` includes the required variant.
@@ -281,7 +282,7 @@ Extraneous coverage has two forms:
 - A configured report variant has no matching declaration channel and level.
 - A checked-in `.api.md` file in a package's effective report folder is not an expected output of any required configured variant.
 
-The first form is authoritative and should be implemented first. File-only detection must be constrained to effective report folders and recognized report filename patterns so unrelated Markdown is never flagged. Diagnostics for extraneous coverage should recommend removing the obsolete variant from the package-owned leaf config and deleting the stale generated report; `--fix` should not perform either removal because report deletion is destructive and may reveal ambiguous shared-config ownership.
+The first form is authoritative. File-only detection is constrained to each effective report basename combined with the `public`, `beta`, and `alpha` suffixes, so unrelated Markdown is never flagged. Diagnostics for extraneous coverage recommend removing the obsolete variant from the package-owned leaf config and deleting the stale generated report; `--fix` does not perform either removal because report deletion is destructive and may reveal ambiguous shared-config ownership.
 
 ## Diagnostics
 
@@ -360,7 +361,7 @@ The policy should fail with a targeted diagnostic when:
 - A required variant is not configured.
 - A required report file is absent.
 
-The policy should not read or validate `mainEntryPointFilePath`, since declarations may not exist yet.
+The policy allows API Extractor to validate the `mainEntryPointFilePath` setting but disables only its filesystem existence check, since declarations may not exist yet.
 
 ## Performance
 
@@ -370,10 +371,8 @@ Expected work per package is small:
 
 - Parse one package manifest.
 - Traverse a small `exports` object or inspect one top-level declaration target.
-- Resolve one or two short config inheritance chains.
+- Load and prepare one or two short config inheritance chains.
 - Perform several file existence checks.
-
-Cache statically resolved shared configs by absolute path because most packages extend the same files in `common/build/build-common`. Cache entries should contain unresolved tokenized values, with project-specific token substitution applied after retrieval.
 
 No subprocesses or TypeScript builds are required.
 
@@ -405,7 +404,7 @@ Add focused unit tests using temporary package directories and small JSON5 fixtu
 ### Config resolution
 
 - Config-relative inheritance works.
-- `<projectFolder>` inheritance works.
+- `<projectFolder>` token expansion works.
 - Leaf `reportVariants` override inherited variants.
 - Current and legacy config families are separated.
 - Bare and `.api.md` report base names are normalized.
@@ -452,19 +451,25 @@ Add an integration-style test or validation command that runs only this handler 
 pnpm flub check policy --handler npm-package-api-reports-match-entrypoints
 ```
 
-At the time of this design, the workspace contains 100 non-private packages. Of those, 87 have direct API report tasks and 13 do not. Ten do not expose reportable declaration metadata under the rules above. These groups overlap: 15 distinct packages require remediation by adding report support, publishing an explicit declaration target, or being marked private. The 87 non-private report-producing packages currently use 136 report configs and produce 164 distinct report artifacts.
+The initial inventory covered the client pnpm workspace: 100 non-private packages, of which 87 have direct API report tasks and 13 do not. Ten do not expose reportable declaration metadata under the rules above. These groups overlap, leaving 15 client-workspace packages requiring remediation.
+
+Repository policy-check traverses all tracked package manifests, including independent common, server, and tools workspaces. The first production policy run therefore found 62 non-private packages with failures: 59 without aggregate/direct report scripts, 27 without reportable declaration metadata, and 36 with declaration rollups but no matching report config family. It also found three extraneous configured variants and their three stale report files. These categories overlap.
+
+This broader result is rollout debt rather than a reason to weaken the handler's `private !== true` scope. Existing packages must add report support and explicit declaration metadata, be marked private where publication is unintended, or receive explicit temporary handler exclusions while they are migrated. Broad directory exclusions would allow new publishable packages to bypass the policy and should not be used.
+
+The handler is activated repository-wide with package-specific temporary exclusions in `fluidBuild.config.cjs` for this existing debt. The only grouped exclusion covers synthetic manifests under the build-infrastructure test fixture directory, which are not repository packages. This makes policy-check pass while continuing to enforce every conforming package and every newly added package. Each package exclusion should be removed in the same change that remediates that package.
 
 ## Proposed Implementation Sequence
 
 1. Add pure helpers that collect declaration targets from `exports` or `types`/`typings` metadata.
 2. Add declaration-filename classification and channel extraction.
-3. Add shared static JSON5 API Extractor config inheritance resolution outside the policy module.
+3. Add a shared wrapper around API Extractor's public config loading and preparation APIs.
 4. Add report path computation and missing-coverage validation.
 5. Add targeted JSON5 leaf-config editing and safe target selection.
 6. Add the package policy handler and resolver, then register them.
 7. Add unit tests for metadata precedence, filename classification, custom channels, and resolver cases.
 8. Add authoritative extraneous-config-variant validation.
-9. Add conservative stale-report-file validation, either in the initial implementation or as a follow-up phase.
+9. Add conservative stale-report-file validation.
 10. Run the targeted policy against the repository in check and fix modes.
 11. Run build-cli tests, Biome, and the repository-wide policy check.
 
@@ -472,6 +477,17 @@ At the time of this design, the workspace contains 100 non-private packages. Of 
 
 - Coverage is bidirectional, but missing reports take implementation priority over extraneous reports.
 - Every declaration channel must have an associated config. Identical final report paths across channels are deduplicated; distinct paths must all exist.
-- Static API Extractor config resolution will be a shared build-cli utility rather than policy-local code.
+- API Extractor config loading and preparation will be a shared build-cli utility rather than policy-local code.
 
-No design questions currently block implementation.
+No design questions remain open.
+
+## Implementation Notes
+
+- Declaration discovery and policy handling are implemented in `apiReports.ts`.
+- `apiExtractorConfig.ts` wraps the public `ExtractorConfig.loadFile()` and `ExtractorConfig.prepare()` APIs and returns only the prepared report metadata needed by the policy.
+- Preparation uses `ignoreMissingEntryPoint: true`. This preserves API Extractor's schema, inheritance, defaults, token expansion, path, package, and tsconfig validation while permitting declaration output to be absent.
+- API Extractor's public `ApiReportVariant` type includes `complete`; the policy derives a narrower type excluding `complete` because declaration release-level coverage concerns only public, beta, and alpha variants.
+- The fixer uses a targeted edit for an existing `reportVariants` array or inserts a local override into an existing `apiReport` object. It refuses config shapes that would require a broad rewrite.
+- Stale report discovery does not enumerate arbitrary Markdown. It probes only recognized variant filenames derived from effective report folders and basenames.
+- ESM and CommonJS declaration paths are deduplicated by logical `(channel, report level)`, not by physical `lib` or `dist` path.
+- The initial repository activation processed 9,885 files successfully after applying exact temporary exclusions for existing rollout debt.
