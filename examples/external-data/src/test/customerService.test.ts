@@ -123,7 +123,10 @@ const initializeMockFluidService = (localServiceApp: express.Express): express.E
  * These tests spin up their own Express server instances so we can directly test against it
  * (using supertest), rather than leaning on network calls.
  */
-describe("mock-customer-service", () => {
+describe("mock-customer-service", function () {
+	// These tests require a bit more time to run, so we increase the timeout for this suite.
+	this.timeout(10000);
+
 	/**
 	 * Express server instance backing our mock external data service.
 	 */
@@ -284,10 +287,7 @@ describe("mock-customer-service", () => {
 		}
 	});
 
-	it("events-listener: Complete data flow for session-end event", async function () {
-		// Leave enough time for two bounded webhook waits and the non-delivery window.
-		this.timeout(10000);
-
+	it("events-listener: Complete data flow for session-end event", async () => {
 		// Set up mock local Fluid service, which will be registered as webhook listener
 		const localServiceApp = initializeMockFluidService(express());
 		const tenantId = "tinylicious";
