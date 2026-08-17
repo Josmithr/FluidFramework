@@ -18,7 +18,7 @@ import {
 import { externalDataServicePort } from "../mock-external-data-service-interface/index.js";
 import { type ITaskData, assertValidTaskData } from "../model-interface/index.js";
 
-import { closeServer, delay } from "./utilities.js";
+import { closeServer, waitForCondition } from "./utilities.js";
 
 const externalTaskListId = "task-list-1";
 
@@ -311,8 +311,10 @@ describe("mock-external-data-service: webhook", () => {
 				`Data update failed. Code: ${dataUpdateResponse.status}.`,
 			);
 
-			// Delay for a bit to ensure time enough for our webhook listener to have been called.
-			await delay(1000);
+			await waitForCondition(
+				() => wasHookNotifiedForChange,
+				"the external data webhook notification",
+			);
 
 			// Verify our listener was notified of data change.
 			assert.equal(wasHookNotifiedForChange, true);

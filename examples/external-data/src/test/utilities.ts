@@ -23,7 +23,23 @@ export async function closeServer(server: Server): Promise<void> {
 /**
  * Returns a promise that resolves after `timeMs`.
  * @param timeMs - Time in milliseconds to wait.
- * @internal
  */
 export const delay = async (timeMs: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(() => resolve(), timeMs));
+
+/**
+ * Waits until a condition is true or the timeout expires.
+ */
+export async function waitForCondition(
+	condition: () => boolean,
+	description: string,
+	timeoutMs = 2000,
+): Promise<void> {
+	const timeoutAt = Date.now() + timeoutMs;
+	while (!condition()) {
+		if (Date.now() >= timeoutAt) {
+			throw new Error(`Timed out waiting for ${description}`);
+		}
+		await delay(10);
+	}
+}
