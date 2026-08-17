@@ -29,6 +29,9 @@ export const delay = async (timeMs: number): Promise<void> =>
 
 /**
  * Waits until a condition is true or the timeout expires.
+ * @param condition - The condition to poll.
+ * @param description - A description of the condition included in the timeout error.
+ * @param timeoutMs - The maximum time to wait in milliseconds. Defaults to 2000 milliseconds.
  */
 export async function waitForCondition(
 	condition: () => boolean,
