@@ -141,6 +141,7 @@ stages:
               # Sets variable shouldDeploy to true if the version is the latest minor and false otherwise
               # Sets variable majorVersion to the major version extracted from $(SetVersion.version)
               flub check latestVersions $VERSION_TRIMMED client
+              echo "##vso[task.setvariable variable=artifactVersion;isOutput=true]$VERSION_TRIMMED"
 
     - deployment: upload_json
       displayName: 'Combine api-extractor JSON'
@@ -150,6 +151,7 @@ stages:
       variables:
         isLatestMinorOfMajorTrain: $[ dependencies.check_branch_version.outputs['SetShouldDeploy.shouldDeploy'] ]
         majorVersion: $[ dependencies.check_branch_version.outputs['SetShouldDeploy.majorVersion'] ]
+        artifactVersion: $[ dependencies.check_branch_version.outputs['SetShouldDeploy.artifactVersion'] ]
       strategy:
         runOnce:
           deploy:
@@ -189,6 +191,48 @@ stages:
                   OverWrite: false
                   flattenFolders: true
                   CleanTargetFolder: true
+
+              - task: Bash@3
+                displayName: 'Generate API model manifest'
+                env:
+                  API_MODEL_VERSION: $(artifactVersion)
+                  BUILD_ID: $(Build.BuildId)
+                  BUILD_NUMBER: $(Build.BuildNumber)
+                  FLUID_FRAMEWORK_DIRECTORY: ${{ variables.FluidFrameworkDirectory }}
+                  PIPELINE_WORKSPACE: $(Pipeline.Workspace)
+                  SOURCE_BRANCH: $(Build.SourceBranch)
+                  SOURCE_COMMIT: $(Build.SourceVersion)
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    node --input-type=module <<'EOF'
+                    import fs from "node:fs";
+                    import path from "node:path";
+
+                    const outputDirectory = path.join(
+                      process.env.PIPELINE_WORKSPACE,
+                      process.env.FLUID_FRAMEWORK_DIRECTORY,
+                      "_api-extractor-temp",
+                    );
+                    const manifest = {
+                      manifestVersion: 1,
+                      releaseGroup: "client",
+                      version: process.env.API_MODEL_VERSION,
+                      modelCount: fs
+                        .readdirSync(outputDirectory)
+                        .filter((name) => name.endsWith(".api.json")).length,
+                      createdAt: new Date().toISOString(),
+                      publication: {
+                        sourceBranch: process.env.SOURCE_BRANCH,
+                        sourceCommit: process.env.SOURCE_COMMIT,
+                        buildId: process.env.BUILD_ID,
+                        buildNumber: process.env.BUILD_NUMBER,
+                      },
+                    };
+                    const outputPath = path.join(outputDirectory, "api-model-manifest.json");
+                    fs.writeFileSync(outputPath, `${JSON.stringify(manifest, undefined, 2)}\n`);
+                    console.log(`API model manifest written to ${outputPath}`);
+                    EOF
 
               - task: PublishPipelineArtifact@1
                 displayName: 'Publish api-extractor JSON'

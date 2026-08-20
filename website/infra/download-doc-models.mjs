@@ -15,6 +15,8 @@ import chalk from "chalk";
 import { download } from "dill-cli";
 import fs from "fs-extra";
 
+import { logApiModelManifest } from "./api-model-manifest.mjs";
+
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const versions = ["1", "2"];
@@ -45,6 +47,7 @@ try {
 
 			// Download the artifacts
 			await download(url, { downloadDir: destination, extract: true });
+			await logApiModelManifest(destination, version);
 		}),
 	);
 } catch (error) {
