@@ -6,9 +6,29 @@
 "use strict";
 
 /**
- * Mocha loads this module after jsdom creates the browser environment. This module supplies
- * browser APIs that jsdom does not implement and removes rendered components after each test.
+ * Mocha loads this module before it loads the tests. This module creates the jsdom environment,
+ * supplies browser APIs that jsdom does not implement, and releases test resources.
  */
+
+const globalJsdom = require("global-jsdom");
+
+const NativeMessageChannel = globalThis.MessageChannel;
+const cleanupJsdom = globalJsdom();
+const jsdom = globalThis.$jsdom;
+
+/**
+ * Browsers do not use message ports to control process lifetime. Node.js does. Unreference ports
+ * so browser-oriented schedulers do not keep Mocha active after the tests finish.
+ */
+globalThis.MessageChannel = class MessageChannel extends NativeMessageChannel {
+	constructor() {
+		super();
+		queueMicrotask(() => {
+			this.port1.unref();
+			this.port2.unref();
+		});
+	}
+};
 
 const { cleanup } = require("@testing-library/react");
 
@@ -60,5 +80,11 @@ exports.mochaHooks = {
 	afterEach() {
 		// Remove components and event handlers that the test rendered in the document.
 		cleanup();
+	},
+	afterAll() {
+		/** Close the window to stop its timers and event listeners. Then remove the jsdom globals. */
+		jsdom.window.close();
+		cleanupJsdom();
+		globalThis.MessageChannel = NativeMessageChannel;
 	},
 };

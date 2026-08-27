@@ -7,9 +7,4 @@
 
 const getFluidTestMochaConfig = require("@fluid-internal/mocha-test-setup/mocharc-common");
 
-const config = getFluidTestMochaConfig(__dirname, [
-	"global-jsdom/register",
-	"./test-setup.cjs",
-]);
-
-module.exports = config;
+module.exports = getFluidTestMochaConfig(__dirname, ["./test-setup.cjs"]);
