@@ -60,9 +60,9 @@ describe("OpLatencyView component tests", () => {
 		assert.match(opLatencyHeaderElement.tagName, /h[1-6]/i);
 
 		// Confirm the rechart graph was rendered
-		const dynamicComposedChartElement = await within(opLatencyMainContainerElement).findByTestId(
-			"test-dynamic-composed-chart",
-		);
+		const dynamicComposedChartElement = await within(
+			opLatencyMainContainerElement,
+		).findByTestId("test-dynamic-composed-chart");
 		assert.ok(dynamicComposedChartElement);
 
 		// Confirm helper text header exists

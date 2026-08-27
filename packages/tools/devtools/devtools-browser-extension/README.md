@@ -7,8 +7,8 @@ It is currently compatible with [Chromium](https://www.chromium.org/Home/)-based
 
 ## Artifacts
 
--   Chrome browser extension: <https://aka.ms/fluid/devtool/chrome>
--   Edge browser extension: <https://aka.ms/fluid/devtool/edge>
+- Chrome browser extension: <https://aka.ms/fluid/devtool/chrome>
+- Edge browser extension: <https://aka.ms/fluid/devtool/edge>
 
 Note: this package does not generate any library artifacts, so it is marked as `private` in its `package.json`.
 
@@ -30,14 +30,14 @@ These details are covered by the above articles, but they are a bit obfuscated, 
 
 Background notes:
 
--   The `Background Script` is launched alongside the browser itself and runs for its lifetime.
-    -   When run, it establishes a listener to be notified by the `Devtools Script` when the Devtools view is launched and needs to begin communicating with the tab (associated webpage).
-    -   A single instance of this script is always running, and is responsible for pairing **all Devtools views** with **all associated webpages**.
--   The `Content Script` is launched alongside the webpage (specifically, it is injected into the webpage when the webpage is launched).
--   When run, it establishes a listener to be notified by the `Background Script` when it should begin relaying messages between the `Background Script` and the webpage (e.g. when the Devtools view is opened by the user).
--   A single instance of this script is injected into **each open tab**, and is responsible only for bridging communication between that tab and the singular `Background Script` service worker.
--   The `Devtools Script` is launched when the user opens our extension view in the browser's devtools panel.
--   When run, it establishes a connection with the `Background Script`, requesting that a connection be established such that information can flow from the `Content Script` injected into the tab (associated webpage) to the `Devtools Script` using the `Background Script` as a bridge.
+- The `Background Script` is launched alongside the browser itself and runs for its lifetime.
+  - When run, it establishes a listener to be notified by the `Devtools Script` when the Devtools view is launched and needs to begin communicating with the tab (associated webpage).
+  - A single instance of this script is always running, and is responsible for pairing **all Devtools views** with **all associated webpages**.
+- The `Content Script` is launched alongside the webpage (specifically, it is injected into the webpage when the webpage is launched).
+- When run, it establishes a listener to be notified by the `Background Script` when it should begin relaying messages between the `Background Script` and the webpage (e.g. when the Devtools view is opened by the user).
+- A single instance of this script is injected into **each open tab**, and is responsible only for bridging communication between that tab and the singular `Background Script` service worker.
+- The `Devtools Script` is launched when the user opens our extension view in the browser's devtools panel.
+- When run, it establishes a connection with the `Background Script`, requesting that a connection be established such that information can flow from the `Content Script` injected into the tab (associated webpage) to the `Devtools Script` using the `Background Script` as a bridge.
 
 What does this look like in terms of user flow?
 
@@ -92,8 +92,8 @@ To run just the unit tests, run `npm run test:mocha` in a terminal from the root
 
 ##### End-To-End Tests
 
-This package uses [jest](https://jestjs.io/) and a small backing test app to test end-to-end scenarios in a browser environment.
-To run the automated end-to-end tests, run `npm run test:jest` in a terminal from the root directory of this package.
+This package uses [Playwright](https://playwright.dev/) and a small test app to test end-to-end scenarios in a browser.
+To run the end-to-end tests, run `npm run test:playwright` from the root directory of this package.
 
 #### Local Extension Testing
 
@@ -102,9 +102,9 @@ To use a local build of this extension in your browser:
 1. Build webpack of this package using `npm run build:webpack`.
    Your extension files should be generated under the build output directory (`dist/bundle`) in this package directory.
 2. Load the unpacked extension in the browser by following [these instructions](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked).
-    - For [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/about) users, your Linux files should be at a \\wsl$ path.
-      In File Explorer or any other Windows application that can browse files, navigate to the path: \\wsl$.
-    - If you are working in a [Codespace](https://code.visualstudio.com/docs/remote/codespaces) with Visual Studio Code, you can download the build artifacts by right-clicking on `dist/bundle` in the `Explorer` view and clicking `download`. This will download the files to your local machine, which you can upload to the browser.
+   - For [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/about) users, your Linux files should be at a \\wsl$ path.
+     In File Explorer or any other Windows application that can browse files, navigate to the path: \\wsl$.
+   - If you are working in a [Codespace](https://code.visualstudio.com/docs/remote/codespaces) with Visual Studio Code, you can download the build artifacts by right-clicking on `dist/bundle` in the `Explorer` view and clicking `download`. This will download the files to your local machine, which you can upload to the browser.
 
 #### Sending local usage data to Kusto
 
