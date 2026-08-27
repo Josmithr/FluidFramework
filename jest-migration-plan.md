@@ -159,23 +159,25 @@ Start this phase only after no workspace package defines a `test:jest` script.
 
 ## Phase 6: Final Validation
 
-- [ ] Build each migrated package from a clean output directory.
+- [x] Build each migrated package from a clean output directory.
 - [x] Run the focused test command for each migrated package.
-- [ ] Run the repository-level Mocha test orchestration for the affected packages.
-- [ ] Run the repository-level Playwright test orchestration if `common-utils` retains browser tests.
-- [ ] Run lint and formatting checks for all changed files.
-- [ ] Run the relevant policy checks for all changed packages.
-- [ ] Confirm that test result and coverage artifacts still use the paths expected by continuous integration.
+- [x] Run the repository-level Mocha test orchestration for the affected packages.
+- [x] Run the repository-level Playwright test orchestration for `common-utils`.
+- [x] Run lint and formatting checks for all changed files.
+- [x] Run the relevant policy checks for all changed packages.
+- [x] Confirm that test result and coverage artifacts still use the paths expected by continuous integration.
 - [x] Confirm that no test count was lost without an explicit retirement decision.
 - [x] Search the repository for remaining active Jest usage.
 - [x] Confirm that remaining `jest` strings, if any, occur only in historical test data or unavoidable transitive lockfile entries.
-- [ ] Run the CI readiness check before pushing the completed migration.
+- [x] Run the CI readiness check before pushing the completed migration.
 
 Current validation status:
 
-- `app-insights-logger`: 1 Mocha test passes. Build, lint, and formatting checks pass.
-- `devtools-view`: 28 tests pass in both ECMAScript module and CommonJS output. Compile, test build, and Biome checks pass. ESLint still reports seven `@typescript-eslint/strict-boolean-expressions` errors in `DynamicComposedChart.test.tsx` and `OpLatencyView.test.tsx`.
-- `common-utils`: 65 Mocha tests and 7 Playwright tests pass. Build, lint, and formatting checks pass.
+- `app-insights-logger`: 1 Mocha test passes after a clean build. Lint and formatting checks pass.
+- `devtools-view`: 28 tests pass in both ECMAScript module and CommonJS output after a clean build. ESLint and Biome checks pass.
+- `common-utils`: 65 Mocha tests and 7 Playwright tests pass after a clean build. ESLint and Prettier checks pass.
+- The CI readiness script passes for all eight changed packages. All eight package policy checks pass. No public API changed, so this migration does not require API report or type-test regeneration.
+- A broader changed-package Mocha run fails in an unrelated `@fluid-tools/build-cli` Git-tag test. The migrated package tests pass in the same run.
 
 ## Completion Criteria
 
