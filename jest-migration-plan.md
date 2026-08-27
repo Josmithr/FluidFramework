@@ -12,7 +12,7 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 
 ## Current Scope
 
-- [ ] Migrate `@fluidframework/common-utils` in `common/lib/common-utils`.
+- [x] Migrate `@fluidframework/common-utils` in `common/lib/common-utils`.
 - [x] Migrate `@fluid-example/app-insights-logger` in `examples/client-logger/app-insights-logger`.
 - [ ] Migrate `@fluid-internal/devtools-view` in `packages/tools/devtools/devtools-view`.
 - [ ] Remove repository-level Jest orchestration after all package migrations are complete.
@@ -21,7 +21,7 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 
 - [ ] Run the current Jest tests for each package and record any existing failures.
 - [ ] Record the current test counts:
-  - [ ] `@fluidframework/common-utils`: 18 cases.
+  - [x] `@fluidframework/common-utils`: 19 cases.
   - [x] `@fluid-example/app-insights-logger`: 1 case.
   - [ ] `@fluid-internal/devtools-view`: 28 cases.
 - [ ] Confirm that required browser binaries are available for the Playwright migration.
@@ -102,45 +102,45 @@ Target: Mocha for buffer tests and Playwright for retained browser hashing tests
 
 ### Buffer Tests
 
-- [ ] Move the 11 cases in `src/test/jest/buffer.spec.ts` into the existing Mocha test area.
-- [ ] Convert Jest `test` calls to Mocha `it` calls.
-- [ ] Replace Jest equality expectations with `node:assert`.
-- [ ] Add the moved test to the existing Mocha TypeScript configuration.
-- [ ] Confirm that the tests compare the Node.js and browser buffer implementations under Node.js as before.
-- [ ] Run the focused Mocha tests and confirm that all 11 cases pass.
+- [x] Move the 12 cases in `src/test/jest/buffer.spec.ts` into the existing Mocha test area.
+- [x] Convert Jest `test` calls to Mocha `it` calls.
+- [x] Replace Jest equality expectations with `node:assert`.
+- [x] Add the moved test to the existing Mocha TypeScript configuration.
+- [x] Confirm that the tests compare the Node.js and browser buffer implementations under Node.js as before.
+- [x] Run the focused Mocha tests and confirm that all 12 cases pass.
 
 ### Browser Hashing Decision
 
 The seven hash cases duplicate the scenarios in `packages/common/client-utils/src/test/playwright`, but they execute the deprecated `common-utils` implementation. Select one option before removing the Jest-Puppeteer suite.
 
-- [ ] Select the browser hashing strategy:
-  - [ ] **Retain coverage:** Port the seven cases to Playwright and execute the `common-utils` production browser entry point.
+- [x] Select the browser hashing strategy:
+  - [x] **Retain coverage:** Port the seven cases to Playwright and execute the `common-utils` production browser entry point.
   - [ ] **Retire coverage:** Document that the deprecated implementation is frozen and rely on the replacement `@fluid-internal/client-utils` Playwright coverage.
 
 ### Retained Hash Coverage
 
 Complete this section only if the browser hashing coverage is retained.
 
-- [ ] Follow the existing `packages/common/client-utils` Playwright test structure.
-- [ ] Add a browser entry module that exposes the production `common-utils` hash operations to the page.
-- [ ] Bundle the browser entry module for the Playwright test.
-- [ ] Add Playwright configuration and a dedicated test TypeScript configuration.
-- [ ] Add build and test scripts for the Playwright suite.
-- [ ] Continue to serve a localhost page so Web Crypto runs in a secure context.
-- [ ] Preserve all four binary fixtures and their expected hashes.
-- [ ] Preserve SHA-1, SHA-256, hexadecimal, base64, consistency, Node.js, and browser checks.
-- [ ] Run all seven cases in Chromium.
-- [ ] Confirm that the test invokes the production browser entry point instead of private functions through `rewire`.
+- [x] Follow the existing `packages/common/client-utils` Playwright test structure.
+- [x] Add a browser entry module that exposes the production `common-utils` hash operations to the page.
+- [x] Bundle the browser entry module for the Playwright test.
+- [x] Add Playwright configuration and a dedicated test TypeScript configuration.
+- [x] Add build and test scripts for the Playwright suite.
+- [x] Continue to serve a localhost page so Web Crypto runs in a secure context.
+- [x] Preserve all four binary fixtures and their expected hashes.
+- [x] Preserve SHA-1, SHA-256, hexadecimal, base64, consistency, Node.js, and browser checks.
+- [x] Run all seven cases in Chromium.
+- [x] Confirm that the test invokes the production browser entry point instead of private functions through `rewire`.
 
 ### Cleanup
 
-- [ ] Remove the old Jest test directory after all tests and assets have moved or been intentionally retired.
-- [ ] Remove `jest.config.cjs` and the Jest TypeScript configuration.
-- [ ] Remove Jest, `ts-jest`, `jest-puppeteer`, Puppeteer types, Jest types, Jest JUnit support, and `rewire`.
-- [ ] Remove direct Puppeteer if no non-Jest code still uses it.
-- [ ] Add Playwright dependencies only if browser hash coverage is retained.
-- [ ] Update `build:test`, `test`, and coverage scripts for the selected runners.
-- [ ] Update the lockfile.
+- [x] Remove the old Jest test directory after all tests and assets have moved or been intentionally retired.
+- [x] Remove `jest.config.cjs` and the Jest TypeScript configuration.
+- [x] Remove Jest, `ts-jest`, `jest-puppeteer`, Puppeteer types, Jest types, Jest JUnit support, and `rewire`.
+- [x] Remove direct Puppeteer because no non-Jest code uses it.
+- [x] Add Playwright dependencies because browser hash coverage is retained.
+- [x] Update `build:test`, `test`, and coverage scripts for Mocha and Playwright.
+- [x] Update the lockfile.
 
 ## Phase 5: Remove Repository-Level Jest Support
 
