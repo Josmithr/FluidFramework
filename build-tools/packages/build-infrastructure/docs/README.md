@@ -141,8 +141,6 @@ repoLayout: {
             "@fluid-internal",
             "@fluid-private",
             "@fluid-tools",
-            // This private package is part of the client release group
-            "@types/jest-environment-puppeteer"
             "fluid-framework",
           ],
           // A release group can have an OPTIONAL root package. This package

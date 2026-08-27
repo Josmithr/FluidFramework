@@ -143,7 +143,7 @@ Run whichever test scripts exist in each built changed package:
 
 ```bash
 cd $PKG && pnpm run test:mocha
-cd $PKG && pnpm run test:jest
+cd $PKG && pnpm run test:playwright
 ```
 
 Skip `test:benchmark`, `test:stress`, and `test:realsvc` — too slow and flaky for a pre-push check. Report all results for the final report even if some fail.

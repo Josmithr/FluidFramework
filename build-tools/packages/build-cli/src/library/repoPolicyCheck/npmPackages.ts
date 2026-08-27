@@ -1339,7 +1339,7 @@ export const handlers: Handler[] = [
 				}
 			}
 
-			const dep = ["mocha", "@types/mocha", "jest", "@types/jest"];
+			const dep = ["mocha", "@types/mocha"];
 			if (
 				(json.dependencies &&
 					// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
@@ -1355,8 +1355,8 @@ export const handlers: Handler[] = [
 		name: "npm-package-json-test-scripts-split",
 		match,
 		handler: async (file: string): Promise<string | undefined> => {
-			// This rule enforces that because the pipeline split running these test in different steps, each project
-			// has the split set up property (into test:mocha, test:jest and test:realsvc). Release groups that don't
+			// This rule enforces that because the pipeline runs these tests in different steps, each project
+			// has a split test script. Release groups that do not
 			// have splits in the pipeline is excluded in the "handlerExclusions" in the fluidBuild.config.cjs
 			let json: PackageJson;
 
@@ -1372,12 +1372,7 @@ export const handlers: Handler[] = [
 			}
 			const testScript = scripts.test;
 
-			const splitTestScriptNames = [
-				"test:mocha",
-				"test:jest",
-				"test:playwright",
-				"test:realsvc",
-			];
+			const splitTestScriptNames = ["test:mocha", "test:playwright", "test:realsvc"];
 
 			if (testScript === undefined) {
 				if (splitTestScriptNames.some((name) => scripts[name] !== undefined)) {
@@ -1392,7 +1387,7 @@ export const handlers: Handler[] = [
 
 			if (actualSplitTestScriptNames.length === 0) {
 				if (!testScript.startsWith("echo ")) {
-					return "Missing split test scripts. The 'test' script must call one or more \"split\" scripts like 'test:mocha', 'test:jest', 'test:playwright', or 'test:realsvc'.";
+					return "Missing split test scripts. The 'test' script must call one or more \"split\" scripts like 'test:mocha', 'test:playwright', or 'test:realsvc'.";
 				}
 				return undefined;
 			}
@@ -1441,68 +1436,6 @@ export const handlers: Handler[] = [
 		},
 	},
 
-	{
-		name: "npm-package-json-script-jest-config",
-		match,
-		handler: async (file: string): Promise<string | undefined> => {
-			// This rule enforces that jest will use a config file and setup both the default (console) and junit reporters.
-			let json: PackageJson;
-
-			try {
-				json = JSON.parse(readFile(file)) as PackageJson;
-			} catch {
-				return `Error parsing JSON file: ${file}`;
-			}
-
-			const { scripts } = json;
-			if (scripts === undefined) {
-				return undefined;
-			}
-			const jestScriptName = scripts["test:jest"] === undefined ? "test" : "test:jest";
-			const jestScript = scripts[jestScriptName];
-
-			// eslint-disable-next-line @typescript-eslint/prefer-optional-chain -- Existing logic is easier to read
-			if (jestScript === undefined || !jestScript.startsWith("jest")) {
-				// skip irregular test script for now
-				return undefined;
-			}
-
-			const packageDir = path.dirname(file);
-			const jestFileName = ["jest.config.js", "jest.config.cjs"].find((name) =>
-				fs.existsSync(path.join(packageDir, name)),
-			);
-			if (jestFileName === undefined) {
-				return `Missing jest config file.`;
-			}
-
-			const jestConfigFile = path.join(packageDir, jestFileName);
-			// This assumes that the jest config will be in CommonJS, because if it's ESM the require call will fail.
-			const config = require(path.resolve(jestConfigFile)) as { reporters?: unknown };
-			if (config.reporters === undefined) {
-				return `Missing reporters in '${jestConfigFile}'`;
-			}
-
-			const expectedReporter = [
-				"default",
-				[
-					"jest-junit",
-					{
-						outputDirectory: "nyc",
-						outputName: "jest-junit-report.xml",
-					},
-				],
-			];
-
-			if (JSON.stringify(config.reporters) !== JSON.stringify(expectedReporter)) {
-				return `Unexpected reporters in '${jestConfigFile}'`;
-			}
-
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
-			if ((json as any)["jest-junit"] !== undefined) {
-				return `Extraneous jest-unit config in ${file}`;
-			}
-		},
-	},
 	{
 		name: "npm-package-json-esm",
 		match,

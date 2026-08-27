@@ -146,17 +146,17 @@ Complete this section only if the browser hashing coverage is retained.
 
 Start this phase only after no workspace package defines a `test:jest` script.
 
-- [ ] Search all package manifests for Jest scripts and dependencies.
-- [ ] Search source and configuration files for Jest globals, imports, matchers, environments, and setup files.
-- [ ] Classify and remove stale type-only or lint-only references where appropriate.
-- [ ] Remove the root `build-and-test:jest` script.
-- [ ] Remove the root `ci:test:jest` and `ci:test:jest:coverage` scripts.
-- [ ] Remove the root `test:jest`, `test:jest:bail`, and `test:jest:report` scripts.
-- [ ] Remove Jest from the root `test` and `test:bail` command chains.
-- [ ] Remove the root Jest dependency.
-- [ ] Remove Jest-specific Fluid build task configuration.
-- [ ] Update CI definitions that invoke removed Jest scripts.
-- [ ] Update the root lockfile.
+- [x] Search all package manifests for Jest scripts and dependencies.
+- [x] Search source and configuration files for Jest globals, imports, matchers, environments, and setup files.
+- [x] Classify and remove stale type-only or lint-only references where appropriate.
+- [x] Remove the root `build-and-test:jest` script.
+- [x] Remove the root `ci:test:jest` and `ci:test:jest:coverage` scripts.
+- [x] Remove the root `test:jest`, `test:jest:bail`, and `test:jest:report` scripts.
+- [x] Remove Jest from the root `test` and `test:bail` command chains.
+- [x] Remove the root Jest dependency.
+- [x] Remove Jest-specific Fluid build task configuration.
+- [x] Update CI definitions that invoke removed Jest scripts.
+- [x] Update the root lockfile.
 
 ## Phase 6: Final Validation
 
@@ -168,16 +168,16 @@ Start this phase only after no workspace package defines a `test:jest` script.
 - [ ] Run the relevant policy checks for all changed packages.
 - [ ] Confirm that test result and coverage artifacts still use the paths expected by continuous integration.
 - [ ] Confirm that no test count was lost without an explicit retirement decision.
-- [ ] Search the repository for remaining active Jest usage.
-- [ ] Confirm that remaining `jest` strings, if any, occur only in historical documentation or unavoidable transitive lockfile entries.
+- [x] Search the repository for remaining active Jest usage.
+- [x] Confirm that remaining `jest` strings, if any, occur only in historical test data or unavoidable transitive lockfile entries.
 - [ ] Run the CI readiness check before pushing the completed migration.
 
 ## Completion Criteria
 
 - [ ] All three packages use the selected replacement test runners.
 - [ ] All retained tests pass with equivalent assertions.
-- [ ] No package defines a `test:jest` script.
-- [ ] No active test imports or uses Jest APIs.
-- [ ] No direct Jest dependency remains in a workspace package or at the repository root.
-- [ ] Root and CI test orchestration no longer refer to Jest.
-- [ ] The lockfile contains no avoidable Jest dependency graph.
+- [x] No package defines a `test:jest` script.
+- [x] No active test imports or uses Jest APIs.
+- [x] No direct Jest dependency remains in a workspace package or at the repository root.
+- [x] Root and CI test orchestration no longer refer to Jest.
+- [x] The lockfile contains no avoidable Jest dependency graph.

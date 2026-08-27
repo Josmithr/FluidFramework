@@ -320,7 +320,6 @@ module.exports = {
 		// before command is run. And some aliases for convenience.
 		"test:cjs": { dependsOn: ["test:unit:cjs"], script: false },
 		"test:esm": { dependsOn: ["test:unit:esm"], script: false },
-		"test:jest": ["build:compile"],
 		"test:playwright": [
 			"build:test:playwright",
 			// In common case there is no playwright build as it generates as it runs.
@@ -334,7 +333,7 @@ module.exports = {
 		"test:mocha": ["build:test"],
 		"test:mocha:cjs": ["build:test:cjs"],
 		"test:mocha:esm": ["build:test:esm"],
-		"test:unit": { dependsOn: ["test:mocha", "test:jest", "test:playwright"], script: false },
+		"test:unit": { dependsOn: ["test:mocha", "test:playwright"], script: false },
 		"test:unit:cjs": { dependsOn: ["test:mocha:cjs"], script: false },
 		"test:unit:esm": { dependsOn: ["test:mocha:esm", "test:playwright"], script: false },
 
@@ -557,10 +556,6 @@ module.exports = {
 
 				// ESLint shared config
 				"common/build/eslint-config-fluid/.*",
-
-				"common/lib/common-utils/jest-puppeteer.config.js",
-				"common/lib/common-utils/jest.config.js",
-
 				// Mocha configs are okay to match package.json (help migrate to simple ESM all the time)
 				// (Just under client packages for now)
 				"^packages/.+/.mocharc.js$",

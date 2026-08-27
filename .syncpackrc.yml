@@ -97,7 +97,6 @@ semverGroups:
       - "@microsoft/api-extractor"
       - "@types/chrome"
       - "@types/codemirror"
-      - "@types/jest"
       - "@types/url-parse"
       - "fake-indexeddb"
       - "json-stringify-safe"

@@ -46,7 +46,6 @@ While workspaces manage dependencies and physical layout of packages, release gr
 that are _versioned and released together_. Release groups are always a subset of a workspace, and must contain at least
 one package. **Release groups cannot span multiple workspaces.**
 
-
 > [!IMPORTANT]
 > A workspace _must_ have at least one release group, and all packages must be a part of a release group.
 
@@ -138,8 +137,6 @@ buildProject: {
             "@fluid-internal",
             "@fluid-private",
             "@fluid-tools",
-            // This private package is part of the client release group
-            "@types/jest-environment-puppeteer"
             "fluid-framework",
           ],
           // A release group can have an OPTIONAL root package. This package
