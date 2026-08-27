@@ -4,28 +4,29 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 
 ## Goals
 
-- [ ] Preserve the behavior covered by the current Jest tests.
-- [ ] Use Mocha for Node.js and jsdom component tests.
-- [ ] Use Playwright only when a test requires a real browser.
-- [ ] Remove all Jest test scripts, configuration, dependencies, and root orchestration.
-- [ ] Keep each package migration independently buildable and testable.
+- [x] Preserve the behavior covered by the current Jest tests.
+- [x] Use Mocha for Node.js and jsdom component tests.
+- [x] Use Playwright only when a test requires a real browser.
+- [x] Remove all Jest test scripts, configuration, dependencies, and root orchestration.
+- [x] Keep each package migration independently buildable and testable.
 
 ## Current Scope
 
 - [x] Migrate `@fluidframework/common-utils` in `common/lib/common-utils`.
 - [x] Migrate `@fluid-example/app-insights-logger` in `examples/client-logger/app-insights-logger`.
-- [ ] Migrate `@fluid-internal/devtools-view` in `packages/tools/devtools/devtools-view`.
-- [ ] Remove repository-level Jest orchestration after all package migrations are complete.
+- [x] Migrate `@fluid-internal/devtools-view` in `packages/tools/devtools/devtools-view`.
+- [x] Remove repository-level Jest orchestration after all package migrations are complete.
 
 ## Phase 1: Establish Baselines
 
-- [ ] Run the current Jest tests for each package and record any existing failures.
-- [ ] Record the current test counts:
+- [ ] Run the legacy Jest tests for each package and record any existing failures.
+  - This step cannot be completed after the migration. Before the migration, the `common-utils` Jest suite could not start because its type packages and `jest-puppeteer` preset were unavailable.
+- [x] Record the source test case counts before conversion:
   - [x] `@fluidframework/common-utils`: 19 cases.
   - [x] `@fluid-example/app-insights-logger`: 1 case.
-  - [ ] `@fluid-internal/devtools-view`: 28 cases.
-- [ ] Confirm that required browser binaries are available for the Playwright migration.
-- [ ] Make one package migration at a time and validate it before starting the next package.
+  - [x] `@fluid-internal/devtools-view`: 28 cases.
+- [x] Confirm that required browser binaries are available for the Playwright migration.
+- [x] Make one package migration at a time and validate it before starting the next package.
 
 ## Phase 2: Migrate `@fluid-example/app-insights-logger`
 
@@ -52,49 +53,47 @@ Target: Mocha with jsdom for all existing tests.
 
 ### Test Harness
 
-- [ ] Add a repository-standard `.mocharc.cjs` configuration.
-- [ ] Initialize `global-jsdom` before React, Fluent UI, Recharts, and test modules load.
-- [ ] Add a Mocha setup file for shared browser API stubs.
-- [ ] Add a minimal `ResizeObserver` fake for chart tests.
-- [ ] Stub `HTMLCanvasElement.prototype.getContext` for dependencies that require canvas.
-- [ ] Ensure that React Testing Library cleanup runs after each test.
-- [ ] Rename or replace `src/test/tsconfig.jest.json` with a Mocha test configuration.
-- [ ] Update the CommonJS and ECMAScript module test TypeScript configurations to extend the new configuration.
-- [ ] Update build and test scripts for the intended CommonJS and ECMAScript module outputs.
+- [x] Add a repository-standard `.mocharc.cjs` configuration.
+- [x] Initialize `global-jsdom` before React, Fluent UI, Recharts, and test modules load.
+- [x] Add a Mocha setup file for shared browser API stubs.
+- [x] Add a minimal `ResizeObserver` fake for chart tests.
+- [x] Stub `HTMLCanvasElement.prototype.getContext` for dependencies that require canvas.
+- [x] Ensure that React Testing Library cleanup runs after each test.
+- [x] Rename or replace `src/test/tsconfig.jest.json` with a Mocha test configuration.
+- [x] Update the CommonJS and ECMAScript module test TypeScript configurations to extend the new configuration.
+- [x] Update build and test scripts for the intended CommonJS and ECMAScript module outputs.
 
 ### Test Conversion
 
-- [ ] Convert all 28 existing test cases from Jest globals and expectations to Mocha and `node:assert`.
-- [ ] Replace callback `jest.fn()` uses with Sinon spies.
-- [ ] Replace `ResizeObserver` `jest.fn()` uses with the shared fake.
-- [ ] Replace Jest DOM focus assertions with active-element assertions.
-- [ ] Replace Jest DOM text, attribute, and checked-state assertions with DOM properties and `node:assert`.
-- [ ] Update `src/test/utils/axeUtils.ts` to use `node:assert`.
-- [ ] Preserve all React Testing Library role, text, and test-ID queries.
-- [ ] Preserve all `userEvent` keyboard and pointer interactions.
-- [ ] Preserve all seven `axe-core` accessibility checks.
-- [ ] Confirm that Recharts tests still mount without browser API errors.
+- [x] Convert all 28 existing test cases from Jest globals and expectations to Mocha and `node:assert`.
+- [x] Replace callback `jest.fn()` uses with Sinon spies.
+- [x] Replace `ResizeObserver` `jest.fn()` uses with the shared fake.
+- [x] Replace Jest DOM focus assertions with active-element assertions.
+- [x] Replace Jest DOM text, attribute, and checked-state assertions with DOM properties and `node:assert`.
+- [x] Update `src/test/utils/axeUtils.ts` to use `node:assert`.
+- [x] Preserve all React Testing Library role, text, and test-ID queries.
+- [x] Preserve all `userEvent` keyboard and pointer interactions.
+- [x] Preserve all seven `axe-core` accessibility checks.
+- [x] Confirm that Recharts tests still mount without browser API errors.
 
 ### Validation and Cleanup
 
-- [ ] Run the focused Mocha tests against the ECMAScript module output.
-- [ ] Run the focused Mocha tests against the CommonJS output if both outputs remain supported by the package test contract.
-- [ ] Confirm that all 28 cases pass without leaked DOM state.
-- [ ] Confirm that callback spies and focus-order tests retain their original behavior.
-- [ ] Remove `jest.config.cjs` and `jest.setup.cjs`.
-- [ ] Remove Jest, `ts-jest`, Jest types, Jest JUnit support, Jest DOM packages, and `eslint-plugin-jest` when no longer used.
-- [ ] Keep existing Mocha, Sinon, Testing Library, `user-event`, and `axe-core` dependencies.
-- [ ] Add `global-jsdom` and `jsdom` as direct development dependencies.
-- [ ] Update the lockfile.
+- [x] Run the focused Mocha tests against the ECMAScript module output.
+- [x] Run the focused Mocha tests against the CommonJS output.
+- [x] Confirm that all 28 cases pass without leaked DOM state.
+- [x] Confirm that callback spies and focus-order tests retain their original behavior.
+- [x] Remove `jest.config.cjs` and `jest.setup.cjs`.
+- [x] Remove Jest, `ts-jest`, Jest types, Jest JUnit support, Jest DOM packages, and `eslint-plugin-jest`.
+- [x] Keep Mocha, Sinon, Testing Library, `user-event`, and `axe-core` dependencies.
+- [x] Add `global-jsdom` and `jsdom` as direct development dependencies.
+- [x] Update the lockfile.
 
 ### Optional Browser Coverage
 
 Do not mechanically move the current component tests to Playwright. Add browser tests only when they verify behavior that jsdom cannot represent.
 
-- [ ] Decide whether real-browser chart rendering needs additional coverage.
-- [ ] If required, add a focused Playwright test that verifies nonzero rendered chart dimensions or meaningful SVG output.
-- [ ] Decide whether browser accessibility-tree or real tab-order coverage is required.
-- [ ] If required, add focused Playwright accessibility or keyboard navigation tests.
+- [x] Decide that this migration does not require additional real-browser chart coverage.
+- [x] Decide that this migration does not require additional browser accessibility or keyboard coverage.
 
 ## Phase 4: Migrate `@fluidframework/common-utils`
 
@@ -161,21 +160,27 @@ Start this phase only after no workspace package defines a `test:jest` script.
 ## Phase 6: Final Validation
 
 - [ ] Build each migrated package from a clean output directory.
-- [ ] Run the focused test command for each migrated package.
+- [x] Run the focused test command for each migrated package.
 - [ ] Run the repository-level Mocha test orchestration for the affected packages.
 - [ ] Run the repository-level Playwright test orchestration if `common-utils` retains browser tests.
 - [ ] Run lint and formatting checks for all changed files.
 - [ ] Run the relevant policy checks for all changed packages.
 - [ ] Confirm that test result and coverage artifacts still use the paths expected by continuous integration.
-- [ ] Confirm that no test count was lost without an explicit retirement decision.
+- [x] Confirm that no test count was lost without an explicit retirement decision.
 - [x] Search the repository for remaining active Jest usage.
 - [x] Confirm that remaining `jest` strings, if any, occur only in historical test data or unavoidable transitive lockfile entries.
 - [ ] Run the CI readiness check before pushing the completed migration.
 
+Current validation status:
+
+- `app-insights-logger`: 1 Mocha test passes. Build, lint, and formatting checks pass.
+- `devtools-view`: 28 tests pass in both ECMAScript module and CommonJS output. Compile, test build, and Biome checks pass. ESLint still reports seven `@typescript-eslint/strict-boolean-expressions` errors in `DynamicComposedChart.test.tsx` and `OpLatencyView.test.tsx`.
+- `common-utils`: 65 Mocha tests and 7 Playwright tests pass. Build, lint, and formatting checks pass.
+
 ## Completion Criteria
 
-- [ ] All three packages use the selected replacement test runners.
-- [ ] All retained tests pass with equivalent assertions.
+- [x] All three packages use the selected replacement test runners.
+- [x] All retained tests pass with equivalent assertions.
 - [x] No package defines a `test:jest` script.
 - [x] No active test imports or uses Jest APIs.
 - [x] No direct Jest dependency remains in a workspace package or at the repository root.
