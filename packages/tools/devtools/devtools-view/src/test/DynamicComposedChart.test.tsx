@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { strict as assert } from "node:assert";
-
 import { render, screen } from "@testing-library/react";
 
 import { DynamicComposedChart, type GraphDataSet } from "../components/graphs/index.js";
@@ -66,17 +64,11 @@ describe("DynamicComposedChart component test", () => {
 
 	it("renders without crashing with data", async () => {
 		render(<DynamicComposedChart dataSets={testDataSets} />);
-		const dynamicComposedChartElement = await screen.findByTestId(
-			"test-dynamic-composed-chart",
-		);
-		assert.ok(dynamicComposedChartElement);
+		await screen.findByTestId("test-dynamic-composed-chart");
 	});
 
 	it("renders without crashing without data", async () => {
 		render(<DynamicComposedChart dataSets={[]} />);
-		const dynamicComposedChartElement = await screen.findByTestId(
-			"test-dynamic-composed-chart",
-		);
-		assert.ok(dynamicComposedChartElement);
+		await screen.findByTestId("test-dynamic-composed-chart");
 	});
 });

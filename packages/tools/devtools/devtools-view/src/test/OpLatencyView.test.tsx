@@ -53,21 +53,16 @@ describe("OpLatencyView component tests", () => {
 
 		// Check that outermost component container exists
 		const opLatencyMainContainerElement = await screen.findByTestId("test-op-latency-view");
-		assert.ok(opLatencyMainContainerElement);
 
 		// Check that graph title exists as a header component
 		const opLatencyHeaderElement = await screen.findByText("Op Latency");
 		assert.match(opLatencyHeaderElement.tagName, /h[1-6]/i);
 
 		// Confirm the rechart graph was rendered
-		const dynamicComposedChartElement = await within(
-			opLatencyMainContainerElement,
-		).findByTestId("test-dynamic-composed-chart");
-		assert.ok(dynamicComposedChartElement);
+		await within(opLatencyMainContainerElement).findByTestId("test-dynamic-composed-chart");
 
 		// Confirm helper text header exists
-		const aboutHeader = await screen.findByText("About");
-		assert.ok(aboutHeader);
+		await screen.findByText("About");
 	});
 
 	it("Renders as expected when unsampled telemetry is disabled", async (): Promise<void> => {
@@ -78,12 +73,10 @@ describe("OpLatencyView component tests", () => {
 		);
 
 		// Check that graph title exists as a header component
-		const opLatencyHeaderElement = await screen.findByText("Op Latency");
-		assert.ok(opLatencyHeaderElement);
+		await screen.findByText("Op Latency");
 
 		// Confirm helper text header exists
-		const instructionsText = await screen.findByText(`Enable Unsampled Telemetry`);
-		assert.ok(instructionsText);
+		await screen.findByText(`Enable Unsampled Telemetry`);
 	});
 });
 
