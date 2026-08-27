@@ -13,7 +13,7 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 ## Current Scope
 
 - [ ] Migrate `@fluidframework/common-utils` in `common/lib/common-utils`.
-- [ ] Migrate `@fluid-example/app-insights-logger` in `examples/client-logger/app-insights-logger`.
+- [x] Migrate `@fluid-example/app-insights-logger` in `examples/client-logger/app-insights-logger`.
 - [ ] Migrate `@fluid-internal/devtools-view` in `packages/tools/devtools/devtools-view`.
 - [ ] Remove repository-level Jest orchestration after all package migrations are complete.
 
@@ -22,7 +22,7 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 - [ ] Run the current Jest tests for each package and record any existing failures.
 - [ ] Record the current test counts:
   - [ ] `@fluidframework/common-utils`: 18 cases.
-  - [ ] `@fluid-example/app-insights-logger`: 1 case.
+  - [x] `@fluid-example/app-insights-logger`: 1 case.
   - [ ] `@fluid-internal/devtools-view`: 28 cases.
 - [ ] Confirm that required browser binaries are available for the Playwright migration.
 - [ ] Make one package migration at a time and validate it before starting the next package.
@@ -31,20 +31,20 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 
 Target: Mocha with jsdom.
 
-- [ ] Add the repository-standard Mocha test configuration.
-- [ ] Add `global-jsdom` and initialize jsdom before the test module loads.
-- [ ] Add or update the test TypeScript configuration for Mocha and Node.js types.
-- [ ] Add build and test scripts for the compiled Mocha test.
-- [ ] Convert `src/test/components/App.test.tsx` from Jest globals to Mocha globals.
-- [ ] Continue to use React Testing Library for rendering and DOM queries.
-- [ ] Explicitly clean up or unmount the rendered component after each test.
-- [ ] Ensure that the asynchronous Fluid container initialization does not cause an unhandled rejection or an open handle after the test completes.
-- [ ] Run the package build and the new Mocha test.
-- [ ] Confirm that the loading-state assertion has equivalent coverage.
-- [ ] Remove `jest.config.cjs`.
-- [ ] Remove Jest-only dependencies, including Jest, `ts-jest`, the Jest jsdom environment, Jest types, Jest JUnit support, and unused Jest DOM packages.
-- [ ] Remove `eslint-plugin-jest` if no package source or configuration still uses it.
-- [ ] Update the lockfile.
+- [x] Add the repository-standard Mocha test configuration.
+- [x] Add `global-jsdom` and initialize jsdom before the test module loads.
+- [x] Add or update the test TypeScript configuration for Mocha and Node.js types.
+- [x] Add build and test scripts for the compiled Mocha test.
+- [x] Convert `src/test/components/App.test.tsx` from Jest globals to Mocha globals.
+- [x] Continue to use React Testing Library for rendering and DOM queries.
+- [x] Explicitly clean up or unmount the rendered component after each test.
+- [x] Ensure that the asynchronous Fluid container initialization does not cause an unhandled rejection or an open handle after the test completes.
+- [x] Run the package build and the new Mocha test.
+- [x] Confirm that the loading-state assertion has equivalent coverage.
+- [x] Remove `jest.config.cjs`.
+- [x] Remove Jest-only dependencies, including Jest, `ts-jest`, the Jest jsdom environment, Jest types, Jest JUnit support, and unused Jest DOM packages.
+- [x] Remove `eslint-plugin-jest` if no package source or configuration still uses it.
+- [x] Update the lockfile.
 
 ## Phase 3: Migrate `@fluid-internal/devtools-view`
 
