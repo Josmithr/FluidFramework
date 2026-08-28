@@ -111,6 +111,5 @@ patchedDependencies:
   '@microsoft/api-extractor@7.58.1': ../../../patches/@microsoft__api-extractor@7.58.1.patch
 
 allowBuilds:
-  puppeteer: true
   unrs-resolver: true
   core-js: false
