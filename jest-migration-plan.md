@@ -30,20 +30,19 @@ This checklist tracks the removal of Jest from the Fluid Framework repository. M
 
 ## Phase 2: Migrate `@fluid-example/app-insights-logger`
 
-Target: Mocha with jsdom.
+Target: Playwright against the webpack application.
 
-- [x] Add the repository-standard Mocha test configuration.
-- [x] Add `global-jsdom` and initialize jsdom before the test module loads.
-- [x] Add or update the test TypeScript configuration for Mocha and Node.js types.
-- [x] Add build and test scripts for the compiled Mocha test.
-- [x] Convert `src/test/components/App.test.tsx` from Jest globals to Mocha globals.
-- [x] Continue to use React Testing Library for rendering and DOM queries.
-- [x] Explicitly clean up or unmount the rendered component after each test.
-- [x] Ensure that the asynchronous Fluid container initialization does not cause an unhandled rejection or an open handle after the test completes.
-- [x] Run the package build and the new Mocha test.
+- [x] Add the repository-standard Playwright configuration.
+- [x] Use the repository test-port assignment for the webpack development server.
+- [x] Add build and test scripts for the Playwright test.
+- [x] Convert the Jest loading-state test to a Playwright test.
+- [x] Test the application through its production bootstrap path.
+- [x] Remove the test-only container initialization seam from the application component.
+- [x] Run the package build and the Playwright test in Chromium.
 - [x] Confirm that the loading-state assertion has equivalent coverage.
 - [x] Remove `jest.config.cjs`.
-- [x] Remove Jest-only dependencies, including Jest, `ts-jest`, the Jest jsdom environment, Jest types, Jest JUnit support, and unused Jest DOM packages.
+- [x] Remove Jest, Mocha, jsdom, React Testing Library, and their test-only dependencies.
+- [x] Add Playwright and the repository test-tools dependency.
 - [x] Remove `eslint-plugin-jest` if no package source or configuration still uses it.
 - [x] Update the lockfile.
 
@@ -162,7 +161,7 @@ Start this phase only after no workspace package defines a `test:jest` script.
 - [x] Build each migrated package from a clean output directory.
 - [x] Run the focused test command for each migrated package.
 - [x] Run the repository-level Mocha test orchestration for the affected packages.
-- [x] Run the repository-level Playwright test orchestration for `common-utils`.
+- [x] Run the repository-level Playwright test orchestration for `common-utils` and `app-insights-logger`.
 - [x] Run lint and formatting checks for all changed files.
 - [x] Run the relevant policy checks for all changed packages.
 - [x] Confirm that test result and coverage artifacts still use the paths expected by continuous integration.
@@ -173,7 +172,7 @@ Start this phase only after no workspace package defines a `test:jest` script.
 
 Current validation status:
 
-- `app-insights-logger`: 1 Mocha test passes after a clean build. Lint and formatting checks pass.
+- `app-insights-logger`: 1 Playwright test passes in Chromium after a clean build. Lint and formatting checks pass.
 - `devtools-view`: 28 tests pass in both ECMAScript module and CommonJS output after a clean build. ESLint and Biome checks pass.
 - `common-utils`: 65 Mocha tests and 7 Playwright tests pass after a clean build. ESLint and Prettier checks pass.
 - The CI readiness script passes for all eight changed packages. All eight package policy checks pass. No public API changed, so this migration does not require API report or type-test regeneration.
