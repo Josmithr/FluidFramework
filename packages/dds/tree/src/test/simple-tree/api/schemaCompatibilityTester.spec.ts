@@ -194,6 +194,88 @@ describe("getSchemaIncompatibilityDetails", () => {
 
 describe("checkSchemaCompatibility", () => {
 	describe("function", () => {
+		it("rejects incompatible definitions with the same identifier even when unreachable from the stored root", () => {
+			// The same identifier refers to the same semantic type in both schemas.
+			// Its definitions must be compatible, even if the stored root cannot reach the type.
+			class ViewDeep extends factory.object("UnreachableDeep", {
+				value: factory.number,
+			}) {}
+			class StoredDeep extends factory.object("UnreachableDeep", {
+				value: factory.string,
+			}) {}
+			const viewConfiguration = new TreeViewConfigurationAlpha({
+				schema: factory.types([factory.number, factory.staged(ViewDeep)]),
+			});
+
+			// Check that the view can access a tree whose root allows only numbers.
+			const storedSchema = toUpgradeSchema(factory.number);
+			const baseline = checkSchemaCompatibility(viewConfiguration, storedSchema);
+			assert.equal(baseline.canView, true);
+			assert.equal(baseline.discrepancies, undefined);
+
+			// Add a different definition for the staged type. Keep the root schema unchanged.
+			const withUnreachableDefinitions: TreeStoredSchema = {
+				...storedSchema,
+				nodeSchema: new Map([
+					...storedSchema.nodeSchema,
+					...toUpgradeSchema(StoredDeep).nodeSchema,
+				]),
+			};
+			const { canView, discrepancies } = checkSchemaCompatibility(
+				viewConfiguration,
+				withUnreachableDefinitions,
+			);
+
+			// The definitions disagree on the value field.
+			// This difference is expected to prevent the view schema from reading the document,
+			// even though the incompatible view type definition is unreachable from the root of the stored schema.
+			assert.equal(canView, false);
+			assert.deepEqual(discrepancies, [
+				{
+					mismatch: "allowedTypes",
+					location: {
+						nodeType: ViewDeep.identifier,
+						fieldKey: "value",
+					},
+					view: [factory.number.identifier],
+					stored: [factory.string.identifier],
+				},
+			]);
+		});
+
+		it("includes non-blocking staged context only alongside a blocking discrepancy", () => {
+			const viewConfiguration = new TreeViewConfigurationAlpha({
+				schema: factory.types([factory.number, factory.staged(factory.string)]),
+			});
+
+			// The stored schema allows null, but the view does not. This difference prevents access.
+			const incompatible = checkSchemaCompatibility(
+				viewConfiguration,
+				toUpgradeSchema([factory.number, factory.null]),
+			);
+			assert.equal(incompatible.canView, false);
+
+			// The result also lists the staged string type, though this type does not prevent the view schema from viewing the document.
+			assert.deepEqual(incompatible.discrepancies, [
+				{
+					mismatch: "allowedTypes",
+					location: "root",
+					view: [],
+					stagedView: [factory.string.identifier],
+					stored: [factory.null.identifier],
+				},
+			]);
+
+			// Remove support for null from the stored schema.
+			// The staged string type remains, but the view schema should now be able to view the document.
+			const compatible = checkSchemaCompatibility(
+				viewConfiguration,
+				toUpgradeSchema(factory.number),
+			);
+			assert.equal(compatible.canView, true);
+			assert.equal(compatible.discrepancies, undefined);
+		});
+
 		it("works with never trees", () => {
 			class NeverObject extends factory.objectRecursive("NeverObject", {
 				foo: factory.requiredRecursive([() => NeverObject]),
