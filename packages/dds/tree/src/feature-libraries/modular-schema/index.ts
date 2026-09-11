@@ -7,6 +7,7 @@ export {
 	allowsRepoSuperset,
 	allowsTreeSchemaIdentifierSuperset,
 	allowsFieldSuperset,
+	allowsFieldKindSuperset,
 	allowsTreeSuperset,
 	allowsMultiplicitySuperset,
 } from "./comparison.js";

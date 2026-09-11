@@ -22,7 +22,11 @@ import {
 	type Discrepancy,
 	type UpgradeLocationCollector,
 } from "./discrepancies.js";
-import type { SchemaCompatibilityStatusBeta, SchemaDiscrepancy } from "./tree.js";
+import type { SchemaDiscrepancy } from "./tree.js";
+import {
+	collectSchemaDiagnostics,
+	type SchemaComparisonStatusAlpha,
+} from "./schemaDiagnostics.js";
 
 /**
  * Describes the discrepancies that prevent a view schema from viewing a stored schema as a
@@ -135,7 +139,7 @@ export function checkSchemaCompatibility(
 	viewSchema: TreeSchema,
 	stored: TreeStoredSchema,
 	stagedSchemaUpgrades?: Iterable<SchemaUpgrade> | StagedSchemaUpgradePolicy,
-): Omit<SchemaCompatibilityStatusBeta, "canInitialize"> & {
+): SchemaComparisonStatusAlpha & {
 	enabledUpgrades: ReadonlyMap<SchemaUpgrade, StagedUpgradeStatus>;
 } {
 	// The public API surface assumes defaultSchemaPolicy
@@ -169,12 +173,14 @@ export function checkSchemaCompatibility(
 	// Complete the full walk even after finding an incompatibility so discrepancy details and
 	// staged-upgrade status contain all available information for debugging.
 	const discrepancies: SchemaDiscrepancy[] = [];
+	const rawDiscrepancies: Discrepancy[] = [];
 	for (const discrepancy of getDiscrepanciesInAllowedContent(
 		viewSchema,
 		stored,
 		upgradeCollector,
 	)) {
 		discrepancies.push(formatSchemaDiscrepancy(discrepancy));
+		rawDiscrepancies.push(discrepancy);
 	}
 	const canView = discrepancies.length === 0;
 
@@ -191,10 +197,25 @@ export function checkSchemaCompatibility(
 	const isEquivalent =
 		canView && canUpgrade && allowsRepoSuperset(policy, wouldUpgradeTo, stored);
 
+	// Collect detailed schema diagnostics.
+	const diagnostics = collectSchemaDiagnostics(
+		viewSchema,
+		stored,
+		wouldUpgradeTo,
+		rawDiscrepancies,
+	);
+
 	return {
-		canView,
-		canUpgrade,
-		isEquivalent,
+		allDiscrepancies: diagnostics.all,
+		...(canView
+			? { canView: true as const }
+			: { canView: false as const, viewDiscrepancies: diagnostics.view }),
+		...(canUpgrade
+			? { canUpgrade: true as const }
+			: { canUpgrade: false as const, upgradeDiscrepancies: diagnostics.upgrade }),
+		...(isEquivalent
+			? { isEquivalent: true as const }
+			: { isEquivalent: false as const, equivalenceDiscrepancies: diagnostics.equivalence }),
 		discrepancies: canView ? undefined : discrepancies,
 		enabledUpgrades,
 	};

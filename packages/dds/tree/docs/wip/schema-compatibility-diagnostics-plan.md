@@ -1,6 +1,6 @@
 # Alpha Schema Compatibility Diagnostics Plan
 
-Status: Draft for review. Do not start implementation until this plan is approved.
+Status: Approved for implementation. The eager implementation is in progress. Performance acceptance remains open.
 
 ## Goal
 
@@ -246,7 +246,7 @@ The variant names are illustrative; finalize them with the diagnostic unions.
 const missingDefinition = {
     mismatch: "missingNode",
     location: { nodeType: "example.Point" },
-    missingFrom: "target",
+    missingFrom: ["target"],
     stored: { kind: "object" },
 };
 
@@ -259,7 +259,7 @@ const incompatibleKinds = {
 ```
 
 Use consistent `view`, `stored`, and `target` labels across all lists.
-For `missingNode`, `missingFrom` identifies the absent side. Include the kind only for the side with a definition.
+For `missingNode`, `missingFrom` identifies all absent sides. Include a kind description only for sides with a definition.
 
 Include only the minimum structure needed to explain the difference.
 Do not attach complete node definitions, field lists, or allowed-type lists to these variants.
@@ -517,6 +517,70 @@ Cover all four lists, including staging and metadata, and verify that subsets pr
 Retain checks for the relative order of existing beta diagnostics.
 
 ## Performance
+
+### Initial Measurements
+
+The initial eager implementation and baseline used the same dev container and benchmark framework.
+These are local measurements, not performance guarantees.
+The baseline predates the production changes. All times below are per comparison.
+
+| Schema | Baseline, flags only | Eager, flags only |
+| --- | --- | --- |
+| 10 identical fields | 19.1 us | 53.4 us |
+| 10 fields, first differs | 14.4 us | 58.2 us |
+| 10 fields, all differ | 20.4 us | 95.6 us |
+| 100 identical fields | 133.9 us | 272.9 us |
+| 100 fields, first differs | 101.5 us | 253.2 us |
+| 100 fields, all differ | 159.1 us | 741.1 us |
+| 1,000 identical fields | 1.35 ms | 2.62 ms |
+| 1,000 fields, first differs | 0.977 ms | 2.33 ms |
+| 1,000 fields, all differ | 1.52 ms | 7.26 ms |
+
+The first eager collector took 25.6 ms for 1,000 differing fields.
+Indexing viewing failures by location removed a quadratic scan and reduced this to approximately 7.3 ms.
+Identity checks also avoid formatting unchanged scalar values.
+
+The expanded suite contains 65 cases. It measures flags, one subset, all lists in both access orders,
+repeated list access, and JSON serialization. It also measures staging, metadata size, a standalone helper,
+live-view creation, cached status access, and schema-change recomputation.
+
+Additional eager results:
+
+| Operation | Time |
+| --- | --- |
+| 1,000 differing fields, serialize status | 16.31 ms |
+| Metadata-only difference, 10 nested entries, flags only | 43.8 us |
+| Metadata-only difference, 100 nested entries, flags only | 336.0 us |
+| Metadata-only difference, 1,000 nested entries, flags only | 3.57 ms |
+| Metadata-only difference, 1,000 nested entries, serialize status | 4.48 ms |
+| Staging-only difference, flags only | 17.8 us |
+| Standalone helper, staging-only difference | 32.3 us |
+| Live-view creation and disposal, empty content | 27.1 us |
+| Cached live-status access | 73.6 ns |
+| Live schema recomputation, empty content | 17.8 us |
+
+The live-view fixtures exclude content hydration. The creation measurement includes disposal.
+The metadata fixtures vary metadata size independently of field count.
+Allocation volume, retained memory, and garbage-collection cost have not been measured separately.
+The expanded access-pattern and live-view cases do not yet have matching pre-change baselines.
+The short measurements are useful for identifying costs but need repeated runs for an acceptance decision.
+
+Run the benchmark from `packages/dds/tree` after building source and tests:
+
+```sh
+FLUID_TEST_PERF_MODE=1 pnpm exec mocha --no-config \
+    --conditions=allow-ff-test-exports --timeout 30000 \
+    --reporter @fluid-tools/benchmark/dist/mocha/Reporter.js \
+    lib/test/simple-tree/api/schemaCompatibility.bench.js
+```
+
+The eager collector remains in place. No lazy getters or new caches have been added.
+The remaining flags-only cost is material in the stress cases.
+Performance acceptance and any deferred-evaluation work remain open.
+The user deferred this decision until correctness, builds, exports, and the remaining branch work are complete.
+Keep eager evaluation until that review.
+
+### Evaluation Strategy
 
 Start with eager diagnostic computation.
 Do not add lazy getters, cache infrastructure, or new early-exit paths without measured need.

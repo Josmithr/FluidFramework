@@ -35,6 +35,18 @@ export type {
 	ITreeAlpha,
 } from "./tree.js";
 export { asTreeViewAlpha } from "./tree.js";
+export type {
+	SchemaDiscrepancyAlpha,
+	SchemaDiscrepancyValues,
+	SchemaNodeKindDescription,
+	SchemaDiscrepancyLocationAlpha,
+	CompleteSchemaDiscrepanciesAlpha,
+	SchemaCompatibilityStatusAlpha,
+	SchemaComparisonStatusAlpha,
+	ViewableStatus,
+	UpgradeableStatus,
+	EquivalenceStatus,
+} from "./schemaDiagnostics.js";
 export { type SchemaStatics, schemaStatics } from "./schemaStatics.js";
 export {
 	SchemaFactory,

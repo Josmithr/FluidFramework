@@ -60,6 +60,7 @@ export { SequenceField };
 
 export {
 	isNeverField,
+	allowsFieldKindSuperset,
 	ModularEditBuilder,
 	type FieldEditDescription as EditDescription,
 	type FieldChangeHandler,
