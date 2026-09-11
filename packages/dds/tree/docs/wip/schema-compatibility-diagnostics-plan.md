@@ -1,6 +1,6 @@
 # Alpha Schema Compatibility Diagnostics Plan
 
-Status: Approved for implementation. The eager implementation is in progress. Performance acceptance remains open.
+Status: The first eager implementation is checked in as a draft. Compatibility-analysis consolidation is the agreed next phase and has not started. Performance acceptance remains open.
 
 ## Goal
 
@@ -23,7 +23,7 @@ Use Simplified Technical English for documentation and test comments.
 - **View schema:** The schema that the application uses to read and edit tree content.
 - **Stored schema:** The schema recorded in the document.
 - **Upgrade target:** The stored schema that an upgrade would produce under the configured staged-upgrade policy.
-- **Equivalence:** The existing `isEquivalent` contract about the document shapes allowed by the schemas, not structural equality. Preserve its current policy and calculation.
+- **Equivalence:** The existing `isEquivalent` contract about the document shapes allowed by the schemas, not structural equality. Preserve its current policy and results.
 - **Discrepancy:** A detected difference in schema data, whether or not it affects compatibility.
 - **Blocker:** A difference that causes a compatibility check to fail.
 - **Diagnostic:** An entry that identifies a discrepancy and supplies the details needed to explain it.
@@ -295,6 +295,54 @@ Where structures correspond, compare their staging and metadata even when a cont
 
 ## Implementation Design
 
+### Authoritative Compatibility Analysis
+
+The first draft preserves the original compatibility calculations and then collects complete diagnostics in a separate pass.
+The collector uses viewing failures from the first pass and independently repeats some stored-schema comparison rules.
+This protects existing results during the initial addition, but it duplicates semantic work.
+
+Consolidate these paths before considering lazy evaluation or other performance optimizations.
+Use one authoritative analysis to produce compatibility decisions and the diagnostic information that explains them.
+Derive the flags from its blocker subsets:
+
+```typescript
+const canView = diagnostics.view.length === 0;
+const canUpgrade = diagnostics.upgrade.length === 0;
+const isEquivalent = diagnostics.equivalence.length === 0;
+```
+
+Do not derive flags from `allDiscrepancies`, which also contains accepted differences.
+Do not only replace the flag assignments while leaving duplicate compatibility implementations in place.
+Diagnostic formatting, deduplication, and ordering must not determine compatibility policy.
+Every failed semantic check must produce at least one corresponding blocker.
+
+Preserve the dependency between staged-upgrade accounting and target construction:
+
+1. Analyze the view and stored schema once to collect viewing decisions, beta diagnostic details, alpha comparison details, and staged-upgrade enablement.
+2. Construct the effective upgrade target using the configured policy and already-enabled upgrades.
+3. Analyze the stored-to-target and target-to-stored comparisons using shared authoritative modular-schema rules that also produce failure details.
+4. Assemble the complete list and blocker subsets from those results, derive the flags, and expose subsets only when their flags are false.
+
+More than one traversal is permitted when a later stage depends on earlier results.
+The objective is to avoid evaluating a compatibility rule once for a boolean and independently evaluating it again for diagnostics.
+Retain comparison details from the first stage where needed instead of repeating its semantic decisions.
+Keep internal modular-schema results independent of public alpha types.
+Preserve boolean-only callers and their early-exit behavior where practical through the same comparison rules.
+
+Produce beta and alpha reports from the shared analysis without treating beta output as a direct formatting of alpha entries.
+Preserve beta grouping, staging context, diagnostic detail, and relative ordering.
+Preserve staged-upgrade location counts and partial or enabled statuses.
+Do not count locations again when emitting additional diagnostics.
+
+Use the checked-in first draft as a temporary test oracle during consolidation.
+Record its revision before changing production code.
+Keep oracle comparisons in tests or test tooling, not as a second production calculation.
+For each comparison, verify that its blocker list is empty if and only if the original check succeeds.
+Verify exact flag agreement and beta-output preservation independently of the new flag derivation.
+Existing tests that only compare a derived flag with its own blocker list are not sufficient to prove compatibility preservation.
+After agreement is established, remove redundant production boolean checks and duplicated classification rules.
+Retain independent regression expectations without maintaining a second permanent policy implementation.
+
 ### Complete List And Classification
 
 Separate discrepancy discovery from compatibility classification.
@@ -348,7 +396,7 @@ Do not create a second implementation of upgrade policy.
 Preserve the default monotonic upgrade rules, which prevent repeated upgrades between equivalent forms.
 Preserve the existing treatment of missing definitions and types that cannot contain valid content.
 
-Use the exact upgrade target already used to compute `canUpgrade`.
+Use the exact upgrade target used by the existing `canUpgrade` calculation.
 This includes enabled staged upgrades and `includeAlreadyEnabledUpgrades`.
 Collect every applicable failure without changing the boolean result.
 Retain early-exit behavior for callers that request only a boolean where practical.
@@ -426,8 +474,9 @@ Refactor only after the focused tests pass, then run them again.
 6. **Explain equivalence failures.** Test reverse-comparison failures when viewing and upgrading succeed. Test failures across all three checks to prove that collection does not stop early. Verify equivalent schemas can have complete-list entries without an equivalence subset. Verify one difference that fails multiple checks appears only once in each list.
 7. **Check staged policy.** Test enabled and disabled upgrades and preservation of upgrades already enabled. Verify unchanged upgrade-location counts. Verify that equivalence diagnostics use the effective target in both directions.
 8. **Check integration.** Test alpha view access, initialization, schema changes, `checkCompatibility`, and `comparePersistedSchema`. For both helpers, test return-type assignability, narrowing for all three flags, exclusion of `canInitialize`, unconditional complete-list access, subset absence on success, and complete subsets on failure. Test retention of staging and metadata available to each entry point.
-9. **Evaluate performance.** Compare the eager implementation with the pre-change benchmark baseline described below. Investigate material regressions. Add lazy computation and caching only when measurements justify them, with focused tests before optimization.
-10. **Run the final checks.** Run package compilation, tests, formatting, lint, and API checks. Review generated output and documentation before requesting approval to merge.
+9. **Consolidate compatibility analysis.** Follow the authoritative-analysis design above before optimization. Establish a differential baseline against the checked-in first draft, then consolidate viewing analysis and staged-upgrade accounting. Share diagnostic-producing modular-schema rules for both target comparison directions. Verify exact flags, beta output, upgrade statuses, and empty-subset equivalence before deriving flags from blockers and removing redundant production checks. Cover missing and forbidden fields, accepted staging, unknown optional fields, recursive and unconstructible types, unreachable shared identifiers, supported cross-kind comparisons, reverse-only failures, and non-blocking metadata.
+10. **Evaluate performance.** After consolidation and correctness validation, compare the eager implementation with the recorded first-draft and pre-change benchmark baselines described below. Investigate material regressions. Keep the deferred performance decision separate from consolidation. Add lazy computation and caching only after that decision, when measurements justify them, with focused tests before optimization.
+11. **Run the final checks.** Run package compilation, tests, formatting, lint, and API checks. Review generated output and documentation before requesting approval to merge.
 
 Reuse [schemaCompatibilityTester.spec.ts](../../src/test/simple-tree/api/schemaCompatibilityTester.spec.ts) and nearby suites.
 Prefer existing test helpers and comparison tests over new test files.
@@ -677,6 +726,10 @@ Run API report generation and export checks for the new alpha types.
 - Accepted staging and metadata differences can leave all flags true while `allDiscrepancies` is nonempty.
 - The equivalence report includes failures from viewing and both stored-schema comparison directions without stopping early.
 - `canView`, `canUpgrade`, and `isEquivalent` retain their existing results.
+- Compatibility flags derive from blocker subsets produced by one authoritative semantic analysis, not parallel boolean-only and diagnostic implementations.
+- Each blocker subset is empty if and only if the corresponding original compatibility check succeeds, verified against independent expectations.
+- Staged-upgrade enablement is available before target construction, without duplicate location accounting.
+- Consolidation preserves beta output and public API shapes and does not introduce lazy evaluation or new caches.
 - Beta `discrepancies` retains its contract and at least its current diagnostic detail, including non-blocking context.
 - Additional beta diagnostic information is permitted; removal of existing information is not.
 - Deprecation of beta `discrepancies` remains a future decision.
@@ -700,7 +753,8 @@ Run API report generation and export checks for the new alpha types.
 
 ## Review Decisions
 
-The following design decisions are agreed. The revised plan remains a draft until implementation is approved.
+The following design decisions are agreed.
+The initial implementation is checked in; the consolidation described above is the next phase.
 
 1. **Agreed, updated:** Add `allDiscrepancies` alongside the three condition-specific properties. Use a shared diagnostic element model; the sketch uses the provisional name `SchemaDiscrepancyAlpha`.
 2. **Agreed, updated:** Keep discriminated unions and false-only access for the three subsets. Always expose `allDiscrepancies`, including when all flags are true.
@@ -709,5 +763,7 @@ The following design decisions are agreed. The revised plan remains a draft unti
 5. **Agreed:** Require documented and tested JSON serialization and deterministic ordering. Keep specific sorting rules as implementation details, with no ordering stability guarantee across library versions.
 6. **Agreed, updated:** Record each distinct discrepancy once in `allDiscrepancies`, including staging and persisted metadata. Exclude non-persisted metadata, including custom metadata and descriptions, consistently across entry points and document that scope in the APIs. Model viewing, upgrade, and equivalence reports as subsets of unchanged entries, without public check labels or duplicates. Preserve existing equivalence semantics and keep classification internal.
 7. **Agreed:** Implement eagerly first and benchmark against the existing behavior. Prepare practical boundaries for lazy computation, but add deferral, caching, and early-exit optimizations only when measurements justify their complexity.
+8. **Agreed:** Consolidate compatibility decisions and diagnostics before optimization. Derive flags from authoritative blocker subsets while preserving the staging dependency, existing compatibility semantics, beta output, and upgrade accounting. Validate against the checked-in first draft before removing duplicate production checks.
 
-This document does not authorize production changes.
+This update records the consolidation plan only.
+Do not start its implementation as part of this planning update.
