@@ -4,7 +4,7 @@ Status: Draft for review. Do not start implementation until this plan is approve
 
 ## Goal
 
-Report all schema discrepancies, including staging and schema metadata differences.
+Report all schema discrepancies within the comparison scope, including staging and persisted metadata differences.
 Give each schema compatibility flag a subset containing only discrepancies that contribute to that flag being false.
 Keep schema differences distinct from their compatibility effects.
 Expose all new APIs through alpha types.
@@ -40,7 +40,13 @@ Add an always-available `allDiscrepancies` list and three condition-specific sub
 | Upgrade | `canUpgrade` | Stored schema and upgrade target |
 | Equivalence | `isEquivalent` | Viewing comparison and stored-schema comparisons in both directions between stored schema and upgrade target |
 
-The complete list includes content constraints, staging annotations, and schema metadata, including application-provided schema metadata.
+The complete list includes content constraints, staging annotations, and `persistedMetadata`, including application-provided persisted metadata.
+Exclude non-persisted `metadata`, including `metadata.custom` and `metadata.description`, for both nodes and fields.
+Stored schema does not retain these values. Their absence is not a discrepancy.
+Apply this exclusion consistently to all entry points, even when both inputs retain non-persisted metadata.
+Do not inspect, serialize, or report unsupported-value diagnostics for excluded metadata.
+Staging annotations such as `stagedSchemaUpgrade` remain in scope; they are not arbitrary custom metadata.
+In the rest of this plan, metadata comparison, payloads, and benchmarks refer only to `persistedMetadata`.
 It can be nonempty when all three compatibility flags are true.
 Include differences accepted by every compatibility check, not only blockers.
 Exclude runtime object identity, methods, and application state that is not schema metadata.
@@ -66,7 +72,7 @@ The work does not include:
 - Breaking changes to the beta `discrepancies` contract or reductions in its diagnostic detail.
 - Deprecation of the beta `discrepancies` API.
 - A report for `canInitialize`. This flag describes initialization state, not schema equivalence.
-- Comparisons of methods, runtime object identity, or application state outside schema metadata.
+- Comparisons of non-persisted metadata, methods, runtime object identity, or unrelated application state.
 - New rules for types that cannot contain valid content.
 - Changes to persisted formats or merge behavior.
 
@@ -165,9 +171,14 @@ export type SchemaCompatibilityStatusAlpha =
     UpgradeableStatus &
     EquivalenceStatus & {
         /**
-         * Reports every distinct schema discrepancy, including staging and metadata differences.
+         * Reports every distinct schema discrepancy within the comparison scope,
+         * including staging and persisted metadata differences.
          * The array is empty only when no discrepancies are found.
          * It can be nonempty when all compatibility flags are true.
+         *
+         * @remarks
+         * Non-persisted metadata, including custom metadata and descriptions, is not compared.
+         * Its absence from stored schema is not a discrepancy.
          */
         readonly allDiscrepancies: readonly SchemaDiscrepancyAlpha[];
     };
@@ -287,8 +298,9 @@ Where structures correspond, compare their staging and metadata even when a cont
 ### Complete List And Classification
 
 Separate discrepancy discovery from compatibility classification.
-Inspect original schema data before transformations remove staging annotations or metadata.
-Compare content constraints, staging, and schema metadata as distinct aspects.
+Inspect original schema data before transformations remove staging annotations or persisted metadata.
+Compare content constraints, staging, and persisted metadata as distinct aspects.
+Never traverse non-persisted metadata to discover discrepancies.
 Also retain the effective upgrade target needed to explain directional compatibility failures.
 Associate failures with complete-list entries without duplicating a difference for each check.
 
@@ -296,12 +308,14 @@ Inspect what schema data each entry point receives and what its conversions reta
 Do not discard metadata available in persisted inputs before collecting differences.
 Do not infer original staging annotations that a persisted format does not contain.
 Document the compared representations and the information available to each helper.
-If required schema metadata cannot be represented faithfully in JSON, resolve its diagnostic encoding before implementation rather than silently dropping it.
+Use the JSON-compatible contract of `persistedMetadata` for metadata payloads.
+Do not introduce an arbitrary-value encoder or an uncompared-value variant for non-persisted metadata.
 
 Add staging and metadata variants to the shared alpha union.
 Identify metadata locations and distinguish missing values from present values, including null.
 Compare structured metadata by value, not object identity or object-key insertion order.
-Keep metadata and accepted staging differences out of blocker subsets unless the existing compatibility rules make them relevant.
+Keep persisted metadata differences out of all blocker subsets; existing compatibility rules ignore them.
+Include a staging difference in a blocker subset only when the existing staging rules make it relevant.
 
 Collect each difference at sufficient granularity for whole-entry subset selection.
 Classify using the existing predicates, retaining any check-specific bookkeeping internally.
@@ -387,6 +401,16 @@ Generate entrypoint sources and API reports with repository tools.
 Do not edit generated files by hand.
 Use the repository API-change guidance and add a changeset when required.
 
+### API Scope Documentation
+
+Document the metadata exclusion in the TSDoc for `SchemaCompatibilityStatusAlpha.allDiscrepancies`, the shared alpha diagnostic type and its persisted-metadata variant, and both `checkCompatibility` and `comparePersistedSchema`.
+Ensure the alpha view's compatibility documentation links to this scope definition.
+State that `allDiscrepancies` covers the compared schema representations, not non-persisted custom metadata or descriptions.
+State that persisted metadata differences are reported but do not affect compatibility flags.
+Explain that staging annotations remain in scope despite being represented internally as metadata.
+Include an example contrasting an ignored non-persisted metadata change with a reported persisted metadata change.
+Do not imply that excluding metadata is a comparison failure or that callers must restrict their existing custom metadata values to JSON.
+
 ## Test-First Sequence
 
 For each step, write one focused test and run it before changing production behavior.
@@ -415,6 +439,9 @@ Prefer existing test helpers and comparison tests over new test files.
 | Identical schemas with no detected differences | `allDiscrepancies` is present and empty; all three subsets are absent; beta `discrepancies` remains `undefined` |
 | Equivalent schemas with accepted staging or metadata differences | Complete list records those differences; all three subsets are absent when all flags are true |
 | Metadata additions, removals, and changed nested values | Complete list identifies the location and values, distinguishes absence from null, and preserves existing compatibility flags |
+| Non-persisted node or field metadata differs | No entries in any list and no flag changes, including custom metadata and descriptions |
+| Non-persisted custom metadata contains functions, symbols, cycles, or throwing getters | Comparison and report serialization do not traverse these values or throw because of them |
+| Helper inputs retain different non-persisted metadata | Both helpers ignore it consistently while reporting available persisted metadata and staging differences |
 | One allowed-type difference blocks a check while another is accepted | Complete list uses separate entries; the subset selects only the blocking entry |
 | Every condition-specific subset | Each entry occurs unchanged in the complete list; no duplicates or public check labels; subset may equal the complete list |
 | Each flag narrowed to false or true | Its alpha report is accessible only in the false branch; flags cannot be assigned |
@@ -595,6 +622,8 @@ Run API report generation and export checks for the new alpha types.
 - Missing-definition and node-kind diagnostics use bounded payloads without schema snapshots or recursive expansion.
 - All four alpha lists support JSON serialization without a custom replacer or loss of diagnostic information, including staging and metadata entries.
 - API documentation describes JSON serialization, and tests cover round trips and conditional property absence.
+- API documentation states that non-persisted metadata is excluded, while persisted metadata and staging differences are in scope.
+- Tests verify that excluded node and field metadata is not traversed or reported, including arbitrary non-JSON values, across the applicable entry points.
 - Alpha reports and their nested collections have deterministic ordering independent of schema insertion order, verified by tests.
 - API documentation does not promise specific sorting rules or ordering stability across library versions.
 - Pre-change and eager-implementation benchmarks cover representative latency and memory risks; measured regressions are reviewed before acceptance.
@@ -614,7 +643,7 @@ The following design decisions are agreed. The revised plan remains a draft unti
 3. **Agreed, updated:** Use bounded missing-definition and node-kind variants in the complete list, including accepted differences. Include them in subsets only when they block the corresponding condition. Report field failures for supported cross-kind comparisons.
 4. **Agreed:** Extend `checkCompatibility` and `comparePersistedSchema` in this change. Preserve diagnostic narrowing and existing return-type assignability, and continue to exclude `canInitialize`.
 5. **Agreed:** Require documented and tested JSON serialization and deterministic ordering. Keep specific sorting rules as implementation details, with no ordering stability guarantee across library versions.
-6. **Agreed:** Record each distinct discrepancy once in `allDiscrepancies`, including staging and schema metadata. Model viewing, upgrade, and equivalence reports as subsets of unchanged entries, without public check labels or duplicates. Preserve existing equivalence semantics and keep classification internal.
+6. **Agreed, updated:** Record each distinct discrepancy once in `allDiscrepancies`, including staging and persisted metadata. Exclude non-persisted metadata, including custom metadata and descriptions, consistently across entry points and document that scope in the APIs. Model viewing, upgrade, and equivalence reports as subsets of unchanged entries, without public check labels or duplicates. Preserve existing equivalence semantics and keep classification internal.
 7. **Agreed:** Implement eagerly first and benchmark against the existing behavior. Prepare practical boundaries for lazy computation, but add deferral, caching, and early-exit optimizations only when measurements justify their complexity.
 
 This document does not authorize production changes.
