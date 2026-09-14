@@ -6,6 +6,8 @@ This document defines the repository workflows that must remain possible when an
 It covers all current uses, including API review, API validation, declaration generation, documentation model generation, and build integration.
 It is a requirements document, not an implementation proposal.
 
+The [new capabilities and regression coverage](api-extractor-replacement-new-features.md) document tracks specific API Extractor defects that the replacement must handle correctly.
+
 The following scope decisions come from the requirements discussion:
 
 - Cover all repository uses, not only client API reports and documentation models.
