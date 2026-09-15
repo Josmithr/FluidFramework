@@ -23,6 +23,7 @@ import {
 	type Symbol as CompilerSymbol,
 } from "typescript/unstable/sync";
 import { resolveConfiguration } from "../configuration.js";
+import { classifyApiItems, ReleaseLevel, selectApiItems } from "../index.js";
 import {
 	aliasTypeOnly,
 	collect,
@@ -65,6 +66,19 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.equal(require("typescript6/package.json").version, "6.0.3");
 			directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-"));
 			cpSync(fixtureDirectory, path.join(directory, "src"), { recursive: true });
+			writeFileSync(
+				path.join(directory, "src/comments.ts"),
+				[
+					"export declare function absent(): void;",
+					"/** */",
+					"export declare function empty(): void;",
+					"/* Ordinary comment. */",
+					"export declare function ordinary(): void;",
+					"/** Earlier. @internal */",
+					"/** Closest. @public */",
+					"export declare function documented(): void;",
+				].join("\n"),
+			);
 			writeFileSync(path.join(directory, "package.json"), JSON.stringify({ type: "module" }));
 			writeFileSync(
 				path.join(directory, "build.json"),
@@ -434,8 +448,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.equal(result.length, 2);
 				assert.equal(new Set(result.map((signature) => signature.id)).size, 2);
 				assert.ok(result.every((signature) => signature.id.startsWith("owner:")));
-				assert.ok(result.some((signature) => signature.documentation.includes("@public")));
-				assert.ok(result.some((signature) => signature.documentation.includes("@internal")));
+				assert.ok(result.some((signature) => signature.documentation?.includes("@public")));
+				assert.ok(result.some((signature) => signature.documentation?.includes("@internal")));
 			});
 
 			it("collection helpers keep traversal state separate between calls", () => {
@@ -503,6 +517,103 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.strictEqual(second.value, first.value);
 					session.close();
 					assert.deepEqual(JSON.parse(JSON.stringify(first.value)), first.value);
+				} finally {
+					session.close();
+				}
+			});
+		});
+
+		describe("Release classification and metadata selection", () => {
+			// Design feature: F3. Declaration emit must retain explicit empty documentation.
+			it("preserves absent and empty comments through declaration emit and session disposal", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "fixture",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/comments.d.ts" }],
+					},
+					directory,
+				);
+				assert.ok(configuration.ok);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.ok(analysis.ok, JSON.stringify(analysis));
+					session.close();
+					const comments = analysis.value.declarations.map((item) => ({
+						name: item.name,
+						documentation: item.signatures[0]?.documentation,
+					}));
+					assert.deepEqual(comments, [
+						{ name: "absent", documentation: undefined },
+						{ name: "documented", documentation: "/** Closest. @public */" },
+						{ name: "empty", documentation: "/** */" },
+						{ name: "ordinary", documentation: undefined },
+					]);
+					const restored = JSON.parse(JSON.stringify(comments));
+					assert.equal(restored[0].documentation, undefined);
+					assert.equal(restored[2].documentation, "/** */");
+					const metadata = classifyApiItems(
+						comments.map((item) => ({ id: item.name, documentation: item.documentation })),
+						{ rules: { requireReleaseLevel: false } },
+					);
+					assert.ok(metadata.ok, JSON.stringify(metadata));
+					assert.equal(
+						metadata.value.items.find((item) => item.id === "documented")?.releaseLevel,
+						ReleaseLevel.Public,
+					);
+				} finally {
+					session.close();
+				}
+			});
+
+			// Design features and requirements: F4, W6. Selection reuses detached callable facts.
+			it("selects callable overloads from built declarations after the session closes", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "fixture",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/index.d.ts" }],
+					},
+					directory,
+				);
+				assert.ok(configuration.ok);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.ok(analysis.ok, JSON.stringify(analysis));
+					const overloads = analysis.value.declarations.find(
+						(item) => item.name === "convert",
+					)?.signatures;
+					assert.ok(overloads);
+					assert.equal(overloads.length, 2);
+					session.close();
+					const before = JSON.stringify(analysis.value);
+					const metadata = classifyApiItems(overloads);
+					assert.ok(metadata.ok, JSON.stringify(metadata));
+					const publicView = selectApiItems(metadata.value, {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					});
+					assert.ok(publicView.ok);
+					assert.equal(publicView.value.items.length, 1);
+					assert.equal(
+						publicView.value.items[0]?.id,
+						overloads.find((item) => item.documentation?.includes("@public"))?.id,
+					);
+					const complete = selectApiItems(metadata.value, {
+						name: "complete",
+						releaseLevels: [
+							ReleaseLevel.Public,
+							ReleaseLevel.Beta,
+							ReleaseLevel.Alpha,
+							ReleaseLevel.Internal,
+						],
+					});
+					assert.ok(complete.ok);
+					assert.equal(complete.value.items.length, 2);
+					assert.equal(JSON.stringify(analysis.value), before);
+					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
 					session.close();
 				}

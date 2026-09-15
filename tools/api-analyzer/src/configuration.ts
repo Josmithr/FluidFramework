@@ -1,6 +1,7 @@
+import assert from "node:assert/strict";
 import path from "node:path";
 import { ObjectSchema, ValidationStrategy } from "@eslint/object-schema";
-import { failure, freezeData, type Result } from "./result.js";
+import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
 
 /**
  * A named declaration entrypoint in one compiler resolution context.
@@ -218,22 +219,35 @@ function collectConfigurationLayers(
  * Does not resolve paths, apply final defaults, or change input objects.
  *
  * @param layers - A nonempty list in inheritance order, with later layers taking precedence.
- * @returns Merged settings that can still lack required values. The result is not frozen.
- * @throws If a layer fails schema validation or the layer list is empty.
+ * @returns Merged settings that can still lack required values, or diagnostics for invalid property types.
+ * The successful value is not frozen.
+ * @throws If the layer list is empty or an unexpected validation or merge error occurs.
  */
 function mergeConfigurationLayers(
 	layers: readonly Configuration[],
-): Omit<Configuration, "extends"> {
-	return configurationSchema.merge(
-		{},
-		...layers.map((layer) =>
-			Object.fromEntries(
-				Object.entries(layer).filter(
-					([key, value]) => configurationSchema.hasKey(key) && value != null,
-				),
+): Result<Omit<Configuration, "extends">> {
+	assert.ok(layers.length > 0, "Configuration inheritance must produce at least one layer.");
+	const normalized = layers.map((layer) =>
+		Object.fromEntries(
+			Object.entries(layer).filter(
+				([key, value]) => configurationSchema.hasKey(key) && value != null,
 			),
 		),
-	) as Omit<Configuration, "extends">;
+	);
+	for (const layer of normalized) {
+		try {
+			configurationSchema.validate(layer);
+		} catch (error) {
+			if (error instanceof Error && error.cause instanceof TypeError) {
+				return failure(DiagnosticCode.ConfigurationInvalid, error.message);
+			}
+			throw error;
+		}
+	}
+	return {
+		ok: true,
+		value: configurationSchema.merge({}, ...normalized) as Omit<Configuration, "extends">,
+	};
 }
 
 /**
@@ -245,7 +259,7 @@ function mergeConfigurationLayers(
  * Uses an empty rule map when no rules were supplied.
  * Does not read files, check file existence, or change input objects.
  *
- * @param merged - Settings returned by {@link mergeConfigurationLayers}, with property types already validated.
+ * @param merged - Successfully merged settings, with property types already validated.
  * @param workingDirectory - An absolute directory, already checked by {@link resolveConfiguration}.
  * @returns Deeply frozen effective settings on success, or diagnostics for invalid final settings.
  */
@@ -255,18 +269,21 @@ function validateAndNormalizeConfiguration(
 ): Result<EffectiveConfiguration> {
 	if (!merged.packageName?.trim() || !merged.project?.trim() || !merged.entrypoints?.length) {
 		return failure(
-			"configuration-required",
+			DiagnosticCode.ConfigurationRequired,
 			"Supply packageName, project, and at least one entrypoint.",
 		);
 	}
 	const names = new Set<string>();
 	for (const entrypoint of merged.entrypoints) {
 		if (!entrypoint.name.trim() || !entrypoint.path.trim()) {
-			return failure("configuration-entrypoint", "Each entrypoint requires a name and path.");
+			return failure(
+				DiagnosticCode.ConfigurationEntrypoint,
+				"Each entrypoint requires a name and path.",
+			);
 		}
 		if (names.has(entrypoint.name)) {
 			return failure(
-				"duplicate-entrypoint",
+				DiagnosticCode.DuplicateEntrypoint,
 				`Entrypoint ${entrypoint.name} is configured more than once.`,
 			);
 		}
@@ -301,26 +318,27 @@ function validateAndNormalizeConfiguration(
  * @param configuration - Settings to resolve, including inherited base configurations.
  * @param workingDirectory - Absolute directory used to resolve paths and supply the default package root.
  * @returns Frozen effective settings on success, or diagnostics if the configuration is invalid.
+ * @throws If an internal assertion or unexpected configuration-processing error occurs.
  */
 export function resolveConfiguration(
 	configuration: Configuration,
 	workingDirectory: string,
 ): Result<EffectiveConfiguration> {
 	if (!path.isAbsolute(workingDirectory)) {
-		return failure("configuration-directory", "The working directory must be absolute.");
-	}
-	let merged: Omit<Configuration, "extends">;
-	try {
-		const layers = collectConfigurationLayers(configuration);
-		if (layers === undefined) {
-			return failure("configuration-cycle", "Configuration inheritance contains a cycle.");
-		}
-		merged = mergeConfigurationLayers(layers);
-	} catch (error) {
 		return failure(
-			"configuration-invalid",
-			error instanceof Error ? error.message : String(error),
+			DiagnosticCode.ConfigurationDirectory,
+			"The working directory must be absolute.",
 		);
 	}
-	return validateAndNormalizeConfiguration(merged, workingDirectory);
+	const layers = collectConfigurationLayers(configuration);
+	if (layers === undefined) {
+		return failure(
+			DiagnosticCode.ConfigurationCycle,
+			"Configuration inheritance contains a cycle.",
+		);
+	}
+	const merged = mergeConfigurationLayers(layers);
+	return merged.ok
+		? validateAndNormalizeConfiguration(merged.value, workingDirectory)
+		: merged;
 }

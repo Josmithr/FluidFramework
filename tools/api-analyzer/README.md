@@ -56,6 +56,7 @@ Callers must invalidate after relevant changes to inputs or module resolution se
 Automatic file watching and persistent caching are not part of this stage.
 Repeated close calls have no effect. Requests after close fail with a diagnostic that explains how to recover.
 An unexpected adapter failure clears owned state and closes the session.
+The original error is rethrown. If cleanup also fails, an `AggregateError` retains both errors.
 Later requests must not return cached success. Create a new session to recover.
 Synchronous calls run one at a time and block the calling Node.js thread.
 An active call cannot be canceled.
@@ -63,11 +64,122 @@ The session extracts facts and disposes of the corresponding snapshot.
 It retains the compiler connection for other configurations and the facts for repeated tasks.
 Cached requests do not contact the compiler and cannot detect a compiler-process failure.
 
+Failure diagnostics describe only user-caused issues, including invalid input, configuration, and caller actions.
+Use the public `DiagnosticCode` definition for code meanings and corrective actions.
+Internal-only validation uses standard assertions. Assertion failures and unexpected operational errors propagate as exceptions, not diagnostics.
+Capability limitations can accompany successful facts; they are not user-input failures.
+
 Facts retain exported names separately from declaration identifiers.
 They also retain type-only export paths, namespace exports, merged declarations, effective members, and individual call signatures.
 Use portable data without compiler handles. Report limitations when a representation is incomplete.
 Identifiers are provisional and must not use compiler handle numbers or traversal order.
 The Stage 1 representation is not yet a versioned documentation model or a complete API reference graph.
+
+## Release classification and selection contract
+
+The first Stage 2 increment classifies identified documentation inputs and selects metadata views.
+It does not generate reports, validate semantic references, or trim declaration text.
+`classifyApiItems` accepts items with `id` and `documentation` fields, including callable signature facts.
+The required `documentation` property has type `string | undefined`.
+Supply only the associated TSDoc comment, including delimiters, or `undefined` when no comment exists.
+An explicit empty comment such as `/** */` is present documentation. An empty string is invalid comment text, not an absent comment.
+Do not supply declaration text in this field.
+This distinction supports the future inheritance rule: absence permits automatic inheritance, while any local TSDoc comment suppresses it.
+Classification does not implement inheritance and does not preserve raw comments in its metadata output; retain the original facts for that work.
+Each item is classified independently. Callers supply callable overloads, not implementation signatures.
+The result contains each item's identifier, release level, and modifier tags, sorted by identifier.
+Duplicate identifiers fail with `classification-duplicate-id`; this API does not resolve provisional identity collisions.
+
+Use `@microsoft/tsdoc` to parse comments. Do not interpret tags with a custom comment parser.
+`ReleaseLevel` is a numeric enum: `Public = 0`, `Beta = 1`, `Alpha = 2`, and `Internal = 3`.
+Increasing values express increasing permissiveness. Numeric comparison is intentional API behavior.
+TSDoc tags remain `@public`, `@beta`, `@alpha`, and `@internal`, with an explicit mapping to enum values.
+Classification metadata, including its JSON representation, stores numeric release levels instead of strings.
+Custom modifier names are supplied explicitly in `customModifierTags`, with a leading `@`.
+Names must not redefine standard tags or each other. Filters use the configured spelling.
+No Fluid-specific tags or surface names are built in.
+TSDoc parser diagnostics fail classification by default. Set `rules.validateTsdocSyntax` to `false` to suppress those diagnostics.
+For example, an unconfigured tag or malformed inline tag produces a parser diagnostic.
+Disabling this rule does not disable parsing: recognized tags still contribute to classification.
+Missing-release checks remain controlled by `rules.requireReleaseLevel`, and conflicting release levels always fail.
+Absent documentation bypasses comment parsing. An explicit empty TSDoc comment parses successfully.
+Both lack release tags and produce the same missing-release diagnostic when that rule is enabled.
+Invalid supplied strings, including empty strings, produce parser diagnostics unless `rules.validateTsdocSyntax` is disabled.
+Missing release levels fail by default. Set `rules.requireReleaseLevel` to `false` to retain untagged items with an `undefined` release level.
+JSON serialization omits `releaseLevel` for untagged items. Reading an omitted field returns `undefined`.
+Check absence explicitly: `ReleaseLevel.Public` is zero, not an absent release level.
+Multiple distinct release levels on one item always fail with `classification-release-conflict` because selection would be ambiguous.
+Mixed release levels across different overloads are valid, including mixed internal and non-internal overloads.
+Failures contain diagnostics and no partial classification. Diagnostic messages identify the affected item.
+Invalid tag configuration fails with `classification-configuration`.
+
+`selectApiItems` accepts classified metadata and a named selection.
+`releaseLevels` is an explicit set, not a release-order threshold. Internal items appear only when explicitly selected.
+`includeUntagged` defaults to `false`.
+All `requireTags` must be present, and none of the `excludeTags` may be present.
+Both tag lists default to empty. Unknown or unconfigured filter tags fail with `selection-configuration`.
+An empty selection name or an unsupported release level also fails with `selection-configuration`.
+A successful selection contains its name and matching metadata items, sorted by identifier.
+Classification and selection do not mutate or freeze caller-owned inputs. Their results are deeply frozen.
+They perform no compiler queries, filesystem access, baseline updates, or artifact writes.
+The original analysis facts remain available for later validation, including validation of excluded targets.
+Full declaration selection and reference validation require later contracts and tests.
+Classification options are explicit inputs to this API, not values read from the analysis session's rule map.
+Reuse a successful classification for several selections. The classifier does not cache or automatically repeat this work for each selection.
+
+The following example classifies two overloads and selects the public partner metadata without including the internal overload:
+
+```typescript
+import { classifyApiItems, ReleaseLevel, selectApiItems } from "api-analyzer";
+
+const classified = classifyApiItems(
+	[
+		{ id: "convert:text", documentation: "/** @public @partner */" },
+		{ id: "convert:number", documentation: "/** @internal @partner */" },
+	],
+	{ customModifierTags: ["@partner"] },
+);
+if (!classified.ok) {
+	throw new Error(JSON.stringify(classified.diagnostics));
+}
+const selected = selectApiItems(classified.value, {
+	name: "partner-public",
+	releaseLevels: [ReleaseLevel.Public],
+	requireTags: ["@partner"],
+});
+if (!selected.ok) {
+	throw new Error(JSON.stringify(selected.diagnostics));
+}
+console.log(selected.value.items); // Contains metadata for convert:text only.
+```
+
+## Review artifacts and baselines
+
+Review artifacts must identify the package and configured surface. Their API content must expose exported names,
+type-only export paths, callable signatures, release levels, and policy-relevant modifiers.
+Generation must use deterministic ordering and exclude volatile data such as timestamps and absolute checkout paths.
+Separate selections must produce separate artifacts from shared analysis. Baseline comparison must not trigger analysis.
+The declaration renderer and its exact report syntax are not yet implemented or stabilized.
+Raw declaration text is not a substitute for correctly selected declarations, and metadata-only output is not a complete API report.
+
+The initial baseline API accepts generated report text without interpreting its syntax.
+`compareReviewBaseline(actual, expected)` performs a pure, exact string comparison.
+An `undefined` expected value means that no accepted baseline exists; an empty string is an existing empty baseline.
+Missing and stale baselines return `baseline-missing` and `baseline-stale` diagnostics respectively.
+Neither case contains a partial success value or accepts the generated text.
+Line endings, whitespace, and the final newline are significant. Deterministic report generation must normalize its own output.
+
+`checkReviewBaseline(actual, baselinePath)` reads a UTF-8 baseline and performs the same comparison without writing.
+Only a missing file is converted to a missing-baseline diagnostic. Other filesystem errors propagate as exceptions.
+`updateReviewBaseline(actual, baselinePath)` explicitly writes the supplied text as UTF-8, creating or replacing the file.
+The caller must provide an absolute path and an existing parent directory. Invalid relative paths return a configuration diagnostic.
+Update errors propagate as exceptions. Updates are single-file writes, not transactions across multiple artifacts.
+Call update only after generation and all required validation and parity checks succeed.
+The library does not implicitly create directories or accept a baseline when checking it.
+
+Compare two generated surface texts directly to check parity without writing either text to an accepted baseline.
+The caller must use the same review identity and rendering options for both surfaces.
+This increment establishes baseline handling only; it does not satisfy the Stage 2 review-output or parity gates.
 
 ## Experimental API
 
@@ -134,7 +246,11 @@ Declaration and signature identities are provisional. Tests cover separate alias
 They do not establish a complete identity scheme for multiple installed versions of the same package or every anonymous and computed declaration.
 Member facts preserve effective type text, optional and readonly state, and declaration locations.
 Incomplete member expansion produces `partial` and diagnostics while preserving the original declaration text.
-Signature documentation contains raw declaration text, not parsed or resolved TSDoc comments.
+Signature documentation contains only the closest compiler-attached TSDoc comment, including delimiters, or `undefined` when absent.
+Ordinary comments do not count as TSDoc. Explicit empty TSDoc comments remain present.
+The enclosing declaration fact retains full source declaration text separately; signature `text` retains the printed function type.
+JSON serialization omits `undefined` documentation fields. Reading an omitted field returns `undefined`, while explicit empty comment strings remain intact.
+These comments are not parsed or resolved documentation models.
 Construct signatures, structured index signatures, and a complete graph of referenced types are not part of this initial fact format.
 
 ## Commands
@@ -143,13 +259,14 @@ Run these commands from this package directory to install pinned dependencies an
 
 ```sh
 pnpm install
-pnpm test:stage1
+pnpm test:contracts
 pnpm check:format
 ```
 
 The package has an independent workspace and lockfile so it does not change the client release group's compiler.
 The test build uses TS7. TS6 is a fixture-build and consumer-check dependency only, not an analysis fallback.
 Run `pnpm test` to include all Stage 0 investigation gates as well. That command intentionally remains unsuccessful while the three recorded gates fail.
+`test:contracts` runs the analysis and configuration contracts plus release-classification and metadata-selection tests.
 `test:stage1` retains its existing command name and selects the `Effective configuration`, `Analysis session`, and `Adapter fact extraction` suites, plus session-lifecycle worker tests.
 Test names describe behavior. Applicable design identifiers appear in comments above tests.
 Temporary investigation tests have comments that explain their purpose and when to remove or replace them.
@@ -213,7 +330,7 @@ The declaration-generation strategy and upstream reproductions remain open follo
 
 ## Stage 1 results
 
-Verified on 2026-09-15: `pnpm test:stage1` passes all 28 selected tests.
+Verified on 2026-09-15: all 29 tests selected by `pnpm test:stage1` pass as part of `pnpm test:contracts`.
 The build and formatter pass.
 The earlier full `pnpm test` run reported 34 passing tests and the same 3 unresolved Stage 0 failures.
 That full-suite count predates the additional configuration and extraction-helper tests.
@@ -236,5 +353,32 @@ Compiler-dependent helper tests use the existing real-compiler fixtures instead 
 Direct tests cover package locations, aliases, type-only exports, members, signatures, and declaration collection.
 They also check cache separation, repeated collection, and the active-identifier guard.
 
-The implementation uses pure configuration and immutable data, with native communication, filesystem access, and caches isolated in the adapter and session.
-It does not start Stage 2 policy or report implementation, close the full W/F/B requirements, or resolve the Stage 0 declaration-generation limitation.
+The Stage 1 implementation uses pure configuration and immutable data, with native communication, filesystem access, and caches isolated in the adapter and session.
+It does not close the full W/F/B requirements or resolve the Stage 0 declaration-generation limitation.
+
+## Initial Stage 2 results
+
+Verified on 2026-09-15: `pnpm test:contracts` passes 45 tests.
+This includes 29 analysis and configuration contracts, 12 [classification and selection tests](src/test/classification.test.ts), and four real-compiler integration cases.
+Tests distinguish absent, ordinary, explicit empty, and tagged comments through source analysis and TS6/TS7 declaration emit.
+They preserve that distinction after session closure and JSON serialization, and verify that documentation excludes declaration text.
+Tests fix the numeric release-level ordering and verify that selections remain explicit sets rather than thresholds.
+The new contract tests first failed against implementation stubs, then passed after implementation.
+The integration cases classify and select detached callable overload facts after the analysis session closes, using declarations built with TS6 and TS7.
+They check that the untagged implementation signature is absent, the public selection excludes the internal overload, and the original facts remain unchanged.
+
+The classifier uses pinned `@microsoft/tsdoc` 0.16.0 from the Microsoft TSDoc project, under the MIT license.
+The dependency is installed only in this package's independent workspace.
+Classification and selection return frozen metadata without compiler objects. They do not construct review artifacts or alter declaration text.
+The subsequent baseline-handling increment implements comparison and explicit updates as described below.
+Structured reference facts, cross-package validation, review generation, and the repository pilot remain open Stage 2 work.
+The full compiler investigation suite was not rerun for this increment. Its recorded failures remain unresolved, and no full W/F/B entry is closed.
+
+### Baseline handling increment
+
+Verified on 2026-09-15: `pnpm test:contracts` passes 48 tests. The build, formatting, and whitespace checks pass.
+The [baseline tests](src/test/reviewBaseline.test.ts) add three acceptance cases to `test:contracts`.
+They check exact comparison, absent versus empty baselines, read-only checks, explicit creation and replacement,
+relative-path diagnostics, and propagation of unexpected filesystem errors.
+The tests first failed because the public baseline APIs were absent, then passed after implementation.
+This increment does not generate reports or validate declaration references. It establishes the independent baseline boundary for the next report-generation work.

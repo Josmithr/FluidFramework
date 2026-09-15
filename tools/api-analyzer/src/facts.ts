@@ -1,6 +1,25 @@
 import type { AnalyzerDiagnostic } from "./result.js";
 
 /**
+ * An opaque string that identifies an API item within its owning data set.
+ *
+ * @remarks
+ * Used for declaration and signature identities, export references, and classification metadata.
+ * Compare identifiers by exact string equality. Do not parse, trim, or normalize them.
+ * No prescribed syntax, non-blank requirement, global uniqueness, or cross-version stability is guaranteed.
+ * This alias does not add runtime validation or distinguish different kinds of API items.
+ *
+ * When passing facts to classification, reuse their identifiers to associate metadata with the original facts.
+ * Classification requires distinct identifiers within each request and preserves them through selection.
+ * It sorts results by JavaScript string comparison and includes identifiers in item-specific diagnostic messages.
+ * Callers that supply their own documentation inputs also supply their identifiers.
+ *
+ * Analyzer-generated identifiers are provisional. See {@link DeclarationFact.id} and
+ * {@link SignatureFact.id} for their generation rules and limitations.
+ */
+export type ApiItemId = string;
+
+/**
  * A declaration location relative to its owning package.
  */
 export interface Origin {
@@ -40,7 +59,7 @@ export interface ExportFact {
 	 * @remarks
 	 * Aliases that expose the same declaration share this target identifier.
 	 */
-	readonly target: string;
+	readonly target: ApiItemId;
 	/**
 	 * Whether the binding is exposed only through type-only imports or exports.
 	 *
@@ -63,19 +82,20 @@ export interface SignatureFact {
 	 * Identical printed signatures for the same owner have the same identifier.
 	 * Stability across compiler or analyzer versions is not guaranteed.
 	 */
-	readonly id: string;
+	readonly id: ApiItemId;
 	/**
 	 * The compiler-printed function type for this call signature.
 	 */
 	readonly text: string;
 	/**
-	 * The full source text of the signature's declaration, including leading comments.
+	 * The associated TSDoc comment, including delimiters, or `undefined` if absent.
 	 *
 	 * @remarks
-	 * This is raw declaration text, not parsed or resolved TSDoc.
-	 * An empty string means that the declaration text was unavailable.
+	 * Preserves an explicit empty comment. Does not include declaration text or ordinary comments.
+	 * If several TSDoc comments are attached, retains the closest one to the declaration.
+	 * This is raw comment text, not parsed or resolved TSDoc. JSON serialization omits absent documentation.
 	 */
-	readonly documentation: string;
+	readonly documentation: string | undefined;
 }
 
 /**
@@ -154,7 +174,7 @@ export interface DeclarationFact {
 	 * Derived from package names, package-relative files, and symbol names.
 	 * It does not include package versions and is not a globally unique or version-stable identifier.
 	 */
-	readonly id: string;
+	readonly id: ApiItemId;
 	/**
 	 * The symbol name, or the package-relative file path for a source-file module.
 	 */

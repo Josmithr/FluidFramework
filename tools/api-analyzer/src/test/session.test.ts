@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, it } from "mocha";
 import { resolveConfiguration, type EffectiveConfiguration } from "../configuration.js";
 import { createAnalysisSession } from "../session.js";
+import type { DeclarationFact, SignatureFact } from "../facts.js";
 
 describe("Analysis session", () => {
 	let directory: string;
@@ -70,6 +71,41 @@ describe("Analysis session", () => {
 		rmSync(directory, { recursive: true, force: true });
 	});
 
+	// Design feature: F3. Only an absent TSDoc comment permits automatic inheritance.
+	it("distinguishes absent and empty signature comments without including declaration text", () => {
+		writeFileSync(
+			path.join(directory, "src/comments.ts"),
+			[
+				"export declare function absent(): void;",
+				"/** */",
+				"export declare function empty(): void;",
+				"/* Ordinary comment. */",
+				"export declare function ordinary(): void;",
+				"/** Documented. @public */",
+				"export declare function documented(): void;",
+			].join("\n"),
+		);
+		const result = session.analyze({
+			...configuration,
+			entrypoints: [{ name: ".", path: path.join(directory, "src/comments.ts") }],
+		});
+		assert.ok(result.ok, JSON.stringify(result));
+		for (const [name, expected] of [
+			["absent", undefined],
+			["empty", "/** */"],
+			["ordinary", undefined],
+			["documented", "/** Documented. @public */"],
+		] as const) {
+			const declaration: DeclarationFact | undefined = result.value.declarations.find(
+				(item) => item.name === name,
+			);
+			const signature: SignatureFact | undefined = declaration?.signatures[0];
+			assert.ok(signature);
+			assert.equal(signature.documentation, expected, name);
+			assert.ok(declaration?.declarations[0]?.text.includes(`function ${name}`));
+		}
+	});
+
 	// Design requirements: W6, W11.
 	it("reuses frozen facts across task order and policy changes", () => {
 		const first = session.analyze(configuration);
@@ -131,8 +167,8 @@ describe("Analysis session", () => {
 		)?.signatures;
 		assert.equal(overloads?.length, 2);
 		assert.equal(new Set(overloads?.map((signature) => signature.id)).size, 2);
-		assert.ok(overloads?.some((signature) => signature.documentation.includes("@internal")));
-		assert.ok(overloads?.some((signature) => signature.documentation.includes("@public")));
+		assert.ok(overloads?.some((signature) => signature.documentation?.includes("@internal")));
+		assert.ok(overloads?.some((signature) => signature.documentation?.includes("@public")));
 		assert.ok(derived?.members.every((member) => member.origins.length > 0));
 	});
 

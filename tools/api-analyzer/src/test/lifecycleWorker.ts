@@ -40,14 +40,12 @@ if (mode === "session" || mode === "session-crash") {
 		if (mode === "session-crash") {
 			process.kill(nativePid, "SIGKILL");
 			// Use an uncached configuration so the next request contacts the failed compiler process.
-			const failed = session.analyze({
-				...configuration.value,
-				entrypoints: [{ name: "./different", path: path.join(directory, "src/api.ts") }],
-			});
-			assert.equal(failed.ok, false);
-			if (!failed.ok) {
-				assert.equal(failed.diagnostics[0]?.code, "analysis-failed");
-			}
+			assert.throws(() =>
+				session.analyze({
+					...configuration.value,
+					entrypoints: [{ name: "./different", path: path.join(directory, "src/api.ts") }],
+				}),
+			);
 			assert.equal(session.analyze(configuration.value).ok, false);
 			console.log("native termination rejected the next request");
 		}

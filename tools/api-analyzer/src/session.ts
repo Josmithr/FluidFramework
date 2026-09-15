@@ -1,7 +1,7 @@
 import type { EffectiveConfiguration } from "./configuration.js";
 import type { AnalysisFacts } from "./facts.js";
 import { createNativeAdapter } from "./nativeAdapter.js";
-import { failure, type Result } from "./result.js";
+import { DiagnosticCode, failure, type Result } from "./result.js";
 
 /**
  * A synchronous owner of compiler resources and reusable facts.
@@ -23,6 +23,8 @@ export interface AnalysisSession {
 	 * @param configuration - Effective settings returned by configuration resolution.
 	 * @returns Facts on success, or diagnostics on failure. Repeated requests for a cached
 	 * configuration return the same facts object. Requests after close return `session-closed`.
+	 * @throws The original unexpected adapter error after closing the session and clearing its cache.
+	 * If cleanup also fails, throws an `AggregateError` containing both errors.
 	 */
 	analyze(configuration: EffectiveConfiguration): Result<AnalysisFacts>;
 	/**
@@ -106,7 +108,7 @@ export function createAnalysisSession(): AnalysisSession {
 		analyze(configuration) {
 			if (closed) {
 				return failure(
-					"session-closed",
+					DiagnosticCode.SessionClosed,
 					"The analysis session is closed. Create a new session.",
 				);
 			}
@@ -138,15 +140,13 @@ export function createAnalysisSession(): AnalysisSession {
 				try {
 					discard();
 				} catch (cleanupError) {
-					return failure(
-						"analysis-failed",
-						`Analysis failed for ${configuration.project}: ${String(error)}. Cleanup also failed: ${String(cleanupError)}. Create a new session.`,
+					throw new AggregateError(
+						[error, cleanupError],
+						`Analysis and cleanup failed for ${configuration.project}. Create a new session.`,
+						{ cause: error },
 					);
 				}
-				return failure(
-					"analysis-failed",
-					`Analysis failed for ${configuration.project}. Create a new session. ${String(error)}`,
-				);
+				throw error;
 			}
 		},
 		invalidate() {

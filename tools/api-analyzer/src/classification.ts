@@ -1,0 +1,417 @@
+import {
+	TSDocConfiguration,
+	TSDocParser,
+	TSDocTagDefinition,
+	TSDocTagSyntaxKind,
+} from "@microsoft/tsdoc";
+import type { ApiItemId } from "./facts.js";
+import {
+	DiagnosticCode,
+	failure,
+	freezeData,
+	type AnalyzerDiagnostic,
+	type Result,
+} from "./result.js";
+
+/**
+ * An API release level ordered by increasing permissiveness.
+ *
+ * @remarks
+ * Numeric comparisons follow `Public < Beta < Alpha < Internal`.
+ * Higher levels permit references to lower levels under release-level compatibility rules.
+ * Selections still use explicit sets; the ordering does not add implicit inclusions.
+ */
+export enum ReleaseLevel {
+	/**
+	 * Public APIs, the least permissive release level.
+	 */
+	Public = 0,
+	/**
+	 * Beta APIs, more permissive than public APIs.
+	 */
+	Beta = 1,
+	/**
+	 * Alpha APIs, more permissive than beta APIs.
+	 */
+	Alpha = 2,
+	/**
+	 * Internal APIs, the most permissive release level.
+	 */
+	Internal = 3,
+}
+
+const releaseLevels: readonly ReleaseLevel[] = [
+	ReleaseLevel.Public,
+	ReleaseLevel.Beta,
+	ReleaseLevel.Alpha,
+	ReleaseLevel.Internal,
+];
+
+const releaseLevelTags: Readonly<Record<ReleaseLevel, string>> = {
+	[ReleaseLevel.Public]: "@public",
+	[ReleaseLevel.Beta]: "@beta",
+	[ReleaseLevel.Alpha]: "@alpha",
+	[ReleaseLevel.Internal]: "@internal",
+};
+
+/**
+ * An identified documentation input, such as a callable signature fact.
+ */
+export interface ApiItemDocumentation {
+	/**
+	 * The caller-supplied identifier. See {@link ApiItemId} for identity and uniqueness rules.
+	 */
+	readonly id: ApiItemId;
+
+	/**
+	 * The associated TSDoc comment, including its delimiters, or `undefined` if absent.
+	 *
+	 * @remarks
+	 * An explicit empty TSDoc comment is present documentation.
+	 * An empty string is invalid comment text, not an absent comment. Declaration text is not accepted.
+	 *
+	 * @example
+	 * A tagged comment retains both delimiters.
+	 *
+	 * Note: The closing slash is escaped here to avoid ending this source comment.
+	 *
+	 * ```typescript
+	 * const item: ApiItemDocumentation = {
+	 *     id: "example",
+	 *     documentation: "/** Describes the API. @public *\/",
+	 * };
+	 * ```
+	 *
+	 * @example
+	 * An explicit empty comment differs from no comment. The empty comment retains its delimiters.
+	 *
+	 * Note: Closing slashes are escaped here to avoid ending this source comment.
+	 *
+	 * ```typescript
+	 * const empty: ApiItemDocumentation = { id: "empty", documentation: "/** *\/" };
+	 * const absent: ApiItemDocumentation = { id: "absent", documentation: undefined };
+	 * ```
+	 */
+	readonly documentation: string | undefined;
+}
+
+/**
+ * Independently configurable diagnostic rules for classification.
+ */
+export interface ClassificationRules {
+	/**
+	 * Whether a missing release level fails classification.
+	 *
+	 * @defaultValue `true`
+	 */
+	readonly requireReleaseLevel?: boolean;
+	/**
+	 * Whether TSDoc parser diagnostics cause classification to fail.
+	 *
+	 * @remarks
+	 * Set to `false` to ignore parser diagnostics while retaining recognized tags.
+	 * These diagnostics include unrecognized tags, malformed inline tags, and missing comment delimiters.
+	 * This does not disable parsing, change {@link ClassificationRules.requireReleaseLevel}, or suppress release-level conflicts.
+	 *
+	 * @defaultValue `true`
+	 *
+	 * @example
+	 * An unconfigured tag fails classification by default. Disabling syntax validation retains the recognized public release level.
+	 *
+	 * Note: The closing slash is escaped here to avoid ending this source comment.
+	 *
+	 * ```typescript
+	 * const inputs = [{ id: "example", documentation: "/** @public @unconfigured *\/" }];
+	 * const strict = classifyApiItems(inputs); // Fails with classification-tsdoc.
+	 * const tolerant = classifyApiItems(inputs, { rules: { validateTsdocSyntax: false } });
+	 * // tolerant.ok is true; the item has `ReleaseLevel.Public`.
+	 * ```
+	 *
+	 * @example
+	 * Suppressing parser diagnostics does not suppress release-level checks.
+	 *
+	 * Note: The closing slash is escaped here to avoid ending this source comment.
+	 *
+	 * ```typescript
+	 * const rules = { validateTsdocSyntax: false };
+	 * const missing = classifyApiItems([{ id: "missing", documentation: undefined }], { rules });
+	 * // Fails with classification-release-missing; requireReleaseLevel still defaults to true.
+	 * const conflict = classifyApiItems(
+	 *     [{ id: "conflict", documentation: "/** @public @beta *\/" }],
+	 *     { rules },
+	 * );
+	 * // Fails with classification-release-conflict.
+	 * ```
+	 */
+	readonly validateTsdocSyntax?: boolean;
+}
+
+/**
+ * Parser configuration and diagnostic policy for one classification request.
+ */
+export interface ClassificationOptions {
+	/**
+	 * Custom modifier names, including `@`. Must not redefine standard tags or each other.
+	 *
+	 * @defaultValue No custom modifier tags.
+	 */
+	readonly customModifierTags?: readonly string[];
+	/**
+	 * Diagnostic overrides. Conflicting release levels always fail.
+	 *
+	 * @defaultValue All classification rules are enabled.
+	 */
+	readonly rules?: ClassificationRules;
+}
+
+/**
+ * Detached classification of one documentation input.
+ */
+export interface ApiItemMetadata {
+	/**
+	 * The input identifier. See {@link ApiItemId} for identity and preservation rules.
+	 */
+	readonly id: ApiItemId;
+	/**
+	 * The declared release level, or `undefined` when missing and permitted by policy.
+	 *
+	 * @remarks
+	 * JSON serialization omits this property when its value is `undefined`.
+	 * Check absence explicitly; {@link ReleaseLevel.Public} has the numeric value zero.
+	 */
+	readonly releaseLevel: ReleaseLevel | undefined;
+	/**
+	 * Recognized modifier names, including release tags, deduplicated and sorted.
+	 */
+	readonly modifierTags: readonly string[];
+}
+
+/**
+ * Classified metadata and the tag vocabulary available for selection.
+ */
+export interface ApiClassification {
+	/**
+	 * Independently classified items, sorted by identifier.
+	 */
+	readonly items: readonly ApiItemMetadata[];
+	/**
+	 * Standard and configured modifier names, sorted for deterministic output.
+	 */
+	readonly modifierTags: readonly string[];
+}
+
+/**
+ * An explicit release-level and modifier-tag selection, independent of repository policy.
+ */
+export interface ApiItemSelection {
+	/**
+	 * A nonempty caller-defined name for this metadata view.
+	 */
+	readonly name: string;
+	/**
+	 * Release levels to include. No less-stable levels are added implicitly.
+	 */
+	readonly releaseLevels: readonly ReleaseLevel[];
+	/**
+	 * Whether untagged items may pass the release-level filter.
+	 *
+	 * @defaultValue `false`
+	 */
+	readonly includeUntagged?: boolean;
+	/**
+	 * Modifier names that must all be present, using their configured spelling.
+	 *
+	 * @defaultValue No required tags.
+	 */
+	readonly requireTags?: readonly string[];
+	/**
+	 * Modifier names that must all be absent, using their configured spelling.
+	 *
+	 * @defaultValue No excluded tags.
+	 */
+	readonly excludeTags?: readonly string[];
+}
+
+/**
+ * A named metadata view, not a trimmed declaration graph or generated artifact.
+ */
+export interface SelectedApiItems {
+	/**
+	 * The caller-supplied selection name.
+	 */
+	readonly name: string;
+	/**
+	 * Matching metadata, copied and sorted by identifier.
+	 */
+	readonly items: readonly ApiItemMetadata[];
+}
+
+/**
+ * Classifies identified documentation inputs.
+ *
+ * @remarks
+ * Uses TSDoc parsing without compiler queries or filesystem access. Results are deeply frozen;
+ * inputs are not mutated or frozen. Item-specific diagnostics include the input identifier.
+ * If any item fails validation, the function returns diagnostics instead of classifications for the supplied items.
+ * Callers must pass callable overloads separately and omit implementation signatures.
+ * Duplicate identifiers fail rather than merge distinct inputs.
+ *
+ * @param items - Documentation inputs with caller-supplied identifiers.
+ * @param options - Parser configuration and diagnostic rules.
+ * @returns Classified metadata or diagnostics.
+ * @throws If an internal assertion or unexpected parser or configuration error occurs.
+ */
+export function classifyApiItems(
+	items: readonly ApiItemDocumentation[],
+	options: ClassificationOptions = {},
+): Result<ApiClassification> {
+	// Keep custom tags local to this request; reject redefinitions of standard or earlier custom tags.
+	const configuration = new TSDocConfiguration();
+	for (const tagName of options.customModifierTags ?? []) {
+		try {
+			TSDocTagDefinition.validateTSDocTagName(tagName);
+		} catch (error) {
+			return failure(
+				DiagnosticCode.ClassificationConfiguration,
+				`Invalid custom modifier configuration: ${String(error)}`,
+			);
+		}
+		if (configuration.tryGetTagDefinition(tagName)) {
+			return failure(
+				DiagnosticCode.ClassificationConfiguration,
+				`Tag ${tagName} is already defined. Use a distinct custom modifier name.`,
+			);
+		}
+		configuration.addTagDefinition(
+			new TSDocTagDefinition({ tagName, syntaxKind: TSDocTagSyntaxKind.ModifierTag }),
+		);
+	}
+	const parser = new TSDocParser(configuration);
+	const identifiers = new Set<ApiItemId>();
+	const diagnostics: AnalyzerDiagnostic[] = [];
+	const classified: ApiItemMetadata[] = [];
+	for (const item of items) {
+		if (identifiers.has(item.id)) {
+			return failure(
+				DiagnosticCode.ClassificationDuplicateId,
+				`Duplicate item identifier ${item.id}. Supply distinct identifiers before classification.`,
+			);
+		}
+		identifiers.add(item.id);
+
+		// Parse every present comment, including empty comments, even when syntax diagnostics are disabled.
+		const parsed =
+			item.documentation === undefined ? undefined : parser.parseString(item.documentation);
+		if (options.rules?.validateTsdocSyntax !== false) {
+			for (const message of parsed?.log.messages ?? []) {
+				diagnostics.push({
+					code: DiagnosticCode.ClassificationTsdoc,
+					message: `${item.id}: ${message.messageId}: ${message.unformattedText}`,
+				});
+			}
+		}
+
+		// Use configured spellings and omit unknown tags, including when parser diagnostics are ignored.
+		const modifierTags = [
+			...new Set(
+				(parsed?.docComment.modifierTagSet.nodes ?? []).flatMap((tag) => {
+					const definition = configuration.tryGetTagDefinition(tag.tagName);
+					return definition?.syntaxKind === TSDocTagSyntaxKind.ModifierTag
+						? [definition.tagName]
+						: [];
+				}),
+			),
+		].sort();
+
+		// Release-level checks are independent of syntax validation; conflicts always fail.
+		const levels = releaseLevels.filter((level) =>
+			modifierTags.includes(releaseLevelTags[level]),
+		);
+		if (levels.length > 1) {
+			diagnostics.push({
+				code: DiagnosticCode.ClassificationReleaseConflict,
+				message: `${item.id}: Conflicting release levels ${levels.map((level) => releaseLevelTags[level]).join(", ")}. Specify one release level for this item.`,
+			});
+		} else if (levels.length === 0 && options.rules?.requireReleaseLevel !== false) {
+			diagnostics.push({
+				code: DiagnosticCode.ClassificationReleaseMissing,
+				message: `${item.id}: Missing release level. Add a release tag or disable requireReleaseLevel.`,
+			});
+		}
+		classified.push({ id: item.id, releaseLevel: levels[0], modifierTags });
+	}
+	// Report collected item errors without returning classifications for any item in the batch.
+	if (diagnostics.length > 0) {
+		return freezeData({ ok: false, diagnostics });
+	}
+	return freezeData({
+		ok: true,
+		value: {
+			items: classified.sort((left, right) =>
+				left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+			),
+			// Include all configured modifier names so selection can validate tags absent from these items.
+			modifierTags: configuration.tagDefinitions
+				.filter((tag) => tag.syntaxKind === TSDocTagSyntaxKind.ModifierTag)
+				.map((tag) => tag.tagName)
+				.sort(),
+		},
+	});
+}
+
+/**
+ * Selects a named metadata view without changing its input.
+ *
+ * @remarks
+ * Required tags are combined with AND. Any excluded tag rejects an item.
+ * Rejects empty selection names, unsupported release levels, and unknown modifier names.
+ * Returns deeply frozen copies without mutating or freezing caller-owned inputs.
+ * Does not trim the original facts or validate references to excluded items.
+ *
+ * @param classification - The classified metadata to select from.
+ * @param selection - Release levels and modifier-tag filters.
+ * @returns The selected metadata or diagnostics.
+ */
+export function selectApiItems(
+	classification: ApiClassification,
+	selection: ApiItemSelection,
+): Result<SelectedApiItems> {
+	if (
+		selection.name.trim().length === 0 ||
+		selection.releaseLevels.some((level) => !releaseLevels.includes(level))
+	) {
+		return failure(
+			DiagnosticCode.SelectionConfiguration,
+			"Supply a nonempty selection name and supported release levels.",
+		);
+	}
+	const requireTags = selection.requireTags ?? [];
+	const excludeTags = selection.excludeTags ?? [];
+	// Reject unknown filters instead of silently producing misleading matches or exclusions.
+	for (const tag of [...requireTags, ...excludeTags]) {
+		if (!classification.modifierTags.includes(tag)) {
+			return failure(
+				DiagnosticCode.SelectionConfiguration,
+				`Unknown modifier filter ${tag}. Use a standard or configured modifier name.`,
+			);
+		}
+	}
+	// Match exact release levels, not a threshold. Explicit absence checks preserve Public (zero).
+	const items = classification.items
+		.filter(
+			(item) =>
+				(item.releaseLevel === undefined
+					? selection.includeUntagged === true
+					: selection.releaseLevels.includes(item.releaseLevel)) &&
+				requireTags.every((tag) => item.modifierTags.includes(tag)) &&
+				excludeTags.every((tag) => !item.modifierTags.includes(tag)),
+		)
+		// Copy both records and tag arrays so freezing the result does not freeze caller-owned data.
+		.map((item) => ({
+			id: item.id,
+			releaseLevel: item.releaseLevel,
+			modifierTags: [...item.modifierTags],
+		}))
+		.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+	return freezeData({ ok: true, value: { name: selection.name, items } });
+}

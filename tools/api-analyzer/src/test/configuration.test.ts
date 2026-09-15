@@ -100,6 +100,21 @@ describe("Effective configuration", () => {
 
 	// Design requirement: W11.
 	it("reports schema validation failures as diagnostics", () => {
+		const internalError = new assert.AssertionError({
+			message: "Internal configuration failure",
+		});
+		assert.throws(
+			() =>
+				resolveConfiguration(
+					{
+						get extends(): readonly Configuration[] {
+							throw internalError;
+						},
+					},
+					"/workspace",
+				),
+			(error: unknown) => error === internalError,
+		);
 		// Bypass static types to check invalid values supplied at runtime.
 		const configuration = { packageName: 42 } as unknown as Configuration;
 		const result = resolveConfiguration(configuration, "/workspace");

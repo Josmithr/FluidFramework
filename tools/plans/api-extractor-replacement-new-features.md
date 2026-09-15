@@ -25,9 +25,16 @@ These tests do not satisfy the requirements for generated artifacts.
 The [direct adapter-helper tests](../api-analyzer/src/test/nativeCapabilities.test.ts) use real compiler fixtures built with TS6 and TS7.
 They check package locations, alias targets, type-only export status, effective members, documented overloads, and declaration collection.
 They also verify independent location caches, reuse of completed declarations, and the active-identifier guard.
-The focused suite passes 28 tests, verified on 2026-09-15.
+The focused analysis and configuration suite passes 29 tests, verified on 2026-09-15.
 Test names describe behavior; comments above tests retain applicable design identifiers.
 This evidence does not close F1-F4 or B1-B6. Artifact-level and full cross-package acceptance tests remain required.
+
+The [classification and selection tests](../api-analyzer/src/test/classification.test.ts) provide initial Stage 2 evidence for independent overload classification and configurable release and modifier-tag filters.
+The native capability fixtures also verify selection from detached callable facts after session closure for both input-build compilers.
+The combined contract suite passes 45 tests on 2026-09-15, including numeric release-level ordering and explicit-set selection checks.
+Extraction tests distinguish absent and explicit empty TSDoc comments in source and TS6/TS7-built declarations, including after JSON serialization.
+This preserves inputs needed by F3; it does not implement or verify automatic inheritance.
+These tests select metadata, not reports or declarations. F4 remains open until artifact and reference-validation acceptance tests pass.
 
 ## New functionality to support
 

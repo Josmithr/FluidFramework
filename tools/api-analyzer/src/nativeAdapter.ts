@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -27,13 +28,14 @@ import {
 import type { EffectiveConfiguration } from "./configuration.js";
 import type {
 	AnalysisFacts,
+	ApiItemId,
 	DeclarationFact,
 	ExportFact,
 	MemberFact,
 	Origin,
 	SignatureFact,
 } from "./facts.js";
-import { failure, freezeData, type Result } from "./result.js";
+import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
 
 /**
  * Creates a synchronous adapter that owns a native TypeScript compiler connection.
@@ -62,12 +64,12 @@ export function createNativeAdapter() {
 		 * @returns Frozen, detached facts on success, or diagnostics for project,
 		 * compiler, or entrypoint validation failures.
 		 * @throws If compiler communication, file access, or fact extraction fails unexpectedly.
-		 * The owning session converts these exceptions to analysis-failure diagnostics.
+		 * The owning session clears its state and propagates these exceptions.
 		 */
 		analyze(configuration: EffectiveConfiguration): Result<AnalysisFacts> {
 			if (!existsSync(configuration.project)) {
 				return failure(
-					"project-missing",
+					DiagnosticCode.ProjectMissing,
 					`Project configuration not found: ${configuration.project}`,
 				);
 			}
@@ -75,7 +77,10 @@ export function createNativeAdapter() {
 			try {
 				const project = snapshot.getProject(configuration.project);
 				if (!project) {
-					return failure("project-missing", `Cannot open project: ${configuration.project}`);
+					return failure(
+						DiagnosticCode.ProjectMissing,
+						`Cannot open project: ${configuration.project}`,
+					);
 				}
 				// Reject invalid compiler input before collecting any facts.
 				const diagnostics = [
@@ -86,7 +91,7 @@ export function createNativeAdapter() {
 				];
 				if (diagnostics.length > 0) {
 					return failure(
-						"compiler-diagnostics",
+						DiagnosticCode.CompilerDiagnostics,
 						`Project ${configuration.project} has compiler diagnostics: ${JSON.stringify(diagnostics)}`,
 					);
 				}
@@ -149,11 +154,11 @@ export interface CollectionState {
 	/**
 	 * Completed declaration facts keyed by provisional identifier.
 	 */
-	readonly declarations: Map<string, DeclarationFact>;
+	readonly declarations: Map<ApiItemId, DeclarationFact>;
 	/**
 	 * Identifiers on the active traversal path, used to stop export cycles.
 	 */
-	readonly visiting: Set<string>;
+	readonly visiting: Set<ApiItemId>;
 }
 
 /**
@@ -185,13 +190,16 @@ function extractFacts(
 		const source = project.program.getSourceFile(entrypoint.path);
 		if (!source) {
 			return failure(
-				"entrypoint-missing",
+				DiagnosticCode.EntrypointMissing,
 				`Entrypoint ${entrypoint.name} is not in project ${configuration.project}: ${entrypoint.path}`,
 			);
 		}
 		const moduleSymbol = project.checker.getSymbolAtLocation(source);
 		if (!moduleSymbol) {
-			return failure("entrypoint-module", `Entrypoint is not a module: ${entrypoint.path}`);
+			return failure(
+				DiagnosticCode.EntrypointModule,
+				`Entrypoint is not a module: ${entrypoint.path}`,
+			);
 		}
 		surfaces.push({
 			name: entrypoint.name,
@@ -286,7 +294,7 @@ export function target(checker: Project["checker"], symbol: CompilerSymbol): Com
  * @param symbol - The symbol whose identity is needed.
  * @returns An opaque identifier for declaration tracking and export references.
  */
-export function identity(locations: LocationContext, symbol: CompilerSymbol): string {
+export function identity(locations: LocationContext, symbol: CompilerSymbol): ApiItemId {
 	const declarationLocations = symbol.declarations.map((handle) => {
 		const location = origin(locations, handle.path, 0);
 		return [location.packageName, location.file];
@@ -466,7 +474,8 @@ export function exportTypeOnly(
  *
  * @remarks
  * Prints each signature as a function type and combines its text hash with the owner identifier.
- * Retains raw declaration text, not parsed TSDoc, in the documentation field.
+ * Retains the closest attached TSDoc comment without declaration text, or `undefined` if absent.
+ * Preserves explicit empty comments so later inheritance can distinguish them from absent comments.
  * Does not extract construct signatures.
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
@@ -478,19 +487,17 @@ export function exportTypeOnly(
 export function signatures(
 	compiler: Pick<Project, "checker" | "emitter">,
 	type: Type,
-	owner: string,
+	owner: ApiItemId,
 ): SignatureFact[] {
 	const { checker, emitter } = compiler;
 	return checker.getSignaturesOfType(type, SignatureKind.Call).map((signature) => {
 		const node = checker.signatureToSignatureDeclaration(signature, SyntaxKind.FunctionType);
-		if (!node) {
-			throw new Error(`Cannot materialize signature for ${owner}`);
-		}
+		assert.ok(node, "The compiler must materialize a printable node for a call signature.");
 		const text = emitter.printNode(node).trim();
 		return {
 			id: `${owner}:${createHash("sha256").update(text).digest("hex")}`,
 			text,
-			documentation: signature.declaration?.resolve()?.getFullText() ?? "",
+			documentation: signature.declaration?.resolve()?.jsDoc?.at(-1)?.getText(),
 		};
 	});
 }
@@ -558,9 +565,7 @@ export function members(
 								),
 						)
 					: null);
-			if (!propertyType) {
-				throw new Error(`Cannot resolve the effective type of member ${name}.`);
-			}
+			assert.ok(propertyType, "The compiler must resolve the effective type of a member.");
 			return {
 				name,
 				type: checker.typeToString(propertyType, declaration),
@@ -631,12 +636,13 @@ export function collect(
 	locations: LocationContext,
 	state: CollectionState,
 	symbol: CompilerSymbol,
-): string {
+): ApiItemId {
 	const { checker } = compiler;
 	const { declarations, visiting } = state;
-	if (checker.isUnknownSymbol(symbol)) {
-		throw new Error(`Unresolved symbol: ${symbol.name}`);
-	}
+	assert.ok(
+		!checker.isUnknownSymbol(symbol),
+		"Collected declaration symbols must be resolved.",
+	);
 	const id = identity(locations, symbol);
 	if (declarations.has(id) || visiting.has(id)) {
 		return id;
@@ -678,7 +684,7 @@ export function collect(
 		limitations: partial
 			? [
 					{
-						code: "member-expansion-incomplete",
+						code: DiagnosticCode.MemberExpansionIncomplete,
 						message: `Member expansion for ${symbol.name} is incomplete. Retain the original declaration and do not present this member list as complete.`,
 					},
 				]

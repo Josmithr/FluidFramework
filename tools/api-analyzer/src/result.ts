@@ -1,14 +1,182 @@
 /**
- * A diagnostic for configuration, analysis, or resource management.
+ * Supported diagnostic codes and their corrective actions.
+ *
+ * @remarks
+ * String values identify diagnostic categories in serialized results.
+ * Failure codes describe invalid user inputs, configuration, or caller actions.
+ * Internal assertions and unexpected operational errors propagate as exceptions.
+ * {@link DiagnosticCode.MemberExpansionIncomplete}
+ * describes a limitation in otherwise successful analysis facts.
+ * Diagnostic messages provide details specific to the affected input.
+ */
+export enum DiagnosticCode {
+	/**
+	 * Required analysis settings are missing or blank.
+	 *
+	 * @remarks
+	 * Supply a non-blank package name and project path, and at least one entrypoint.
+	 */
+	ConfigurationRequired = "configuration-required",
+	/**
+	 * An entrypoint name or path is blank.
+	 *
+	 * @remarks
+	 * Supply a non-blank name and path for each entrypoint.
+	 */
+	ConfigurationEntrypoint = "configuration-entrypoint",
+	/**
+	 * More than one configured entrypoint has the same name.
+	 *
+	 * @remarks
+	 * Give each entrypoint a distinct name or remove duplicate entries.
+	 */
+	DuplicateEntrypoint = "duplicate-entrypoint",
+	/**
+	 * The working directory is not an absolute path.
+	 *
+	 * @remarks
+	 * Pass an absolute working directory when resolving configuration.
+	 */
+	ConfigurationDirectory = "configuration-directory",
+	/**
+	 * Configuration inheritance contains a cycle.
+	 *
+	 * @remarks
+	 * Remove the cyclic inheritance reference from the configuration's `extends` values.
+	 */
+	ConfigurationCycle = "configuration-cycle",
+	/**
+	 * A configuration property has an invalid value type.
+	 *
+	 * @remarks
+	 * Use the diagnostic message to correct invalid settings or inherited configuration.
+	 */
+	ConfigurationInvalid = "configuration-invalid",
+	/**
+	 * The project configuration does not exist or the compiler cannot open the project.
+	 *
+	 * @remarks
+	 * Check the configured project path and make sure the project configuration is available.
+	 */
+	ProjectMissing = "project-missing",
+	/**
+	 * The compiler reported diagnostics before fact extraction.
+	 *
+	 * @remarks
+	 * Correct the compiler diagnostics included in the message, then analyze the project again.
+	 */
+	CompilerDiagnostics = "compiler-diagnostics",
+	/**
+	 * A configured entrypoint is not a source file in the compiler project.
+	 *
+	 * @remarks
+	 * Check the entrypoint path and the project's file inclusion settings.
+	 * Build the declaration inputs first if the project requires them.
+	 */
+	EntrypointMissing = "entrypoint-missing",
+	/**
+	 * The compiler cannot identify a module symbol for an entrypoint.
+	 *
+	 * @remarks
+	 * Use an entrypoint that the compiler recognizes as a module, with imports or exports.
+	 */
+	EntrypointModule = "entrypoint-module",
+	/**
+	 * A declaration's effective member list is incomplete.
+	 *
+	 * @remarks
+	 * This limitation does not fail analysis. Retain the original declaration.
+	 * Do not present the extracted member list as complete.
+	 */
+	MemberExpansionIncomplete = "member-expansion-incomplete",
+	/**
+	 * Analysis was requested through a closed session.
+	 *
+	 * @remarks
+	 * Create a new analysis session before requesting analysis.
+	 */
+	SessionClosed = "session-closed",
+	/**
+	 * A custom modifier tag definition is invalid or duplicates an existing definition.
+	 *
+	 * @remarks
+	 * Use valid TSDoc tag names, including the leading `@`.
+	 * Do not redefine standard tags or repeat custom tag names.
+	 */
+	ClassificationConfiguration = "classification-configuration",
+	/**
+	 * More than one documentation input has the same identifier.
+	 *
+	 * @remarks
+	 * Supply a distinct identifier for each input in the classification request.
+	 */
+	ClassificationDuplicateId = "classification-duplicate-id",
+	/**
+	 * The TSDoc parser reported a diagnostic for an input comment.
+	 *
+	 * @remarks
+	 * Correct the comment using the parser details in the message, or configure a missing custom modifier tag.
+	 * Set `rules.validateTsdocSyntax` to `false` only when parser diagnostics can be ignored.
+	 * This setting does not suppress release-level checks.
+	 */
+	ClassificationTsdoc = "classification-tsdoc",
+	/**
+	 * A documentation input declares more than one release level.
+	 *
+	 * @remarks
+	 * Keep exactly one release tag for the input. This check cannot be disabled.
+	 */
+	ClassificationReleaseConflict = "classification-release-conflict",
+	/**
+	 * A documentation input has no release level and the classification policy requires one.
+	 *
+	 * @remarks
+	 * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.
+	 */
+	ClassificationReleaseMissing = "classification-release-missing",
+	/**
+	 * A selection has a blank name, an unsupported release level, or an unknown modifier filter.
+	 *
+	 * @remarks
+	 * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.
+	 */
+	SelectionConfiguration = "selection-configuration",
+	/**
+	 * A baseline path is not absolute.
+	 *
+	 * @remarks
+	 * Resolve the baseline path against an explicit working directory before checking or updating it.
+	 */
+	BaselineConfiguration = "baseline-configuration",
+	/**
+	 * No accepted review baseline exists.
+	 *
+	 * @remarks
+	 * Review the generated API and explicitly create the baseline after required checks pass.
+	 * Checking alone never accepts generated text.
+	 */
+	BaselineMissing = "baseline-missing",
+	/**
+	 * Generated review text differs from the expected baseline.
+	 *
+	 * @remarks
+	 * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.
+	 * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.
+	 */
+	BaselineStale = "baseline-stale",
+}
+
+/**
+ * A diagnostic for a user-caused failure or an analysis capability limitation.
  *
  * @remarks
  * Can describe an operation failure or a limitation in otherwise successful analysis facts.
  */
 export interface AnalyzerDiagnostic {
 	/**
-	 * The diagnostic category used for programmatic checks.
+	 * The diagnostic category used for programmatic checks. See {@link DiagnosticCode} for corrective actions.
 	 */
-	readonly code: string;
+	readonly code: DiagnosticCode;
 	/**
 	 * A human-readable description of the problem and, when available, a corrective action.
 	 */
@@ -20,6 +188,7 @@ export interface AnalyzerDiagnostic {
  *
  * @remarks
  * Check `ok` before reading the value or diagnostics. Failure results contain no partial value.
+ * Failure diagnostics describe user-caused issues, not internal assertions or unexpected operational errors.
  * This type alone does not guarantee that the value or result is frozen.
  *
  * @typeParam Value - The value produced when the operation succeeds.
@@ -53,7 +222,7 @@ export type Result<Value> =
  * @param message - A description of the failure and any corrective action.
  * @returns A failure result with a frozen diagnostic and diagnostic array.
  */
-export function failure(code: string, message: string): Result<never> {
+export function failure(code: DiagnosticCode, message: string): Result<never> {
 	return Object.freeze({
 		ok: false,
 		diagnostics: Object.freeze([Object.freeze({ code, message })]),

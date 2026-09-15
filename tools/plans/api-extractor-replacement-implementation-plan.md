@@ -2,8 +2,11 @@
 
 ## Status and objective
 
-Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 28 focused contract tests, verified on 2026-09-15.
-The adapter returns facts that contain no compiler objects. Stage 2 contract work can begin; its implementation has not started.
+Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 29 focused contract tests, verified on 2026-09-15.
+The adapter returns facts that contain no compiler objects.
+The first Stage 2 increment implements TSDoc-based release classification and configurable metadata selection, with 45 combined contract tests passing on 2026-09-15.
+The subsequent baseline-handling increment adds pure comparison, read-only file checks, and explicit updates, with 48 combined contract tests passing on 2026-09-15.
+Review artifacts, reference validation, and baseline workflows are not yet implemented.
 See the [Stage 0 results and review decisions](../api-analyzer/README.md#stage-0-results) for reproducible evidence.
 The Stage 0 probe recorded 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
 The [Stage 1 results and experimental API](../api-analyzer/README.md#stage-1-results) describe the new tests and limits.
@@ -17,6 +20,7 @@ The package name and location are confirmed. Publication details remain open.
 
 This plan implements the [workflow requirements](api-extractor-replacement-requirements.md) and [new capabilities and regression coverage](api-extractor-replacement-new-features.md).
 The [tooling research](api-extractor-replacement-tooling-research.md) records the evidence and limitations behind the technology choice.
+The [follow-up tracker](api-extractor-replacement-follow-ups.md) records deferred investigations and improvements separately from delivery-stage work.
 Requirements take precedence over proposed implementation details in this plan.
 An implementation blocker must produce a documented decision request, not an unapproved requirement reduction or backend substitution.
 
@@ -88,9 +92,19 @@ Use a functional core with an effectful boundary:
 - Use basic caching sparingly in performance-critical areas where measurements show costly redundant computation. Prefer small, local caches with explicit ownership, lifetimes, and invalidation rules. Avoid general caching infrastructure unless its benefit justifies the added complexity; cached and uncached results must agree.
 - Use focused functions and composition. Do not add a functional programming framework or a large compiler abstraction without a demonstrated need.
 
-Expected user errors should be structured diagnostic results.
-Unexpected infrastructure failures must retain useful context and produce a reliable failure result.
 Tests must verify that changing task order cannot mutate or corrupt shared analysis.
+
+### Diagnostics and internal validation
+
+Maintain this invariant throughout development: failure diagnostics describe only user-caused failures, such as invalid inputs, configuration, or caller actions.
+Document each supported diagnostic code and its corrective action in the public `DiagnosticCode` definition.
+
+- Use standard assertions for internal-only validation and broken implementation invariants. Do not convert assertion failures into diagnostics.
+- Propagate unexpected operational failures, such as compiler-process or file-access failures, as exceptions. These failures are not necessarily caused by the user.
+- Convert exceptions to failure diagnostics only when the boundary identifies an expected user-input validation failure. A broad catch must not hide library defects.
+- Release owned resources and discard invalid cached state before propagating an exception. Preserve the original error; if cleanup also fails, retain both errors.
+- Keep capability limitations on successful facts distinct from failure diagnostics. A limitation does not imply invalid user input or complete analysis.
+- Test both paths: invalid user inputs return diagnostics, while internal assertions and unexpected operational failures remain exceptions.
 
 ## Proposed architecture
 
@@ -190,18 +204,6 @@ Exit: link concrete passing or failing capability results to the research and re
 Record missing public APIs and upstream issues. Stop the affected implementation path for a decision if required functionality needs private APIs, a custom semantic engine, or a backend change.
 Do not scaffold the full architecture around an unverified capability.
 
-### Upstream TypeScript follow-up
-
-Status: open; return to this work after reviewing the Stage 0 findings.
-
-- Create a minimal standalone reproduction of the async native-process termination issue. Show that the pending request does not reject as expected.
-- Create minimal reproductions for other suspected TypeScript defects encountered during this project. Remove repository-specific dependencies and unrelated behavior.
-- Record the compiler version, Node.js version, operating system, reproduction command, and expected and actual results. Retest against the latest published tooling without changing the project's pinned dependency merely to prepare a report.
-- Check existing upstream issues before filing. Add evidence to an applicable report or file a new TypeScript bug when appropriate. Distinguish missing API capabilities from implementation defects.
-- Link upstream reports to the local regression tests and findings. Keep unresolved cases visible and verify fixes before closing them locally.
-
-This is a follow-up task; no upstream bug has been filed by this planning update.
-
 ### Stage 1. Implement reusable analysis and configuration
 
 - Document the session lifecycle, dependency inputs, effective configuration, and diagnostic contracts.
@@ -220,7 +222,7 @@ Different TypeScript projects use separate cache entries.
 The data format remains provisional. Stable versioned identifiers, complete reference graphs, and the remaining documentation model fields require later contracts and tests.
 See the package's Stage 1 results for the tested subset. Stage 1 does not satisfy all W/F/B requirements.
 
-The verified baseline contains 28 focused tests, including direct adapter-helper tests with declarations built by TS6 and TS7.
+The verified baseline contains 29 focused tests, including direct adapter-helper tests with declarations built by TS6 and TS7.
 The build, formatting, whitespace, and editor checks pass.
 The full investigation suite was not rerun for the helper extraction and test-name changes; its recorded capability failures remain unresolved.
 Configuration resolution uses `@eslint/object-schema` for property validation and ordered layer merging.
@@ -230,6 +232,15 @@ Each extraction owns its package-location cache and declaration collection state
 Direct tests check helper behavior, independent caches, repeated collection, and the active-identifier guard.
 
 ### Stage 2. Deliver a review and validation workflow
+
+Current progress: The [initial classification contract and results](../api-analyzer/README.md#release-classification-and-selection-contract) cover independent callable-overload release levels, explicit custom modifier configuration, diagnostic opt-outs, and named metadata selections.
+`classifyApiItems` and `selectApiItems` are experimental pure APIs over explicit data. Selection reuses classified metadata without repeating compiler analysis.
+This is metadata selection, not a complete selected declaration graph or report representation.
+Real-compiler tests use detached overload facts after session closure with both supported input-build compilers.
+The initial 45-test contract suite does not satisfy the Stage 2 exit criteria below.
+Release levels use a numeric enum with increasing permissiveness: `Public = 0`, `Beta = 1`, `Alpha = 2`, and `Internal = 3`.
+Numeric comparisons express the linear ordering; configured selections remain explicit sets.
+TSDoc tag strings map explicitly to enum values, and classification metadata stores those numeric values.
 
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
 - Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
@@ -242,9 +253,17 @@ Direct tests check helper behavior, independent caches, repeated collection, and
 Exit: W1, W2, W10, and F4 work together through one session, with B1, B2, and B6 assertions against review output.
 Validation-only and baseline-update modes remain independent.
 
-Start with a documented contract and failing tests for per-overload release classification and configurable surface selection.
-Then specify deterministic review output and independent baseline-check and baseline-update behavior.
-The current facts contain raw declaration text and export targets, not parsed TSDoc or a complete type-reference graph.
+The initial per-overload classification and metadata-selection contract was implemented after its tests failed against stubs.
+The next increment adds independent baseline comparison, file checking, and explicit file updates.
+The [baseline contract](../api-analyzer/README.md#review-artifacts-and-baselines) requires exact text comparison, no writes during checks, and exception propagation for unexpected filesystem errors.
+Three acceptance tests cover missing and stale baselines, exact whitespace, explicit creation and replacement, invalid paths, and filesystem failures.
+These operations consume text without parsing report syntax or repeating analysis. They do not yet constitute a review-artifact generator or satisfy the end-to-end parity gate.
+Next, specify the deterministic declaration report representation and its selection inputs, then implement review output with real-compiler fixtures.
+The analysis facts still contain raw declaration text and export targets, not a complete type-reference graph.
+Signature documentation and classification inputs use a required `string | undefined` property.
+The adapter extracts only the closest attached TSDoc comment, including delimiters, and uses `undefined` when no TSDoc comment exists.
+Explicit empty comments remain distinguishable from absence for the future local-comment inheritance rule. Declaration source text remains separate.
+Classification reads comment text into separate release-level and modifier metadata; it does not implement inheritance or resolve semantic references.
 Do not infer semantic references by parsing printed type strings. Extend facts through the compiler adapter and verify them with real-compiler fixtures.
 Extract the required reference facts before disposing of the snapshot so later policies can reuse detached data without repeating full analysis.
 Full documentation-link resolution and inheritance remain Stage 3 work; basic TSDoc parsing is a Stage 2 prerequisite.
