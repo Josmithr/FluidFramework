@@ -2,17 +2,190 @@
 
 ## Purpose
 
-This document tracks API Extractor defects that the replacement library must handle correctly.
+This document tracks new capabilities and API Extractor defects that the replacement library must handle correctly.
 It supplements the [workflow requirements](api-extractor-replacement-requirements.md).
 The entries define required outcomes, not implementation techniques or output syntax.
 References to `bundledPackages` describe the upstream reproductions; they do not require an equivalent configuration setting.
 
 ## Verification status
 
-All entries below are pending implementation and regression tests in the replacement library.
+All entries below are pending implementation and verification tests in the replacement library.
+Open questions identify acceptance details that still need agreement.
 The linked issue descriptions were inspected, but their reproductions have not been run as part of this requirements work.
 Upstream issue closure does not establish that the replacement handles the case correctly.
 Before closing an entry, link its passing regression tests and verify the applicable behavior with both TypeScript 6 and TypeScript 7.
+
+## New functionality to support
+
+### F1. Include inherited members in API artifacts
+
+Required result: Documentation models and API reports must include inherited members of interfaces and classes, not only members declared directly on the derived API.
+A documentation model may expose the complete member view through resolved relationships instead of duplicating an expanded member list for each derived API.
+This representation is preferred to reduce artifact size.
+Consumers must be able to obtain the complete view without repeating TypeScript analysis.
+
+In this example, artifacts for `Bar` must include both `fooMember` and `barMember`:
+
+```typescript
+export interface Foo {
+  fooMember: number;
+}
+
+export interface Bar extends Foo {
+  barMember: number;
+}
+```
+
+The tool must expose members of ordinary object intersections.
+It must also support built-in utility types such as `Pick`, `Omit`, and `Readonly` when their underlying types are supported.
+The member view must reflect the resulting member selection, types, and modifiers.
+For example, documentation for this intersection must include both members:
+
+```typescript
+export type Foo = {
+  fooMember: number;
+};
+
+export type Bar = Foo & {
+  barMember: number;
+};
+```
+
+Verification check: Generate models and reports for interface and class inheritance, including a generic base whose member types are specialized by the derived API.
+Verify that inherited members appear with the types consumers observe.
+Verify that a model using resolved relationships supplies the complete view without duplicated member lists or further TypeScript analysis.
+Include the intersection example and utility types applied to supported types, including combinations of those utilities.
+Verify that `Pick` and `Omit` select the expected members and that `Readonly` preserves their types while making them readonly.
+
+The tool should make a best effort to expose members of more complex composed types.
+When complete member expansion is unsupported, it must retain the original type expression and produce an actionable diagnostic rather than silently present a partial member set as complete.
+This fallback does not relax the required support for ordinary intersections and utility types over supported underlying types.
+
+Resolved decisions: A complete member view through resolved relationships is sufficient and preferred. Ordinary object intersections and built-in utility types over supported underlying types are required, not best effort.
+The limits of more complex type expansion and the representation of member origins remain design details for later investigation.
+
+Related requirements: W1, W4, W7.
+
+### F2. Resolve documentation references before model output
+
+Required result: Consumers must be able to configure a package suite using package names or glob patterns.
+A suite is the configured set of packages whose generated documentation models participate in reference resolution.
+Suite resolution must support matching direct and transitive dependencies, including peer dependencies.
+The tool must use these packages' generated documentation models to resolve documentation references.
+The workflow may require suite dependencies to be built and their documentation model artifacts generated before processing a consuming package.
+Any missing or incompatible documentation model for a selected suite dependency must fail package-level processing, even when no documentation reference needs that model.
+The failure must identify the affected dependency and the model availability or compatibility problem.
+Consumers must not need to repeat that semantic resolution when rendering documentation.
+
+The tool must resolve and validate API references in `{@link}` and `{@inheritDoc}` during package processing.
+Invalid or nonexistent targets must produce diagnostics at this stage, not only when a downstream documentation tool consumes the model.
+Resolved API links must use structured target identities that downstream renderers can map to URLs.
+Inherited documentation must be resolved before model output.
+The requirement is unambiguous, validated documentation data, not a blanket prohibition on retaining tag text in raw source comments.
+The output representation remains a design decision, subject to these requirements.
+
+Reference policy:
+
+- URL links are permitted. The tool must not fetch or validate their destinations. TSDoc syntax validation still applies.
+- API references must target an API in the same package or the configured suite. References to packages outside the suite must produce errors.
+- An API reference without an explicit package uses the package in which its documentation originated. Re-exporting the API must not change this context.
+- Documentation model artifacts must retain sufficient target identity and origin context to prevent ambiguity across package boundaries within the suite, including when packages contain APIs with the same name.
+
+Verification checks:
+
+- Resolve links and inherited documentation from matching direct dependencies, peer dependencies, and transitive dependencies using their generated models. Exercise exact-name and glob selection.
+- Remove a selected suite dependency's model or provide an incompatible model. Verify that package-level processing fails with an actionable diagnostic in both cases, including when no documentation reference targets that dependency.
+- Consume the resulting model without repeating semantic reference resolution. Verify that API links have structured target identities and inherited documentation is already resolved.
+- Report invalid and nonexistent API targets during package processing, both within a package and across the suite. Reject explicit API references to packages outside the suite.
+- Re-export an API whose documentation references another API in its source package without naming the package. Verify that both link and inherited-documentation targets remain tied to the source package, including when the re-exporting package has a same-name API.
+- Preserve URL links without accessing or validating their destinations.
+- Confirm that successful resolution does not bypass documentation-reference policy checks such as B3.
+
+Missing or incompatible models for any selected suite dependency fail package-level processing regardless of whether a reference needs them.
+
+Related requirements: W3, W7, W8, W10.
+
+### F3. Inherit member documentation by default
+
+Required result: A derived member without its own TSDoc comment must automatically inherit documentation from its ancestor definition.
+Authors must not need an explicit `{@inheritDoc}` tag for this default behavior.
+This must also work across package boundaries within the configured suite from F2.
+
+Any local TSDoc comment disables automatic documentation inheritance entirely.
+Missing sections must not be filled from ancestors when a local comment exists.
+Authors can therefore suppress automatic inheritance by supplying a local TSDoc comment.
+An explicit `{@inheritDoc}` in that comment remains an intentional resolution request under F2, not automatic inheritance.
+
+If multiple bases provide different documentation for a member that would automatically inherit documentation, processing must report an error.
+The diagnostic must identify the member and conflicting ancestor sources and direct the author to add an explicit local TSDoc comment.
+The tool must not silently select an ancestor.
+
+Overloads must be matched by signature where automatic matching is possible, not by declaration order alone.
+If matching or adapting signature-dependent documentation cannot be handled automatically, processing must report an error and require an explicit local TSDoc comment.
+This includes parameter differences that prevent correct automatic documentation inheritance.
+The exact matching algorithm remains a design decision.
+
+In this example, `Bar.fooMember` inherits the documentation from `Foo.fooMember` while retaining its narrower type:
+
+```typescript
+export interface Foo {
+  /** fooMember docs */
+  fooMember: number | string;
+}
+
+export interface Bar extends Foo {
+  // Unless this property is given its own TSDoc comment, it should inherit its documentation from `Foo` automatically.
+  fooMember: number;
+}
+```
+
+Verification checks:
+
+- Cover members inherited unchanged and members redeclared with narrower types, both within a package and across the configured suite. Verify that documentation is inherited without replacing the derived member's signature.
+- Add a local TSDoc comment containing only a summary or a tag. Verify that automatic inheritance stops entirely and no missing documentation sections are filled from ancestors.
+- Provide conflicting documentation from multiple bases. Verify an actionable error, then add local documentation and verify that it removes the automatic-inheritance conflict.
+- Reorder distinguishable base overloads and verify that documentation follows the matching signatures rather than declaration positions.
+- Exercise an ambiguous overload match or parameter difference that cannot be handled automatically. Verify an actionable error, then verify that an explicit local TSDoc comment avoids automatic inheritance.
+- Verify that an explicit local `{@inheritDoc}` request still resolves and receives the validation required by F2.
+
+Resolved decisions: Any local TSDoc comment disables all automatic inheritance. Conflicting ancestor documentation requires an error and explicit local documentation. Overloads are matched by signature where possible; cases that cannot be handled automatically require an error and explicit local documentation.
+All F3 questions listed during this requirements discussion are resolved. Signature matching and documentation adaptation details remain design decisions within these constraints.
+
+Related requirements: W3, W7.
+
+### F4. Function overloads with different release levels should be supported
+
+Required result: Function overloads must be able to declare different release levels.
+Surface selection and validation must respect each callable overload's release level.
+The implementation signature must not require a release tag because consumers cannot call it directly.
+
+In this example, the public surface exposes the string overload, while the beta surface also exposes the number overload:
+
+```typescript
+/** @public */
+export function foo(value: string): void;
+
+/** @beta */
+export function foo(value: number): void;
+
+// Note: the implementation should not need a release tag, as it is not directly callable.
+export function foo(value: string | number): void {
+  return;
+}
+```
+
+Verification check: Generate public and beta reports and declarations from this overload set.
+Verify that each surface contains the selected overloads, that the implementation signature is not exposed, and that its missing release tag produces no diagnostic.
+Check API references against the release level of the overload that contains them.
+Add an internal overload and generate complete, public, and beta outputs.
+Verify that the complete output includes the internal overload, that public and beta outputs exclude it, and that the non-internal overloads retain their own release levels and remain available in the selected surfaces.
+Mixing internal and non-internal overloads must not itself produce a validation error unless an explicitly configured repository policy prohibits the combination.
+This requirement does not depend on whether API Extractor currently supports the case.
+
+Resolved decision: Mixed `@internal` and non-internal overloads must be supported. Each callable overload is classified and filtered independently. Repository-specific restrictions on combinations may be enforced through configurable validation, not a built-in prohibition.
+All F4 questions listed during this requirements discussion are resolved.
+
+Related requirements: W1, W2, W4, W5, W7.
 
 ## Required regression coverage
 

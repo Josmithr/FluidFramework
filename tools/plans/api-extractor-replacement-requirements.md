@@ -29,6 +29,7 @@ Current paths and command names are evidence, not requirements for the replaceme
 - **Current API surface**: the non-legacy API surface. Current release-level entrypoints exclude APIs tagged `@legacy`.
 - **API report**: a human-reviewable baseline of an API surface.
 - **Documentation model**: API structure and documentation data that a documentation generator can consume without analyzing the source repository again.
+- **Suite**: a configured set of packages, selected by package names or glob patterns, whose generated documentation models participate in cross-package documentation reference resolution and inheritance.
 - **Declaration rollup**: a generated declaration file that consolidates declarations for a package entrypoint.
 - **CI**: continuous integration.
 
@@ -100,7 +101,9 @@ The workflow must support validation without updating review baselines or genera
 This does not require a separate implementation or a separate analysis pass.
 Diagnostics must identify the affected package, entrypoint or declaration, violated rule, and relevant reference target.
 Where source locations are available, diagnostics must let developers locate the problem without searching generated reports.
-Invalid package-documentation tags and conflicting internal/non-internal overload classifications must remain diagnosable under the applicable policy.
+Invalid package-documentation tags must remain diagnosable under the applicable policy.
+Function overloads must support different release levels, including mixed internal and non-internal overloads, with each callable overload classified and filtered independently.
+The tool must not reject a mixed overload set solely because it combines these release levels; repository-specific restrictions may be enforced through configurable validation.
 
 Evidence:
 
@@ -262,7 +265,8 @@ The same API data must remain usable by the documenter library and other reposit
 - The exact format this data takes does not need to be compatible with the current `api-markdown-documenter` package tooling.
   It is okay to make changes to that package to support a new API model format in order to support the `api-extractor` replacement library.
 
-Whether inherited documentation is resolved during extraction or downstream is an implementation decision; the rendered result must remain correct.
+Documentation references and inherited documentation must be resolved before documentation model output, as specified in [F2 and F3](api-extractor-replacement-new-features.md#f2-resolve-documentation-references-before-model-output).
+Downstream consumers must not need to repeat semantic reference resolution; output representation and rendering remain design decisions.
 
 Evidence:
 
