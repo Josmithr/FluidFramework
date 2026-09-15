@@ -153,7 +153,9 @@ The replacement must preserve these existing policy choices through configuratio
 
 API analysis must preserve the meaning of declarations supported by the repository's TypeScript configurations.
 The tool must support at least TypeScript major versions 6 and 7 across the required analysis, validation, and generation workflows.
-Support must respect the applicable TypeScript version's declaration and module-resolution semantics.
+A single TypeScript 7 analysis engine may analyze packages authored or built with TypeScript 6 or 7 using TypeScript 7 semantics.
+The tool does not need to reproduce each build compiler's checker behavior or provide a separate analysis engine for each major version.
+Compatibility must be verified for supported package inputs and module-resolution configurations, and generated declarations must remain consumable with the corresponding supported build compiler.
 TypeScript 7 support is a required input to technology and dependency selection, not an optional future enhancement.
 This requirement does not prescribe a compiler API, analysis backend, or integration mechanism.
 
@@ -203,18 +205,20 @@ Evidence:
 ### W6. Integrate with local and automated builds
 
 The required workflows must be accessible through a Node.js-compatible TypeScript API without requiring a CLI.
-The single-process requirement below can be satisfied by a caller using that API within one Node.js process; the tool does not need to provide its own executable.
+One Node.js API session must support the requested workflows; the tool does not need to provide its own executable.
+Compiler child processes are permitted as an implementation detail.
 
 Developers must be able to run API work for one package, affected dependent packages, or a release group without manually ordering a series of extractor invocations.
 They must be able to request review, validation, declaration generation, or documentation outcomes together or independently where useful.
 Selecting several outcomes must not require separate copies of the same package policy.
-The tool must support a single process run configured to perform all requested API report generation, declaration generation, documentation model generation, and validation together.
+The tool must support one configured session that performs all requested API report generation, declaration generation, documentation model generation, and validation using shared analysis.
 This does not require a single API call or simultaneous execution of all operations.
-For example, a caller could load a package model through one API, then use separate APIs to generate reports, generate documentation model artifacts, and perform validation based on that model within the same process.
+For example, a caller could load a package model through one API, then use separate APIs to generate reports, generate documentation model artifacts, and perform validation based on that model within the same session.
 This is an acceptable example, not a prescribed API design.
-Different content variants, API surfaces, or validation policies must not require separate tool processes or independent configurations for each operation.
-One invocation that only launches separate processes for those operations does not meet this requirement.
-The design must reduce repeated setup and analysis across these outcomes; its internal analysis strategy remains open.
+Different content variants, API surfaces, or validation policies must not require independent configurations or a complete rerun of the same API analysis for each operation.
+A reusable native compiler service is acceptable. A wrapper that reruns the entire API analysis independently for each task is not, regardless of process count.
+The design must reuse applicable setup and analysis across outcomes for unchanged inputs.
+Task-specific work, distinct analysis contexts, and recomputation after relevant input changes are permitted; the internal analysis strategy remains open.
 Numerical performance targets are deferred.
 
 Builds must preserve dependency-aware correctness across package boundaries.
@@ -401,7 +405,7 @@ Existing configuration is evidence for expected policy, not a byte-for-byte orac
 | Scenario | Required result | Requirements |
 | --- | --- | --- |
 | Change a public signature or `@input`/`@system` classification. | A focused review difference identifies the affected surface; CI rejects an unaccepted baseline. | W1 |
-| Configure separate review artifacts for multiple API surfaces. | Each selected surface receives its own artifact containing its configured API selection, without requiring separate tool processes. | W1, W6, W10 |
+| Configure separate review artifacts for multiple API surfaces. | Each selected surface receives its own artifact containing its configured API selection, reusing applicable analysis across surfaces. | W1, W6, W10 |
 | Change a dependency API re-exported by an aggregate package. | The consuming surface's review and documentation reflect the change. | W1, W4, W7 |
 | Reference a less stable dependency type from a more stable API, where validation is enabled. | Validation reports the relationship, including references not directly exported by the analyzed entrypoint. | W2 |
 | Configure a rule that prohibits non-legacy APIs from referencing legacy APIs, then exercise references within and across packages. | Validation diagnoses prohibited references even when release levels match or the target is not directly exported. Reverse-direction references remain allowed by this rule. | W2, W10 |
@@ -412,7 +416,7 @@ Existing configuration is evidence for expected policy, not a byte-for-byte orac
 | Change a Node-only API that must match a browser baseline. | The parity check fails without overwriting the accepted browser surface. | W1, W4 |
 | Analyze an aliased namespace re-export and same-name type/value declarations. | Exported names, reference identity, and documentation links remain correct. | W4, W5, W7 |
 | Build a package with complex generic and recursive types. | Reports and models preserve the declared API; generated declarations remain consumable. | W4, W5, W7 |
-| Run the required analysis, validation, and generation workflows against packages using TypeScript 6 and TypeScript 7. | Both versions are supported. API results respect each version's declaration and module-resolution semantics, and generated declarations remain consumable with the corresponding version. | W2, W4, W5, W6, W7 |
+| Run the required analysis, validation, and generation workflows against packages using TypeScript 6 and TypeScript 7. | Both package versions are supported; one TS7 engine using TS7 semantics is acceptable. Input and module-resolution compatibility are verified, and generated declarations remain consumable with the corresponding build compiler. | W2, W4, W5, W6, W7 |
 | Generate complete and release-filtered published declarations. | Package consumers resolve the intended types; excluded APIs do not leak into the selected surface. | W5 |
 | Implement release-level entrypoint generation using the tool's configuration and APIs. | Generated entrypoints expose the configured surfaces, including current/legacy combinations, without consumer reimplementation of API analysis and surface selection or Fluid-specific logic in the tool. | W4, W5, W10 |
 | Add an export with a new resolution condition. | Required validation coverage includes it or reports a coverage gap. | W4, W9 |
@@ -421,7 +425,7 @@ Existing configuration is evidence for expected policy, not a byte-for-byte orac
 | Load package artifacts in a different order. | Cross-package links and inherited documentation resolve to the same content. | W7, W8 |
 | Render a maintained documentation version without its source checkout. | The published artifact set supplies the required API data and links. | W7, W8 |
 | Request models without accepting report changes, or validation without generation. | Only the selected workflow outcomes occur. | W2, W6, W8 |
-| Request all supported API generation and validation operations for the configured surfaces together. | A single configured tool process performs the requested work without separate processes or independent configurations for each operation or content variant. | W6 |
+| Request all supported API generation and validation operations for the configured surfaces together. | One configured API session reuses applicable analysis for unchanged inputs across operations and variants. Instrumentation verifies that each task does not trigger a complete rerun of the same analysis. Compiler child processes are permitted. | W6 |
 | Apply build-tools or server policy with individual rules disabled, such as the requirement for explicit release tags. | Disabled rules do not produce policy violations, other enabled checks remain active, and the area's existing policy choices are preserved. | W2, W4, W10 |
 | Configure current and legacy surfaces using `@legacy` and release levels. | API selection follows repository configuration, including the configured overlap between surfaces, without Fluid-specific logic in the tool. | W4, W10 |
 | Configure equivalent selections with a different custom tag and different surface names. | Review, validation, and documentation workflows use the configured selections and metadata without tool implementation changes. | W1, W2, W7, W10 |
@@ -433,7 +437,7 @@ Compare both positive and negative cases, including accepted exceptions and inte
 
 ## Resolved workflow decisions
 
-1. **Performance and simplification targets:** Numerical performance targets are deferred. The primary improvement goal is to replace separate API Extractor processes and configurations for each generation or validation variant with one configured process run that performs all requested work together. W6 and its acceptance scenario capture this requirement. This decision does not prescribe the internal analysis strategy or require downstream website rendering and publication to run in the tool process.
+1. **Performance and simplification targets:** Numerical performance targets are deferred. The primary improvement goal is one configured API session that reuses analysis across generation and validation tasks instead of rerunning the entire API analysis for each task. Compiler child processes are permitted as an implementation detail. W6 and its acceptance scenario capture this requirement. This decision does not prescribe the internal analysis strategy or require downstream website rendering and publication to run in the tool session.
 2. **Currently disabled checks:** Consumers must retain the ability to opt out of individual policy rules, including requirements for release tags or documentation completeness. Preserve the existing policy choices of build-tools, server, and other repository areas through configuration. Migration does not enable currently disabled checks. W4 and its acceptance scenario capture this requirement.
 3. **Review granularity:** Consumers must be able to configure separate review artifacts for each selected API surface. Separate artifacts are not required to be the only supported output form; consolidated or other output forms remain optional. W1 and its acceptance scenario capture this requirement without prescribing artifact syntax.
 4. **Deprecated publishing-time type selection:** The new tool does not need to support or replace `flub release setPackageTypesField`. Retiring that command and its remaining pipeline caller is a prerequisite for adopting the new tooling, outside this tool's requirements. This exclusion does not remove the declaration-generation requirements in W5.

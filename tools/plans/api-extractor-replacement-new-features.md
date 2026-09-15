@@ -14,6 +14,7 @@ Open questions identify acceptance details that still need agreement.
 The linked issue descriptions were inspected, but their reproductions have not been run as part of this requirements work.
 Upstream issue closure does not establish that the replacement handles the case correctly.
 Before closing an entry, link its passing regression tests and verify the applicable behavior with both TypeScript 6 and TypeScript 7.
+These versions identify the package build and declaration-consumption test configurations. One TypeScript 7 analysis engine using TypeScript 7 semantics may serve both, as permitted by W4; record the analysis engine separately.
 
 ## New functionality to support
 
