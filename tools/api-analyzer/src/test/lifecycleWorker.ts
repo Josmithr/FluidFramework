@@ -4,6 +4,8 @@ import path from "node:path";
 
 import { API as AsyncAPI } from "typescript/unstable/async";
 import { API as SyncAPI } from "typescript/unstable/sync";
+import { resolveConfiguration } from "../configuration.js";
+import { createAnalysisSession } from "../session.js";
 
 const mode = process.argv[2];
 const directory = process.argv[3];
@@ -17,7 +19,44 @@ function childPids(): readonly number[] {
 		.map(Number);
 }
 
-if (mode === "sync" || mode === "sync-crash") {
+if (mode === "session" || mode === "session-crash") {
+	const before = childPids();
+	const session = createAnalysisSession();
+	try {
+		const configuration = resolveConfiguration(
+			{
+				packageName: "example",
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "src/api.ts" }],
+			},
+			directory,
+		);
+		assert.ok(configuration.ok);
+		assert.ok(session.analyze(configuration.value).ok);
+		const owned = childPids().filter((pid) => !before.includes(pid));
+		assert.equal(owned.length, 1);
+		const nativePid = owned[0];
+		assert.ok(nativePid);
+		if (mode === "session-crash") {
+			process.kill(nativePid, "SIGKILL");
+			// Use an uncached configuration so the next request contacts the failed compiler process.
+			const failed = session.analyze({
+				...configuration.value,
+				entrypoints: [{ name: "./different", path: path.join(directory, "src/api.ts") }],
+			});
+			assert.equal(failed.ok, false);
+			if (!failed.ok) {
+				assert.equal(failed.diagnostics[0]?.code, "analysis-failed");
+			}
+			assert.equal(session.analyze(configuration.value).ok, false);
+			console.log("native termination rejected the next request");
+		}
+	} finally {
+		session.close();
+		session.close();
+	}
+	console.log("session client disposed");
+} else if (mode === "sync" || mode === "sync-crash") {
 	const before = childPids();
 	const api = new SyncAPI({ cwd: directory, collectTiming: true });
 	try {

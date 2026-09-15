@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -21,7 +21,22 @@ import {
 	type Project,
 	type Snapshot,
 	type Symbol as CompilerSymbol,
-} from "typescript/unstable/async";
+} from "typescript/unstable/sync";
+import { resolveConfiguration } from "../configuration.js";
+import {
+	aliasTypeOnly,
+	collect,
+	exportsOf,
+	exportTypeOnly,
+	identity,
+	members as extractMembers,
+	origin,
+	signatures,
+	target as resolveTarget,
+	type CollectionState,
+	type LocationContext,
+} from "../nativeAdapter.js";
+import { createAnalysisSession } from "../session.js";
 
 const require = createRequire(import.meta.url);
 const fixtureDirectory = fileURLToPath(new URL("../../src/test/fixtures/", import.meta.url));
@@ -38,7 +53,7 @@ const compilerOptions = {
 };
 
 for (const compilerPackage of ["typescript6", "typescript"] as const) {
-	describe(`Native TS7 capabilities: inputs built with ${compilerPackage}`, () => {
+	describe(`Native TS7 sync capabilities: inputs built with ${compilerPackage}`, () => {
 		let directory: string;
 		let api: API;
 		let snapshot: Snapshot;
@@ -130,13 +145,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			return Object.fromEntries(entries);
 		}
 
-		it("W4: declaration inputs have no compiler diagnostics", async () => {
+		// Design requirement: W4.
+		it("declaration inputs have no compiler diagnostics", async () => {
 			assert.deepEqual(await project.program.getSyntacticDiagnostics(), []);
 			assert.deepEqual(await project.program.getSemanticDiagnostics(), []);
 			assert.deepEqual(await project.program.getProgramDiagnostics(), []);
 		});
 
-		it("B1/B2: preserves exported aliases, target identity, and type-only syntax", async () => {
+		// Design regressions: B1, B2.
+		it("preserves exported aliases, target identity, and type-only syntax", async () => {
 			assert.equal((await target("PublicIdentity")).id, (await target("TypeIdentity")).id);
 			assert.equal((await target("PublicIdentity")).name, "Identity");
 			const source = await project.program.getSourceFile(
@@ -149,12 +166,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.ok(exports.some((symbol) => symbol.name === "ApiNamespace"));
 		});
 
-		it("F1: specializes inherited interface and class members", async () => {
+		// Design feature: F1.
+		it("specializes inherited interface and class members", async () => {
 			assert.equal((await members("Derived")).value, "string");
 			assert.equal((await members("DerivedClass")).value, "string");
 		});
 
-		it("F1: computes ordinary intersections and utility member selections", async () => {
+		// Design feature: F1.
+		it("computes ordinary intersections and utility member selections", async () => {
 			assert.deepEqual(await members("Combined"), {
 				value: "string",
 				optional: "number | undefined",
@@ -180,7 +199,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.notEqual(optional.flags & SymbolFlags.Optional, 0);
 		});
 
-		it("F4: exposes callable overloads and preserves declaration comments", async () => {
+		// Design feature: F4.
+		it("exposes callable overloads and preserves declaration comments", async () => {
 			const symbol = await target("convert");
 			const type = await project.checker.getTypeOfSymbol(symbol);
 			assert.ok(type);
@@ -204,7 +224,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			);
 		});
 
-		it("F1: materializes readonly and optional modifiers through public type nodes", async () => {
+		// Design feature: F1.
+		it("materializes readonly and optional modifiers through public type nodes", async () => {
 			const frozen = await project.checker.getDeclaredTypeOfSymbol(await target("Frozen"));
 			const node = await project.checker.typeToTypeNode(
 				frozen,
@@ -235,7 +256,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			console.log(`Effective readonly type: ${printed.trim()}`);
 		});
 
-		it("W5 baseline: printed complete declarations compile with both consumer compilers", async () => {
+		// Design requirement: W5; baseline for declaration generation.
+		it("printed complete declarations compile with both consumer compilers", async () => {
 			for (const name of ["api", "index"]) {
 				const source = await project.program.getSourceFile(
 					path.join(directory, `declarations/${name}.d.ts`),
@@ -290,7 +312,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			}
 		});
 
-		it("W6: reuses a snapshot and cached exports for output-like queries", async () => {
+		// Design requirement: W6.
+		it("reuses a snapshot and cached exports for repeated semantic queries", async () => {
 			const namespace = await target("ApiNamespace");
 			const first = await namespace.getExports();
 			await api.resetTimingInfo();
@@ -312,7 +335,183 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			console.log(`Cached export query timing: ${JSON.stringify(timing.totals)}`);
 		});
 
-		it("GATE W5: retained Program exposes declaration emission", () => {
+		describe("Adapter fact extraction", () => {
+			it("location lookup uses only the supplied cache and package settings", () => {
+				const ownerDirectory = path.join(directory, "owner");
+				mkdirSync(ownerDirectory);
+				const manifest = path.join(ownerDirectory, "package.json");
+				writeFileSync(manifest, JSON.stringify({ name: "dependency" }));
+				const fileName = path.join(ownerDirectory, "index.d.ts");
+				const locations: LocationContext = {
+					configuration: { packageName: "fixture", packageRoot: directory },
+					packageCache: new Map(),
+				};
+				try {
+					assert.deepEqual(origin(locations, fileName, 17), {
+						packageName: "dependency",
+						file: "index.d.ts",
+						start: 17,
+					});
+					writeFileSync(manifest, JSON.stringify({ name: "updated" }));
+					// A new extraction must supply a new cache after package metadata changes.
+					assert.equal(origin(locations, fileName, 0).packageName, "dependency");
+					const fresh: LocationContext = { ...locations, packageCache: new Map() };
+					assert.equal(origin(fresh, fileName, 0).packageName, "updated");
+					assert.equal(locations.packageCache.size, 1);
+					assert.equal(fresh.packageCache.size, 1);
+					assert.equal(
+						origin(locations, path.join(directory, "declarations/index.d.ts"), 0).packageName,
+						"fixture",
+					);
+				} finally {
+					rmSync(ownerDirectory, { recursive: true, force: true });
+				}
+			});
+
+			it("alias helpers preserve targets and type-only export status", () => {
+				const locations: LocationContext = {
+					configuration: { packageName: "fixture", packageRoot: directory },
+					packageCache: new Map(),
+				};
+				const publicAlias = exports.find((symbol) => symbol.name === "PublicIdentity");
+				const typeAlias = exports.find((symbol) => symbol.name === "TypeIdentity");
+				assert.ok(publicAlias && typeAlias);
+				const resolved = resolveTarget(project.checker, publicAlias);
+				assert.strictEqual(resolveTarget(project.checker, resolved), resolved);
+				assert.equal(
+					identity(locations, resolved),
+					identity(locations, resolveTarget(project.checker, typeAlias)),
+				);
+				assert.equal(aliasTypeOnly(project.checker, publicAlias), false);
+				assert.equal(aliasTypeOnly(project.checker, typeAlias), true);
+				assert.equal(aliasTypeOnly(project.checker, typeAlias, new Set([typeAlias])), false);
+				const source = project.program.getSourceFile(
+					path.join(directory, "declarations/index.d.ts"),
+				);
+				assert.ok(source);
+				const moduleSymbol = project.checker.getSymbolAtLocation(source);
+				assert.ok(moduleSymbol);
+				const seen = new Set<string>();
+				assert.equal(
+					exportTypeOnly(project.checker, locations, moduleSymbol, "TypeIdentity", seen),
+					true,
+				);
+				assert.equal(
+					exportTypeOnly(project.checker, locations, moduleSymbol, "PublicIdentity", seen),
+					false,
+				);
+				assert.equal(seen.size, 0);
+			});
+
+			it("extracts specialized members, modifiers, and documented overloads without collection state", async () => {
+				const locations: LocationContext = {
+					configuration: { packageName: "fixture", packageRoot: directory },
+					packageCache: new Map(),
+				};
+				const derived = await target("Derived");
+				const derivedType = project.checker.getDeclaredTypeOfSymbol(derived);
+				assert.equal(
+					extractMembers(project, locations, derivedType).find(
+						(member) => member.name === "value",
+					)?.type,
+					"string",
+				);
+				const frozen = await target("Frozen");
+				const frozenMembers = extractMembers(
+					project,
+					locations,
+					project.checker.getDeclaredTypeOfSymbol(frozen),
+				);
+				assert.equal(frozenMembers.find((member) => member.name === "value")?.readonly, true);
+				assert.equal(
+					frozenMembers.find((member) => member.name === "optional")?.optional,
+					true,
+				);
+				const callable = await target("convert");
+				const callableType = project.checker.getTypeOfSymbol(callable);
+				assert.ok(callableType);
+				const result = signatures(project, callableType, "owner");
+				assert.equal(result.length, 2);
+				assert.equal(new Set(result.map((signature) => signature.id)).size, 2);
+				assert.ok(result.every((signature) => signature.id.startsWith("owner:")));
+				assert.ok(result.some((signature) => signature.documentation.includes("@public")));
+				assert.ok(result.some((signature) => signature.documentation.includes("@internal")));
+			});
+
+			it("collection helpers keep traversal state separate between calls", () => {
+				const locations: LocationContext = {
+					configuration: { packageName: "fixture", packageRoot: directory },
+					packageCache: new Map(),
+				};
+				const source = project.program.getSourceFile(
+					path.join(directory, "declarations/index.d.ts"),
+				);
+				assert.ok(source);
+				const moduleSymbol = project.checker.getSymbolAtLocation(source);
+				assert.ok(moduleSymbol);
+				const state: CollectionState = { declarations: new Map(), visiting: new Set() };
+				const bindings = exportsOf(project, locations, state, moduleSymbol);
+				assert.ok(bindings.every((binding) => state.declarations.has(binding.target)));
+				assert.equal(state.visiting.size, 0);
+				const id = collect(project, locations, state, moduleSymbol);
+				const completed = state.declarations.get(id);
+				assert.ok(completed);
+				assert.equal(collect(project, locations, state, moduleSymbol), id);
+				assert.strictEqual(state.declarations.get(id), completed);
+				// An active identifier stops a recursive visit before another fact is collected.
+				const active: CollectionState = { declarations: new Map(), visiting: new Set([id]) };
+				assert.equal(collect(project, locations, active, moduleSymbol), id);
+				assert.equal(active.declarations.size, 0);
+				const fresh: CollectionState = { declarations: new Map(), visiting: new Set() };
+				assert.equal(
+					collect(project, { ...locations, packageCache: new Map() }, fresh, moduleSymbol),
+					id,
+				);
+				assert.deepEqual(fresh.declarations, state.declarations);
+				assert.notStrictEqual(fresh.declarations.get(id), completed);
+				assert.equal(fresh.visiting.size, 0);
+			});
+
+			// Design requirement: W4.
+			it("session analyzes built declarations without leaking compiler state", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "fixture",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/index.d.ts" }],
+					},
+					directory,
+				);
+				assert.ok(configuration.ok);
+				const session = createAnalysisSession();
+				try {
+					const first = session.analyze(configuration.value);
+					assert.ok(first.ok, JSON.stringify(first));
+					assert.equal(
+						first.value.declarations.find((item) => item.name === "convert")?.signatures
+							.length,
+						2,
+					);
+					assert.equal(
+						first.value.declarations
+							.find((item) => item.name === "Derived")
+							?.members.find((member) => member.name === "value")?.type,
+						"string",
+					);
+					const second = session.analyze(configuration.value);
+					assert.ok(second.ok);
+					assert.strictEqual(second.value, first.value);
+					session.close();
+					assert.deepEqual(JSON.parse(JSON.stringify(first.value)), first.value);
+				} finally {
+					session.close();
+				}
+			});
+		});
+
+		// Temporary capability probe for design requirement W5. Replace with declaration-output
+		// tests when the generation strategy is selected; this currently fails on TS7 7.0.2.
+		it("retained Program exposes declaration emission", () => {
 			assert.ok(
 				"emit" in project.program || "getDeclarationEmit" in project.program,
 				"TS7 7.0.2 has no public Program declaration emit method; a generation strategy needs review",

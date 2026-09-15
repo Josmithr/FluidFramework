@@ -2,10 +2,14 @@
 
 ## Status and objective
 
-Status: Stage 0 investigation completed with failed capability gates; production implementation has not started.
+Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 28 focused contract tests, verified on 2026-09-15.
+The adapter returns facts that contain no compiler objects. Stage 2 contract work can begin; its implementation has not started.
 See the [Stage 0 results and review decisions](../api-analyzer/README.md#stage-0-results) for reproducible evidence.
-The pinned TS7 7.0.2 probe reports 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
-Stage 1 remains pending review of the generation strategy and client selection.
+The Stage 0 probe recorded 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
+The [Stage 1 results and experimental API](../api-analyzer/README.md#stage-1-results) describe the new tests and limits.
+The full semantic fixture suite now runs through the synchronous client.
+Declaration generation and minimal examples for upstream issue reports remain open tasks.
+Stage 1 does not depend on an emit method and does not resolve the asynchronous client failure.
 
 Build `api-analyzer`, a standalone, repository-independent API tooling package at `tools/api-analyzer`, using the official native TypeScript 7 tooling.
 Replace the repository's API Extractor workflows without reproducing its known defects or requiring complete API analysis to restart for each task.
@@ -65,6 +69,11 @@ For a defect, add a failing reproduction before the fix.
 For a compiler capability investigation, write the expected fixture and assertions first, then run them against the pinned real compiler.
 An investigation may report a failed capability rather than produce production code.
 Do not accept snapshots solely because they match current output. Review the semantic assertions that justify them.
+
+Use semantic test and suite names that describe the behavior under test.
+Keep design requirement identifiers in comments above the applicable tests, not in test names.
+For a temporary investigation test, add a comment that states its purpose and when to remove or replace it.
+When renaming tests or suites, verify that test-selection commands still run the intended coverage.
 
 ### Functional architecture
 
@@ -204,10 +213,28 @@ This is a follow-up task; no upstream bug has been filed by this planning update
 Exit: reusable analysis and effective configuration pass focused contract tests for W4, W6, W11, F1, B1, and B2.
 Tests at this stage need not claim final artifact behavior that has not yet been implemented.
 
+The initial implementation requires callers to invalidate cached facts after input changes.
+Each session owns its cache. Automatic input tracking remains Stage 5 work.
+Facts are frozen and contain no compiler objects before the snapshot is disposed.
+Different TypeScript projects use separate cache entries.
+The data format remains provisional. Stable versioned identifiers, complete reference graphs, and the remaining documentation model fields require later contracts and tests.
+See the package's Stage 1 results for the tested subset. Stage 1 does not satisfy all W/F/B requirements.
+
+The verified baseline contains 28 focused tests, including direct adapter-helper tests with declarations built by TS6 and TS7.
+The build, formatting, whitespace, and editor checks pass.
+The full investigation suite was not rerun for the helper extraction and test-name changes; its recorded capability failures remain unresolved.
+Configuration resolution uses `@eslint/object-schema` for property validation and ordered layer merging.
+The adapter helpers are module-level functions with explicit compiler and location dependencies.
+They are exported from the internal adapter module for tests, not from the package entrypoint.
+Each extraction owns its package-location cache and declaration collection state. Neither is global or reused after input changes.
+Direct tests check helper behavior, independent caches, repeated collection, and the active-identifier guard.
+
 ### Stage 2. Deliver a review and validation workflow
 
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
+- Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
 - Implement release-level selection per callable overload and generic custom-tag selection.
+- Specify and test structured reference facts before implementing reference-validation policies. Preserve reference origins and targets, including non-exported and cross-package targets, independently of selected report surfaces.
 - Implement entrypoint and cross-package validation as distinct policies, including custom directional rules and per-rule opt-outs.
 - Generate separate review artifacts from shared facts and check Node/browser parity without overwriting an accepted baseline.
 - Add a small repository pilot using configured policy, not built-in Fluid behavior.
@@ -215,9 +242,18 @@ Tests at this stage need not claim final artifact behavior that has not yet been
 Exit: W1, W2, W10, and F4 work together through one session, with B1, B2, and B6 assertions against review output.
 Validation-only and baseline-update modes remain independent.
 
+Start with a documented contract and failing tests for per-overload release classification and configurable surface selection.
+Then specify deterministic review output and independent baseline-check and baseline-update behavior.
+The current facts contain raw declaration text and export targets, not parsed TSDoc or a complete type-reference graph.
+Do not infer semantic references by parsing printed type strings. Extend facts through the compiler adapter and verify them with real-compiler fixtures.
+Extract the required reference facts before disposing of the snapshot so later policies can reuse detached data without repeating full analysis.
+Full documentation-link resolution and inheritance remain Stage 3 work; basic TSDoc parsing is a Stage 2 prerequisite.
+The declaration-generation gate does not block review and validation work. It remains open for the generation path.
+The async termination failure also remains open; Stage 2 continues with the documented synchronous session contract.
+
 ### Stage 3. Deliver resolved documentation models
 
-- Use `@microsoft/tsdoc` for parsing and conformance diagnostics; add no custom comment parser.
+- Reuse the Stage 2 `@microsoft/tsdoc` parsing and conformance diagnostics; add no custom comment parser.
 - Specify and implement suite model loading and compatibility for direct, transitive, and peer dependencies.
 - Resolve documentation references using their originating package, not a re-exporting package.
 - Implement local-comment precedence, explicit inheritance, signature-based automatic inheritance, conflict detection, and cycle diagnostics.

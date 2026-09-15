@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@eslint/object-schema':
+        specifier: 3.0.5
+        version: 3.0.5
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.5
@@ -85,6 +89,10 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@eslint/object-schema@3.0.5':
+    resolution: {integrity: sha512-vqTaUEgxzm+YDSdElad6PiRoX4t8VGDjCtt05zn4nU810UIx/uNEV7/lZJ6KwFThKZOzOxzXy48da+No7HZaMw==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -559,6 +567,8 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.4.5':
     optional: true
+
+  '@eslint/object-schema@3.0.5': {}
 
   '@isaacs/cliui@8.0.2':
     dependencies:

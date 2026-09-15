@@ -2,14 +2,21 @@
 	"name": "api-analyzer",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Stage 0 capability investigation for native TypeScript API analysis.",
+	"description": "Experimental reusable API analysis with native TypeScript 7.",
 	"license": "MIT",
 	"type": "module",
+	"exports": {
+		".": {
+			"types": "./lib/index.d.ts",
+			"import": "./lib/index.js"
+		}
+	},
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
 		"check:format": "biome check .",
 		"format": "biome check . --write",
 		"test": "npm run build && npm run test:mocha",
+		"test:stage1": "npm run build && mocha \"lib/test/**/*.test.js\" --grep \"Effective configuration|Analysis session|Adapter fact extraction|session.*worker\" --timeout 20000",
 		"test:mocha": "mocha \"lib/test/**/*.test.js\" --timeout 20000"
 	},
 	"devDependencies": {
@@ -23,5 +30,8 @@
 	"engines": {
 		"node": ">=22.22.2"
 	},
-	"packageManager": "pnpm@11.15.1"
+	"packageManager": "pnpm@11.15.1",
+	"dependencies": {
+		"@eslint/object-schema": "3.0.5"
+	}
 }

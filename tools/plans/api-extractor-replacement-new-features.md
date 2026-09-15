@@ -18,6 +18,16 @@ These versions identify the package build and declaration-consumption test confi
 
 The [Stage 0 results](../api-analyzer/README.md#stage-0-results) and [native capability tests](../api-analyzer/src/test/nativeCapabilities.test.ts) provide preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
 They do not implement the required artifacts or reproduce the full cross-package regressions. All F1-F4 and B1-B6 entries remain open.
+The [Stage 1 session tests](../api-analyzer/src/test/session.test.ts) check facts that contain no compiler objects.
+They cover aliases, chained type-only exports, inherited members, overload identifiers, and diagnostics for incomplete member expansion.
+These tests do not satisfy the requirements for generated artifacts.
+
+The [direct adapter-helper tests](../api-analyzer/src/test/nativeCapabilities.test.ts) use real compiler fixtures built with TS6 and TS7.
+They check package locations, alias targets, type-only export status, effective members, documented overloads, and declaration collection.
+They also verify independent location caches, reuse of completed declarations, and the active-identifier guard.
+The focused suite passes 28 tests, verified on 2026-09-15.
+Test names describe behavior; comments above tests retain applicable design identifiers.
+This evidence does not close F1-F4 or B1-B6. Artifact-level and full cross-package acceptance tests remain required.
 
 ## New functionality to support
 
