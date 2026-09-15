@@ -2,7 +2,9 @@
 
 ## Summary
 
-**Recommendation: use the official TypeScript compiler for language semantics, and evaluate TypeDoc before committing to a custom API extractor. Do not select a production architecture yet.**
+**Selected direction: use the official native TypeScript 7 tooling.**
+The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery, verification gates, and required documentation-driven, test-driven, and functional development practices.
+This decision replaces the earlier recommendation to evaluate TypeDoc first. The comparative evidence below remains relevant, but does not select an alternative backend.
 
 The evaluated tools do not provide a proven solution that meets all current requirements with low maintenance cost.
 TypeScript 6 has a mature, in-process compiler API.
@@ -201,8 +203,8 @@ Important gaps require a focused evaluation:
 - A documentation reflection is not automatically a lossless representation of type-only export paths or a valid input for declaration roll-ups.
 - Built-in non-TSDoc tags and semantics must not become unavoidable behavior in our generic tool.
 
-**Assessment:** evaluate first when the objective is to avoid owning a new extractor.
-Accept it only if public extension points can supply the required behavior without a fork or a second independent semantic graph.
+**Assessment:** the strongest higher-level reuse alternative evaluated, but not the selected TS7 backend.
+Reconsider it only through an explicit architecture decision if public extension points can supply the required behavior without a fork or a second independent semantic graph.
 If it needs extensive reconstruction after conversion, much of its maintenance advantage disappears.
 Distinguish optional Git subprocesses from compiler analysis when measuring lifecycle and reuse.
 
@@ -306,21 +308,20 @@ The process and compiler-version interpretations are now clarified. The remainin
 
 No evaluated option is currently a proven match for all four constraints because the proposed checks have not run.
 Native TS7 is no longer blocked by process count, and supporting TS6-built packages does not itself require a separate TS6 engine.
-Neither clarification selects an implementation or removes unstable-API risk.
+The subsequent decision selects native TS7 as the planned backend, but does not establish capability coverage or remove unstable-API risk.
 
 The reverse compatibility route, analyzing TS7 output with TS6, remains a separate, bounded option that needs explicit agreement and testing.
 
 There is also a maintenance decision: how much generic export traversal and artifact modeling is acceptable to own?
 If that work is also outside the acceptable maintenance budget, prioritize TypeDoc extension feasibility and upstream collaboration over a compiler-only replacement.
 
-## Recommended evaluation sequence
+## Selected-direction evaluation sequence
 
-1. Use the clarified W4 and W6 requirements as acceptance criteria: one TS7 engine is permitted for both package versions, and compiler child processes must not cause full analysis to restart for each task.
-2. Evaluate TypeDoc with a small representative fixture set. Determine whether its public APIs preserve the necessary facts and permit our documentation policies.
-3. Compare that result with direct official compiler queries for the same fixtures. Use ts-morph only if it materially reduces TS6 integration code.
-4. Evaluate a pinned published native TS7 API version as a candidate for both TS6- and TS7-built packages. Record input compatibility, analysis reuse, and missing public queries. Do not use development-only methods without an explicit experimental dependency decision.
-5. Evaluate declaration bundling separately from semantic extraction. Require consumer-compilation tests before selecting a W5 component.
-6. Select an architecture only after these checks show that the required integration is within the maintenance budget.
+1. Follow Stage 0 of the implementation plan: document expected behavior and write fixture assertions before integrating a pinned published native TS7 API version.
+2. Analyze both TS6- and TS7-built fixtures with TS7. Verify input compatibility, effective members, export identity, and analysis reuse across tasks.
+3. Test required public queries and declaration-generation capabilities early. Do not use development-only methods as published functionality.
+4. Evaluate declaration generation separately from semantic extraction. Require consumer-compilation tests before selecting a W5 component.
+5. Record blockers and maintenance costs before stabilizing public APIs or model formats. A missing capability requires an explicit decision, not an automatic switch to TypeDoc, ts-morph, or TS6.
 
 If separate compiler integrations are needed, keep compiler-specific objects inside their respective integrations.
 Share policy and artifact code where practical.

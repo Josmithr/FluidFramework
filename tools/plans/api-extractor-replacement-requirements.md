@@ -7,6 +7,7 @@ It covers all current uses, including API review, API validation, declaration ge
 It is a requirements document, not an implementation proposal.
 
 The [new capabilities and regression coverage](api-extractor-replacement-new-features.md) document tracks specific API Extractor defects that the replacement must handle correctly.
+The [implementation plan](api-extractor-replacement-implementation-plan.md) records the selected TS7 direction, delivery stages, and required documentation-driven, test-driven, and functional development practices.
 
 The following scope decisions come from the requirements discussion:
 
@@ -365,7 +366,7 @@ They do not require one executable to own every step.
 | Area | Relationship to this replacement |
 | --- | --- |
 | Repository-specific API policy | Fluid Framework owns custom tags, surface definitions, and their policy meanings. The tool supplies generic capabilities that repository configuration can use. |
-| TypeScript compilation | API Extractor currently analyzes built declarations. Input selection remains open. The workflow must agree with the package's TypeScript and module-resolution semantics. |
+| TypeScript compilation | API Extractor currently analyzes built declarations. Input selection remains open. One TS7 analysis engine may serve TS6- and TS7-built packages under W4; supported input and declaration-consumption compatibility must be verified. |
 | Release-level entrypoint generation | The tool must provide configuration and APIs sufficient to implement this workflow. Fluid-specific surface rules remain repository-owned; migration of the existing `flub generate entrypoints` command is a separate integration decision. |
 | Tree entrypoint source generation | Tree has an additional source-generation workflow. API changes must continue to propagate to its consumable and reviewed surfaces. The current shell script need not remain. |
 | API review and release decisions | Reports support human review. API approval, release policy, and changeset decisions remain separate responsibilities. |
