@@ -77,6 +77,7 @@
 		"TSDoc",
 		"unacked",
 		"unaugmented",
+		"unconfigured",
 		"undoprovider",
 		"unsequenced",
 		"validatable"
