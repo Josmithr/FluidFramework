@@ -16,6 +16,9 @@ Upstream issue closure does not establish that the replacement handles the case 
 Before closing an entry, link its passing regression tests and verify the applicable behavior with both TypeScript 6 and TypeScript 7.
 These versions identify the package build and declaration-consumption test configurations. One TypeScript 7 analysis engine using TypeScript 7 semantics may serve both, as permitted by W4; record the analysis engine separately.
 
+The [Stage 0 results](../api-analyzer/README.md#stage-0-results) and [native capability tests](../api-analyzer/src/test/nativeCapabilities.test.ts) provide preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
+They do not implement the required artifacts or reproduce the full cross-package regressions. All F1-F4 and B1-B6 entries remain open.
+
 ## New functionality to support
 
 ### F1. Include inherited members in API artifacts

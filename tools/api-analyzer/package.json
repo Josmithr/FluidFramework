@@ -1,0 +1,27 @@
+{
+	"name": "api-analyzer",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Stage 0 capability investigation for native TypeScript API analysis.",
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"check:format": "biome check .",
+		"format": "biome check . --write",
+		"test": "npm run build && npm run test:mocha",
+		"test:mocha": "mocha \"lib/test/**/*.test.js\" --timeout 20000"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.5",
+		"@types/mocha": "10.0.10",
+		"@types/node": "22.19.17",
+		"mocha": "11.7.5",
+		"typescript": "7.0.2",
+		"typescript6": "npm:typescript@6.0.3"
+	},
+	"engines": {
+		"node": ">=22.22.2"
+	},
+	"packageManager": "pnpm@11.15.1"
+}

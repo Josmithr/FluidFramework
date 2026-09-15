@@ -1,0 +1,21 @@
+packages:
+  - "."
+
+minimumReleaseAge: 10080
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Same reviewed Mocha dependency exception as tools/api-markdown-documenter.
+  # chokidar 4.0.3 lacks the provenance present in 4.0.1; the maintainer is unchanged.
+  - "chokidar@4.0.3"
+  # Same reviewed Node types dependency exception as tools/api-markdown-documenter.
+  # undici-types 6.21.0 is a type-only release without its prior provenance.
+  - "undici-types@6.21.0"
+strictDepBuilds: true
+engineStrict: true
+frozenLockfile: true
+strictPeerDependencies: true
+updateNotifier: false
+
+allowBuilds:
+  '@biomejs/biome': true

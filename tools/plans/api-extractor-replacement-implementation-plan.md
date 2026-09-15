@@ -2,7 +2,10 @@
 
 ## Status and objective
 
-Status: planned; implementation has not started.
+Status: Stage 0 investigation completed with failed capability gates; production implementation has not started.
+See the [Stage 0 results and review decisions](../api-analyzer/README.md#stage-0-results) for reproducible evidence.
+The pinned TS7 7.0.2 probe reports 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
+Stage 1 remains pending review of the generation strategy and client selection.
 
 Build `api-analyzer`, a standalone, repository-independent API tooling package at `tools/api-analyzer`, using the official native TypeScript 7 tooling.
 Replace the repository's API Extractor workflows without reproducing its known defects or requiring complete API analysis to restart for each task.
@@ -177,6 +180,18 @@ Proceed to production implementation only when the relevant capability gates pas
 Exit: link concrete passing or failing capability results to the research and regression documents.
 Record missing public APIs and upstream issues. Stop the affected implementation path for a decision if required functionality needs private APIs, a custom semantic engine, or a backend change.
 Do not scaffold the full architecture around an unverified capability.
+
+### Upstream TypeScript follow-up
+
+Status: open; return to this work after reviewing the Stage 0 findings.
+
+- Create a minimal standalone reproduction of the async native-process termination issue. Show that the pending request does not reject as expected.
+- Create minimal reproductions for other suspected TypeScript defects encountered during this project. Remove repository-specific dependencies and unrelated behavior.
+- Record the compiler version, Node.js version, operating system, reproduction command, and expected and actual results. Retest against the latest published tooling without changing the project's pinned dependency merely to prepare a report.
+- Check existing upstream issues before filing. Add evidence to an applicable report or file a new TypeScript bug when appropriate. Distinguish missing API capabilities from implementation defects.
+- Link upstream reports to the local regression tests and findings. Keep unresolved cases visible and verify fixes before closing them locally.
+
+This is a follow-up task; no upstream bug has been filed by this planning update.
 
 ### Stage 1. Implement reusable analysis and configuration
 
