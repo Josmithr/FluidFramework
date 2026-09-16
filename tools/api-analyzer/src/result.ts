@@ -11,6 +11,56 @@
  */
 export enum DiagnosticCode {
 	/**
+	 * Documentation inputs or custom modifier definitions are invalid.
+	 *
+	 * @remarks
+	 * Supply distinct identifiers and non-blank names for the packages that contain the original comments.
+	 * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.
+	 */
+	DocumentationConfiguration = "documentation-configuration",
+	/**
+	 * A documentation comment failed TSDoc parsing.
+	 *
+	 * @remarks
+	 * Correct the syntax or unsupported tags identified in the diagnostic message.
+	 * Register custom modifier tags with the same options used for classification, binding, and resolution.
+	 */
+	DocumentationTsdoc = "documentation-tsdoc",
+	/**
+	 * A documentation inheritance reference or binding failed validation.
+	 *
+	 * @remarks
+	 * The target or binding can be missing, ambiguous, or out of date.
+	 * Parameter incompatibility also produces this diagnostic.
+	 * Correct the reference, analyze the changed declarations again, or provide local documentation.
+	 * For a manual binding, supply one source identifier, the reference printed by TSDoc, and one target identifier.
+	 */
+	DocumentationReference = "documentation-reference",
+	/**
+	 * A comment or binding requests a documentation feature that is not supported.
+	 *
+	 * @remarks
+	 * Use explicit inheritance within the same package without API links.
+	 * For compiler-backed binding, use an unqualified reference to a standalone function.
+	 * See the diagnostic message for the specific limitation.
+	 */
+	DocumentationUnsupported = "documentation-unsupported",
+	/**
+	 * Explicit documentation inheritance contains a cycle.
+	 *
+	 * @remarks
+	 * Remove a cyclic request or replace it with local descriptive documentation.
+	 */
+	DocumentationCycle = "documentation-cycle",
+	/**
+	 * A report request has an unknown entrypoint, blank selection name, or invalid selected identifiers.
+	 *
+	 * @remarks
+	 * Use an entrypoint from the supplied analysis and a non-blank selection name.
+	 * Supply distinct selected identifiers from the same analysis's signature facts.
+	 */
+	ReportConfiguration = "report-configuration",
+	/**
 	 * Required analysis settings are missing or blank.
 	 *
 	 * @remarks

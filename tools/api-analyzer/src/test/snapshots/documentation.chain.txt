@@ -1,0 +1,15 @@
+/**
+ * Converts a value.
+ *
+ * @remarks
+ *
+ * Keeps the value.
+ *
+ * @param value - Input value.
+ *
+ * @typeParam Value - Value type.
+ *
+ * @returns The input.
+ *
+ * @public
+ */

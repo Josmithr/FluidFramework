@@ -40,3 +40,33 @@ Acceptance: equivalent file-based and programmatic settings produce equivalent c
 Tests cover inherited configurations, relative paths, precedence, invalid inputs, and changes to inherited configuration.
 Include a representative API Extractor migration fixture that reuses its existing TSDoc configuration.
 Direct programmatic use remains available without filesystem access.
+
+## Required package documentation support
+
+Status: open; required follow-up for API Extractor parity, not an optional presentation enhancement.
+
+Support `@packageDocumentation` as package-level documentation, not an item modifier.
+Extract the associated comment through the compiler adapter and parse it with TSDoc.
+Specify entrypoint and package ownership, missing and conflicting package comments, configurable validation, and report representation.
+Preserve package documentation for later resolved documentation models.
+Add real-compiler and snapshot tests, including multiple entrypoints and absent package documentation.
+Do not emit a missing-package-documentation annotation until package-level extraction can distinguish absence from unsupported analysis.
+
+## Configurable report presentation
+
+Status: open; schedule after the default report format achieves rough API Extractor parity.
+
+Make it easy for users to customize report formats without reimplementing API analysis, classification, selection, or validation.
+Preserve the API Extractor-like format as the default presentation.
+
+- Define a supported customization contract over detached report data. Evaluate presentation options and custom renderers before choosing an extension mechanism.
+- Keep presentation separate from semantic policy. Changing a format must not change selected APIs, tag recognition, or validation behavior.
+- Reuse analysis and report data across formats without new compiler queries or mutation of shared inputs.
+- Document deterministic output requirements and the effect of presentation changes on review baselines. Custom rendering must not implicitly accept or update baselines.
+- Use checked-in full-report snapshots to verify the default format and representative custom formats.
+
+Acceptance: a consumer can produce the default report and a custom presentation from the same detached report data without repeating analysis.
+Tests verify unchanged input data, deterministic output, and independent baseline checks and updates.
+
+This follow-up does not defer the agreed initial options for displayed tags or undocumented-item annotations.
+Release tags appear by default; other displayed tags are configurable. Undocumented-item annotations are independently configurable and default to enabled.

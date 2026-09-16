@@ -10,7 +10,7 @@ import { describe, it } from "mocha";
 async function runWorker(mode: string): Promise<string> {
 	const directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-lifecycle-"));
 	cpSync(
-		fileURLToPath(new URL("../../src/test/fixtures/", import.meta.url)),
+		fileURLToPath(new URL("../../src/test/fixtures/shared/", import.meta.url)),
 		path.join(directory, "src"),
 		{ recursive: true },
 	);

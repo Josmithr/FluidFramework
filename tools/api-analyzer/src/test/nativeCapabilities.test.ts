@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { TSDocParser } from "@microsoft/tsdoc";
 import { after, before, describe, it } from "mocha";
 import { SyntaxKind } from "typescript/unstable/ast";
 import {
@@ -23,10 +24,22 @@ import {
 	type Symbol as CompilerSymbol,
 } from "typescript/unstable/sync";
 import { resolveConfiguration } from "../configuration.js";
-import { classifyApiItems, ReleaseLevel, selectApiItems } from "../index.js";
+import { bindDocumentationReferences } from "../documentation.js";
+import type { DocumentationReferenceLookup } from "../facts.js";
+import {
+	classifyApiItems,
+	ReleaseLevel,
+	selectApiItems,
+	createReviewReport,
+	renderReviewReport,
+	compareReviewBaseline,
+	resolveDocumentation,
+	DiagnosticCode,
+} from "../index.js";
 import {
 	aliasTypeOnly,
 	collect,
+	collectLinks,
 	exportsOf,
 	exportTypeOnly,
 	identity,
@@ -38,9 +51,96 @@ import {
 	type LocationContext,
 } from "../nativeAdapter.js";
 import { createAnalysisSession } from "../session.js";
+import { assertSnapshot } from "./snapshotUtils.js";
+
+describe("Adapter fact extraction: documentation links", () => {
+	it("preserves traversal order, repeated references, and lookup outcomes without changing the tree", () => {
+		const parsed = new TSDocParser().parseString(`/**
+ * {@link base | Base label} {@link missing} {@link example#base}
+ * {@link https://example.com | Website}
+ * @remarks See {@link base}.
+ * @param value - See {@link parameter}.
+ * @returns See {@link result}.
+ */`);
+		assert.deepEqual(
+			parsed.log.messages.map((message) => message.text),
+			[],
+		);
+		const before = parsed.docComment.emitAsTsdoc();
+		const references: string[] = [];
+		const outcomes: DocumentationReferenceLookup[] = [];
+		const links = collectLinks(parsed.docComment, (reference) => {
+			const text = reference.emitAsTsdoc();
+			references.push(text);
+			const outcome: DocumentationReferenceLookup =
+				text === "missing"
+					? { reference: text, status: "not-found" }
+					: text === "example#base"
+						? { reference: text, status: "unsupported" }
+						: { reference: text, status: "resolved", target: `target:${text}` };
+			outcomes.push(outcome);
+			return outcome;
+		});
+		assert.deepEqual(references, [
+			"base",
+			"missing",
+			"example#base",
+			"base",
+			"parameter",
+			"result",
+		]);
+		assert.deepEqual(links, outcomes);
+		for (const [index, outcome] of outcomes.entries()) {
+			assert.equal(links[index], outcome);
+		}
+		assert.equal(parsed.docComment.emitAsTsdoc(), before);
+	});
+
+	it("returns a fresh empty array without lookup for comments with no API links", () => {
+		for (const comment of [
+			"/** */",
+			"/** Plain documentation. */",
+			"/** {@link https://example.com | Website} */",
+			"/** {@inheritDoc base} */",
+		]) {
+			const parsed = new TSDocParser().parseString(comment);
+			assert.deepEqual(
+				parsed.log.messages.map((message) => message.text),
+				[],
+			);
+			const lookup = (): never => {
+				assert.fail("Comments without API links must not invoke lookup.");
+			};
+			const links = collectLinks(parsed.docComment, lookup);
+			assert.deepEqual(links, []);
+			assert.notEqual(links, collectLinks(parsed.docComment, lookup));
+		}
+	});
+
+	it("propagates lookup exceptions and stops traversal", () => {
+		const parsed = new TSDocParser().parseString("/** {@link first} {@link second} */");
+		assert.deepEqual(
+			parsed.log.messages.map((message) => message.text),
+			[],
+		);
+		const error = new Error("Lookup failed.");
+		const references: string[] = [];
+		assert.throws(
+			() =>
+				collectLinks(parsed.docComment, (reference) => {
+					references.push(reference.emitAsTsdoc());
+					throw error;
+				}),
+			(thrown: unknown) => thrown === error,
+		);
+		assert.deepEqual(references, ["first"]);
+	});
+});
 
 const require = createRequire(import.meta.url);
-const fixtureDirectory = fileURLToPath(new URL("../../src/test/fixtures/", import.meta.url));
+const fixtureDirectory = fileURLToPath(
+	new URL("../../src/test/fixtures/shared/", import.meta.url),
+);
 const compilerOptions = {
 	target: "ES2022",
 	module: "NodeNext",
@@ -52,6 +152,118 @@ const compilerOptions = {
 	rootDir: "src",
 	outDir: "declarations",
 };
+
+/**
+ * Function documentation binding scenarios tested with both supported declaration-build compilers.
+ *
+ * @remarks
+ * Each case uses a checked-in module in `fixtures/native`. `name` identifies its file and assertion failures.
+ * The module's `derived` function requests documentation from `reference` through an explicit `@inheritDoc` tag.
+ * `expected` is the required diagnostic code, or `undefined` when binding must succeed.
+ *
+ * TypeScript 6 and TypeScript 7 build the declarations. TypeScript 7 analyzes both sets of inputs.
+ * Binding runs after the analysis session closes, using facts that contain no compiler objects.
+ * These cases check target lookup and conservative parameter checks, not TypeScript assignability.
+ */
+const documentationBindingCases = [
+	// An imported alias names a function in another module of the same package.
+	// Lookup must follow the alias to the function rather than treat the alias as the target declaration.
+	{
+		name: "imported",
+		reference: "imported",
+		expected: undefined,
+	},
+	// An export alias is not a local declaration name. Lookup must use the module's exports
+	// when it finds no symbol with this name in the original declaration scope.
+	{
+		name: "alias",
+		reference: "alias",
+		expected: undefined,
+	},
+	// The reference syntax is supported, but no target exists. Report a reference error,
+	// not an unsupported-feature diagnostic or a successful binding with no target.
+	{
+		name: "missing",
+		reference: "missing",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// The target has two overloads, although one matches the derived function's parameter type.
+	// The current binder must reject the ambiguity rather than select the first or closest overload.
+	// TODO (Stage 2 overload binding): Revisit this expectation when overload selection is defined.
+	// Add uniquely selected and genuinely ambiguous targets, and verify that overload order has no effect.
+	{
+		name: "overload",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// Parameter types match, but their names differ. Copying parameter documentation would
+	// require renaming its references, which the current binder does not support.
+	// TODO (Stage 2 parameter compatibility): Extend the renamed, optional, rest, and generic cases
+	// with actual parameter and type-parameter documentation. Separate supported transformations
+	// from unsafe mismatches; do not change all rejection expectations to success.
+	{
+		name: "renamed",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// The target parameter is optional and the derived parameter is required.
+	// Matching names are not sufficient: the optional parameter flags must also match.
+	{
+		name: "optional",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// Both parameters have the same name and array type, but only the target uses a rest parameter.
+	// The binder must retain and compare rest parameter flags rather than compare only names or types.
+	{
+		name: "rest",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// The target declares a type parameter, but the derived function declares none.
+	// Reject the mismatch because inherited type-parameter documentation would have no matching parameter.
+	{
+		name: "generic",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// The target destructures an object instead of declaring a parameter identifier.
+	// Its property name must not be treated as a parameter name that matches the derived function.
+	// TODO (Stage 2 parameter compatibility): Add object and array binding patterns with documentation
+	// when parameter adaptation is defined. Retain failures where no unambiguous mapping exists.
+	{
+		name: "pattern",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationReference,
+	},
+	// Package-qualified syntax is unsupported even when it names the package under analysis.
+	// Reject the syntax before lookup; the absent target must not turn this into a missing-name error.
+	// TODO (Stage 2 qualified references): Once this syntax is supported, expect a missing-target
+	// diagnostic here and add a successful case with an existing target in the named package.
+	{
+		name: "qualified",
+		reference: "example#base",
+		expected: DiagnosticCode.DocumentationUnsupported,
+	},
+	// The target exists and has one signature, but the reference includes an unsupported TSDoc selector.
+	// The binder must not ignore the selector merely because an unqualified lookup could succeed.
+	// TODO (Stage 2 overload binding): Make this valid selector succeed when selector support is added.
+	// Add invalid selectors and selectors for distinct overloads to verify that the selector is applied.
+	{
+		name: "selector",
+		reference: "(base:1)",
+		expected: DiagnosticCode.DocumentationUnsupported,
+	},
+	// Lookup succeeds, but the target is a variable rather than a standalone function.
+	// Finding a symbol does not establish that its declaration form supports documentation binding.
+	// TODO (Stage 2 declaration support): Revisit this diagnostic under the cross-declaration inheritance
+	// contract. Add valid non-function inheritance cases without assuming a function can inherit from any variable.
+	{
+		name: "nonfunction",
+		reference: "base",
+		expected: DiagnosticCode.DocumentationUnsupported,
+	},
+] as const;
 
 for (const compilerPackage of ["typescript6", "typescript"] as const) {
 	describe(`Native TS7 sync capabilities: inputs built with ${compilerPackage}`, () => {
@@ -66,18 +278,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.equal(require("typescript6/package.json").version, "6.0.3");
 			directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-"));
 			cpSync(fixtureDirectory, path.join(directory, "src"), { recursive: true });
-			writeFileSync(
-				path.join(directory, "src/comments.ts"),
-				[
-					"export declare function absent(): void;",
-					"/** */",
-					"export declare function empty(): void;",
-					"/* Ordinary comment. */",
-					"export declare function ordinary(): void;",
-					"/** Earlier. @internal */",
-					"/** Closest. @public */",
-					"export declare function documented(): void;",
-				].join("\n"),
+			cpSync(
+				new URL("../../src/test/fixtures/native/", import.meta.url),
+				path.join(directory, "src"),
+				{ recursive: true },
 			);
 			writeFileSync(path.join(directory, "package.json"), JSON.stringify({ type: "module" }));
 			writeFileSync(
@@ -282,20 +486,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					await project.emitter.printNode(source),
 				);
 			}
-			writeFileSync(
+			cpSync(
+				new URL("../../src/test/fixtures/consumer/consumer.ts", import.meta.url),
 				path.join(directory, "consumer.ts"),
-				[
-					'import { PublicIdentity, convert } from "./index.js";',
-					'import type { TypeIdentity, Frozen, Derived } from "./index.js";',
-					"const identity: TypeIdentity = new PublicIdentity();",
-					"const text: string = identity.getIdentity();",
-					"const derived: Derived = { value: text, count: 1 };",
-					"const frozen: Frozen = { value: convert(derived.value) };",
-					"// @ts-expect-error Readonly must survive declaration printing.",
-					'frozen.value = "changed";',
-					"// @ts-expect-error An exported type-only alias is not a value.",
-					"new TypeIdentity();",
-				].join("\n"),
 			);
 			writeFileSync(
 				path.join(directory, "consumer.json"),
@@ -612,6 +805,357 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					});
 					assert.ok(complete.ok);
 					assert.equal(complete.value.items.length, 2);
+					assert.equal(JSON.stringify(analysis.value), before);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+		});
+
+		describe("Explicit documentation inheritance", () => {
+			it("retains API link lookup facts without accepting un-validated links", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [
+							{ name: ".", path: "declarations/documentation-links-reexport.d.ts" },
+						],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					session.close();
+					const before = JSON.stringify(analysis.value);
+					const linked = analysis.value.declarations.find((entry) => entry.name === "linked");
+					assert.ok(linked);
+					const signature = linked.signatures[0];
+					assert.ok(signature?.documentationContext);
+					const context = signature.documentationContext;
+					assert.equal(context.origin.file, "declarations/documentation-links.d.ts");
+					assert.equal(context.origin.packageName, "example");
+					assert.equal(context.inheritance, undefined);
+					const localBase = analysis.value.declarations.find(
+						(entry) =>
+							entry.name === "base" && entry.declarations[0]?.file === context.origin.file,
+					);
+					const importedBase = analysis.value.declarations.find(
+						(entry) =>
+							entry.name === "base" &&
+							entry.declarations[0]?.file === "declarations/inheritance.d.ts",
+					);
+					const hidden = analysis.value.declarations.find((entry) => entry.name === "hidden");
+					const overloaded = analysis.value.declarations.find(
+						(entry) => entry.name === "overloaded",
+					);
+					assert.ok(localBase);
+					assert.ok(importedBase);
+					assert.ok(hidden);
+					assert.ok(overloaded);
+					assert.deepEqual(context.links, [
+						{ reference: "base", status: "resolved", target: localBase.id },
+						{ reference: "imported", status: "resolved", target: importedBase.id },
+						{ reference: "alias", status: "resolved", target: localBase.id },
+						{ reference: "hidden", status: "resolved", target: hidden.id },
+						{ reference: "overloaded", status: "resolved", target: overloaded.id },
+						{ reference: "missing", status: "not-found" },
+						{ reference: "example#base", status: "unsupported" },
+						{ reference: "(base:1)", status: "unsupported" },
+						{ reference: "linked", status: "resolved", target: linked.id },
+						{ reference: "imported", status: "resolved", target: importedBase.id },
+						{ reference: "base", status: "resolved", target: localBase.id },
+					]);
+					assert.equal(overloaded.signatures.length, 2);
+					assert.equal(hidden.declarations[0]?.kind, "VariableDeclaration");
+					assert.equal(
+						analysis.value.surfaces[0]?.exports.some((entry) => entry.target === hidden.id),
+						false,
+					);
+					assert.deepEqual(localBase.signatures[0]?.documentationContext?.links, [
+						{ reference: "linked", status: "resolved", target: linked.id },
+					]);
+					assert.deepEqual(importedBase.signatures[0]?.documentationContext?.links, []);
+					assert.equal(Object.isFrozen(context.links), true);
+					assert.equal(context.links.every(Object.isFrozen), true);
+					assert.deepEqual(JSON.parse(JSON.stringify(context)), context);
+					const result = resolveDocumentation(
+						[
+							{
+								id: signature.id,
+								packageName: context.origin.packageName,
+								documentation: signature.documentation,
+							},
+						],
+						[],
+					);
+					assert.equal(result.ok, false);
+					assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+					assert.equal(JSON.stringify(analysis.value), before);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
+			it("shares custom tags across detached binding, resolution, and classification", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/inheritance-custom.d.ts" }],
+					},
+					directory,
+				);
+				assert.ok(configuration.ok);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.ok(analysis.ok, JSON.stringify(analysis));
+					session.close();
+					const options = { customModifierTags: ["@sourceOnly", "@localOnly"] };
+					const before = JSON.stringify({ facts: analysis.value, options });
+					const inputs = analysis.value.declarations.flatMap((declaration) =>
+						declaration.signatures.map((signature) => {
+							assert.ok(signature.documentationContext);
+							return {
+								id: signature.id,
+								documentation: signature.documentation,
+								packageName: signature.documentationContext.origin.packageName,
+							};
+						}),
+					);
+					const classified = classifyApiItems(inputs, options);
+					assert.ok(classified.ok);
+					const selection = {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+						requireTags: ["@localOnly"],
+					};
+					const selected = selectApiItems(classified.value, selection);
+					assert.ok(selected.ok);
+					assert.equal(selected.value.items.length, 1);
+					const bindings = bindDocumentationReferences(analysis.value, options);
+					assert.ok(bindings.ok, JSON.stringify(bindings));
+					assert.equal(bindings.value.length, 1);
+					const result = resolveDocumentation(inputs, bindings.value, options);
+					assert.ok(result.ok);
+					const derived = result.value.find(
+						(entry) => entry.id === selected.value.items[0]?.id,
+					);
+					assert.ok(derived?.documentation);
+					assert.ok(derived.documentation.includes("Summary."));
+					assert.ok(derived.documentation.includes("@localOnly"));
+					assert.equal(derived.documentation.includes("@sourceOnly"), false);
+					assert.equal(derived.documentation.includes("@internal"), false);
+					assert.deepEqual(derived.inheritedFrom, [bindings.value[0]?.target]);
+					assert.deepEqual(classifyApiItems(inputs, options), classified);
+					assert.deepEqual(selectApiItems(classified.value, selection), selected);
+					for (const customModifierTags of [[], ["@localOnly"], ["@sourceOnly"]]) {
+						const unconfigured = bindDocumentationReferences(analysis.value, {
+							customModifierTags,
+						});
+						assert.ok(!unconfigured.ok);
+						assert.equal(unconfigured.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
+					}
+					assert.equal(JSON.stringify({ facts: analysis.value, options }), before);
+					assert.equal(Object.isFrozen(options.customModifierTags), false);
+					assert.ok(Object.isFrozen(result.value));
+					assert.ok(Object.isFrozen(bindings.value));
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
+			it("binds and resolves compiler comments after session closure", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/inheritance.d.ts" }],
+					},
+					directory,
+				);
+				assert.ok(configuration.ok);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.ok(analysis.ok, JSON.stringify(analysis));
+					session.close();
+					const before = JSON.stringify(analysis.value);
+					const base = analysis.value.declarations.find(
+						(declaration) => declaration.name === "base",
+					);
+					const derived = analysis.value.declarations.find(
+						(declaration) => declaration.name === "derived",
+					);
+					assert.ok(base?.signatures[0]);
+					assert.ok(derived?.signatures[0]);
+					const inputs = [base, derived].flatMap((declaration) => {
+						const origin = declaration.declarations[0];
+						assert.ok(origin);
+						return declaration.signatures.map((signature) => ({
+							id: signature.id,
+							documentation: signature.documentation,
+							packageName: origin.packageName,
+						}));
+					});
+					const classification = classifyApiItems(inputs);
+					assert.ok(classification.ok);
+					const bindings = bindDocumentationReferences(analysis.value, {});
+					assert.ok(bindings.ok, JSON.stringify(bindings));
+					assert.deepEqual(bindings.value, [
+						{
+							source: derived.signatures[0].id,
+							reference: "base",
+							target: base.signatures[0].id,
+						},
+					]);
+					const result = resolveDocumentation(inputs, bindings.value);
+					assert.ok(result.ok, JSON.stringify(result));
+					const effective = result.value.find(
+						(entry) => entry.id === derived.signatures[0]?.id,
+					);
+					assert.ok(effective?.documentation);
+					assertSnapshot(effective.documentation, "documentation.direct.txt");
+					assert.ok(effective.documentation.includes("Converts a value."));
+					assert.equal(effective.documentation.includes("@internal"), false);
+					assert.equal(effective.documentation.includes("@inheritDoc"), false);
+					assert.deepEqual(effective.inheritedFrom, [base.signatures[0].id]);
+					assert.deepEqual(classifyApiItems(inputs), classification);
+					assert.equal(JSON.stringify(analysis.value), before);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+		});
+
+		describe("Explicit documentation inheritance binding boundaries", () => {
+			it("supports export aliases and rejects unsafe function bindings", () => {
+				for (const fixture of documentationBindingCases) {
+					const configuration = resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: `declarations/binding-${fixture.name}.d.ts` }],
+						},
+						directory,
+					);
+					assert.ok(configuration.ok);
+					const session = createAnalysisSession();
+					try {
+						const analysis = session.analyze(configuration.value);
+						assert.ok(analysis.ok, JSON.stringify(analysis));
+						session.close();
+						const result = bindDocumentationReferences(analysis.value, {});
+						if (fixture.expected === undefined) {
+							assert.ok(result.ok, JSON.stringify(result));
+							assert.equal(result.value.length, 1);
+							assert.equal(result.value[0]?.reference, fixture.reference);
+							assert.ok(Object.isFrozen(result.value));
+						} else {
+							assert.ok(!result.ok, fixture.name);
+							assert.equal(result.diagnostics[0]?.code, fixture.expected, fixture.name);
+							assert.equal("value" in result, false);
+						}
+					} finally {
+						session.close();
+					}
+				}
+			});
+
+			it("retains original scope through re-exports and collects non-exported targets", () => {
+				for (const name of ["reexport", "hidden"]) {
+					const configuration = resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: `declarations/inheritance-${name}.d.ts` }],
+						},
+						directory,
+					);
+					assert.ok(configuration.ok);
+					const session = createAnalysisSession();
+					try {
+						const analysis = session.analyze(configuration.value);
+						assert.ok(analysis.ok, JSON.stringify(analysis));
+						session.close();
+						const detached = JSON.parse(JSON.stringify(analysis.value));
+						const bindings = bindDocumentationReferences(detached, {});
+						assert.ok(bindings.ok, JSON.stringify(bindings));
+						const expectedName = name === "hidden" ? "hidden" : "base";
+						const expectedFile =
+							name === "hidden"
+								? "declarations/inheritance-hidden.d.ts"
+								: "declarations/inheritance.d.ts";
+						const target = analysis.value.declarations.find(
+							(declaration) =>
+								declaration.name === expectedName &&
+								declaration.declarations[0]?.file === expectedFile,
+						);
+						assert.ok(target?.signatures[0]);
+						assert.equal(bindings.value[0]?.target, target.signatures[0].id);
+						assert.equal(
+							analysis.value.surfaces[0]?.exports.some((entry) => entry.target === target.id),
+							false,
+						);
+						assert.deepEqual(
+							bindDocumentationReferences(
+								{
+									...analysis.value,
+									declarations: [...analysis.value.declarations].reverse(),
+								},
+								{},
+							),
+							bindings,
+						);
+					} finally {
+						session.close();
+					}
+				}
+			});
+		});
+
+		describe("Review report generation", () => {
+			it("renders detached compiler facts against shared report snapshots", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: "./functions", path: "declarations/reportFunctions.d.ts" }],
+					},
+					directory,
+				);
+				assert.ok(configuration.ok);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.ok(analysis.ok, JSON.stringify(analysis));
+					const classification = classifyApiItems(
+						analysis.value.declarations.flatMap((item) => item.signatures),
+						{ customModifierTags: ["@partner"] },
+					);
+					assert.ok(classification.ok, JSON.stringify(classification));
+					session.close();
+					const before = JSON.stringify(analysis.value);
+					for (const [name, releaseLevels] of [
+						["public", [ReleaseLevel.Public]],
+						["complete", [ReleaseLevel.Public, ReleaseLevel.Internal]],
+					] as const) {
+						const selection = selectApiItems(classification.value, { name, releaseLevels });
+						assert.ok(selection.ok);
+						const report = createReviewReport(analysis.value, "./functions", selection.value);
+						assert.ok(report.ok, JSON.stringify(report));
+						const text = renderReviewReport(report.value);
+						const expected = assertSnapshot(text, `functions.${name}.md`);
+						assert.ok(compareReviewBaseline(text, expected).ok);
+					}
 					assert.equal(JSON.stringify(analysis.value), before);
 					assert.equal(session.getStatistics().analyses, 1);
 				} finally {

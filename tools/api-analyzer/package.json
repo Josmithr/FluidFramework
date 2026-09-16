@@ -16,7 +16,7 @@
 		"check:format": "biome check .",
 		"format": "biome check . --write",
 		"test": "npm run build && npm run test:mocha",
-		"test:contracts": "npm run build && mocha \"lib/test/**/*.test.js\" --grep \"Effective configuration|Analysis session|Adapter fact extraction|Release classification and metadata selection|Review baseline handling|session.*worker\" --timeout 20000",
+		"test:contracts": "npm run build && mocha \"lib/test/**/*.test.js\" --grep \"Effective configuration|Analysis session|Adapter fact extraction|Release classification and metadata selection|Explicit documentation inheritance|Review baseline handling|Review report generation|Snapshot assertions|session.*worker\" --timeout 20000",
 		"test:stage1": "npm run build && mocha \"lib/test/**/*.test.js\" --grep \"Effective configuration|Analysis session|Adapter fact extraction|session.*worker\" --timeout 20000",
 		"test:mocha": "mocha \"lib/test/**/*.test.js\" --timeout 20000"
 	},

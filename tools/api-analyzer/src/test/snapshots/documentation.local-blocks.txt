@@ -1,0 +1,7 @@
+/**
+ * Summary.
+ *
+ * @example
+ *
+ * Local example.
+ */

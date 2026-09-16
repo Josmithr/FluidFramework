@@ -1,9 +1,4 @@
-import {
-	TSDocConfiguration,
-	TSDocParser,
-	TSDocTagDefinition,
-	TSDocTagSyntaxKind,
-} from "@microsoft/tsdoc";
+import { TSDocParser, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
 import type { ApiItemId } from "./facts.js";
 import {
 	DiagnosticCode,
@@ -12,6 +7,7 @@ import {
 	type AnalyzerDiagnostic,
 	type Result,
 } from "./result.js";
+import { createTsdocConfiguration, type TsdocOptions } from "./tsdocConfiguration.js";
 
 /**
  * An API release level ordered by increasing permissiveness.
@@ -149,13 +145,7 @@ export interface ClassificationRules {
 /**
  * Parser configuration and diagnostic policy for one classification request.
  */
-export interface ClassificationOptions {
-	/**
-	 * Custom modifier names, including `@`. Must not redefine standard tags or each other.
-	 *
-	 * @defaultValue No custom modifier tags.
-	 */
-	readonly customModifierTags?: readonly string[];
+export interface ClassificationOptions extends TsdocOptions {
 	/**
 	 * Diagnostic overrides. Conflicting release levels always fail.
 	 *
@@ -265,27 +255,14 @@ export function classifyApiItems(
 	items: readonly ApiItemDocumentation[],
 	options: ClassificationOptions = {},
 ): Result<ApiClassification> {
-	// Keep custom tags local to this request; reject redefinitions of standard or earlier custom tags.
-	const configuration = new TSDocConfiguration();
-	for (const tagName of options.customModifierTags ?? []) {
-		try {
-			TSDocTagDefinition.validateTSDocTagName(tagName);
-		} catch (error) {
-			return failure(
-				DiagnosticCode.ClassificationConfiguration,
-				`Invalid custom modifier configuration: ${String(error)}`,
-			);
-		}
-		if (configuration.tryGetTagDefinition(tagName)) {
-			return failure(
-				DiagnosticCode.ClassificationConfiguration,
-				`Tag ${tagName} is already defined. Use a distinct custom modifier name.`,
-			);
-		}
-		configuration.addTagDefinition(
-			new TSDocTagDefinition({ tagName, syntaxKind: TSDocTagSyntaxKind.ModifierTag }),
-		);
+	const configured = createTsdocConfiguration(
+		options,
+		DiagnosticCode.ClassificationConfiguration,
+	);
+	if (!configured.ok) {
+		return configured;
 	}
+	const configuration = configured.value;
 	const parser = new TSDocParser(configuration);
 	const identifiers = new Set<ApiItemId>();
 	const diagnostics: AnalyzerDiagnostic[] = [];

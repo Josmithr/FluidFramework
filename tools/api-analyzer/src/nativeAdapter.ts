@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { SyntaxKind, type Node } from "typescript/unstable/ast";
+import {
+	DocLinkTag,
+	TSDocParser,
+	type DocDeclarationReference,
+	type DocNode,
+} from "@microsoft/tsdoc";
+import { SyntaxKind, type Node, type SourceFile } from "typescript/unstable/ast";
 import {
 	isExportDeclaration,
 	isNamedExports,
@@ -15,6 +21,8 @@ import {
 	isExportSpecifier,
 	isPropertySignatureDeclaration,
 	isTypeLiteralNode,
+	isFunctionDeclaration,
+	isIdentifier,
 } from "typescript/unstable/ast/is";
 import {
 	API,
@@ -30,6 +38,7 @@ import type {
 	AnalysisFacts,
 	ApiItemId,
 	DeclarationFact,
+	DocumentationReferenceLookup,
 	ExportFact,
 	MemberFact,
 	Origin,
@@ -95,6 +104,8 @@ export function createNativeAdapter() {
 						`Project ${configuration.project} has compiler diagnostics: ${JSON.stringify(diagnostics)}`,
 					);
 				}
+				// TODO (Stage 2 documentation resolution): Extend function lookup facts with ancestor
+				// relationships and general declaration references before this snapshot is disposed.
 				return extractFacts(project, configuration);
 			} finally {
 				// Returned facts must not depend on handles owned by this snapshot.
@@ -148,7 +159,7 @@ export interface LocationContext {
 }
 
 /**
- * Mutable declaration tracking for one export traversal.
+ * Mutable state for declaration collection during one analysis.
  */
 export interface CollectionState {
 	/**
@@ -156,7 +167,10 @@ export interface CollectionState {
 	 */
 	readonly declarations: Map<ApiItemId, DeclarationFact>;
 	/**
-	 * Identifiers on the active traversal path, used to stop export cycles.
+	 * Identifiers on the current traversal path.
+	 *
+	 * @remarks
+	 * Prevents repeated collection when exports or documentation references form a cycle.
 	 */
 	readonly visiting: Set<ApiItemId>;
 }
@@ -166,7 +180,8 @@ export interface CollectionState {
  *
  * @remarks
  * Follows export targets and namespace exports before any output-specific selection.
- * Does not build a complete graph of referenced types or resolve TSDoc.
+ * Collects targets of supported function documentation inheritance requests and API links in the original declaration scope.
+ * Does not collect every type reference or copy inherited documentation content.
  * Declaration tracking and package-owner caching are local to this call.
  * The caller must keep the project snapshot alive until extraction finishes.
  *
@@ -474,6 +489,7 @@ export function exportTypeOnly(
  *
  * @remarks
  * Prints each signature as a function type and combines its text hash with the owner identifier.
+ * Also prints a call-signature declaration for declaration-oriented report rendering.
  * Retains the closest attached TSDoc comment without declaration text, or `undefined` if absent.
  * Preserves explicit empty comments so later inheritance can distinguish them from absent comments.
  * Does not extract construct signatures.
@@ -493,10 +509,16 @@ export function signatures(
 	return checker.getSignaturesOfType(type, SignatureKind.Call).map((signature) => {
 		const node = checker.signatureToSignatureDeclaration(signature, SyntaxKind.FunctionType);
 		assert.ok(node, "The compiler must materialize a printable node for a call signature.");
-		const text = emitter.printNode(node).trim();
+		const functionTypeText = emitter.printNode(node).trim();
+		const declaration = checker.signatureToSignatureDeclaration(
+			signature,
+			SyntaxKind.CallSignature,
+		);
+		assert.ok(declaration, "The compiler must materialize a call-signature declaration.");
 		return {
-			id: `${owner}:${createHash("sha256").update(text).digest("hex")}`,
-			text,
+			callSignatureText: emitter.printNode(declaration).trim(),
+			id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
+			functionTypeText,
 			documentation: signature.declaration?.resolve()?.jsDoc?.at(-1)?.getText(),
 		};
 	});
@@ -614,12 +636,115 @@ export function exportsOf(
 }
 
 /**
- * Collects facts for a resolved symbol and its namespace exports.
+ * Looks up one documentation reference in its original declaration scope.
+ *
+ * @remarks
+ * Internal helper. Not exported from the package entrypoint.
+ * Supports unqualified names and falls back to module export aliases.
+ * Collects resolved targets into the supplied state, including targets that are not exported.
+ * Does not validate TSDoc syntax, target compatibility, or release policies.
+ * The caller must keep the compiler snapshot alive until lookup finishes.
+ *
+ * @param compiler - The checker and emitter for the active compiler snapshot.
+ * @param locations - Package settings and cache used for declaration locations.
+ * @param state - Declaration tracking updated in place. Discard it if extraction throws.
+ * @param node - The original declaration node used for name resolution.
+ * @param source - The source file that contains the original declaration.
+ * @param reference - A parsed declaration reference, or an absent implicit inheritance target.
+ * @returns Detached lookup facts without compatibility or release-policy validation.
+ * @throws If compiler queries or target collection fail unexpectedly.
+ */
+export function lookupReference(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	node: Node,
+	source: SourceFile,
+	reference: DocDeclarationReference | undefined,
+): DocumentationReferenceLookup {
+	const { checker } = compiler;
+	const member = reference?.memberReferences[0];
+	const name = member?.memberIdentifier?.identifier;
+	const supported =
+		reference !== undefined &&
+		reference.packageName === undefined &&
+		reference.importPath === undefined &&
+		reference.memberReferences.length === 1 &&
+		name !== undefined &&
+		member?.selector === undefined &&
+		member?.memberSymbol === undefined;
+	let targetId: ApiItemId | undefined;
+	if (supported && name !== undefined) {
+		const moduleSymbol = checker.getSymbolAtLocation(source);
+		const found =
+			checker.resolveName(
+				name,
+				SymbolFlags.Value | SymbolFlags.Type | SymbolFlags.Namespace,
+				node,
+			) ??
+			(moduleSymbol
+				? checker.getExportsOfModule(moduleSymbol).find((entry) => entry.name === name)
+				: undefined);
+		if (found !== undefined && !checker.isUnknownSymbol(found)) {
+			const resolved = target(checker, found);
+			if (!checker.isUnknownSymbol(resolved)) {
+				targetId = collect(compiler, locations, state, resolved);
+			}
+		}
+	}
+	const referenceText = reference?.emitAsTsdoc() ?? "";
+	if (!supported) {
+		return { reference: referenceText, status: "unsupported" };
+	}
+	if (targetId === undefined) {
+		return { reference: referenceText, status: "not-found" };
+	}
+	return { reference: referenceText, status: "resolved", target: targetId };
+}
+
+/**
+ * Collects API link lookup results from a parsed documentation tree.
+ *
+ * @remarks
+ * Internal helper. Not exported from the package entrypoint.
+ * Visits each node before its children and retains repeated references in traversal order.
+ * Excludes URL links. Does not change the documentation tree or validate lookup outcomes.
+ *
+ * @param documentationNode - The root of the TSDoc subtree to inspect.
+ * @param lookup - Resolves each API link in the original declaration scope.
+ * @returns A new array of lookup results. Empty when the subtree contains no API links.
+ * @throws If the supplied lookup function throws.
+ */
+export function collectLinks(
+	documentationNode: DocNode,
+	lookup: (reference: DocDeclarationReference) => DocumentationReferenceLookup,
+): DocumentationReferenceLookup[] {
+	const links: DocumentationReferenceLookup[] = [];
+	function visit(node: DocNode): void {
+		if (node instanceof DocLinkTag && node.codeDestination !== undefined) {
+			links.push(lookup(node.codeDestination));
+		}
+		for (const child of node.getChildNodes()) {
+			visit(child);
+		}
+	}
+	visit(documentationNode);
+	return links;
+}
+
+/**
+ * Collects facts for a resolved symbol, its namespace exports, and supported documentation targets.
  *
  * @remarks
  * Reuses completed declarations by provisional identifier.
- * Tracks active identifiers to stop recursive export cycles.
+ * Tracks identifiers on the current traversal path to stop collection cycles.
  * Adds completed facts to the supplied declaration map.
+ * For standalone functions, retains parameter facts and supported documentation lookup results.
+ * Records API links in TSDoc tree traversal order, including links inside blocks and repeated references.
+ * Excludes URL links from lookup. Missing and unsupported references remain explicit lookup results.
+ * Resolves documentation names in the original declaration scope before checking module export aliases.
+ * Retains documentation targets that are not exported, if they exist in the compiler inputs.
+ * Does not validate TSDoc syntax, check target compatibility, or copy inherited documentation content.
  * Marks conditional, indexed-access, and union types as partial, along with member lists
  * that contain an unresolved readonly state.
  * Does not recursively collect every type referenced by a declaration.
@@ -647,7 +772,7 @@ export function collect(
 	if (declarations.has(id) || visiting.has(id)) {
 		return id;
 	}
-	// Reserve the ID before following exports that can refer back to this symbol.
+	// Reserve the identifier before following exports or documentation references back to this symbol.
 	visiting.add(id);
 	const moduleSource = symbol.declarations.find(
 		(handle) => handle.kind === SyntaxKind.SourceFile,
@@ -668,6 +793,63 @@ export function collect(
 				type.isUnionType() ||
 				effectiveMembers.some((member) => member.readonly === null)),
 	);
+	const callSignatures = type ? signatures(compiler, type, id) : [];
+	// TODO (Stage 2 documentation references): Support qualified references, TSDoc selectors,
+	// and other declaration forms. Use TSDoc nodes and preserve the original declaration scope.
+	if (
+		type &&
+		symbol.declarations.every((handle) => handle.kind === SyntaxKind.FunctionDeclaration)
+	) {
+		const compilerSignatures = checker.getSignaturesOfType(type, SignatureKind.Call);
+		for (const [index, signature] of compilerSignatures.entries()) {
+			const handle = signature.declaration;
+			const node = handle?.resolve();
+			const fact = callSignatures[index];
+			assert.ok(fact, "Compiler signatures must correspond to extracted signature facts.");
+			if (
+				handle &&
+				node &&
+				isFunctionDeclaration(node) &&
+				node.parent &&
+				isSourceFile(node.parent)
+			) {
+				const source = node.parent;
+				const location = origin(locations, handle.path, node.pos);
+				const comment = new TSDocParser().parseString(
+					fact.documentation ?? "/** */",
+				).docComment;
+				const links = collectLinks(comment, (reference) =>
+					lookupReference(compiler, locations, state, node, source, reference),
+				);
+				const inheritance =
+					comment.inheritDocTag === undefined
+						? undefined
+						: lookupReference(
+								compiler,
+								locations,
+								state,
+								node,
+								source,
+								comment.inheritDocTag.declarationReference,
+							);
+				callSignatures[index] = {
+					...fact,
+					documentationContext: {
+						origin: location,
+						links,
+						parameters: node.parameters.map((parameter) => ({
+							...(isIdentifier(parameter.name) ? { name: parameter.name.text } : {}),
+							optional:
+								parameter.questionToken !== undefined || parameter.initializer !== undefined,
+							rest: parameter.dotDotDotToken !== undefined,
+						})),
+						typeParameters: node.typeParameters?.map((parameter) => parameter.name.text) ?? [],
+						...(inheritance === undefined ? {} : { inheritance }),
+					},
+				};
+			}
+		}
+	}
 	declarations.set(id, {
 		id,
 		name: moduleSource ? origin(locations, moduleSource.path, 0).file : symbol.name,
@@ -690,7 +872,7 @@ export function collect(
 				]
 			: [],
 		members: effectiveMembers,
-		signatures: type ? signatures(compiler, type, id) : [],
+		signatures: callSignatures,
 		exports: namespaceExports,
 	});
 	visiting.delete(id);

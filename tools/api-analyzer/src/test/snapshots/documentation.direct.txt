@@ -1,0 +1,9 @@
+/**
+ * Converts a value.
+ *
+ * @param value - Input value.
+ *
+ * @returns The input.
+ *
+ * @public
+ */

@@ -18,7 +18,9 @@ Do not add a custom type checker, use compiler-private APIs, or switch backends 
 Pin the analysis engine to TypeScript 7.0.2.
 Build the same fixture with TypeScript 6.0.3 and 7.0.2, then analyze both sets of untrimmed declarations with TS7.
 Use the official client and the installed native executable.
-Keep generated fixture files in temporary directories and remove them after each test.
+Keep static TypeScript inputs in the [checked-in fixture suites](src/test/fixtures/README.md).
+Copy the required inputs into temporary projects, and keep compiler output and intentional test mutations there.
+Remove temporary projects after each test or suite.
 
 The capability tests must check:
 
@@ -74,6 +76,171 @@ They also retain type-only export paths, namespace exports, merged declarations,
 Use portable data without compiler handles. Report limitations when a representation is incomplete.
 Identifiers are provisional and must not use compiler handle numbers or traversal order.
 The Stage 1 representation is not yet a versioned documentation model or a complete API reference graph.
+
+## Explicit documentation inheritance contract
+
+`resolveDocumentation(items, bindings, options)` copies documentation for explicit inheritance requests within the same package.
+A binding associates a request with its target declaration or signature.
+The internal `bindDocumentationReferences(facts, options)` operation produces bindings from supported compiler lookup facts.
+It is not exported from the package entrypoint.
+Neither operation is part of report construction yet.
+
+Both operations use `TsdocOptions` with an optional `customModifierTags` array.
+The internal binder requires an options argument; pass `{}` for standard TSDoc tags only.
+The content resolver permits omitted options, which register only standard TSDoc tags.
+Pass the same custom modifier vocabulary to `classifyApiItems`, `bindDocumentationReferences`, and `resolveDocumentation`.
+For example, `{ customModifierTags: ["@partner"] }` registers `@partner` as a modifier for each operation.
+Register tags used by all supplied comments, including inheritance targets that are not selected for a report.
+Each operation creates its own parser configuration and does not change or freeze the caller's options.
+Invalid names, duplicate names, and redefinitions of standard tags produce configuration diagnostics.
+Unknown tags and malformed comments still fail binding and resolution, even when classification disables its own syntax diagnostics.
+Custom modifiers remain local metadata and are not copied from inheritance targets.
+
+Each input supplies an item identifier, the original comment's package name, and its local TSDoc comment or `undefined`.
+Each binding supplies a source identifier, the declaration reference printed by TSDoc's `emitAsTsdoc()` method, and a target identifier.
+If you construct bindings manually, resolve each target in the original comment's declaration scope.
+Verify that the source and target signatures have compatible parameters and type parameters.
+The content resolver checks that each request matches one binding, that the identified items exist, and that they belong to the same package.
+It also checks for inheritance cycles.
+It does not repeat target lookup or parameter compatibility checks.
+
+The following example resolves an explicitly bound function comment without compiler access:
+
+```typescript
+import { resolveDocumentation } from "api-analyzer";
+
+const result = resolveDocumentation(
+	[
+		{
+			id: "base-signature",
+			packageName: "example",
+			documentation: "/** Converts a value. @internal */",
+		},
+		{
+			id: "derived-signature",
+			packageName: "example",
+			documentation: "/** {@inheritDoc base} @public */",
+		},
+	],
+	[
+		{
+			source: "derived-signature",
+			reference: "base",
+			target: "base-signature",
+		},
+	],
+);
+```
+
+Successful output is deeply frozen and sorted by item identifier.
+Each result contains a comment printed by TSDoc and an `inheritedFrom` array of target identifiers.
+The array follows the inheritance path from the immediate target to the last target.
+TSDoc supplies parsing and printing.
+The resolver does not splice comment text or parse printed TypeScript signatures.
+It copies the target's summary, remarks, parameter documentation, type-parameter documentation, and return documentation after resolving the target's own inheritance.
+Other blocks and modifier tags come from the local comment.
+In the example, the derived comment receives the summary and retains `@public`.
+It does not receive `@internal`.
+
+Use the original inputs for release classification.
+Do not classify the resolved comment as a new API item.
+An absent or empty target comment supplies no inherited descriptive content.
+A target comment that contains only metadata tags also supplies no descriptive content.
+The output retains the distinction between absent and present local comments.
+This output format can change.
+It does not yet contain structured content or the source information for each section that a complete portable documentation model requires.
+
+Invalid syntax, missing or ambiguous bindings, stale bindings, and inheritance cycles return typed diagnostics without a partial success value.
+Unexpected processing errors propagate as exceptions.
+The resolver does not change inputs, and each call owns its caches.
+It does not support automatic inheritance, parameter renaming, custom block or inline tags, inheritance from other packages, or API link resolution.
+Requests for inheritance from other packages, requests without explicit targets, and API links produce diagnostics.
+Links to URLs remain unchanged, and the resolver does not access their destinations.
+The current resolver does not treat an absent comment as a request for automatic inheritance.
+It does not accept ancestor facts as inputs yet.
+
+The pure tests cover chains, local metadata, custom modifier configuration, empty targets, blocks that remain local, invalid bindings, cycles, and unsupported features.
+Checked-in plain-text snapshots contain the complete resolved comments for direct inheritance, inheritance chains, empty inherited content, and retained local blocks.
+Tests compare the exact output, including whitespace, with these files.
+Normal test runs read snapshots without updating them.
+Review each expected comment against the inheritance contract before accepting a snapshot change.
+Keep separate assertions for target identifiers, inheritance paths, unchanged inputs, and failure diagnostics.
+Real-compiler tests verify binding and content resolution after the analysis session closes.
+These tests use declarations built with TypeScript 6 and TypeScript 7, both analyzed with TypeScript 7.
+Both compiler inputs and the direct-inheritance unit test use the same resolved-comment snapshot.
+Report inheritance snapshots remain planned work for report integration; they must not preserve the current unresolved-comment check as the final behavior.
+This increment does not change `ReviewSignature.documented`, report notices, or the Stage 2 completion status.
+
+### Compiler-backed function bindings
+
+`bindDocumentationReferences(facts, options)` uses analysis facts that contain no compiler objects.
+It returns deeply frozen bindings sorted by source signature identifier.
+During analysis, the official compiler resolves unqualified names, such as `base`, in each function declaration's original scope.
+This lookup includes imported aliases.
+If the compiler finds no symbol in that scope, the adapter checks the source module's exports for an export alias.
+The original declaration scope takes precedence over export aliases.
+A re-exporting entrypoint does not change the lookup scope.
+The adapter collects inheritance targets even when they are not exported.
+A target must still exist in the declaration inputs because TypeScript emission can remove unused private declarations.
+
+`SignatureFact.documentationContext` retains the original location, parameter names, optional parameter flags, rest parameter flags, and type-parameter names.
+It also retains the lookup result for an inheritance request.
+The analyzer supplies this field for supported standalone function declarations.
+Other declaration forms omit it.
+An inheritance request without the required context produces a diagnostic.
+The binder does not guess a target from its name.
+These facts remain usable after the session closes or after JSON serialization.
+Their format can change, and they do not represent all declaration references.
+
+The target must be a standalone function in the same package with exactly one callable signature.
+Source and target parameter names, order, and count must match.
+Optional parameter flags, rest parameter flags, and type-parameter names must also match.
+Use local documentation when parameters use destructuring, parameter names differ, or the target has multiple overloads.
+These checks protect parameter documentation but do not establish TypeScript assignability.
+They do not compare parameter types, return types, generic constraints, or generic defaults.
+Qualified references, TSDoc selectors, targets in other packages, and other declaration forms produce diagnostics.
+TSDoc selectors identify a specific declaration, such as an overload, within a reference.
+Classification, binding, and content resolution share custom modifier configuration through `TsdocOptions`.
+Custom block and inline tag configuration, configuration-file loading, and API link validation remain pending.
+
+Compiler fixture tests cover direct references, imported and exported aliases, original scope through re-exports, non-exported targets, missing names, ambiguous overloads, incompatible parameter shapes, and unsupported forms.
+Custom modifier fixtures verify binding and resolution after session closure for both compiler inputs.
+They also verify that original release classification and metadata selection do not change.
+Pass bindings to `resolveDocumentation` with the signature comments and their original package names.
+Use the original comments for classification.
+The current report notices do not use these bindings or resolved comments.
+
+### Compiler-backed API link lookup
+
+Supported function documentation contexts include a required `links` array.
+Each entry is a `DocumentationReferenceLookup`, the same lookup type used for explicit inheritance.
+The adapter traverses the official TSDoc tree and records API links from summaries and documentation blocks.
+Entries follow tree traversal order and include repeated references.
+URL links do not produce entries and do not cause network access.
+An empty array means the parser found no API links; it does not establish that the comment is valid.
+
+Lookup supports unqualified names, imported aliases, and exported aliases in the original function declaration scope.
+Re-exporting a function does not change that scope.
+The adapter retains resolved target declarations, including non-exported targets that remain in the compiler inputs.
+Self-references and mutually linked declarations do not cause unbounded collection.
+The lookup result identifies a declaration, not an overload.
+Unlike inheritance binding, link lookup can retain variables and overloaded functions without checking parameter compatibility.
+
+`DocumentationReferenceLookup` is a discriminated union with three `status` values.
+A `ResolvedDocumentationReference` has `status: "resolved"` and a required `target` declaration identifier.
+A `MissingDocumentationReference` has `status: "not-found"` and no target field.
+An `UnsupportedDocumentationReference` has `status: "unsupported"` and no target field.
+Qualified references, selectors, and target-less inheritance requests currently produce the unsupported outcome.
+All outcomes retain the printed `reference` text, including an empty string for a target-less inheritance request.
+Narrow on `status` before accessing `target`.
+Lookup does not validate the target's package scope, release level, or suitability for documentation links.
+The resolver continues to reject API links until those checks are implemented.
+Future validation must permit public-to-beta links independently of report selection and reject links from non-internal APIs to internal APIs.
+Inherited links must retain their original context when those checks are applied.
+
+Compiler fixture tests cover these lookup cases using both supported declaration-build compilers.
+They verify detached access after session closure, frozen lookup results, and JSON round-tripping of the documentation context.
+This increment does not change report behavior or satisfy the API-link validation requirement.
 
 ## Release classification and selection contract
 
@@ -159,8 +326,74 @@ Review artifacts must identify the package and configured surface. Their API con
 type-only export paths, callable signatures, release levels, and policy-relevant modifiers.
 Generation must use deterministic ordering and exclude volatile data such as timestamps and absolute checkout paths.
 Separate selections must produce separate artifacts from shared analysis. Baseline comparison must not trigger analysis.
-The declaration renderer and its exact report syntax are not yet implemented or stabilized.
+The initial declaration renderer supports function-only entrypoints. Its report syntax is experimental.
 Raw declaration text is not a substitute for correctly selected declarations, and metadata-only output is not a complete API report.
+
+`createReviewReport(facts, entrypoint, selection)` joins a named metadata selection to detached callable signature facts.
+The report identity uses the package name and selection name, not the physical entrypoint name.
+This lets two resolution contexts render under the same review identity for parity comparison.
+Exports are sorted by exported name. Aliases remain separate exports, and type-only export paths remain visible.
+Selected overloads retain compiler order because overload order can affect resolution.
+An export with no selected overloads is omitted. An empty selected surface is an explicit empty report.
+Unknown entrypoints, unknown selected identifiers, and blank report names return `report-configuration` diagnostics.
+All selected identifiers must refer to signature facts from the supplied analysis, but may belong to other entrypoints in that analysis.
+The caller must use classification and selection from the same facts; the report builder does not reclassify comments.
+Duplicate fact identities and unresolved export targets violate internal invariants and assert.
+The initial builder throws for non-function exports or function/namespace merges, even when no overload is selected.
+These are unsupported library capabilities, not user-input diagnostics. No partial report is returned.
+
+`renderReviewReport(report, options?)` produces API Extractor-like Markdown: a package heading, generated-file notice,
+surface identity, and one `ts` block containing function declarations and explicit export statements.
+Each function is declared once, with per-overload comments. Alias and type-only exports refer to that declaration.
+A declaration used only through aliases is not accidentally exported under its implementation name.
+Call-signature declaration text is printed by the compiler during analysis; the renderer does not rewrite arrow-function type strings.
+The report retains declaration identities internally to group aliases, but never prints those identities.
+
+`ReviewPresentationOptions.includeReleaseTags` defaults to `true`. Release tags appear first in each annotation.
+`additionalTags` defaults to an empty list. Use it to display recognized tags such as `@sealed`, `@input`, `@legacy`, or `@deprecated`.
+Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.
+Release tags are controlled only by `includeReleaseTags`, not `additionalTags`. Permitted untagged items have no release annotation.
+The report builder preserves recognized modifier metadata and parsed block-tag presence for presentation.
+It uses the official TSDoc parser for documentation-content detection without repeating semantic classification or validation.
+
+`includeUndocumentedNotice` defaults to `true`. Absent, empty, and tag-only comments receive `(undocumented)` annotations.
+Descriptive text in a summary or block, code, links, and explicit inheritance requests count as documentation.
+An inheritance request does not imply that inherited documentation has been resolved.
+
+This documentation-presence check is temporary. The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) moves resolution ahead of report construction.
+The planned resolver retains effective content and provenance separately from release classification and selection.
+Reports will determine documentation presence from successfully resolved content, not from an inheritance request alone.
+Missing targets, cycles, conflicting ancestors, and ambiguous overload matches will produce resolution diagnostics instead of a guessed boolean.
+An empty inherited result will remain undocumented. Any local TSDoc comment will suppress automatic inheritance; an explicit inheritance request will still require resolution.
+This status will measure content presence, not documentation quality or completeness.
+Implementation proceeds through same-package explicit inheritance, automatic member inheritance, and cross-package suite resolution.
+The required dependency-model loading and compatibility support moves into Stage 2. Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
+These changes are planned, not implemented by the current report builder.
+Disabling the annotation does not disable documentation validation or change selected APIs.
+Display settings never remove metadata from the report model and do not alter semantic policy.
+
+The following options retain release tags, display Fluid-specific metadata, and suppress undocumented annotations:
+
+```typescript
+const presentation = {
+	additionalTags: ["@sealed", "@input", "@legacy"],
+	includeUndocumentedNotice: false,
+};
+```
+
+Package-level `@packageDocumentation` handling remains a [required follow-up](../plans/api-extractor-replacement-follow-ups.md#required-package-documentation-support).
+No missing-package-documentation annotation is emitted before that analysis exists.
+General report-format customization is a separate follow-up after rough API Extractor parity.
+The text uses LF line endings and one final newline. It excludes source comments, implementation bodies,
+source locations, provisional IDs, and compiler versions. It is review text, not a declaration rollup.
+Both operations perform no compiler queries or filesystem writes and do not mutate their inputs.
+Full-report tests compare generated output with checked-in snapshot files.
+Documentation, report, and compiler-backed snapshot tests use `assertSnapshot` from [the shared snapshot utilities](src/test/snapshotUtils.ts).
+The utility compares exact UTF-8 text, including whitespace and line endings, and returns the expected text for additional assertions.
+Tests use explicit file names so that multiple tests can check the same baseline.
+Missing files and unequal text fail the test.
+Normal tests never create or update snapshots.
+Review snapshot diffs explicitly when intentionally changing the report format or fixture API.
 
 The initial baseline API accepts generated report text without interpreting its syntax.
 `compareReviewBaseline(actual, expected)` performs a pure, exact string comparison.
@@ -381,4 +614,16 @@ The [baseline tests](src/test/reviewBaseline.test.ts) add three acceptance cases
 They check exact comparison, absent versus empty baselines, read-only checks, explicit creation and replacement,
 relative-path diagnostics, and propagation of unexpected filesystem errors.
 The tests first failed because the public baseline APIs were absent, then passed after implementation.
-This increment does not generate reports or validate declaration references. It establishes the independent baseline boundary for the next report-generation work.
+This increment does not generate reports or validate declaration references. It establishes the independent baseline boundary for report-generation work.
+
+### Function report increment
+
+Verified on 2026-09-15: `pnpm test:contracts` passes 54 tests. The build, formatting, and whitespace checks pass.
+The revised API Extractor-like layout adds configurable tag display and undocumented annotations, with configured and alias-only snapshots.
+The [report tests](src/test/reviewReport.test.ts) compare complete generated output with checked-in
+[public](src/test/snapshots/functions.public.md), [complete](src/test/snapshots/functions.complete.md), and [empty](src/test/snapshots/functions.empty.md) snapshots.
+Tests also check deterministic export ordering, significant overload ordering, metadata and signature changes, input ownership, and diagnostic versus exception behavior.
+The [real-compiler tests](src/test/nativeCapabilities.test.ts) build the same function fixture with TS6 and TS7.
+They classify once and render public and complete reports after closing the session, with one analysis and unchanged original facts.
+Normal tests only read snapshot files. When intentionally changing output, update the affected snapshot and review its full diff; never accept a new snapshot merely to make a test pass.
+This remains a function-only report implementation. General declarations, semantic reference validation, actual conditional-entrypoint parity, and the repository pilot remain open Stage 2 work.

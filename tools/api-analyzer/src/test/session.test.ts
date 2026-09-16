@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,7 +15,7 @@ describe("Analysis session", () => {
 	beforeEach(() => {
 		directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-session-"));
 		cpSync(
-			fileURLToPath(new URL("../../src/test/fixtures/", import.meta.url)),
+			fileURLToPath(new URL("../../src/test/fixtures/shared/", import.meta.url)),
 			path.join(directory, "src"),
 			{ recursive: true },
 		);
@@ -23,20 +23,10 @@ describe("Analysis session", () => {
 			path.join(directory, "package.json"),
 			JSON.stringify({ name: "example", type: "module" }),
 		);
-		// Re-export through a second file to test whether type-only status survives the chain.
-		writeFileSync(
-			path.join(directory, "src/extra.ts"),
-			[
-				'export type { Identity as OnlyIdentity } from "./api.js";',
-				'export type * from "./api.js";',
-				"export interface Merged { property: string; }",
-				'export namespace Merged { export const label: string = "label"; }',
-				"export type Deferred<Value> = Value extends string ? { text: Value } : { value: Value };",
-			].join("\n"),
-		);
-		writeFileSync(
-			path.join(directory, "src/chain.ts"),
-			'export { OnlyIdentity as Renamed } from "./extra.js";\nexport * from "./extra.js";',
+		cpSync(
+			new URL("../../src/test/fixtures/session/base/", import.meta.url),
+			path.join(directory, "src"),
+			{ recursive: true },
 		);
 		writeFileSync(
 			path.join(directory, "tsconfig.json"),
@@ -73,17 +63,9 @@ describe("Analysis session", () => {
 
 	// Design feature: F3. Only an absent TSDoc comment permits automatic inheritance.
 	it("distinguishes absent and empty signature comments without including declaration text", () => {
-		writeFileSync(
+		cpSync(
+			new URL("../../src/test/fixtures/session/comments.ts", import.meta.url),
 			path.join(directory, "src/comments.ts"),
-			[
-				"export declare function absent(): void;",
-				"/** */",
-				"export declare function empty(): void;",
-				"/* Ordinary comment. */",
-				"export declare function ordinary(): void;",
-				"/** Documented. @public */",
-				"export declare function documented(): void;",
-			].join("\n"),
 		);
 		const result = session.analyze({
 			...configuration,
@@ -186,13 +168,10 @@ describe("Analysis session", () => {
 	it("invalidates dependency changes and agrees with a fresh session", () => {
 		const first = session.analyze(configuration);
 		assert.ok(first.ok, JSON.stringify(first));
-		writeFileSync(
-			path.join(directory, "src/api.ts"),
-			"export class Identity {}\nexport interface Derived { value: number; }\n",
-		);
-		writeFileSync(
-			path.join(directory, "src/index.ts"),
-			'export { Derived, Identity as PublicIdentity } from "./api.js";',
+		cpSync(
+			new URL("../../src/test/fixtures/session/updated/", import.meta.url),
+			path.join(directory, "src"),
+			{ recursive: true },
 		);
 		session.invalidate();
 		const changed = session.analyze(configuration);
@@ -227,7 +206,11 @@ describe("Analysis session", () => {
 	// Design requirement: W4.
 	it("isolates browser and Node resolution and retains dependency origins", () => {
 		const dependency = path.join(directory, "node_modules/dependency");
-		mkdirSync(dependency, { recursive: true });
+		cpSync(
+			new URL("../../src/test/fixtures/session/dependency/", import.meta.url),
+			dependency,
+			{ recursive: true },
+		);
 		writeFileSync(
 			path.join(dependency, "package.json"),
 			JSON.stringify({
@@ -237,17 +220,9 @@ describe("Analysis session", () => {
 				exports: { ".": { browser: "./browser.d.ts", default: "./node.d.ts" } },
 			}),
 		);
-		writeFileSync(
-			path.join(dependency, "browser.d.ts"),
-			"export interface Environment { value: 'browser'; }",
-		);
-		writeFileSync(
-			path.join(dependency, "node.d.ts"),
-			"export interface Environment { value: 'node'; }",
-		);
-		writeFileSync(
+		cpSync(
+			new URL("../../src/test/fixtures/session/environment.ts", import.meta.url),
 			path.join(directory, "src/environment.ts"),
-			'export { Environment as PublicEnvironment } from "dependency";',
 		);
 		const browserProject = path.join(directory, "browser.json");
 		writeFileSync(
@@ -268,9 +243,9 @@ describe("Analysis session", () => {
 		assert.equal(browser.value.declarations[0]?.members[0]?.type, '"browser"');
 		assert.equal(browser.value.declarations[0]?.declarations[0]?.packageName, "dependency");
 		assert.equal(session.getStatistics().analyses, 2);
-		writeFileSync(
+		cpSync(
+			new URL("../../src/test/fixtures/session/browser-updated.d.ts", import.meta.url),
 			path.join(dependency, "browser.d.ts"),
-			"export interface Environment { value: 'updated'; }",
 		);
 		session.invalidate();
 		const updated = session.analyze({ ...settings, project: browserProject });
