@@ -1,14 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "mocha";
-import {
-	classifyApiItems,
-	createReviewReport,
-	renderReviewReport,
-	selectApiItems,
-	ReleaseLevel,
-	DiagnosticCode,
-	type AnalysisFacts,
-} from "../index.js";
+import { classifyApiItems, selectApiItems } from "../classification.js";
+import { renderReviewReport, ReleaseLevel, DiagnosticCode } from "../index.js";
+import { createReviewReport } from "../reviewReport.js";
+import type { AnalysisFacts } from "../facts.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 
 const facts: AnalysisFacts = {
@@ -40,6 +35,7 @@ const facts: AnalysisFacts = {
 			type: "not-for-rendering",
 			memberView: "complete",
 			baseDeclarations: [],
+			heritage: [],
 			implementedDeclarations: [],
 			limitations: [],
 			members: [],
@@ -208,16 +204,24 @@ describe("Review report generation", () => {
 			"functions.inherited.md",
 		);
 		// Selection excludes the beta target, but both original author and receiver metadata are still required.
-		for (const id of ["base-signature", "derived-signature"]) {
-			const result = createReviewReport(linked, ".", selected.value, {
-				...options,
-				classification: {
-					...classified.value,
-					items: classified.value.items.filter((entry) => entry.id !== id),
-				},
-			});
-			assert.equal(result.ok, false);
-			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
+		for (const [id, message] of [
+			["base-signature", "API link sources must have original classification metadata."],
+			[
+				"derived-signature",
+				"Effective API link receivers must have original classification metadata.",
+			],
+		] as const) {
+			assert.throws(
+				() =>
+					createReviewReport(linked, ".", selected.value, {
+						...options,
+						classification: {
+							...classified.value,
+							items: classified.value.items.filter((entry) => entry.id !== id),
+						},
+					}),
+				{ name: "AssertionError", message },
+			);
 		}
 		// A modifier used only by an unselected ancestor still belongs to the parser vocabulary.
 		const unconfigured = createReviewReport(linked, ".", selected.value, {
@@ -616,25 +620,29 @@ describe("Review report generation", () => {
 		assert.equal(classified.ok, true);
 		const options = { classification: classified.value, customModifierTags: ["@partner"] };
 		assert.equal(createReviewReport(facts, "missing", selection, options).ok, false);
-		assert.equal(
-			createReviewReport(facts, ".", { ...selection, name: " " }, options).ok,
-			false,
-		);
-		assert.equal(
-			createReviewReport(
-				facts,
-				".",
-				{
-					...selection,
-					items: [{ id: "unknown", releaseLevel: undefined, modifierTags: [] }],
-				},
-				options,
-			).ok,
-			false,
+		assert.throws(() => createReviewReport(facts, ".", { ...selection, name: " " }, options), {
+			name: "AssertionError",
+			message: "Validated selections must have non-blank names.",
+		});
+		assert.throws(
+			() =>
+				createReviewReport(
+					facts,
+					".",
+					{
+						...selection,
+						items: [{ id: "unknown", releaseLevel: undefined, modifierTags: [] }],
+					},
+					options,
+				),
+			{
+				name: "AssertionError",
+				message: "Selected identities must belong to the report's analysis facts.",
+			},
 		);
 		assert.throws(
 			() => createReviewReport({ ...facts, declarations: [] }, ".", selection, options),
-			assert.AssertionError,
+			{ name: "AssertionError", message: "Every export target must have a declaration fact." },
 		);
 		assert.throws(
 			() =>

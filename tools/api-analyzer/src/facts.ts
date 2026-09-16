@@ -75,16 +75,16 @@ export interface ExportFact {
  */
 export interface SignatureFact {
 	/**
-	 * Compiler lookup and parameter facts for standalone function documentation.
+	 * Compiler lookup and parameter facts for function or method documentation.
 	 *
 	 * @remarks
-	 * The analyzer provides this property for supported standalone function declarations.
+	 * The analyzer provides this property for collected function and method declarations.
 	 * Other declaration forms omit it.
 	 * An absent property does not mean that the comment has no references.
 	 *
 	 * @defaultValue Omitted for unsupported declaration forms.
 	 */
-	readonly documentationContext?: FunctionDocumentationContext;
+	readonly documentationContext?: SignatureDocumentationContext;
 	/**
 	 * The compiler-printed call-signature declaration, including generic parameters and its trailing semicolon.
 	 *
@@ -175,10 +175,10 @@ export interface SignatureFact {
  */
 export interface MemberFact {
 	/**
-	 * A provisional identifier for the member as observed on its containing declaration.
+	 * A provisional identifier for the member as observed on its containing declaration or heritage view.
 	 *
 	 * @remarks
-	 * Combines the containing declaration identifier with the compiler-printed member name.
+	 * Combines the containing declaration or heritage-view identifier with the compiler-printed member name.
 	 * Inherited members on different containing declarations have different identifiers,
 	 * even when they share source declarations. The format is not a stable public contract.
 	 */
@@ -285,7 +285,8 @@ interface DocumentationReferenceLookupBase {
 	 *
 	 * @example
 	 * Unsupported reference syntax is still retained for later diagnostics.
-	 * Package-qualified references and overload selectors are not supported by the current lookup.
+	 * Package-qualified references and selectors in API links are not supported by the current lookup.
+	 * Numeric selectors in explicit inheritance requests are supported and retain the selected reference text.
 	 *
 	 * ```typescript
 	 * // For {@link example#base}:
@@ -305,7 +306,7 @@ interface DocumentationReferenceLookupBase {
 	 * const unresolvedReference = "missing";
 	 * ```
 	 */
-	// TODO (Stage 2 reference syntax): Update the qualified-reference and selector examples when
+	// TODO (Stage 2 reference syntax): Update qualified-reference and API-link selector examples when
 	// lookup supports them. Preserve the printed reference text even when the target is missing.
 	// TODO (Stage 2 automatic inheritance): Revisit the target-less inheritance example when implicit
 	// target selection is defined. Distinguish supported requests from malformed comments;
@@ -358,13 +359,13 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
 }
 
 /**
- * Documentation lookup and parameter facts for one standalone function signature.
+ * Documentation lookup and parameter facts for one collected function or method signature.
  *
  * @remarks
  * These facts contain no compiler objects.
  * Optional properties are omitted when their values are absent, including during JSON serialization.
  */
-export interface FunctionDocumentationContext {
+export interface SignatureDocumentationContext {
 	/**
 	 * The original signature location, independent of the entrypoint that re-exports it.
 	 */
@@ -375,7 +376,7 @@ export interface FunctionDocumentationContext {
 	 * @remarks
 	 * Excludes URL links. Empty when the parser found no API links.
 	 * Results retain unsupported and missing targets but do not establish valid TSDoc or release-policy compliance.
-	 * Lookup uses the original function declaration scope, including for links inside documentation blocks.
+	 * Lookup uses the original callable declaration scope, including for links inside documentation blocks.
 	 */
 	readonly links: readonly DocumentationReferenceLookup[];
 	/**
@@ -431,6 +432,41 @@ export interface SourceDeclarationFact extends Origin {
 }
 
 /**
+ * A direct heritage relationship with members instantiated in the receiving declaration's context.
+ */
+export interface HeritageFact {
+	/**
+	 * Confident non-overloaded documentation matches from receiving members to this view's members.
+	 *
+	 * @remarks
+	 * These pairs establish compatibility, not source precedence or permission to copy a comment.
+	 * Local comments suppress automatic inheritance. Multiple distinct sources must not be guessed.
+	 * Both identifiers refer to member facts retained in the same analysis result.
+	 */
+	readonly documentationMatches: readonly {
+		readonly source: ApiItemId;
+		readonly target: ApiItemId;
+	}[];
+	/**
+	 * Whether the declaration extends a base or implements a contract.
+	 */
+	readonly kind: "extends" | "implements";
+	/**
+	 * The original target declaration identifier, retained in the analysis result.
+	 */
+	readonly target: ApiItemId;
+	/**
+	 * Effective target members after applying the receiving declaration's type arguments.
+	 *
+	 * @remarks
+	 * Member identifiers are scoped to this heritage view. Original source declarations remain unchanged.
+	 * View identities use the receiver, relationship kind, target identifier, and compiler-printed target type.
+	 * Printed type text is used only for provisional identity, not compatibility checks.
+	 */
+	readonly members: readonly MemberFact[];
+}
+
+/**
  * Provisional semantic facts for a resolved declaration symbol.
  *
  * @remarks
@@ -438,9 +474,18 @@ export interface SourceDeclarationFact extends Origin {
  * A symbol can have several source declarations through declaration merging.
  */
 // TODO (Stage 2 documentation resolution): Extend signature documentation contexts to general
-// declaration targets and ancestor/overload relationships. Preserve local-comment precedence.
+// declaration targets and member references. Preserve local-comment precedence.
 // These facts must support resolution without compiler handles or parsing printed type strings.
 export interface DeclarationFact {
+	/**
+	 * Direct instantiated heritage views in source declaration and clause order.
+	 *
+	 * @remarks
+	 * Empty for other declaration forms. Retains direct target members, not recursive instantiated ancestry.
+	 */
+	// TODO (Stage 2 documentation resolution): Retain recursive instantiated ancestry where direct
+	// matches and original-member source chains are insufficient. Never infer overload compatibility.
+	readonly heritage: readonly HeritageFact[];
 	/**
 	 * Identifiers of direct base declarations for a class or interface, in compiler order.
 	 *
@@ -451,9 +496,6 @@ export interface DeclarationFact {
 	 * Excludes implements clauses and is empty for other declaration forms.
 	 * These links do not establish member overrides or compatible overload matches.
 	 */
-	// TODO (Stage 2 documentation resolution): Retain instantiated base context and
-	// compiler-backed member and overload relationships before resolving automatic inheritance.
-	// Do not infer compatible matches from declaration IDs or printed signature text.
 	readonly baseDeclarations: readonly ApiItemId[];
 	/**
 	 * Declaration identifiers named by local class implements clauses, in source declaration and clause order.
@@ -465,9 +507,6 @@ export interface DeclarationFact {
 	 * Excludes clauses inherited through a base class and is empty for other declaration forms.
 	 * These links neither add members nor copy documentation to the implementing class.
 	 */
-	// TODO (Stage 2 documentation resolution): Retain instantiated contract context and member/overload
-	// matches for implements targets. Apply local-comment precedence and diagnose conflicting sources
-	// before inheriting interface documentation; do not treat these links as base-class inheritance.
 	readonly implementedDeclarations: readonly ApiItemId[];
 	/**
 	 * An opaque identifier used by export targets within the analysis result.

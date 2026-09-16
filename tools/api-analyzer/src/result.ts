@@ -18,13 +18,12 @@
 // - Roll-up generation
 export enum DiagnosticCode {
 	/**
-	 * Documentation inputs, link classification metadata, or custom modifier definitions are invalid.
+	 * Required release tags are absent, or custom modifier definitions are invalid.
 	 *
 	 * @remarks
-	 * Supply distinct identifiers and non-blank names for the packages that contain the original comments.
 	 * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.
-	 * API link binding requires original source and target classification with explicit release levels.
-	 * Content resolution also requires original classification for every API that receives inherited links.
+	 * Add release tags to untagged API link sources, targets, and receiving declarations.
+	 * Missing internal classification records are assertion failures, not configuration diagnostics.
 	 */
 	DocumentationConfiguration = "documentation-configuration",
 	/**
@@ -36,15 +35,13 @@ export enum DiagnosticCode {
 	 */
 	DocumentationTsdoc = "documentation-tsdoc",
 	/**
-	 * A documentation inheritance reference, API link lookup, or binding failed validation.
+	 * A documentation inheritance reference or API link target failed validation.
 	 *
 	 * @remarks
-	 * The target or binding can be missing, ambiguous, or out of date.
+	 * The target can be missing, or an overload selector can be absent or out of range.
 	 * Parameter incompatibility also produces this diagnostic.
-	 * Correct the reference, analyze the changed declarations again, or provide local documentation.
-	 * For a manual inheritance binding, supply one source identifier, the reference printed by TSDoc, and one target identifier.
-	 * For API links, supply exactly one binding per original occurrence, with its index, target declaration
-	 * and signature identifiers, and original location. Remove unused bindings and update stale references.
+	 * Correct the reference, specify a numeric overload selector, or provide local documentation.
+	 * Missing or inconsistent internal lookup facts and bindings are assertion failures.
 	 */
 	DocumentationReference = "documentation-reference",
 	/**
@@ -57,11 +54,11 @@ export enum DiagnosticCode {
 	 */
 	DocumentationLinkPolicy = "documentation-link-policy",
 	/**
-	 * A comment or binding requests a documentation feature that is not supported.
+	 * A comment requests a documentation feature that is not supported.
 	 *
 	 * @remarks
-	 * Use explicit inheritance within the same package and provide validation inputs for API links.
-	 * For compiler-backed binding, use an unqualified reference to a standalone function.
+	 * Use supported same-package function or method references for inheritance.
+	 * API links currently require unqualified references to standalone functions.
 	 * See the diagnostic message for the specific limitation.
 	 */
 	DocumentationUnsupported = "documentation-unsupported",
@@ -73,11 +70,11 @@ export enum DiagnosticCode {
 	 */
 	DocumentationCycle = "documentation-cycle",
 	/**
-	 * A report request has an unknown entrypoint, blank selection name, or invalid selected identifiers.
+	 * A report request has an unknown entrypoint.
 	 *
 	 * @remarks
-	 * Use an entrypoint from the supplied analysis and a non-blank selection name.
-	 * Supply distinct selected identifiers from the same analysis's signature facts.
+	 * Request an entrypoint listed in the analysis configuration.
+	 * Invalid internal selections are assertion failures.
 	 */
 	ReportConfiguration = "report-configuration",
 	/**
@@ -174,13 +171,6 @@ export enum DiagnosticCode {
 	 * Do not redefine standard tags or repeat custom tag names.
 	 */
 	ClassificationConfiguration = "classification-configuration",
-	/**
-	 * More than one documentation input has the same identifier.
-	 *
-	 * @remarks
-	 * Supply a distinct identifier for each input in the classification request.
-	 */
-	ClassificationDuplicateId = "classification-duplicate-id",
 	/**
 	 * The TSDoc parser reported a diagnostic for an input comment.
 	 *

@@ -2,13 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "mocha";
 import {
 	classifyApiItems,
-	DiagnosticCode,
-	ReleaseLevel,
 	selectApiItems,
 	type ApiClassification,
 	type ApiItemMetadata,
-	type ApiItemSelection,
-} from "../index.js";
+} from "../classification.js";
+import { DiagnosticCode, ReleaseLevel, type ApiItemSelection } from "../index.js";
+import { assertAssertionError } from "./assertionUtils.js";
 
 describe("Release classification and metadata selection", () => {
 	it("assigns increasing numeric permissiveness from public through internal", () => {
@@ -332,11 +331,10 @@ describe("Release classification and metadata selection", () => {
 			(error: unknown) => error === internalError,
 		);
 		const item = { id: "duplicate", documentation: "/** @public */" };
-		const duplicate = classifyApiItems([item, item]);
-		assert.equal(duplicate.ok, false);
-		if (!duplicate.ok) {
-			assert.equal(duplicate.diagnostics[0]?.code, "classification-duplicate-id");
-		}
+		assertAssertionError(
+			() => classifyApiItems([item, item]),
+			"Classification inputs must have distinct identities.",
+		);
 		for (const customModifierTags of [["missing-at"], ["@public"], ["@param"]]) {
 			const result = classifyApiItems([item], { customModifierTags });
 			assert.equal(result.ok, false);

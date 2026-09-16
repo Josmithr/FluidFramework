@@ -7,11 +7,20 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
 	DocLinkTag,
+	SelectorKind,
 	TSDocParser,
 	type DocDeclarationReference,
 	type DocNode,
 } from "@microsoft/tsdoc";
-import { SyntaxKind, type Node, type SourceFile } from "typescript/unstable/ast";
+import {
+	SyntaxKind,
+	type CallSignatureDeclaration,
+	type FunctionLikeDeclaration,
+	type FunctionTypeNode,
+	type MethodSignatureDeclaration,
+	type Node,
+	type SourceFile,
+} from "typescript/unstable/ast";
 import {
 	isExportDeclaration,
 	isNamedExports,
@@ -25,14 +34,21 @@ import {
 	isPropertySignatureDeclaration,
 	isTypeLiteralNode,
 	isFunctionDeclaration,
+	isFunctionLikeDeclaration,
+	isMethodSignatureDeclaration,
+	isMethodDeclaration,
+	isCallSignatureDeclaration,
+	isFunctionTypeNode,
 	isIdentifier,
 	isClassDeclaration,
+	isInterfaceDeclaration,
 } from "typescript/unstable/ast/is";
 import {
 	API,
 	NodeBuilderFlags,
 	SignatureKind,
 	SymbolFlags,
+	TypeFlags,
 	type Project,
 	type Symbol as CompilerSymbol,
 	type Type,
@@ -45,11 +61,13 @@ import type {
 	DocumentationReferenceLookup,
 	ExportFact,
 	MemberFact,
+	HeritageFact,
 	Origin,
 	SignatureFact,
 	SourceDeclarationFact,
 } from "./facts.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
+import { assertDefined } from "./utilities.js";
 
 /**
  * An internal owner of a synchronous native compiler connection.
@@ -123,8 +141,8 @@ export function createNativeAdapter(): NativeAdapter {
 						`Project ${configuration.project} has compiler diagnostics: ${JSON.stringify(diagnostics)}`,
 					);
 				}
-				// TODO (Stage 2 documentation resolution): Extend function lookup facts with ancestor
-				// relationships and general declaration references before this snapshot is disposed.
+				// TODO (Stage 2 documentation resolution): Retain general declaration and effective-member
+				// lookup contexts, including recursive instantiated ancestry, before disposing this snapshot.
 				return extractFacts(project, configuration);
 			} finally {
 				// Returned facts must not depend on handles owned by this snapshot.
@@ -562,49 +580,315 @@ function sourceDeclaration(
 }
 
 /**
- * Collects declaration targets named by local class implements clauses.
+ * Collects instantiated heritage views for local class and interface clauses.
  *
  * @remarks
  * Looks up the named expression rather than the resulting type to retain type alias declarations.
- * Does not instantiate targets, match members, or copy documentation.
+ * Instantiates member types without changing the target's original declaration facts or copying documentation.
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for target identities.
  * @param state - Declaration tracking shared with recursive target collection.
- * @param symbol - The symbol whose original class declarations are inspected.
- * @returns Direct target identifiers in source declaration and clause order, without adding exports.
- * @throws If a class declaration or implements target cannot be resolved.
+ * @param symbol - The symbol whose original class or interface declarations are inspected.
+ * @param owner - The receiving declaration's identifier.
+ * @param receiver - The receiving declaration's type, or undefined for modules.
+ * @param receivingMembers - Detached effective members of the receiving declaration.
+ * @returns Direct heritage views in source declaration and clause order, without adding exports.
+ * @throws If a declaration or heritage target cannot be resolved.
  */
-function implementedDeclarations(
+function heritageFacts(
 	compiler: Pick<Project, "checker" | "emitter">,
 	locations: LocationContext,
 	state: CollectionState,
 	symbol: CompilerSymbol,
-): ApiItemId[] {
-	const identifiers: ApiItemId[] = [];
+	owner: ApiItemId,
+	receiver: Type | undefined,
+	receivingMembers: readonly MemberFact[],
+): HeritageFact[] {
+	const views: HeritageFact[] = [];
 	for (const handle of symbol.declarations) {
-		if (handle.kind !== SyntaxKind.ClassDeclaration) {
+		if (
+			handle.kind !== SyntaxKind.ClassDeclaration &&
+			handle.kind !== SyntaxKind.InterfaceDeclaration
+		) {
 			continue;
 		}
 		const node = handle.resolve();
 		assert.ok(
-			node && isClassDeclaration(node),
-			"The compiler must resolve a class declaration.",
+			node && (isClassDeclaration(node) || isInterfaceDeclaration(node)),
+			"The compiler must resolve a class or interface declaration.",
 		);
 		for (const clause of node.heritageClauses ?? []) {
-			if (clause.token !== SyntaxKind.ImplementsKeyword) {
-				continue;
-			}
-			for (const implemented of clause.types) {
-				const implementedSymbol = compiler.checker.getSymbolAtLocation(implemented.expression);
-				assert.ok(implementedSymbol, "The compiler must resolve an implements target.");
-				identifiers.push(
-					collect(compiler, locations, state, target(compiler.checker, implementedSymbol)),
+			for (const heritageType of clause.types) {
+				const heritageSymbol = compiler.checker.getSymbolAtLocation(heritageType.expression);
+				assert.ok(heritageSymbol, "The compiler must resolve a heritage target.");
+				const instantiated = compiler.checker.getTypeAtLocation(heritageType);
+				assert.ok(instantiated, "The compiler must resolve an instantiated heritage type.");
+				const targetId = collect(
+					compiler,
+					locations,
+					state,
+					target(compiler.checker, heritageSymbol),
 				);
+				const kind = clause.token === SyntaxKind.ExtendsKeyword ? "extends" : "implements";
+				const viewOwner = `heritage:${JSON.stringify([owner, kind, targetId, compiler.checker.typeToString(instantiated)])}`;
+				const viewMembers = members(compiler, locations, instantiated, viewOwner);
+				views.push({
+					kind,
+					target: targetId,
+					members: viewMembers,
+					documentationMatches: receiver
+						? documentationMatches(
+								compiler.checker,
+								receiver,
+								instantiated,
+								receivingMembers,
+								viewMembers,
+							)
+						: [],
+				});
 			}
 		}
 	}
-	return identifiers;
+	return views;
+}
+
+/**
+ * Matches non-overloaded named members using compiler compatibility and parameter documentation shape.
+ *
+ * @param checker - The checker for the active compiler snapshot.
+ * @param receiver - The receiving type.
+ * @param ancestor - The instantiated ancestor or implemented contract type.
+ * @param receivingMembers - Detached receiving members.
+ * @param ancestorMembers - Detached members of this instantiated heritage view.
+ * @returns Compatible member pairs, without selecting among competing heritage sources.
+ */
+function documentationMatches(
+	checker: Project["checker"],
+	receiver: Type,
+	ancestor: Type,
+	receivingMembers: readonly MemberFact[],
+	ancestorMembers: readonly MemberFact[],
+): { source: ApiItemId; target: ApiItemId }[] {
+	const matches: { source: ApiItemId; target: ApiItemId }[] = [];
+	const receiverProperties = new Map(
+		checker.getPropertiesOfType(receiver).map((property) => [property.name, property]),
+	);
+	const ancestorProperties = new Map(
+		checker.getPropertiesOfType(ancestor).map((property) => [property.name, property]),
+	);
+	for (const member of receivingMembers) {
+		const candidate = ancestorMembers.find((entry) => entry.name === member.name);
+		const property = receiverProperties.get(member.name);
+		const ancestorProperty = ancestorProperties.get(member.name);
+		if (
+			!candidate ||
+			!property ||
+			!ancestorProperty ||
+			!haveCompatibleMemberShape(member, candidate)
+		) {
+			continue;
+		}
+		const receiverType = checker.getTypeOfSymbol(property);
+		const ancestorType = checker.getTypeOfSymbol(ancestorProperty);
+		// Missing types or failed compatibility checks leave this candidate unproven.
+		// Skip it rather than infer compatibility from the detached display text.
+		if (
+			!receiverType ||
+			!ancestorType ||
+			!documentationTypesMatch(checker, receiverType, ancestorType)
+		) {
+			continue;
+		}
+		const receiverSignature = checker.getSignaturesOfType(
+			checker.getNonNullableType(receiverType) ?? receiverType,
+			SignatureKind.Call,
+		)[0];
+		const ancestorSignature = checker.getSignaturesOfType(
+			checker.getNonNullableType(ancestorType) ?? ancestorType,
+			SignatureKind.Call,
+		)[0];
+		if (receiverSignature && ancestorSignature) {
+			const receivingNode = receiverSignature.declaration?.resolve();
+			const ancestorNode = ancestorSignature.declaration?.resolve();
+			// Parameter documentation requires inspectable source declarations.
+			if (
+				!isDocumentationSignatureDeclaration(receivingNode) ||
+				!isDocumentationSignatureDeclaration(ancestorNode)
+			) {
+				continue;
+			}
+			// Destructuring or different parameter names/flags would require adapting the copied docs.
+			if (!haveMatchingDocumentationParameters(receivingNode, ancestorNode)) {
+				continue;
+			}
+			// Method parameters can be bivariant, so whole-method assignability is insufficient.
+			// Require mutual compatibility for individual parameter and return types as well.
+			if (
+				!documentationTypesMatch(
+					checker,
+					checker.getReturnTypeOfSignature(receiverSignature),
+					checker.getReturnTypeOfSignature(ancestorSignature),
+				) ||
+				receiverSignature
+					.getParameters()
+					.some(
+						(_parameter, index) =>
+							!documentationTypesMatch(
+								checker,
+								checker.getParameterType(receiverSignature, index),
+								checker.getParameterType(ancestorSignature, index),
+							),
+					)
+			) {
+				continue;
+			}
+		}
+		matches.push({ source: member.id, target: candidate.id });
+	}
+	return matches;
+}
+
+/**
+ * Checks member flags and callable counts required for automatic documentation matching.
+ *
+ * @remarks
+ * Excludes overloads and mismatched or unresolved optional/readonly state.
+ * Does not check names, type compatibility, local comments, or competing sources.
+ *
+ * @param receiver - The receiving member.
+ * @param candidate - The candidate documentation source member.
+ * @returns Whether the member shapes permit further compatibility checks.
+ */
+function haveCompatibleMemberShape(receiver: MemberFact, candidate: MemberFact): boolean {
+	return (
+		// An overloaded receiver would require selecting which signatures receive documentation.
+		receiver.signatures.length <= 1 &&
+		// An overloaded source would require selecting which signature supplies documentation.
+		candidate.signatures.length <= 1 &&
+		// Do not copy between callable and non-callable members.
+		receiver.signatures.length === candidate.signatures.length &&
+		// Documentation for a required member may not describe an optional member, or vice versa.
+		receiver.optional === candidate.optional &&
+		// Copied documentation must not imply different write access.
+		receiver.readonly === candidate.readonly &&
+		// Equal unknown states do not establish compatible write access.
+		receiver.readonly !== null
+	);
+}
+
+/**
+ * Callable source forms whose parameter documentation can be inspected.
+ */
+type DocumentationSignatureDeclaration =
+	| FunctionLikeDeclaration
+	| MethodSignatureDeclaration
+	| CallSignatureDeclaration
+	| FunctionTypeNode;
+
+/**
+ * Narrows a resolved source node to a supported callable declaration.
+ *
+ * @param node - The original source node, or undefined if it cannot be resolved.
+ * @returns Whether the node has a supported callable form with inspectable parameters.
+ */
+function isDocumentationSignatureDeclaration(
+	node: Node | undefined,
+): node is DocumentationSignatureDeclaration {
+	// The compiler's function-like guard excludes method signatures, call signatures, and function types.
+	return (
+		// Unresolved source nodes cannot establish parameter names or declaration flags.
+		node !== undefined &&
+		// Accept concrete callable declarations, including class methods.
+		(isFunctionLikeDeclaration(node) ||
+			// Interface and type-literal methods have signatures without implementations.
+			isMethodSignatureDeclaration(node) ||
+			// Callable object types declare their parameters on call signatures.
+			isCallSignatureDeclaration(node) ||
+			// Function-typed properties declare their parameters on function type nodes.
+			isFunctionTypeNode(node))
+	);
+}
+
+/**
+ * Checks whether parameter documentation can be copied without adapting names or declaration flags.
+ *
+ * @remarks
+ * Rejects destructuring and requires matching parameter and type-parameter names in declaration order.
+ * Optional parameters include parameters with initializers. Rest flags must also match.
+ * Does not compare parameter types, generic constraints, or generic defaults.
+ *
+ * @param receiver - The receiving callable declaration.
+ * @param candidate - The candidate documentation source declaration.
+ * @returns Whether parameter documentation has the same names and shape on both declarations.
+ */
+function haveMatchingDocumentationParameters(
+	receiver: DocumentationSignatureDeclaration,
+	candidate: DocumentationSignatureDeclaration,
+): boolean {
+	const receivingTypeParameters = receiver.typeParameters ?? [];
+	const candidateTypeParameters = candidate.typeParameters ?? [];
+	return (
+		// Added or removed parameters would leave copied documentation incomplete or stale.
+		receiver.parameters.length === candidate.parameters.length &&
+		// Compare in declaration order; do not remap documentation across reordered parameters.
+		receiver.parameters.every((parameter, index) => {
+			const other = assertDefined(
+				candidate.parameters[index],
+				"Equal parameter counts must provide a corresponding source parameter.",
+			);
+			return (
+				// A destructured receiver has no single identifier to match a copied @param tag.
+				isIdentifier(parameter.name) &&
+				// A destructured source likewise cannot supply a directly reusable parameter name.
+				isIdentifier(other.name) &&
+				// Copied @param tags must name the receiving parameters without rewriting.
+				parameter.name.text === other.name.text &&
+				// Treat both '?' and an initializer as optional for this documentation-shape check.
+				(parameter.questionToken !== undefined || parameter.initializer !== undefined) ===
+					(other.questionToken !== undefined || other.initializer !== undefined) &&
+				// A rest parameter describes multiple arguments, unlike an ordinary parameter.
+				(parameter.dotDotDotToken !== undefined) === (other.dotDotDotToken !== undefined)
+			);
+		}) &&
+		// Added or removed type parameters would leave copied @typeParam tags incomplete or stale.
+		receivingTypeParameters.length === candidateTypeParameters.length &&
+		// Preserve type-parameter names and order so their documentation needs no remapping.
+		receivingTypeParameters.every((parameter, index) => {
+			const other = assertDefined(
+				candidateTypeParameters[index],
+				"Equal type-parameter counts must provide a corresponding source type parameter.",
+			);
+			return parameter.name.text === other.name.text;
+		})
+	);
+}
+
+/**
+ * Requires mutual compiler assignability without top-level any or unknown types.
+ *
+ * @param checker - The checker for the active compiler snapshot.
+ * @param receiver - The receiving type, or undefined when unresolved.
+ * @param candidate - The candidate documentation source type, or undefined when unresolved.
+ * @returns Whether the compiler establishes compatibility without an unconstrained top-level type.
+ */
+function documentationTypesMatch(
+	checker: Project["checker"],
+	receiver: Type | undefined,
+	candidate: Type | undefined,
+): boolean {
+	return (
+		// An unresolved receiving type provides no evidence of compatibility.
+		receiver !== undefined &&
+		// The source type must also be available for a compiler-backed comparison.
+		candidate !== undefined &&
+		// Top-level any or unknown can obscure differences that make copied documentation unsafe.
+		!((receiver.flags | candidate.flags) & (TypeFlags.Any | TypeFlags.Unknown)) &&
+		// Reject receiving types that are broader than the source permits.
+		checker.isTypeAssignableTo(receiver, candidate) &&
+		// Also reject narrowing; one-way assignability is insufficient for copying documentation.
+		checker.isTypeAssignableTo(candidate, receiver)
+	);
 }
 
 /**
@@ -621,7 +905,7 @@ function implementedDeclarations(
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for member origins.
  * @param type - The compiler type whose effective members are requested.
- * @param owner - The identifier of the containing declaration in this result.
+ * @param owner - The identifier of the containing declaration or instantiated heritage view.
  * @returns Detached members sorted by name. Other type categories produce an empty array.
  * @throws If the compiler cannot resolve an effective property type.
  */
@@ -734,6 +1018,8 @@ export function exportsOf(
  * @remarks
  * Internal helper. Not exported from the package entrypoint.
  * Supports unqualified names and falls back to module export aliases.
+ * Inheritance also accepts namespace and instance method paths, with a terminal numeric selector.
+ * Static class members are unsupported; a static/instance name collision is never guessed.
  * Collects resolved targets into the supplied state, including targets that are not exported.
  * Does not validate TSDoc syntax, target compatibility, or release policies.
  * The caller must keep the compiler snapshot alive until lookup finishes.
@@ -744,6 +1030,7 @@ export function exportsOf(
  * @param node - The original declaration node used for name resolution.
  * @param source - The source file that contains the original declaration.
  * @param reference - A parsed declaration reference, or an absent implicit inheritance target.
+ * @param allowIndexSelector - Whether this lookup accepts numeric inheritance selectors.
  * @returns Detached lookup facts without compatibility or release-policy validation.
  * @throws If compiler queries or target collection fail unexpectedly.
  */
@@ -754,21 +1041,37 @@ export function lookupReference(
 	node: Node,
 	source: SourceFile,
 	reference: DocDeclarationReference | undefined,
+	allowIndexSelector: boolean,
 ): DocumentationReferenceLookup {
 	const { checker } = compiler;
 	const member = reference?.memberReferences[0];
 	const name = member?.memberIdentifier?.identifier;
+	// Accept only explicit references without package or import-path qualification.
+	// This is a lookup capability check, not TSDoc syntax or target compatibility validation.
 	const supported =
 		reference !== undefined &&
 		reference.packageName === undefined &&
 		reference.importPath === undefined &&
-		reference.memberReferences.length === 1 &&
+		// Inheritance permits member paths; API links currently permit only one name.
+		(allowIndexSelector || reference.memberReferences.length === 1) &&
 		name !== undefined &&
-		member?.selector === undefined &&
-		member?.memberSymbol === undefined;
+		reference.memberReferences.every(
+			(part, index) =>
+				// Every path component must be named, rather than expressed as a symbol reference.
+				part.memberIdentifier !== undefined &&
+				part.memberSymbol === undefined &&
+				// Only inheritance accepts a selector, and only a numeric selector on the final component.
+				// The binder later validates its range and selects the individual callable signature.
+				(part.selector === undefined ||
+					(allowIndexSelector &&
+						index === reference.memberReferences.length - 1 &&
+						part.selector.selectorKind === SelectorKind.Index)),
+		);
 	let targetId: ApiItemId | undefined;
 	if (supported && name !== undefined) {
 		const moduleSymbol = checker.getSymbolAtLocation(source);
+		// Resolve the first name where the comment was written, including local and imported names.
+		// Fall back to exported aliases only when lexical lookup returns no symbol.
 		const found =
 			checker.resolveName(
 				name,
@@ -778,13 +1081,56 @@ export function lookupReference(
 			(moduleSymbol
 				? checker.getExportsOfModule(moduleSymbol).find((entry) => entry.name === name)
 				: undefined);
+		// The compiler's unknown-symbol sentinel is not a declaration we can traverse or collect.
 		if (found !== undefined && !checker.isUnknownSymbol(found)) {
-			const resolved = target(checker, found);
-			if (!checker.isUnknownSymbol(resolved)) {
+			// Follow aliases before inspecting the kind of container that owns the next path component.
+			let resolved: CompilerSymbol | undefined = target(checker, found);
+			for (const part of reference.memberReferences.slice(1)) {
+				// A failed intermediate lookup invalidates the whole path; do not restart in outer scope.
+				if (!resolved || checker.isUnknownSymbol(resolved)) {
+					break;
+				}
+				const partName = part.memberIdentifier?.identifier;
+				if (resolved.flags & (SymbolFlags.Class | SymbolFlags.Interface)) {
+					// TODO (Stage 2 reference syntax): Resolve explicit static and instance selectors through
+					// the corresponding compiler type. Keep unqualified static/instance collisions ambiguous.
+					// Classes also have a static side. Reject any matching static name, even when an
+					// instance member has the same name, rather than silently choosing the instance member.
+					if (resolved.flags & SymbolFlags.Class) {
+						const staticType = checker.getTypeOfSymbol(resolved);
+						if (
+							staticType &&
+							checker.getPropertiesOfType(staticType).some((entry) => entry.name === partName)
+						) {
+							return { reference: reference.emitAsTsdoc(), status: "unsupported" };
+						}
+					}
+					// The declared type exposes instance members, including inherited members, not class statics.
+					const ownerType = checker.getDeclaredTypeOfSymbol(resolved);
+					resolved = checker
+						.getPropertiesOfType(ownerType)
+						.find((entry) => entry.name === partName);
+				} else if (resolved.flags & SymbolFlags.Module) {
+					// Namespace and module paths traverse exports instead of instance properties.
+					resolved = checker
+						.getExportsOfModule(resolved)
+						.find((entry) => entry.name === partName);
+				} else {
+					// Other symbol kinds cannot supply the remaining path through this lookup implementation.
+					resolved = undefined;
+				}
+				if (resolved) {
+					// Each exported path component can itself be an alias, including the final target.
+					resolved = target(checker, resolved);
+				}
+			}
+			if (resolved && !checker.isUnknownSymbol(resolved)) {
+				// Retain the target's detached facts even when no entrypoint exports it.
 				targetId = collect(compiler, locations, state, resolved);
 			}
 		}
 	}
+	// Preserve the reference text and distinguish unsupported forms from supported lookups that found no target.
 	const referenceText = reference?.emitAsTsdoc() ?? "";
 	if (!supported) {
 		return { reference: referenceText, status: "unsupported" };
@@ -832,7 +1178,7 @@ export function collectLinks(
  * Reuses completed declarations by provisional identifier.
  * Tracks identifiers on the current traversal path to stop collection cycles.
  * Adds completed facts to the supplied declaration map.
- * For standalone functions, retains parameter facts and supported documentation lookup results.
+ * For collected functions and methods, retains parameter facts and original-scope documentation lookups.
  * Records API links in TSDoc tree traversal order, including links inside blocks and repeated references.
  * Excludes URL links from lookup. Missing and unsupported references remain explicit lookup results.
  * Resolves documentation names in the original declaration scope before checking module export aliases.
@@ -840,6 +1186,7 @@ export function collectLinks(
  * Retains direct class and interface base declarations through compiler-resolved symbols.
  * Collects unexported bases without adding them to the export surface.
  * Retains local class implements targets separately from base declarations without copying their members.
+ * Retains direct instantiated heritage member views separately from the original target declarations.
  * Does not validate TSDoc syntax, check target compatibility, or copy inherited documentation content.
  * Marks conditional, indexed-access, and union types as partial, along with member lists
  * that contain an unresolved readonly state.
@@ -894,7 +1241,18 @@ export function collect(
 			: [];
 	const namespaceExports =
 		symbol.flags & SymbolFlags.Module ? exportsOf(compiler, locations, state, symbol) : [];
-	const implemented = implementedDeclarations(compiler, locations, state, symbol);
+	const heritage = heritageFacts(
+		compiler,
+		locations,
+		state,
+		symbol,
+		id,
+		type,
+		effectiveMembers,
+	);
+	const implemented = heritage
+		.filter((entry) => entry.kind === "implements")
+		.map((entry) => entry.target);
 	const partial = Boolean(
 		type &&
 			(type.isConditionalType() ||
@@ -903,26 +1261,46 @@ export function collect(
 				effectiveMembers.some((member) => member.readonly === null)),
 	);
 	const callSignatures = type ? signatures(compiler, type, id) : [];
-	// TODO (Stage 2 documentation references): Support qualified references, TSDoc selectors,
-	// and other declaration forms. Use TSDoc nodes and preserve the original declaration scope.
+	// TODO (Stage 2 documentation references): Support package-qualified references, nonnumeric selectors,
+	// and effective-member contexts beyond individually collected methods. Preserve original scope.
 	if (
 		type &&
-		symbol.declarations.every((handle) => handle.kind === SyntaxKind.FunctionDeclaration)
+		symbol.declarations.every(
+			(handle) =>
+				handle.kind === SyntaxKind.FunctionDeclaration ||
+				handle.kind === SyntaxKind.MethodDeclaration ||
+				handle.kind === SyntaxKind.MethodSignature,
+		)
 	) {
 		const compilerSignatures = checker.getSignaturesOfType(type, SignatureKind.Call);
 		for (const [index, signature] of compilerSignatures.entries()) {
 			const handle = signature.declaration;
 			const node = handle?.resolve();
-			const fact = callSignatures[index];
-			assert.ok(fact, "Compiler signatures must correspond to extracted signature facts.");
-			if (handle && node && isFunctionDeclaration(node) && isSourceFile(node.parent)) {
-				const source = node.parent;
+			const fact = assertDefined(
+				callSignatures[index],
+				"Compiler signatures must correspond to extracted signature facts.",
+			);
+			if (
+				handle &&
+				node &&
+				(isFunctionDeclaration(node) ||
+					isMethodDeclaration(node) ||
+					isMethodSignatureDeclaration(node))
+			) {
+				let source: Node = node;
+				while (!isSourceFile(source)) {
+					source = source.parent;
+				}
+				assert.ok(
+					isSourceFile(source),
+					"Callable documentation must have an original source file.",
+				);
 				const location = origin(locations, handle.path, node.pos);
 				const comment = new TSDocParser().parseString(
 					fact.documentation ?? "/** */",
 				).docComment;
 				const links = collectLinks(comment, (reference) =>
-					lookupReference(compiler, locations, state, node, source, reference),
+					lookupReference(compiler, locations, state, node, source, reference, false),
 				);
 				const inheritance =
 					comment.inheritDocTag === undefined
@@ -934,6 +1312,7 @@ export function collect(
 								node,
 								source,
 								comment.inheritDocTag.declarationReference,
+								true,
 							);
 				callSignatures[index] = {
 					...fact,
@@ -956,6 +1335,7 @@ export function collect(
 	declarations.set(id, {
 		id,
 		baseDeclarations,
+		heritage,
 		implementedDeclarations: implemented,
 		name: moduleSource ? origin(locations, moduleSource.path, 0).file : symbol.name,
 		declarations: symbol.declarations.map((handle) => sourceDeclaration(locations, handle)),

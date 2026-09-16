@@ -50,6 +50,9 @@ Return readonly effective configuration without mutating the supplied configurat
 Resolve relative paths from the working directory supplied by the caller, not from the process working directory.
 
 An analysis session owns its compiler connection and cached API facts.
+`AnalysisSession.analyze` returns `Result<void>`: completion status or diagnostics, not analysis facts.
+The session retains facts privately for reuse by its operations.
+Future report, documentation model, declaration generation, and validation APIs belong on the session, not on a returned analysis object.
 These facts are detached: they contain no compiler objects and remain usable after the compiler snapshot is disposed.
 Repeated requests for unchanged inputs reuse the same facts.
 Task order and changes to rule settings do not affect reuse.
@@ -108,7 +111,8 @@ Signature identifiers use the effective member as their owner and retain the lim
 Callers can pass these signatures to classification and selection independently. This does not define classification rules for a whole class or interface.
 
 Both input compilers verify overload selection, inherited generic signatures, optional methods, callable properties, and frozen facts after session closure and JSON serialization.
-Construct signatures, member documentation lookup contexts, ancestor matching, and class/interface reports remain unsupported.
+Construct signatures, effective-member lookup contexts, and class/interface reports remain unsupported.
+Individually collected method targets retain signature contexts; conservative ancestor matching is described below.
 
 ### Direct base declarations
 
@@ -134,11 +138,43 @@ The array is empty for other declaration forms. Unresolved class declarations or
 Both input compilers verify hidden and type-alias targets, direct-only links, unchanged local comments and members, and frozen facts after session closure and JSON serialization.
 
 An `implements` clause checks a type contract but does not add members to a class.
-Documentation inheritance is a separate, planned operation: a class member with no local TSDoc can receive content from a compatible implemented interface member.
+Documentation inheritance is a separate resolution operation: a class member with no local TSDoc can receive content from a confidently compatible implemented interface member.
 Any local TSDoc, including an empty or tag-only comment, suppresses automatic inheritance. Explicit inheritance remains a resolution request.
-Conflicting interface sources require a diagnostic rather than an arbitrary choice.
-Instantiated contract context, member and overload matching, and precedence between class and interface sources remain required before this behavior can be implemented.
+Automatic inheritance is limited to non-overloaded members with a confidently identified compatible source.
+If either the receiving member or a candidate source member has multiple callable signatures, do not inherit automatically.
+Ambiguous, conflicting, or unproven automatic sources leave the member undocumented; do not guess from declaration order or printed signature text.
+Any configured missing-documentation policy can still report that absence.
+Explicit inheritance requests must resolve and validate successfully or produce diagnostics.
+The current source selector requires one distinct compatible original source across base classes and interfaces.
+It does not prioritize a class source over a distinct interface source.
+Broader member reference contexts, merged-comment precedence, and class/interface report integration remain pending.
 Current extraction does not copy interface documentation or change release classification.
+
+### Instantiated heritage views
+
+`DeclarationFact.heritage` retains direct `extends` and `implements` views in source declaration and clause order.
+Each `HeritageFact` identifies the relationship kind and original target declaration, with effective target members after compiler substitution of the local type arguments.
+For example, an `extends Base<string>` view retains string-valued members while the original `Base` declaration retains its type parameter.
+Class bases and type-alias implementation targets also retain their effective members.
+All views are detached and frozen. Member identifiers are scoped to the view, not reused from the original target declaration.
+The provisional view identity includes compiler-printed type text; this text is not used to establish compatibility.
+`HeritageFact.documentationMatches` records compatible non-overloaded member pairs between the receiver and that instantiated view.
+The adapter requires mutual compiler assignability and matching parameter names, optional/rest flags, and type-parameter names.
+Callable parameter and return types are checked separately; top-level `any`, `unknown`, or unresolved compared types are excluded.
+Optional and readonly member states must match, and unresolved readonly state is excluded.
+Computed names that cannot be matched through compiler symbols remain ineligible.
+These checks can reject otherwise valid sources; they do not authorize guessing a replacement source.
+Printed type text is never used for compatibility.
+Recursive instantiated ancestry is not serialized, but source bindings can form chains through retained original member facts.
+
+The pinned TS7 7.0.2 API currently blocks the tested generic-overload comparison approach.
+Its public checker exposes type assignability but no pairwise signature-compatibility method.
+A function-type node returned by `signatureToSignatureDeclaration` causes a node-handle resolution error when passed to `getTypeFromTypeNode`.
+Comparing individual parameter types is not a valid substitute: equivalent generic methods have separately declared type parameters that fail mutual assignability.
+The native capability regression reproduces both boundaries for TS6- and TS7-built inputs.
+Automatic overload inheritance is excluded from Stage 2 rather than approximated with those APIs.
+The [overload inheritance follow-up](../plans/api-extractor-replacement-follow-ups.md#automatic-overload-documentation-inheritance) tracks better support.
+This limitation does not block explicit numeric inheritance selectors or other Stage 2 work.
 
 ## Explicit documentation inheritance contract
 
@@ -149,7 +185,7 @@ It is not exported from the package entrypoint.
 Function report construction runs binding and content resolution before applying report selection.
 
 Both operations accept the optional `customModifierTags` array defined by `TsdocOptions`.
-The content resolver uses `DocumentationResolutionOptions`, which also accepts API link validation inputs.
+The content resolver uses `DocumentationResolutionOptions`, which also accepts API link validation inputs and validated automatic inheritance bindings.
 The internal binder requires an options argument; pass `{}` for standard TSDoc tags only.
 The content resolver permits omitted options, which register only standard TSDoc tags.
 Pass the same custom modifier vocabulary to `classifyApiItems`, `bindDocumentationReferences`, and `resolveDocumentation`.
@@ -168,10 +204,11 @@ The content resolver checks that each request matches one binding, that the iden
 It also checks for inheritance cycles.
 It does not repeat target lookup or parameter compatibility checks.
 
-The following example resolves an explicitly bound function comment without compiler access:
+The following internal example resolves an explicitly bound function comment without compiler access.
+The import is relative to a module in `src`; this operation is not a package export.
 
 ```typescript
-import { resolveDocumentation } from "api-analyzer";
+import { resolveDocumentation } from "./documentation.js";
 
 const result = resolveDocumentation(
 	[
@@ -215,15 +252,16 @@ The output retains the distinction between absent and present local comments.
 This output format can change.
 It does not yet contain structured content or the source information for each section that a complete portable documentation model requires.
 
-Invalid syntax, missing or ambiguous bindings, stale bindings, and inheritance cycles return typed diagnostics without a partial success value.
+Invalid syntax, unresolved references, invalid overload selectors, parameter incompatibilities, and inheritance cycles return typed diagnostics without a partial success value.
+Missing, duplicate, stale, or unused internal bindings throw assertion errors.
 Unexpected processing errors propagate as exceptions.
 The resolver does not change inputs, and each call owns its caches.
-It does not support automatic inheritance, parameter renaming, custom block or inline tags, or inheritance from other packages.
+It does not support parameter renaming, custom block or inline tags, or inheritance from other packages.
 Requests for inheritance from other packages and requests without explicit targets produce diagnostics.
 API links require validated original bindings and classification as described below.
 Links to URLs remain unchanged, and the resolver does not access their destinations.
-The current resolver does not treat an absent comment as a request for automatic inheritance.
-It does not accept ancestor facts as inputs yet.
+An absent comment alone does not authorize automatic inheritance.
+Pass validated automatic bindings through the resolution options; the resolver does not query ancestor facts or infer compatibility itself.
 
 The pure tests cover chains, local metadata, custom modifier configuration, empty targets, blocks that remain local, invalid bindings, cycles, and unsupported features.
 Checked-in plain-text snapshots contain the complete resolved comments for direct inheritance, inheritance chains, empty inherited content, and retained local blocks.
@@ -236,13 +274,13 @@ These tests use declarations built with TypeScript 6 and TypeScript 7, both anal
 Both compiler inputs and the direct-inheritance unit test use the same resolved-comment snapshot.
 Pure and compiler-backed report tests share snapshots for descriptive and empty inherited content.
 `ReviewSignature.documented` and report notices use successfully resolved content while annotation tags remain local.
-Broader declaration support, automatic inheritance, and suite resolution remain required before Stage 2 is complete.
+Broader declaration support, automatic inheritance integration in class/interface reports, and suite resolution remain required before Stage 2 is complete.
 
-### Compiler-backed function bindings
+### Compiler-backed callable bindings
 
 `bindDocumentationReferences(facts, options)` uses analysis facts that contain no compiler objects.
 It returns deeply frozen bindings sorted by source signature identifier.
-During analysis, the official compiler resolves unqualified names, such as `base`, in each function declaration's original scope.
+During analysis, the official compiler resolves unqualified names, such as `base`, in each collected callable declaration's original scope.
 This lookup includes imported aliases.
 If the compiler finds no symbol in that scope, the adapter checks the source module's exports for an export alias.
 The original declaration scope takes precedence over export aliases.
@@ -252,20 +290,29 @@ A target must still exist in the declaration inputs because TypeScript emission 
 
 `SignatureFact.documentationContext` retains the original location, parameter names, optional parameter flags, rest parameter flags, and type-parameter names.
 It also retains the lookup result for an inheritance request.
-The analyzer supplies this field for supported standalone function declarations.
+The analyzer supplies this field for collected function declarations and method declarations reached through explicit references.
+Its type is `SignatureDocumentationContext`; effective-member view signatures still omit reference contexts.
 Other declaration forms omit it.
 An inheritance request without the required context produces a diagnostic.
 The binder does not guess a target from its name.
 These facts remain usable after the session closes or after JSON serialization.
 Their format can change, and they do not represent all declaration references.
 
-The target must be a standalone function in the same package with exactly one callable signature.
+The target must be a function or method in the same package.
+Without a selector, it must have exactly one callable signature.
+For an overloaded target, use a numeric selector such as `{@inheritDoc (foo:2)}` to select the second callable signature.
+Selectors are one-based and follow compiler declaration order, excluding implementation signatures.
+Reordering overloads can change the selected source; review numeric references when overload order changes.
+For an instance method, use a path such as `{@inheritDoc MethodSource.(operation:2)}`.
+Namespace paths are supported for explicit inheritance, with a numeric selector only on the final member.
+Static class member paths and static/instance name collisions are rejected rather than guessed.
+Missing targets, out-of-range selectors, and invalid explicit requests produce diagnostics without partial results.
 Source and target parameter names, order, and count must match.
 Optional parameter flags, rest parameter flags, and type-parameter names must also match.
-Use local documentation when parameters use destructuring, parameter names differ, or the target has multiple overloads.
+Use local documentation when parameters use destructuring or parameter names differ.
 These checks protect parameter documentation but do not establish TypeScript assignability.
 They do not compare parameter types, return types, generic constraints, or generic defaults.
-Qualified references, TSDoc selectors, targets in other packages, and other declaration forms produce diagnostics.
+Package-qualified references, nonnumeric TSDoc selectors, targets in other packages, and other declaration forms produce diagnostics.
 TSDoc selectors identify a specific declaration, such as an overload, within a reference.
 Classification, binding, and content resolution share custom modifier configuration through `TsdocOptions`.
 Custom block and inline tag configuration and configuration-file loading remain pending.
@@ -276,6 +323,34 @@ They also verify that original release classification and metadata selection do 
 Pass bindings to `resolveDocumentation` with the signature comments and their original package names.
 Use the original comments for classification.
 Function reports use these bindings and resolved comments to determine documentation presence.
+
+### Conservative automatic inheritance
+
+The internal `bindAutomaticDocumentationReferences(facts)` operation selects automatic sources from compiler-checked heritage matches.
+It returns frozen `AutomaticDocumentationBinding` values with receiving and original-source member identifiers.
+Pass these values through `DocumentationResolutionOptions.automaticInheritance`, together with original documentation inputs for each member and target.
+The operation does not copy content or change the facts.
+
+Current automatic selection supports same-package, single-declaration, non-overloaded members.
+Any local TSDoc suppresses automatic inheritance, including an empty comment or a comment containing only tags.
+Explicit `@inheritDoc` is still a separate request that must pass explicit binding validation.
+If any same-name candidate is overloaded or lacks a proven compatible match, selection skips the receiver.
+Multiple paths to the same original source are deduplicated by original declaration location.
+Distinct sources remain ambiguous, even if their text happens to match.
+No source wins by declaration order, signature text, or interface-clause order.
+
+The resolver copies the same descriptive sections for automatic and explicit inheritance.
+It retains link provenance and validates links against the receiving API's original metadata.
+It does not copy release tags or modify classification.
+Original inputs remain unchanged, and results remain frozen and usable without a compiler session.
+Pure tests cover chains, local suppression, ambiguous bindings, cycles, and inherited-link policies.
+Both compiler inputs cover instantiated contracts, type aliases, diamonds, conflicting sources, reordered traversal, and overloaded source/receiver exclusion after JSON serialization.
+
+This is an opt-in resolver capability, not class/interface report support.
+Automatic source selection does not yet handle merged members or cross-package sources.
+Individually collected method targets support explicit-reference chains and API links to supported standalone functions.
+Effective-member views still require context integration before general member comments can be resolved automatically.
+Do not discard link or explicit-reference diagnostics to treat an unsupported member comment as documented.
 
 ### Compiler-backed API link lookup
 
@@ -297,7 +372,8 @@ Unlike inheritance binding, link lookup can retain variables and overloaded func
 A `ResolvedDocumentationReference` has `status: "resolved"` and a required `target` declaration identifier.
 A `MissingDocumentationReference` has `status: "not-found"` and no target field.
 An `UnsupportedDocumentationReference` has `status: "unsupported"` and no target field.
-Qualified references, selectors, and target-less inheritance requests currently produce the unsupported outcome.
+Package-qualified references, member paths or selectors in API links, nonnumeric inheritance selectors, and target-less inheritance requests currently produce the unsupported outcome.
+Numeric selectors are supported for explicit inheritance only; the lookup retains the declaration target and the binder selects its callable signature.
 All outcomes retain the printed `reference` text, including an empty string for a target-less inheritance request.
 Narrow on `status` before accessing `target`.
 Lookup does not validate the target's package scope, release level, or suitability for documentation links.
@@ -316,7 +392,7 @@ Supply original classification from the same analysis, including targets exclude
 The binder does not recompute classification or validate that supplied metadata came from the current comments.
 Use the same custom modifier options for classification and binding.
 
-Sources must have standalone function documentation contexts.
+Sources must have original function or method documentation contexts.
 Targets must be standalone functions with exactly one callable signature and a documentation context.
 The source and target must belong to the same original package, which can differ from the package that re-exports them.
 Aliases and retained unexported targets are supported.
@@ -327,7 +403,8 @@ These limits are provisional until declaration-level classification and broader 
 Public, beta, and alpha APIs can link to each other, independently of report selection.
 They cannot link to internal APIs.
 Internal APIs can link to any release level.
-Missing source or target metadata, including an unspecified release level, produces a configuration diagnostic.
+Missing source or target metadata throws an assertion error.
+A retained metadata record with an unspecified release level produces a configuration diagnostic that requests a release tag.
 The binder does not treat missing metadata as public or infer it from a report selection.
 
 Each result retains the source signature identifier, API link index, reference text, target declaration and signature identifiers, and original comment location.
@@ -336,7 +413,8 @@ Repeated links remain separate occurrences.
 Results are deeply frozen and sorted by source identifier and link index.
 URL destinations are not accessed or validated.
 The binder checks TSDoc syntax and verifies that lookup reference text and occurrence order match the comment.
-Missing names and stale lookups produce reference diagnostics; non-internal-to-internal links produce `documentation-link-policy`.
+Missing names produce reference diagnostics; non-internal-to-internal links produce `documentation-link-policy`.
+Missing or stale lookup facts for supported declarations throw assertion errors.
 Failures contain no partial bindings.
 Duplicate fact or metadata identifiers and missing retained target declarations are internal invariant failures and throw exceptions.
 
@@ -350,7 +428,7 @@ This operation validates links in original local comments.
 Pass its bindings and the original classification through `resolveDocumentation`'s `linkValidation` option to resolve comments that contain API links.
 Omit this option only for comments without API links, including inherited content.
 Each binding identifies both the target declaration and its single callable signature for release-policy checks.
-The resolver requires exactly one binding per original API-link occurrence and rejects missing, duplicate, stale, or unused bindings.
+The resolver requires exactly one binding per original API-link occurrence and asserts against missing, duplicate, stale, or unused bindings.
 Manual bindings must satisfy the same target and scope checks as the compiler-backed binder.
 The target signature must have an input in the resolver request, even when it is not an inheritance target.
 The resolver does not verify the declaration-to-signature association or recompute the supplied classification.
@@ -392,11 +470,11 @@ The required `documentation` property has type `string | undefined`.
 Supply only the associated TSDoc comment, including delimiters, or `undefined` when no comment exists.
 An explicit empty comment such as `/** */` is present documentation. An empty string is invalid comment text, not an absent comment.
 Do not supply declaration text in this field.
-This distinction supports the future inheritance rule: absence permits automatic inheritance, while any local TSDoc comment suppresses it.
+This distinction supports the inheritance rule: absence permits validated automatic inheritance, while any local TSDoc comment suppresses it.
 Classification does not implement inheritance and does not preserve raw comments in its metadata output; retain the original facts for that work.
 Each item is classified independently. Callers supply callable overloads, not implementation signatures.
 The result contains each item's identifier, release level, and modifier tags, sorted by identifier.
-Duplicate identifiers fail with `classification-duplicate-id`; this API does not resolve provisional identity collisions.
+Duplicate internal identifiers throw assertion errors; classification does not resolve provisional identity collisions.
 
 Use `@microsoft/tsdoc` to parse comments. Do not interpret tags with a custom comment parser.
 `ReleaseLevel` is a numeric enum: `Public = 0`, `Beta = 1`, `Alpha = 2`, and `Internal = 3`.
@@ -435,10 +513,11 @@ Full declaration selection and reference validation require later contracts and 
 Classification options are explicit inputs to this API, not values read from the analysis session's rule map.
 Reuse a successful classification for several selections. The classifier does not cache or automatically repeat this work for each selection.
 
-The following example classifies two overloads and selects the public partner metadata without including the internal overload:
+The following internal example classifies two overloads and selects the public partner metadata without including the internal overload.
+The import is relative to a module in `src`; these operations are not package exports.
 
 ```typescript
-import { classifyApiItems, ReleaseLevel, selectApiItems } from "api-analyzer";
+import { classifyApiItems, ReleaseLevel, selectApiItems } from "./classification.js";
 
 const classified = classifyApiItems(
 	[
@@ -482,7 +561,8 @@ This lets two resolution contexts render under the same review identity for pari
 Exports are sorted by exported name. Aliases remain separate exports, and type-only export paths remain visible.
 Selected overloads retain compiler order because overload order can affect resolution.
 An export with no selected overloads is omitted. An empty selected surface is an explicit empty report.
-Unknown entrypoints, unknown selected identifiers, and blank report names return `report-configuration` diagnostics.
+Unknown entrypoints return `report-configuration` diagnostics.
+Unknown or duplicate selected identifiers and blank names in computed selections throw assertion errors.
 All selected identifiers must refer to signature facts from the supplied analysis, but may belong to other entrypoints in that analysis.
 The caller must use classification and selection from the same facts; the report builder does not reclassify comments.
 Duplicate fact identities and unresolved export targets violate internal invariants and assert.
@@ -511,8 +591,8 @@ Inherited links retain their original targets and must also satisfy the receivin
 This status measures content presence, not documentation quality or completeness.
 
 Same-package explicit function inheritance and API links are implemented.
-The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) still requires broader declaration support, automatic member inheritance, and cross-package suite resolution.
-The planned automatic inheritance rule treats any local TSDoc comment, including an empty or tag-only comment, as an override.
+The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) still requires broader declaration support, automatic member inheritance integration in reports, and cross-package suite resolution.
+The resolver's automatic inheritance rule treats any local TSDoc comment, including an empty or tag-only comment, as an override.
 Dependency-model loading and compatibility support remain in Stage 2. Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
 Disabling the annotation does not disable documentation validation or change selected APIs.
 Display settings never remove metadata from the report model and do not alter semantic policy.
@@ -561,7 +641,12 @@ This increment establishes baseline handling only; it does not satisfy the Stage
 
 ## Experimental API
 
-The following example resolves configuration and reuses one analysis result for several consumers.
+Package exports are limited to anticipated user-facing workflows.
+Classification and selection operations, documentation processing and bindings, and fact-based report construction are internal.
+Future analysis-dependent operations belong on the session.
+Report rendering and baseline helpers remain available as artifact-level APIs while the session output contract is developed.
+
+The following example resolves configuration and reuses analysis within one session.
 The configured project must include the declaration entrypoint and its dependencies.
 All relative configuration paths use the supplied working directory, including paths inherited from base configurations.
 
@@ -589,11 +674,12 @@ try {
 		throw new Error(JSON.stringify(first.diagnostics));
 	}
 
-	// Consumers share frozen facts without retaining compiler handles.
-	console.log(first.value.surfaces);
-	console.log(first.value.declarations);
+	// The session retains facts privately. Repeated analysis uses its cache.
 	const repeated = session.analyze(resolved.value);
-	console.log(repeated.ok && repeated.value === first.value);
+	if (!repeated.ok) {
+		throw new Error(JSON.stringify(repeated.diagnostics));
+	}
+	console.log(session.getStatistics());
 
 	// Call this after a relevant file, dependency, or configuration change.
 	session.invalidate();
@@ -610,7 +696,8 @@ You can inspect rule settings at this stage, but the analyzer does not execute t
 Compiler options and module resolution conditions come from the selected TypeScript project.
 Use separate project configurations for different conditions.
 
-`analyze` returns deeply frozen facts or diagnostics. Compiler diagnostic failures do not produce partial success.
+`analyze` returns `{ ok: true, value: undefined }` on success, or diagnostics on failure.
+Compiler diagnostic failures do not produce partial success.
 Entrypoint order and changes to rule settings do not invalidate facts.
 Changing the configured set of entrypoints creates a separate cache entry.
 `invalidate` discards all cached facts and closes the current compiler connection.

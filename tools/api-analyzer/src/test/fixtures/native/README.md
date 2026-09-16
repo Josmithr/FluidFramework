@@ -22,7 +22,7 @@ The test's `documentationBindingCases` table records the expected binding or dia
 | [binding-generic.ts](binding-generic.ts) | Reject type parameter lists that do not match. |
 | [binding-pattern.ts](binding-pattern.ts) | Reject a destructured target parameter. |
 | [binding-qualified.ts](binding-qualified.ts) | Reject unsupported package-qualified syntax. |
-| [binding-selector.ts](binding-selector.ts) | Reject an unsupported selector even when the named target exists. |
+| [binding-selector.ts](binding-selector.ts) | Select second function and method overloads, preserve inherited links through method chains, and reject static/instance path ambiguity. |
 | [binding-nonfunction.ts](binding-nonfunction.ts) | Reject a resolved target that is not a standalone function. |
 
 The TODOs beside the case table describe how to extend these expectations as support is added.
@@ -44,6 +44,9 @@ Do not treat current unsupported outcomes as permanent limitations.
 - [member-documentation.ts](member-documentation.ts) preserves original class, interface, and member comments, including separate overloads and merged declarations. Inherited generic members retain their source records, while local overrides do not receive ancestor comments. It also covers effective member identities, substituted call signatures, overload selection, optional methods, and callable property comment ownership. Direct base links retain hidden ancestors and a shared diamond root without changing exports. Separate implements links retain hidden contracts and type alias targets without copying members or documentation; a derived class does not repeat its base class's implements clauses.
 - [report-inheritance.ts](report-inheritance.ts) supplies descriptive inheritance from an unexported internal ancestor without copying its deprecated annotation into a public report.
 - [report-inheritance-empty.ts](report-inheritance-empty.ts) supplies an empty inherited result that remains undocumented in a public report.
+
+The member-documentation fixture also verifies direct instantiated heritage views and reproduces the native generic-overload comparison boundary.
+Its generic overload contract and implementation use different overload orders so position cannot substitute for semantic matching.
 
 The `KeepHidden` type queries keep hidden targets in emitted declarations.
 Do not remove them: documentation references alone do not make the TypeScript emitter retain those declarations.

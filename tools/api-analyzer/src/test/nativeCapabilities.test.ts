@@ -15,6 +15,7 @@ import {
 	isExportDeclaration,
 	isPropertySignatureDeclaration,
 	isTypeLiteralNode,
+	isFunctionTypeNode,
 } from "typescript/unstable/ast/is";
 import {
 	API,
@@ -26,25 +27,31 @@ import {
 	type Symbol as CompilerSymbol,
 } from "typescript/unstable/sync";
 import { resolveConfiguration } from "../configuration.js";
-import { bindDocumentationLinks, bindDocumentationReferences } from "../documentation.js";
+import { classifyApiItems, selectApiItems } from "../classification.js";
+import {
+	bindAutomaticDocumentationReferences,
+	bindDocumentationLinks,
+	bindDocumentationReferences,
+	resolveDocumentation,
+	type ResolvedDocumentation,
+} from "../documentation.js";
 import type { AnalysisFacts, DocumentationReferenceLookup } from "../facts.js";
 import {
-	classifyApiItems,
 	ReleaseLevel,
-	selectApiItems,
-	createReviewReport,
 	renderReviewReport,
 	compareReviewBaseline,
-	resolveDocumentation,
 	DiagnosticCode,
 } from "../index.js";
+import { createReviewReport } from "../reviewReport.js";
 import {
 	aliasTypeOnly,
+	createNativeAdapter,
 	collect,
 	collectLinks,
 	exportsOf,
 	exportTypeOnly,
 	identity,
+	lookupReference,
 	members as extractMembers,
 	origin as resolveOrigin,
 	signatures as extractSignatures,
@@ -191,8 +198,7 @@ const documentationBindingCases = [
 	},
 	// The target has two overloads, although one matches the derived function's parameter type.
 	// The current binder must reject the ambiguity rather than select the first or closest overload.
-	// TODO (Stage 2 overload binding): Revisit this expectation when overload selection is defined.
-	// Add uniquely selected and genuinely ambiguous targets, and verify that overload order has no effect.
+	// Explicit overloaded targets require a numeric selector; no overload is inferred.
 	{
 		name: "overload",
 		reference: "base",
@@ -247,14 +253,11 @@ const documentationBindingCases = [
 		reference: "example#base",
 		expected: DiagnosticCode.DocumentationUnsupported,
 	},
-	// The target exists and has one signature, but the reference includes an unsupported TSDoc selector.
-	// The binder must not ignore the selector merely because an unqualified lookup could succeed.
-	// TODO (Stage 2 overload binding): Make this valid selector succeed when selector support is added.
-	// Add invalid selectors and selectors for distinct overloads to verify that the selector is applied.
+	// A one-based numeric selector chooses the second callable signature in declaration order.
 	{
 		name: "selector",
-		reference: "(base:1)",
-		expected: DiagnosticCode.DocumentationUnsupported,
+		reference: "(base:2)",
+		expected: undefined,
 	},
 	// Lookup succeeds, but the target is a variable rather than a standalone function.
 	// Finding a symbol does not establish that its declaration form supports documentation binding.
@@ -547,6 +550,232 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		describe("Adapter fact extraction", () => {
+			// TODO (Future automatic overload inheritance): Revisit this capability boundary when official
+			// semantic pair matching is available. Automatic overload inheritance is excluded from Stage 2.
+			it("documents native generic overload comparison limits", () => {
+				const source = project.program.getSourceFile(
+					path.join(directory, "declarations/member-documentation.d.ts"),
+				);
+				assert.ok(source);
+				const moduleSymbol = project.checker.getSymbolAtLocation(source);
+				assert.ok(moduleSymbol);
+				const symbols = project.checker.getExportsOfModule(moduleSymbol);
+				const contract = symbols.find((entry) => entry.name === "GenericOverloadContract");
+				const implementation = symbols.find(
+					(entry) => entry.name === "GenericOverloadImplementation",
+				);
+				assert.ok(contract);
+				assert.ok(implementation);
+				const groups = [contract, implementation].map((symbol) => {
+					const declared = project.checker.getDeclaredTypeOfSymbol(symbol);
+					const member = project.checker.getPropertyOfType(declared, "map");
+					assert.ok(member);
+					const type = project.checker.getTypeOfSymbol(member);
+					assert.ok(type);
+					const signatures = project.checker.getSignaturesOfType(type, SignatureKind.Call);
+					for (const signature of signatures) {
+						const node = project.checker.signatureToSignatureDeclaration(
+							signature,
+							SyntaxKind.FunctionType,
+						);
+						assert.ok(node && isFunctionTypeNode(node));
+						assert.throws(
+							() => project.checker.getTypeFromTypeNode(node),
+							/node handle .* could not be resolved/,
+						);
+					}
+					return signatures;
+				});
+				const contractArray = groups[0]?.[0];
+				const implementationArray = groups[1]?.[1];
+				assert.ok(contractArray);
+				assert.ok(implementationArray);
+				const contractParameter = project.checker.getParameterType(contractArray, 0);
+				const implementationParameter = project.checker.getParameterType(
+					implementationArray,
+					0,
+				);
+				assert.ok(contractParameter);
+				assert.ok(implementationParameter);
+				// Equivalent generic signatures declare independent type parameters. Parameter assignability
+				// alone must not be used to reject the corresponding overloads as incompatible.
+				assert.equal(
+					project.checker.isTypeAssignableTo(contractParameter, implementationParameter),
+					false,
+				);
+				assert.equal(
+					project.checker.isTypeAssignableTo(implementationParameter, contractParameter),
+					false,
+				);
+			});
+
+			it("retains instantiated heritage member views for documentation matching", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/member-documentation.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const adapter = createNativeAdapter();
+				try {
+					const analysis = adapter.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					adapter.close();
+					const serialized = JSON.stringify(analysis.value);
+					const facts = JSON.parse(serialized) as AnalysisFacts;
+					const automatic = bindAutomaticDocumentationReferences(facts);
+					const inputs = facts.declarations.flatMap((entry) =>
+						entry.members
+							.filter((member) => member.declarations.length === 1)
+							.map((member) => ({
+								id: member.id,
+								packageName: member.declarations[0]?.packageName ?? "example",
+								documentation: member.declarations[0]?.documentation,
+							})),
+					);
+					const resolved = resolveDocumentation(inputs, [], {
+						automaticInheritance: automatic,
+					});
+					assert.equal(resolved.ok, true);
+					assert.equal(Object.isFrozen(automatic), true);
+					assert.deepEqual(
+						bindAutomaticDocumentationReferences({
+							...facts,
+							declarations: [...facts.declarations]
+								.reverse()
+								.map((entry) => ({ ...entry, heritage: [...entry.heritage].reverse() })),
+						}),
+						automatic,
+					);
+					for (const [name, memberName, text, inheritedCount] of [
+						["DocumentedClass", "convert", "Base class operation.", 1],
+						["DocumentedAliasImplementation", "root", "Implementation-only operation.", 1],
+						["DocumentedAliasDerived", "root", "Implementation-only operation.", 2],
+						["DiamondImplementation", "root", "Root operation.", 1],
+						["DocumentedImplementation", "root", undefined, 0],
+						["RenamedImplementation", "root", undefined, 0],
+						["SingleCallReceiver", "operation", undefined, 0],
+						["EmptyImplementation", "root", undefined, 0],
+						["TagOnlyImplementation", "root", "@public", 0],
+					] as const) {
+						const member = facts.declarations
+							.find((entry) => entry.name === name)
+							?.members.find((entry) => entry.name === memberName);
+						assert.ok(member, name);
+						const effective: ResolvedDocumentation | undefined = resolved.value.find(
+							(entry) => entry.id === member.id,
+						);
+						assert.ok(effective, name);
+						assert.equal(effective.inheritedFrom.length, inheritedCount, name);
+						if (text === undefined) {
+							assert.equal(
+								effective.documentation?.includes("operation.") ?? false,
+								false,
+								name,
+							);
+						} else {
+							assert.equal(effective.documentation?.includes(text), true, name);
+						}
+					}
+					for (const [name, expected] of [
+						["DocumentedClass", ["convert", "value"]],
+						["DocumentedAliasImplementation", ["root"]],
+						["DocumentedImplementation", ["root", "root"]],
+						["GenericOverloadImplementation", []],
+						["RenamedImplementation", []],
+						["OverloadedReceiver", []],
+						["SingleCallReceiver", []],
+						["UnconstrainedReceiver", []],
+					] as const) {
+						const declaration = facts.declarations.find((entry) => entry.name === name);
+						assert.ok(declaration, name);
+						assert.deepEqual(
+							declaration.heritage
+								.flatMap((view) =>
+									view.documentationMatches.map((match) => {
+										const receivingMember = declaration.members.find(
+											(entry) => entry.id === match.source,
+										);
+										const targetMember = view.members.find(
+											(entry) => entry.id === match.target,
+										);
+										assert.ok(receivingMember);
+										assert.ok(targetMember);
+										assert.equal(receivingMember.name, targetMember.name);
+										return receivingMember.name;
+									}),
+								)
+								.sort(),
+							expected,
+							name,
+						);
+					}
+					const derived = facts.declarations.find(
+						(entry) => entry.name === "DocumentedDerived",
+					);
+					const implementation = facts.declarations.find(
+						(entry) => entry.name === "DocumentedImplementation",
+					);
+					assert.ok(derived);
+					assert.ok(implementation);
+					assert.equal(derived.heritage.length, 1);
+					assert.equal(derived.heritage[0]?.kind, "extends");
+					assert.equal(derived.heritage[0]?.target, derived.baseDeclarations[0]);
+					assert.equal(
+						derived.heritage[0]?.members.find((entry) => entry.name === "convert")
+							?.signatures[0]?.functionTypeText,
+						"(value: string) => string",
+					);
+					assert.equal(implementation.heritage.length, 2);
+					const classFact = facts.declarations.find(
+						(entry) => entry.name === "DocumentedClass",
+					);
+					const alias = facts.declarations.find(
+						(entry) => entry.name === "DocumentedAliasImplementation",
+					);
+					assert.ok(classFact);
+					assert.ok(alias);
+					assert.equal(
+						classFact.heritage[0]?.members.find((entry) => entry.name === "value")?.type,
+						"string",
+					);
+					assert.equal(
+						alias.heritage[0]?.members.find((entry) => entry.name === "root")?.signatures[0]
+							?.functionTypeText,
+						"(value: string) => string",
+					);
+					for (const heritage of implementation.heritage) {
+						assert.equal(heritage.kind, "implements");
+						assert.equal(
+							heritage.members.find((entry) => entry.name === "root")?.signatures[0]
+								?.functionTypeText,
+							"(value: string) => string",
+						);
+					}
+					for (const declaration of analysis.value.declarations) {
+						assert.equal(Object.isFrozen(declaration.heritage), true);
+						assert.equal(
+							declaration.heritage.every(
+								(view) =>
+									Object.isFrozen(view.documentationMatches) &&
+									view.documentationMatches.every((match) => Object.isFrozen(match)),
+							),
+							true,
+						);
+						assert.equal(
+							declaration.heritage.every((entry) => Object.isFrozen(entry.members)),
+							true,
+						);
+					}
+					assert.equal(JSON.stringify(facts), serialized);
+				} finally {
+					adapter.close();
+				}
+			});
+
 			it("retains direct implements targets separately from base declarations and original comments", () => {
 				const configuration = resolveConfiguration(
 					{
@@ -557,11 +786,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
-					session.close();
+					adapter.close();
 					const serialized = JSON.stringify(analysis.value);
 					const facts = JSON.parse(serialized) as AnalysisFacts;
 					const byId = new Map(facts.declarations.map((entry) => [entry.id, entry]));
@@ -610,8 +839,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const root = implementation.members.find((entry) => entry.name === "root");
 					assert.ok(root);
 					// Documentation resolution must copy compatible interface content separately from these raw facts.
-					// TODO (Stage 2 automatic inheritance): Test absent, empty, and tag-only implementation comments,
-					// overload matching, and conflicting interface sources when resolution supports implements links.
+					// Automatic resolution is tested separately; these raw comments must remain unchanged.
 					assert.equal(root.declarations[0]?.documentation, undefined);
 					assert.equal(root.signatures[0]?.documentation, undefined);
 					assert.equal(
@@ -632,9 +860,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						);
 					}
 					assert.equal(JSON.stringify(facts), serialized);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -648,11 +875,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
-					session.close();
+					adapter.close();
 					const serialized = JSON.stringify(analysis.value);
 					const facts = JSON.parse(serialized) as AnalysisFacts;
 					const byId = new Map(
@@ -697,9 +924,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						);
 					}
 					assert.equal(JSON.stringify(facts), serialized);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -713,11 +939,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
-					session.close();
+					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const facts = JSON.parse(before) as AnalysisFacts;
 					const base = facts.declarations.find((entry) => entry.name === "DocumentedBase");
@@ -794,9 +1020,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						}
 					}
 					assert.equal(JSON.stringify(facts), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -810,11 +1035,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
-					session.close();
+					adapter.close();
 					// Source comments must remain available without live compiler handles or inherited-comment synthesis.
 					for (const declaration of analysis.value.declarations) {
 						assert.equal(Object.isFrozen(declaration.declarations), true);
@@ -911,9 +1136,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(override.declarations[0]?.documentation, undefined);
 					assert.equal(override.declarations[0]?.kind, "MethodDeclaration");
 					assert.equal(JSON.stringify(facts), serialized);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -1072,30 +1296,23 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const session = createAnalysisSession();
+				const publicSession = createAnalysisSession();
 				try {
-					const first = session.analyze(configuration.value);
-					assert.ok(first.ok, JSON.stringify(first));
-					assert.equal(
-						first.value.declarations.find((item) => item.name === "convert")?.signatures
-							.length,
-						2,
-					);
-					assert.equal(
-						first.value.declarations
-							.find((item) => item.name === "Derived")
-							?.members.find((member) => member.name === "value")?.type,
-						"string",
-					);
-					const second = session.analyze(configuration.value);
-					assert.ok(second.ok);
-					assert.strictEqual(second.value, first.value);
-					session.close();
-					// JSON omits undefined documentation fields; the serialized representation must remain stable.
-					const serialized = JSON.stringify(first.value);
-					assert.equal(JSON.stringify(JSON.parse(serialized)), serialized);
+					assert.deepEqual(publicSession.analyze(configuration.value), {
+						ok: true,
+						value: undefined,
+					});
+					assert.deepEqual(publicSession.analyze(configuration.value), {
+						ok: true,
+						value: undefined,
+					});
+					assert.deepEqual(publicSession.getStatistics(), {
+						analyses: 1,
+						cacheHits: 1,
+						generation: 0,
+					});
 				} finally {
-					session.close();
+					publicSession.close();
 				}
 			});
 		});
@@ -1112,11 +1329,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.ok(analysis.ok, JSON.stringify(analysis));
-					session.close();
+					adapter.close();
 					const comments = analysis.value.declarations.map((item) => ({
 						name: item.name,
 						documentation: item.signatures[0]?.documentation,
@@ -1140,7 +1357,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						ReleaseLevel.Public,
 					);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -1155,16 +1372,16 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.ok(analysis.ok, JSON.stringify(analysis));
 					const overloads = analysis.value.declarations.find(
 						(item) => item.name === "convert",
 					)?.signatures;
 					assert.ok(overloads);
 					assert.equal(overloads.length, 2);
-					session.close();
+					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const metadata = classifyApiItems(overloads);
 					assert.ok(metadata.ok, JSON.stringify(metadata));
@@ -1190,9 +1407,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.ok(complete.ok);
 					assert.equal(complete.value.items.length, 2);
 					assert.equal(JSON.stringify(analysis.value), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 		});
@@ -1210,11 +1426,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
-					session.close();
+					adapter.close();
 					const facts = analysis.value;
 					const before = JSON.stringify(facts);
 					const linked = facts.declarations.find((entry) => entry.name === "linked");
@@ -1287,9 +1503,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						result,
 					);
 					assert.equal(JSON.stringify(facts), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 		});
@@ -1305,12 +1520,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
 					// Close before serialization so every subsequent operation uses detached data only.
-					session.close();
+					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const facts = JSON.parse(before) as AnalysisFacts;
 					const inputs = facts.declarations.flatMap((entry) =>
@@ -1366,9 +1581,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.deepEqual(classifyApiItems(inputs), classification);
 					assert.equal(Object.isFrozen(derived.links[0]?.origin), true);
 					assert.equal(JSON.stringify(facts), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -1384,11 +1598,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
-					session.close();
+					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const linked = analysis.value.declarations.find((entry) => entry.name === "linked");
 					assert.ok(linked);
@@ -1441,22 +1655,26 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(Object.isFrozen(context.links), true);
 					assert.equal(context.links.every(Object.isFrozen), true);
 					assert.deepEqual(JSON.parse(JSON.stringify(context)), context);
-					const result = resolveDocumentation(
-						[
-							{
-								id: signature.id,
-								packageName: context.origin.packageName,
-								documentation: signature.documentation,
-							},
-						],
-						[],
+					assert.throws(
+						() =>
+							resolveDocumentation(
+								[
+									{
+										id: signature.id,
+										packageName: context.origin.packageName,
+										documentation: signature.documentation,
+									},
+								],
+								[],
+							),
+						{
+							name: "AssertionError",
+							message: "Comments with API links must have original link validation inputs.",
+						},
 					);
-					assert.equal(result.ok, false);
-					assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
 					assert.equal(JSON.stringify(analysis.value), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -1470,11 +1688,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.ok(analysis.ok, JSON.stringify(analysis));
-					session.close();
+					adapter.close();
 					const options = { customModifierTags: ["@sourceOnly", "@localOnly"] };
 					const before = JSON.stringify({ facts: analysis.value, options });
 					const inputs = analysis.value.declarations.flatMap((declaration) =>
@@ -1525,9 +1743,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(Object.isFrozen(options.customModifierTags), false);
 					assert.ok(Object.isFrozen(result.value));
 					assert.ok(Object.isFrozen(bindings.value));
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 
@@ -1541,11 +1758,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.ok(analysis.ok, JSON.stringify(analysis));
-					session.close();
+					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const base = analysis.value.declarations.find(
 						(declaration) => declaration.name === "base",
@@ -1589,9 +1806,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.deepEqual(effective.inheritedFrom, [base.signatures[0].id]);
 					assert.deepEqual(classifyApiItems(inputs), classification);
 					assert.equal(JSON.stringify(analysis.value), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 		});
@@ -1608,24 +1824,125 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						directory,
 					);
 					assert.ok(configuration.ok);
-					const session = createAnalysisSession();
+					const adapter = createNativeAdapter();
 					try {
-						const analysis = session.analyze(configuration.value);
+						const analysis = adapter.analyze(configuration.value);
 						assert.ok(analysis.ok, JSON.stringify(analysis));
-						session.close();
+						adapter.close();
 						const result = bindDocumentationReferences(analysis.value, {});
 						if (fixture.expected === undefined) {
 							assert.ok(result.ok, JSON.stringify(result));
-							assert.equal(result.value.length, 1);
-							assert.equal(result.value[0]?.reference, fixture.reference);
+							assert.equal(result.value.length, fixture.name === "selector" ? 3 : 1);
+							assert.equal(
+								result.value.some((binding) => binding.reference === fixture.reference),
+								true,
+							);
 							assert.ok(Object.isFrozen(result.value));
+							if (fixture.name === "selector") {
+								const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
+								assert.deepEqual(bindDocumentationReferences(detached, {}), result);
+								const base = analysis.value.declarations.find(
+									(entry) => entry.name === "base",
+								);
+								const derived = analysis.value.declarations.find(
+									(entry) => entry.name === "derived",
+								);
+								assert.ok(base);
+								assert.ok(derived);
+								assert.equal(
+									result.value.find((binding) => binding.reference === fixture.reference)
+										?.target,
+									base.signatures[1]?.id,
+								);
+								const classification = classifyApiItems(
+									analysis.value.declarations.flatMap((entry) => entry.signatures),
+								);
+								assert.equal(classification.ok, true);
+								const links = bindDocumentationLinks(analysis.value, classification.value, {});
+								assert.equal(links.ok, true);
+								const resolved = resolveDocumentation(
+									analysis.value.declarations.flatMap((entry) =>
+										entry.signatures.map((signature) => ({
+											id: signature.id,
+											packageName: "example",
+											documentation: signature.documentation,
+										})),
+									),
+									result.value,
+									{
+										linkValidation: {
+											bindings: links.value,
+											classification: classification.value,
+										},
+									},
+								);
+								assert.equal(resolved.ok, true);
+								const fromMethod = analysis.value.declarations.find(
+									(entry) => entry.name === "fromMethod",
+								);
+								assert.ok(fromMethod);
+								const inheritedMethod = resolved.value.find(
+									(entry) => entry.id === fromMethod.signatures[0]?.id,
+								);
+								assert.ok(inheritedMethod);
+								assert.equal(inheritedMethod.documentation?.includes("String method."), true);
+								assert.equal(inheritedMethod.inheritedFrom.length, 2);
+								assert.deepEqual(inheritedMethod.links, links.value);
+								assert.match(
+									resolved.value.find((entry) => entry.id === derived.signatures[0]?.id)
+										?.documentation ?? "",
+									/String overload\./,
+								);
+							}
 						} else {
 							assert.ok(!result.ok, fixture.name);
 							assert.equal(result.diagnostics[0]?.code, fixture.expected, fixture.name);
 							assert.equal("value" in result, false);
 						}
 					} finally {
-						session.close();
+						adapter.close();
+					}
+				}
+			});
+
+			it("rejects ambiguous or unsupported method paths without guessing a target", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/binding-selector.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const source = project.program.getSourceFile(
+					path.join(directory, "declarations/binding-selector.d.ts"),
+				);
+				assert.ok(source);
+				for (const [reference, status] of [
+					["MethodSource.(operation:2)", "resolved"],
+					["MethodSource.missing", "not-found"],
+					["AmbiguousMethodScope.operation", "unsupported"],
+					["MethodSource.(operation:static)", "unsupported"],
+					["(MethodSource:1).operation", "unsupported"],
+				] as const) {
+					const parsed = new TSDocParser().parseString(`/** {@inheritDoc ${reference}} */`);
+					assert.equal(parsed.log.messages.length, 0, reference);
+					const state: CollectionState = { declarations: new Map(), visiting: new Set() };
+					const lookup = lookupReference(
+						project,
+						{ configuration: configuration.value, packageCache: new Map() },
+						state,
+						source,
+						source,
+						parsed.docComment.inheritDocTag?.declarationReference,
+						true,
+					);
+					assert.equal(lookup.status, status, reference);
+					if (lookup.status === "resolved") {
+						assert.equal(state.declarations.get(lookup.target)?.name, "operation");
+					} else {
+						assert.equal("target" in lookup, false);
 					}
 				}
 			});
@@ -1641,11 +1958,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						directory,
 					);
 					assert.ok(configuration.ok);
-					const session = createAnalysisSession();
+					const adapter = createNativeAdapter();
 					try {
-						const analysis = session.analyze(configuration.value);
+						const analysis = adapter.analyze(configuration.value);
 						assert.ok(analysis.ok, JSON.stringify(analysis));
-						session.close();
+						adapter.close();
 						const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
 						const bindings = bindDocumentationReferences(detached, {});
 						assert.ok(bindings.ok, JSON.stringify(bindings));
@@ -1678,7 +1995,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							bindings,
 						);
 					} finally {
-						session.close();
+						adapter.close();
 					}
 				}
 			});
@@ -1699,11 +2016,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						directory,
 					);
 					assert.equal(configuration.ok, true);
-					const session = createAnalysisSession();
+					const adapter = createNativeAdapter();
 					try {
-						const analysis = session.analyze(configuration.value);
+						const analysis = adapter.analyze(configuration.value);
 						assert.equal(analysis.ok, true);
-						session.close();
+						adapter.close();
 						// Report resolution must work from plain serialized facts without a live compiler or caches.
 						const before = JSON.stringify(analysis.value);
 						const facts = JSON.parse(before) as AnalysisFacts;
@@ -1733,9 +2050,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						);
 						assert.equal(JSON.stringify(facts), before);
 						assert.equal(Object.isFrozen(report.value.exports), true);
-						assert.equal(session.getStatistics().analyses, 1);
 					} finally {
-						session.close();
+						adapter.close();
 					}
 				}
 			});
@@ -1750,16 +2066,16 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const session = createAnalysisSession();
+				const adapter = createNativeAdapter();
 				try {
-					const analysis = session.analyze(configuration.value);
+					const analysis = adapter.analyze(configuration.value);
 					assert.ok(analysis.ok, JSON.stringify(analysis));
 					const classification = classifyApiItems(
 						analysis.value.declarations.flatMap((item) => item.signatures),
 						{ customModifierTags: ["@partner"] },
 					);
 					assert.ok(classification.ok, JSON.stringify(classification));
-					session.close();
+					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					for (const [name, releaseLevels] of [
 						["public", [ReleaseLevel.Public]],
@@ -1777,9 +2093,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						assert.ok(compareReviewBaseline(text, expected).ok);
 					}
 					assert.equal(JSON.stringify(analysis.value), before);
-					assert.equal(session.getStatistics().analyses, 1);
 				} finally {
-					session.close();
+					adapter.close();
 				}
 			});
 		});

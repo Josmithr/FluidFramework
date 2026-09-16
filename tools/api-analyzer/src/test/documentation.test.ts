@@ -1,21 +1,22 @@
 import assert from "node:assert/strict";
 import { TSDocParser } from "@microsoft/tsdoc";
 import { describe, it } from "mocha";
-import { bindDocumentationLinks, bindDocumentationReferences } from "../documentation.js";
+import { classifyApiItems, selectApiItems } from "../classification.js";
+import {
+	bindDocumentationLinks,
+	bindDocumentationReferences,
+	resolveDocumentation,
+	type DocumentationInput,
+	type DocumentationReferenceBinding,
+	type ResolvedDocumentation,
+} from "../documentation.js";
 import type {
 	AnalysisFacts,
 	DeclarationFact,
 	DocumentationReferenceLookup,
 } from "../facts.js";
-import {
-	resolveDocumentation,
-	classifyApiItems,
-	selectApiItems,
-	ReleaseLevel,
-	DiagnosticCode,
-	type DocumentationInput,
-	type DocumentationReferenceBinding,
-} from "../index.js";
+import { ReleaseLevel, DiagnosticCode } from "../index.js";
+import { assertAssertionError } from "./assertionUtils.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 
 /**
@@ -61,6 +62,7 @@ function functionFact(
 		type: "",
 		memberView: "complete",
 		baseDeclarations: [],
+		heritage: [],
 		implementedDeclarations: [],
 		limitations: [],
 		members: [],
@@ -211,25 +213,27 @@ describe("Documentation link binding", () => {
 
 	it("rejects stale, missing, and unsupported lookups without partial bindings", () => {
 		const target = functionFact("target", "/** Target. @beta */", []);
-		const cases: readonly {
+		const cases: readonly ({
 			documentation: string;
 			links: readonly DocumentationReferenceLookup[];
-			code: DiagnosticCode;
-		}[] = [
+		} & ({ code: DiagnosticCode } | { code: "assertion"; message: string }))[] = [
 			{
 				documentation: "/** {@link target} @public */",
 				links: [],
-				code: DiagnosticCode.DocumentationReference,
+				code: "assertion",
+				message: "API link lookup counts must match the original comment.",
 			},
 			{
 				documentation: "/** No links. @public */",
 				links: [{ reference: "target", status: "resolved", target: "target" }],
-				code: DiagnosticCode.DocumentationReference,
+				code: "assertion",
+				message: "API link lookup counts must match the original comment.",
 			},
 			{
 				documentation: "/** {@link target} @public */",
 				links: [{ reference: "other", status: "not-found" }],
-				code: DiagnosticCode.DocumentationReference,
+				code: "assertion",
+				message: "API link lookup references must match the original comment.",
 			},
 			{
 				documentation: "/** {@link target} @public */",
@@ -260,7 +264,8 @@ describe("Documentation link binding", () => {
 					{ reference: "other", status: "not-found" },
 					{ reference: "target", status: "resolved", target: "target" },
 				],
-				code: DiagnosticCode.DocumentationReference,
+				code: "assertion",
+				message: "API link lookup references must match the original comment.",
 			},
 		];
 		for (const entry of cases) {
@@ -272,6 +277,13 @@ describe("Documentation link binding", () => {
 				facts.declarations.flatMap((declaration) => declaration.signatures),
 			);
 			assert.equal(classified.ok, true);
+			if (entry.code === "assertion") {
+				assertAssertionError(
+					() => bindDocumentationLinks(facts, classified.value, {}),
+					entry.message,
+				);
+				continue;
+			}
 			const result = bindDocumentationLinks(facts, classified.value, {});
 			assert.equal(result.ok, false);
 			assert.equal(result.diagnostics[0]?.code, entry.code);
@@ -291,19 +303,45 @@ describe("Documentation link binding", () => {
 		const { documentationContext: sourceContext, ...noSourceContext } = sourceSignature;
 		assert.ok(sourceContext);
 		const { documentationContext: targetContext, ...noTargetContext } = targetSignature;
+		for (const [declarations, message] of [
+			[
+				[{ ...source, signatures: [noSourceContext] }, target],
+				"Supported API link sources must retain documentation context.",
+			],
+			[
+				[source, { ...target, signatures: [noTargetContext] }],
+				"Supported API link targets must retain documentation context.",
+			],
+		] as const) {
+			const classified = classifyApiItems(declarations.flatMap((entry) => entry.signatures));
+			assert.equal(classified.ok, true);
+			assertAssertionError(
+				() => bindDocumentationLinks(linkFacts(declarations), classified.value, {}),
+				message,
+			);
+		}
+		for (const kind of ["MethodDeclaration", "MethodSignature"]) {
+			const facts = linkFacts([
+				{ ...source, declarations: source.declarations.map((entry) => ({ ...entry, kind })) },
+				target,
+			]);
+			const classification = classifyApiItems(
+				facts.declarations.flatMap((entry) => entry.signatures),
+			);
+			assert.equal(classification.ok, true);
+			assert.equal(bindDocumentationLinks(facts, classification.value, {}).ok, true, kind);
+		}
 		const variants: readonly (readonly DeclarationFact[])[] = [
-			[{ ...source, signatures: [noSourceContext] }, target],
 			[
 				{
 					...source,
 					declarations: source.declarations.map((entry) => ({
 						...entry,
-						kind: "MethodDeclaration",
+						kind: "PropertyDeclaration",
 					})),
 				},
 				target,
 			],
-			[source, { ...target, signatures: [noTargetContext] }],
 			[
 				source,
 				{
@@ -362,17 +400,28 @@ describe("Documentation link binding", () => {
 			facts.declarations.flatMap((entry) => entry.signatures),
 		);
 		assert.equal(classified.ok, true);
-		for (const id of ["source-signature", "target-signature"]) {
-			for (const items of [
-				classified.value.items.filter((entry) => entry.id !== id),
-				classified.value.items.map((entry) =>
-					entry.id === id ? { ...entry, releaseLevel: undefined } : entry,
-				),
-			]) {
-				const result = bindDocumentationLinks(facts, { ...classified.value, items }, {});
-				assert.equal(result.ok, false);
-				assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
-			}
+		for (const [id, message] of [
+			["source-signature", "API link sources must have original classification metadata."],
+			["target-signature", "API link targets must have original classification metadata."],
+		] as const) {
+			assertAssertionError(
+				() =>
+					bindDocumentationLinks(
+						facts,
+						{
+							...classified.value,
+							items: classified.value.items.filter((entry) => entry.id !== id),
+						},
+						{},
+					),
+				message,
+			);
+			const items = classified.value.items.map((entry) =>
+				entry.id === id ? { ...entry, releaseLevel: undefined } : entry,
+			);
+			const result = bindDocumentationLinks(facts, { ...classified.value, items }, {});
+			assert.equal(result.ok, false);
+			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
 		}
 	});
 
@@ -423,24 +472,24 @@ describe("Documentation link binding", () => {
 		const target = functionFact("target", "/** Target. @beta */", []);
 		const classified = classifyApiItems([...source.signatures, ...target.signatures]);
 		assert.equal(classified.ok, true);
-		assert.throws(
+		assertAssertionError(
 			() => bindDocumentationLinks(linkFacts([source]), classified.value, {}),
-			/targets must be retained/,
+			"Documentation lookup targets must be retained in declaration facts.",
 		);
-		assert.throws(
+		assertAssertionError(
 			() => bindDocumentationLinks(linkFacts([source, source, target]), classified.value, {}),
-			/Declaration facts must have distinct/,
+			"Declaration facts must have distinct identities.",
 		);
-		assert.throws(
+		assertAssertionError(
 			() =>
 				bindDocumentationLinks(
 					linkFacts([source, { ...target, signatures: source.signatures }]),
 					classified.value,
 					{},
 				),
-			/Signature facts must have distinct/,
+			"Signature facts must have distinct identities.",
 		);
-		assert.throws(
+		assertAssertionError(
 			() =>
 				bindDocumentationLinks(
 					linkFacts([source, target]),
@@ -450,12 +499,352 @@ describe("Documentation link binding", () => {
 					},
 					{},
 				),
-			/metadata must have distinct/,
+			"Classification metadata must have distinct identities.",
 		);
 	});
 });
 
 describe("Explicit documentation inheritance", () => {
+	it("resolves automatic chains while suppressing local comments and uncertain choices", () => {
+		const inputs = [
+			item("base", "/** Base content. @internal */"),
+			item("other", "/** Other content. @beta */"),
+			item("middle", undefined),
+			item("derived", undefined),
+			item("empty", "/** */"),
+			item("tag", "/** @public */"),
+			item("local", "/** Local content. @public */"),
+			item("explicit", "/** {@inheritDoc other} @public */"),
+			item("ambiguous", undefined),
+			item("missing", undefined),
+		];
+		const automaticInheritance = [
+			...["middle", "empty", "tag", "local", "explicit", "ambiguous"].map((source) => ({
+				source,
+				target: "base",
+			})),
+			{ source: "derived", target: "middle" },
+			{ source: "derived", target: "middle" },
+			{ source: "ambiguous", target: "other" },
+		];
+		const before = JSON.stringify({ inputs, automaticInheritance });
+		const result = resolveDocumentation(inputs, [binding("explicit", "other")], {
+			automaticInheritance,
+		});
+		assert.equal(result.ok, true);
+		const derived = result.value.find((entry) => entry.id === "derived");
+		assert.ok(derived);
+		assert.equal(derived.documentation?.includes("Base content."), true);
+		assert.equal(derived.documentation?.includes("@internal"), false);
+		assert.deepEqual(derived.inheritedFrom, ["middle", "base"]);
+		for (const id of ["empty", "tag", "local", "ambiguous", "missing"]) {
+			const output: ResolvedDocumentation | undefined = result.value.find(
+				(entry) => entry.id === id,
+			);
+			assert.ok(output);
+			assert.deepEqual(output.inheritedFrom, []);
+			assert.equal(output.documentation?.includes("Base content.") ?? false, false);
+		}
+		assert.equal(
+			result.value.find((entry) => entry.id === "ambiguous")?.documentation,
+			undefined,
+		);
+		assert.equal(
+			result.value
+				.find((entry) => entry.id === "explicit")
+				?.documentation?.includes("Other content."),
+			true,
+		);
+		assert.equal(Object.isFrozen(result.value), true);
+		assert.equal(JSON.stringify({ inputs, automaticInheritance }), before);
+		assert.deepEqual(
+			resolveDocumentation([...inputs].reverse(), [binding("explicit", "other")], {
+				automaticInheritance: [...automaticInheritance].reverse(),
+			}),
+			result,
+		);
+	});
+
+	it("asserts invalid automatic binding identities and diagnoses cycles", () => {
+		for (const [automaticInheritance, message] of [
+			[[{ source: "receiver", target: "missing" }], "Automatic targets must exist."],
+			[[{ source: "missing", target: "receiver" }], "Automatic sources must exist."],
+			[
+				[{ source: "receiver", target: "outside" }],
+				"Automatic bindings must retain same-package source and target inputs.",
+			],
+		] as const) {
+			assertAssertionError(
+				() =>
+					resolveDocumentation(
+						[
+							item("receiver", undefined),
+							{ ...item("outside", undefined), packageName: "outside" },
+						],
+						[],
+						{ automaticInheritance },
+					),
+				message,
+			);
+		}
+		const result = resolveDocumentation([item("receiver", undefined)], [], {
+			automaticInheritance: [{ source: "receiver", target: "receiver" }],
+		});
+		assert.equal(result.ok, false);
+		assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationCycle);
+		assert.equal("value" in result, false);
+	});
+
+	it("validates automatically inherited links against original receiving metadata", () => {
+		for (const targetTag of ["beta", "internal"]) {
+			const facts = linkFacts([
+				functionFact("base", "/** See {@link target}. @internal */", [
+					{ reference: "target", status: "resolved", target: "target" },
+				]),
+				functionFact("derived", "/** @public */", []),
+				functionFact("target", `/** Target. @${targetTag} */`, []),
+			]);
+			const signatures = facts.declarations.flatMap((entry) => entry.signatures);
+			const classification = classifyApiItems(signatures);
+			assert.equal(classification.ok, true);
+			const links = bindDocumentationLinks(facts, classification.value, {});
+			assert.equal(links.ok, true);
+			const inputs = signatures.map((entry) =>
+				item(entry.id, entry.id === "derived-signature" ? undefined : entry.documentation),
+			);
+			const before = JSON.stringify({ inputs, classification, links });
+			const result = resolveDocumentation(inputs, [], {
+				automaticInheritance: [{ source: "derived-signature", target: "base-signature" }],
+				linkValidation: { bindings: links.value, classification: classification.value },
+			});
+			assert.equal(result.ok, targetTag === "beta");
+			if (result.ok) {
+				const derived = result.value.find((entry) => entry.id === "derived-signature");
+				assert.ok(derived);
+				assert.deepEqual(derived.links, links.value);
+				assert.equal(derived.links[0]?.source, "base-signature");
+				assert.equal(derived.links[0]?.origin.file, "original.d.ts");
+				assert.equal(derived.documentation?.includes("@internal"), false);
+			} else {
+				assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationLinkPolicy);
+				assert.equal("value" in result, false);
+			}
+			assert.equal(JSON.stringify({ inputs, classification, links }), before);
+		}
+	});
+
+	it("asserts missing or stale inheritance facts but diagnoses unsupported sources and references", () => {
+		const receiver = functionFact("receiver", "/** {@inheritDoc base} @public */", []);
+		const signature = receiver.signatures[0];
+		assert.ok(signature);
+		const { documentationContext, ...withoutContext } = signature;
+		assert.ok(documentationContext);
+		for (const [source, expectedMessage] of [
+			[withoutContext, "Supported inheritance sources must retain documentation context."],
+			[signature, "Inheritance requests must retain compiler lookup facts."],
+		] as const) {
+			assertAssertionError(
+				() =>
+					bindDocumentationReferences(linkFacts([{ ...receiver, signatures: [source] }]), {}),
+				expectedMessage,
+			);
+		}
+		const unsupported = bindDocumentationReferences(
+			linkFacts([
+				{
+					...receiver,
+					declarations: receiver.declarations.map((source) => ({
+						...source,
+						kind: "VariableDeclaration",
+					})),
+					signatures: [withoutContext],
+				},
+			]),
+			{},
+		);
+		assert.equal(unsupported.ok, false);
+		assert.equal(unsupported.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+		for (const status of ["resolved", "unsupported", "not-found"] as const) {
+			assertAssertionError(
+				() =>
+					bindDocumentationReferences(
+						linkFacts([
+							{
+								...receiver,
+								signatures: [
+									{
+										...signature,
+										documentationContext: {
+											...documentationContext,
+											inheritance: { reference: "stale", status, target: "base" },
+										},
+									},
+								],
+							},
+						]),
+						{},
+					),
+				"Inheritance lookup facts must match the original comment.",
+			);
+		}
+		const result = bindDocumentationReferences(
+			linkFacts([
+				{
+					...receiver,
+					signatures: [
+						{
+							...signature,
+							documentationContext: {
+								...documentationContext,
+								inheritance: { reference: "base", status: "unsupported" },
+							},
+						},
+					],
+				},
+			]),
+			{},
+		);
+		assert.equal(result.ok, false);
+		assert.equal("value" in result, false);
+		assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+		const message = result.diagnostics[0]?.message ?? "";
+		assert.match(message, /unsupported @inheritDoc reference "base"/);
+		assert.equal(message.includes("{@inheritDoc base}"), true);
+		assert.equal(message.includes("{@inheritDoc Base.method}"), true);
+		assert.equal(message.includes("{@inheritDoc (base:2)}"), true);
+		assert.equal(message.includes("{@inheritDoc Base.(method:2)}"), true);
+		assert.match(message, /replace @inheritDoc with local documentation/);
+	});
+
+	it("selects numeric overload targets and validates the selected parameter shape", () => {
+		const template = functionFact("target", "/** First. @public */", []);
+		const first = template.signatures[0];
+		assert.ok(first?.documentationContext);
+		const second = { ...first, id: "second", documentation: "/** Second. @public */" };
+		const target = { ...template, signatures: [first, second] };
+		for (const [reference, expected] of [
+			["(target:1)", first.id],
+			["(target:2)", second.id],
+			["(target:3)", undefined],
+			["(target:9007199254740992)", undefined],
+			["target", undefined],
+		] as const) {
+			const receiver = functionFact(
+				"receiver",
+				`/** {@inheritDoc ${reference}} @public */`,
+				[],
+			);
+			const signature = receiver.signatures[0];
+			assert.ok(signature?.documentationContext);
+			const facts = linkFacts([
+				target,
+				{
+					...receiver,
+					signatures: [
+						{
+							...signature,
+							documentationContext: {
+								...signature.documentationContext,
+								inheritance: { reference, status: "resolved", target: target.id },
+							},
+						},
+					],
+				},
+			]);
+			const before = JSON.stringify(facts);
+			const bindings = bindDocumentationReferences(facts, {});
+			if (expected === undefined) {
+				assert.equal(bindings.ok, false, reference);
+				assert.equal(bindings.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
+			} else {
+				assert.equal(bindings.ok, true, reference);
+				assert.equal(bindings.value[0]?.target, expected);
+				const resolved = resolveDocumentation(
+					facts.declarations.flatMap((entry) =>
+						entry.signatures.map((candidateSignature) =>
+							item(candidateSignature.id, candidateSignature.documentation),
+						),
+					),
+					bindings.value,
+				);
+				assert.equal(resolved.ok, true);
+				assert.match(
+					resolved.value.find((entry) => entry.id === signature.id)?.documentation ?? "",
+					expected === first.id ? /First\./ : /Second\./,
+				);
+				const incompatible = {
+					...target,
+					signatures: [
+						first,
+						{
+							...second,
+							documentationContext: {
+								...first.documentationContext,
+								parameters: [{ name: "extra", optional: false, rest: false }],
+							},
+						},
+					],
+				};
+				const checked = bindDocumentationReferences(
+					{ ...facts, declarations: [incompatible, ...facts.declarations.slice(1)] },
+					{},
+				);
+				assert.equal(checked.ok, expected === first.id);
+				const reordered = bindDocumentationReferences(
+					{
+						...facts,
+						declarations: [
+							{ ...target, signatures: [second, first] },
+							...facts.declarations.slice(1),
+						],
+					},
+					{},
+				);
+				assert.equal(reordered.ok, true);
+				assert.equal(reordered.value[0]?.target, expected === first.id ? second.id : first.id);
+			}
+			assert.equal(JSON.stringify(facts), before);
+		}
+	});
+
+	it("rejects malformed and nonnumeric explicit inheritance selectors", () => {
+		for (const reference of [
+			"(target:0)",
+			"(target:-1)",
+			"(target:1.5)",
+			"(target:function)",
+		]) {
+			const target = functionFact("target", "/** Target. @public */", []);
+			const receiver = functionFact(
+				"receiver",
+				`/** {@inheritDoc ${reference}} @public */`,
+				[],
+			);
+			const signature = receiver.signatures[0];
+			assert.ok(signature?.documentationContext);
+			const result = bindDocumentationReferences(
+				linkFacts([
+					target,
+					{
+						...receiver,
+						signatures: [
+							{
+								...signature,
+								documentationContext: {
+									...signature.documentationContext,
+									inheritance: { reference, status: "resolved", target: target.id },
+								},
+							},
+						],
+					},
+				]),
+				{},
+			);
+			assert.equal(result.ok, false, reference);
+			assert.equal("value" in result, false);
+		}
+	});
+
 	it("preserves section link provenance through chains without copying target-only blocks", () => {
 		const facts = linkFacts([
 			functionFact(
@@ -562,71 +951,112 @@ describe("Explicit documentation inheritance", () => {
 			{ source: "derived-signature", reference: "base", target: "base-signature" },
 		];
 		// Alter one binding invariant at a time while keeping the comments and inheritance request valid.
-		for (const invalidLinks of [
-			[],
-			[link, link],
-			[{ ...link, reference: "stale" }],
-			[{ ...link, linkIndex: 1 }],
-			[{ ...link, linkIndex: -1 }],
-			[{ ...link, linkIndex: 0.5 }],
-			[{ ...link, source: "unknown" }],
-			[{ ...link, targetSignature: "unknown" }],
+		for (const [invalidLinks, message] of [
+			[[], "API link binding counts must match original occurrences."],
+			[[link, link], "API link occurrences must have one binding."],
+			[[{ ...link, reference: "stale" }], "API link bindings must match original references."],
+			[[{ ...link, linkIndex: 1 }], "Every API link occurrence must have a binding."],
+			[
+				[{ ...link, linkIndex: -1 }],
+				"API link occurrence indices must be nonnegative integers.",
+			],
+			[
+				[{ ...link, linkIndex: 0.5 }],
+				"API link occurrence indices must be nonnegative integers.",
+			],
+			[[{ ...link, source: "unknown" }], "API link sources must have inputs."],
+			[
+				[{ ...link, targetSignature: "unknown" }],
+				"API link target signatures must have inputs.",
+			],
 			// The target comment contains no links, so this otherwise well-formed binding is unused.
-			[link, { ...link, source: "target-signature" }],
-		]) {
-			const result = resolveDocumentation(inputs, bindings, {
-				linkValidation: { bindings: invalidLinks, classification: classification.value },
-			});
-			assert.equal(result.ok, false);
-			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
-			assert.equal("value" in result, false);
+			[
+				[link, { ...link, source: "target-signature" }],
+				"API link binding counts must match original occurrences.",
+			],
+		] as const) {
+			assertAssertionError(
+				() =>
+					resolveDocumentation(inputs, bindings, {
+						linkValidation: { bindings: invalidLinks, classification: classification.value },
+					}),
+				message,
+			);
 		}
 		// Check both absent metadata and an explicit missing release level for the author, receiver, and target.
-		for (const id of ["base-signature", "derived-signature", "target-signature"]) {
-			for (const items of [
-				classification.value.items.filter((entry) => entry.id !== id),
-				classification.value.items.map((entry) =>
-					entry.id === id ? { ...entry, releaseLevel: undefined } : entry,
-				),
-			]) {
-				const result = resolveDocumentation(inputs, bindings, {
+		for (const [id, message] of [
+			[
+				"base-signature",
+				"Effective API link receivers must have original classification metadata.",
+			],
+			[
+				"derived-signature",
+				"Effective API link receivers must have original classification metadata.",
+			],
+			[
+				"target-signature",
+				"Effective API link targets must have original classification metadata.",
+			],
+		] as const) {
+			assertAssertionError(
+				() =>
+					resolveDocumentation(inputs, bindings, {
+						linkValidation: {
+							bindings: links.value,
+							classification: {
+								...classification.value,
+								items: classification.value.items.filter((entry) => entry.id !== id),
+							},
+						},
+					}),
+				message,
+			);
+			const items = classification.value.items.map((entry) =>
+				entry.id === id ? { ...entry, releaseLevel: undefined } : entry,
+			);
+			const result = resolveDocumentation(inputs, bindings, {
+				linkValidation: {
+					bindings: links.value,
+					classification: { ...classification.value, items },
+				},
+			});
+			assert.equal(result.ok, false);
+			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
+		}
+		assertAssertionError(
+			() =>
+				resolveDocumentation(inputs, bindings, {
 					linkValidation: {
 						bindings: links.value,
-						classification: { ...classification.value, items },
+						classification: {
+							...classification.value,
+							items: [...classification.value.items, ...classification.value.items],
+						},
 					},
-				});
-				assert.equal(result.ok, false);
-				assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
-			}
-		}
-		const duplicate = resolveDocumentation(inputs, bindings, {
-			linkValidation: {
-				bindings: links.value,
-				classification: {
-					...classification.value,
-					items: [...classification.value.items, ...classification.value.items],
-				},
-			},
-		});
-		assert.equal(duplicate.ok, false);
-		assert.equal(duplicate.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
-		const origin = resolveDocumentation(inputs, bindings, {
-			linkValidation: {
-				bindings: [{ ...link, origin: { ...link.origin, packageName: "other" } }],
-				classification: classification.value,
-			},
-		});
-		assert.equal(origin.ok, false);
-		assert.equal(origin.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
-		const crossPackage = resolveDocumentation(
-			inputs.map((entry) =>
-				entry.id === "target-signature" ? { ...entry, packageName: "other" } : entry,
-			),
-			bindings,
-			{ linkValidation: { bindings: links.value, classification: classification.value } },
+				}),
+			"Original classification metadata must have distinct identities.",
 		);
-		assert.equal(crossPackage.ok, false);
-		assert.equal(crossPackage.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+		assertAssertionError(
+			() =>
+				resolveDocumentation(inputs, bindings, {
+					linkValidation: {
+						bindings: [{ ...link, origin: { ...link.origin, packageName: "other" } }],
+						classification: classification.value,
+					},
+				}),
+			"API links must retain their original source package.",
+		);
+		assertAssertionError(
+			() =>
+				resolveDocumentation(
+					inputs.map((entry) =>
+						entry.id === "target-signature" ? { ...entry, packageName: "other" } : entry,
+					),
+					bindings,
+					{ linkValidation: { bindings: links.value, classification: classification.value } },
+				),
+			"Validated API links must retain same-package targets.",
+		);
 	});
 
 	it("preserves inherited link origins and applies policy to the receiving API", () => {
@@ -838,21 +1268,31 @@ describe("Explicit documentation inheritance", () => {
 
 	it("fails closed for missing, ambiguous, stale, and cyclic bindings", () => {
 		const items = [item("derived", "/** {@inheritDoc base} */"), item("base", "/** Base. */")];
-		const cases: readonly (readonly DocumentationReferenceBinding[])[] = [
-			[],
-			[binding("derived", "base"), binding("derived", "base")],
-			[{ source: "derived", reference: "base", target: "missing" }],
-			[{ source: "derived", reference: "other", target: "base" }],
-			[binding("derived", "base"), binding("missing", "base")],
-			[binding("derived", "base"), binding("base", "derived")],
-		];
-		for (const bindings of cases) {
-			const result = resolveDocumentation(items, bindings);
-			assert.equal(result.ok, false);
-			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
-			assert.equal("value" in result, false);
-			assert.equal(Object.isFrozen(result), true);
-			assert.equal(Object.isFrozen(result.diagnostics), true);
+		const cases = [
+			[[], "Explicit inheritance requests must have validated bindings."],
+			[
+				[binding("derived", "base"), binding("derived", "base")],
+				"Inheritance sources must have one binding.",
+			],
+			[
+				[{ source: "derived", reference: "base", target: "missing" }],
+				"Inheritance binding targets must have inputs.",
+			],
+			[
+				[{ source: "derived", reference: "other", target: "base" }],
+				"Inheritance bindings must match original references.",
+			],
+			[
+				[binding("derived", "base"), binding("missing", "base")],
+				"Inheritance binding sources must have inputs.",
+			],
+			[
+				[binding("derived", "base"), binding("base", "derived")],
+				"Comments without inheritance must not have bindings.",
+			],
+		] as const;
+		for (const [bindings, message] of cases) {
+			assertAssertionError(() => resolveDocumentation(items, bindings), message);
 		}
 		for (const cyclic of [
 			[item("base", "/** {@inheritDoc base} */")],
@@ -897,8 +1337,11 @@ describe("Explicit documentation inheritance", () => {
 	});
 
 	it("rejects unsupported semantic scope while retaining URL links", () => {
+		assertAssertionError(
+			() => resolveDocumentation([item("derived", "/** {@link base} */")], []),
+			"Comments with API links must have original link validation inputs.",
+		);
 		for (const documentation of [
-			"/** {@link base} */",
 			"/** {@inheritDoc other#base} */",
 			"/** {@inheritDoc} */",
 			"/** {@link */",
@@ -911,9 +1354,9 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		assert.equal(result.value[0]?.documentation?.includes("https://example.com"), true);
-		assert.equal(
-			resolveDocumentation([item("base", undefined), item("base", undefined)], []).ok,
-			false,
+		assertAssertionError(
+			() => resolveDocumentation([item("base", undefined), item("base", undefined)], []),
+			"Documentation inputs must have distinct identities.",
 		);
 		assert.equal(
 			resolveDocumentation(

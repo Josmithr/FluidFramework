@@ -95,3 +95,62 @@ export declare class DocumentedAliasImplementation implements HiddenImplementati
 
 /** Inherited implementation. @public */
 export declare class DocumentedImplementationDerived extends DocumentedImplementation {}
+
+/** Generic overload contract. @public */
+export interface GenericOverloadContract {
+	/** Maps an array. @public */
+	map<Value>(value: Value[]): Value[];
+	/** Maps a scalar. @public */
+	map<Value>(value: Value): Value;
+}
+
+/** Generic overload implementation. @public */
+export declare class GenericOverloadImplementation implements GenericOverloadContract {
+	map<Value>(value: Value): Value;
+	map<Value>(value: Value[]): Value[];
+}
+
+export declare class RenamedImplementation implements HiddenRoot<string> {
+	root(renamed: string): string;
+}
+
+interface SingleCallContract {
+	/** Single source. @public */
+	operation(value: string): string;
+}
+
+export declare class OverloadedReceiver implements SingleCallContract {
+	operation(value: string): string;
+	operation(value: number): string;
+}
+
+interface OverloadedSource {
+	/** String source. @public */
+	operation(value: string): string;
+	/** Number source. @public */
+	operation(value: number): string;
+}
+
+export declare class SingleCallReceiver implements OverloadedSource {
+	operation(value: string | number): string;
+}
+
+export declare class UnconstrainedReceiver implements SingleCallContract {
+	operation(value: unknown): string;
+}
+
+export declare class DocumentedAliasDerived extends DocumentedAliasImplementation {}
+
+export declare class DiamondImplementation implements HiddenLeft, HiddenRight {
+	root(value: string): string;
+}
+
+export declare class EmptyImplementation implements HiddenRoot<string> {
+	/** */
+	root(value: string): string;
+}
+
+export declare class TagOnlyImplementation implements HiddenRoot<string> {
+	/** @public */
+	root(value: string): string;
+}

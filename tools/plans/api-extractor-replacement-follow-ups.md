@@ -7,6 +7,23 @@ These items do not define delivery-stage exit criteria. Schedule them separately
 The plan retains required capability gates, acceptance criteria, and implementation blockers.
 Moving an item here does not waive those requirements or mark an unresolved capability as supported.
 
+## Automatic overload documentation inheritance
+
+Status: open; explicitly deferred from Stage 2 by the revised inheritance scope.
+
+Investigate confident automatic documentation-source selection for overloaded members, including independently generic signatures.
+Current policy excludes automatic inheritance when the receiving member or a candidate source member is overloaded.
+Ambiguous or unproven automatic sources leave documentation absent. Explicit numeric `@inheritDoc` selectors remain supported within the implemented declaration scope.
+
+- Evaluate official compiler APIs for pairwise signature compatibility, including generic substitution and constraints. Do not infer matches from printed signature text or overload order.
+- Retain the native generic-overload capability regression as evidence of the tested TS7 7.0.2 limitations, not proof that all official approaches are impossible.
+- Cover reordered overloads, generic parameters, optional and rest parameters, base classes, implemented interfaces, and conflicting sources.
+- Preserve local-comment suppression, original release classification, and source provenance. An uncertain match must not copy documentation.
+- Keep explicit numeric selectors one-based and order-sensitive; test invalid selectors independently of automatic matching.
+
+Acceptance: automatic inheritance selects a demonstrably compatible source without guessing, or leaves documentation absent when no confident selection is possible.
+This item is not a Stage 2 exit requirement and does not defer non-overloaded automatic inheritance or explicit numeric selector support.
+
 ## Upstream TypeScript reports
 
 Status: open; follow-up to the [Stage 0 findings](../api-analyzer/README.md#stage-0-results).

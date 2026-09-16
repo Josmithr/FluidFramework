@@ -143,12 +143,16 @@ export function createReviewReport(
 	options: ReviewReportOptions,
 ): Result<ReviewReport> {
 	const surface = facts.surfaces.find((item) => item.name === entrypoint);
-	if (surface === undefined || selection.name.trim().length === 0) {
+	if (surface === undefined) {
 		return failure(
 			DiagnosticCode.ReportConfiguration,
-			`Package ${facts.packageName}: supply an existing entrypoint and a non-blank report selection name. Requested entrypoint: ${entrypoint}.`,
+			`Package ${facts.packageName}: entrypoint ${entrypoint} is not configured. Request a configured entrypoint.`,
 		);
 	}
+	assert.ok(
+		selection.name.trim().length > 0,
+		"Validated selections must have non-blank names.",
+	);
 	const declarations = new Map<ApiItemId, DeclarationFact>();
 	const signatureIds = new Set<ApiItemId>();
 	for (const declaration of facts.declarations) {
@@ -166,15 +170,11 @@ export function createReviewReport(
 		}
 	}
 	const metadata = new Map(selection.items.map((item) => [item.id, item]));
-	if (
-		metadata.size !== selection.items.length ||
-		selection.items.some((item) => !signatureIds.has(item.id))
-	) {
-		return failure(
-			DiagnosticCode.ReportConfiguration,
-			`Package ${facts.packageName}, entrypoint ${entrypoint}: supply distinct selected identifiers from this analysis's signature facts.`,
-		);
-	}
+	assert.equal(metadata.size, selection.items.length, "Selected identities must be distinct.");
+	assert.ok(
+		selection.items.every((item) => signatureIds.has(item.id)),
+		"Selected identities must belong to the report's analysis facts.",
+	);
 	const documentation = resolveReportDocumentation(facts, options);
 	if (!documentation.ok) {
 		return documentation;
@@ -195,6 +195,8 @@ export function createReviewReport(
 		names.add(binding.name);
 		const declaration = declarations.get(binding.target);
 		assert.ok(declaration, "Every export target must have a declaration fact.");
+		// TODO (Stage 2 report declarations): Add class, interface, and merged-declaration report models
+		// with original classification and effective member documentation before removing this restriction.
 		if (
 			declaration.declarations.length === 0 ||
 			declaration.declarations.some((source) => source.kind !== "FunctionDeclaration") ||

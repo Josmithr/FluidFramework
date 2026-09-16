@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, it } from "mocha";
+import { assertAssertionError } from "./assertionUtils.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 
 describe("Snapshot assertions", () => {
@@ -45,10 +46,10 @@ describe("Snapshot assertions", () => {
 			` ${expected}`,
 			`${expected}\n`,
 		]) {
-			assert.throws(() => assertSnapshot(actual, "example.txt", directory), {
-				code: "ERR_ASSERTION",
-				message: /Snapshot differs:.*example\.txt/,
-			});
+			assertAssertionError(
+				() => assertSnapshot(actual, "example.txt", directory),
+				`Snapshot differs: ${new URL("example.txt", directory).pathname}`,
+			);
 		}
 		assert.equal(readFileSync(new URL("example.txt", directory), "utf8"), expected);
 		assert.deepEqual(readdirSync(directory), ["example.txt"]);
@@ -71,9 +72,10 @@ describe("Snapshot assertions", () => {
 			"file?x",
 			"file#x",
 		]) {
-			assert.throws(() => assertSnapshot(expected, name, directory), {
-				code: "ERR_ASSERTION",
-			});
+			assertAssertionError(
+				() => assertSnapshot(expected, name, directory),
+				"Expected a snapshot file name",
+			);
 		}
 	});
 });

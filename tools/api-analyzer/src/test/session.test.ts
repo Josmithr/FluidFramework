@@ -6,12 +6,15 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, it } from "mocha";
 import { resolveConfiguration, type EffectiveConfiguration } from "../configuration.js";
 import { createAnalysisSession } from "../session.js";
+import { createNativeAdapter } from "../nativeAdapter.js";
+import { DiagnosticCode } from "../result.js";
 import type { DeclarationFact, SignatureFact } from "../facts.js";
 
 describe("Analysis session", () => {
 	let directory: string;
 	let configuration: EffectiveConfiguration;
 	let session: ReturnType<typeof createAnalysisSession>;
+	let adapter: ReturnType<typeof createNativeAdapter>;
 	beforeEach(() => {
 		directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-session-"));
 		cpSync(
@@ -55,9 +58,11 @@ describe("Analysis session", () => {
 		assert.ok(result.ok);
 		configuration = result.value;
 		session = createAnalysisSession();
+		adapter = createNativeAdapter();
 	});
 	afterEach(() => {
 		session.close();
+		adapter.close();
 		rmSync(directory, { recursive: true, force: true });
 	});
 
@@ -67,7 +72,7 @@ describe("Analysis session", () => {
 			new URL("../../src/test/fixtures/session/comments.ts", import.meta.url),
 			path.join(directory, "src/comments.ts"),
 		);
-		const result = session.analyze({
+		const result = adapter.analyze({
 			...configuration,
 			entrypoints: [{ name: ".", path: path.join(directory, "src/comments.ts") }],
 		});
@@ -89,31 +94,30 @@ describe("Analysis session", () => {
 	});
 
 	// Design requirements: W6, W11.
-	it("reuses frozen facts across task order and policy changes", () => {
+	it("keeps cached facts private across task order and policy changes", () => {
 		const first = session.analyze(configuration);
 		assert.ok(first.ok, JSON.stringify(first));
+		assert.deepEqual(first, { ok: true, value: undefined });
 		const second = session.analyze({
 			...configuration,
 			rules: { documentation: false },
 			entrypoints: [...configuration.entrypoints].reverse(),
 		});
 		assert.ok(second.ok);
-		assert.strictEqual(first.value, second.value);
+		assert.deepEqual(second, { ok: true, value: undefined });
 		assert.deepEqual(session.getStatistics(), { analyses: 1, cacheHits: 1, generation: 0 });
-		assert.ok(Object.isFrozen(first.value.declarations));
-		assert.ok(Object.isFrozen(first.value.surfaces[0]?.exports));
-		// JSON omits undefined documentation fields; the serialized representation must remain stable.
-		const serialized = JSON.stringify(first.value);
-		assert.equal(JSON.stringify(JSON.parse(serialized)), serialized);
 		session.close();
-		assert.ok(first.value.declarations.length > 0);
 		assert.equal(session.analyze(configuration).ok, false);
 	});
 
 	// Design regressions: B1, B2.
 	it("preserves alias identity and transitive type-only export paths", () => {
-		const result = session.analyze(configuration);
+		const result = adapter.analyze(configuration);
 		assert.ok(result.ok, JSON.stringify(result));
+		assert.equal(Object.isFrozen(result.value.declarations), true);
+		assert.equal(Object.isFrozen(result.value.surfaces[0]?.exports), true);
+		const serialized = JSON.stringify(result.value);
+		assert.equal(JSON.stringify(JSON.parse(serialized)), serialized);
 		const root = result.value.surfaces.find((surface) => surface.name === ".");
 		const chain = result.value.surfaces.find((surface) => surface.name === "./chain");
 		assert.ok(root && chain);
@@ -139,7 +143,7 @@ describe("Analysis session", () => {
 
 	// Design features: F1, F4.
 	it("retains effective members and individual callable signatures", () => {
-		const result = session.analyze(configuration);
+		const result = adapter.analyze(configuration);
 		assert.ok(result.ok, JSON.stringify(result));
 		const derived = result.value.declarations.find((item) => item.name === "Derived");
 		assert.equal(derived?.members.find((member) => member.name === "value")?.type, "string");
@@ -167,7 +171,7 @@ describe("Analysis session", () => {
 
 	// Design feature: F1.
 	it("marks deferred expansion with an actionable limitation", () => {
-		const result = session.analyze(configuration);
+		const result = adapter.analyze(configuration);
 		assert.ok(result.ok);
 		const deferred = result.value.declarations.find((item) => item.name === "Deferred");
 		assert.equal(deferred?.memberView, "partial");
@@ -187,10 +191,9 @@ describe("Analysis session", () => {
 		session.invalidate();
 		const changed = session.analyze(configuration);
 		assert.ok(changed.ok, JSON.stringify(changed));
-		assert.equal(
-			changed.value.declarations.find((item) => item.name === "Derived")?.members[0]?.type,
-			"number",
-		);
+		assert.deepEqual(changed, { ok: true, value: undefined });
+		// TODO (Stage 2 session outputs): Compare generated reports with a fresh session after this
+		// valid dependency edit; completion status alone cannot detect stale successful output.
 		const fresh = createAnalysisSession();
 		try {
 			assert.deepEqual(changed, fresh.analyze(configuration));
@@ -199,6 +202,25 @@ describe("Analysis session", () => {
 		}
 		assert.equal(session.getStatistics().analyses, 2);
 		assert.equal(session.getStatistics().generation, 1);
+		const invalidSource = path.join(directory, "src/invalid.ts");
+		writeFileSync(invalidSource, "export const invalid: string = 0;\n");
+		assert.deepEqual(session.analyze(configuration), { ok: true, value: undefined });
+		session.invalidate();
+		const invalid = session.analyze(configuration);
+		assert.equal(invalid.ok, false);
+		assert.equal("value" in invalid, false);
+		assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.CompilerDiagnostics);
+		const freshInvalid = createAnalysisSession();
+		try {
+			assert.deepEqual(invalid, freshInvalid.analyze(configuration));
+		} finally {
+			freshInvalid.close();
+		}
+		assert.deepEqual(session.analyze(configuration), invalid);
+		rmSync(invalidSource);
+		session.invalidate();
+		assert.deepEqual(session.analyze(configuration), { ok: true, value: undefined });
+		assert.deepEqual(session.getStatistics(), { analyses: 5, cacheHits: 1, generation: 3 });
 	});
 
 	// Design requirements: W4, W6.
@@ -247,26 +269,26 @@ describe("Analysis session", () => {
 			...configuration,
 			entrypoints: [{ name: ".", path: path.join(directory, "src/environment.ts") }],
 		};
-		const node = session.analyze(settings);
-		const browser = session.analyze({ ...settings, project: browserProject });
+		const node = adapter.analyze(settings);
+		const browser = adapter.analyze({ ...settings, project: browserProject });
 		assert.ok(node.ok && browser.ok, JSON.stringify({ node, browser }));
 		assert.equal(node.value.declarations[0]?.members[0]?.type, '"node"');
 		assert.equal(browser.value.declarations[0]?.members[0]?.type, '"browser"');
 		assert.equal(browser.value.declarations[0]?.declarations[0]?.packageName, "dependency");
-		assert.equal(session.getStatistics().analyses, 2);
 		cpSync(
 			new URL("../../src/test/fixtures/session/browser-updated.d.ts", import.meta.url),
 			path.join(dependency, "browser.d.ts"),
 		);
-		session.invalidate();
-		const updated = session.analyze({ ...settings, project: browserProject });
+		adapter.close();
+		adapter = createNativeAdapter();
+		const updated = adapter.analyze({ ...settings, project: browserProject });
 		assert.ok(updated.ok);
 		assert.equal(updated.value.declarations[0]?.members[0]?.type, '"updated"');
 	});
 
 	// Design requirement: W4.
 	it("preserves identities across checkout relocation and overload reordering", () => {
-		const first = session.analyze(configuration);
+		const first = adapter.analyze(configuration);
 		assert.ok(first.ok);
 		const original = readFileSync(path.join(directory, "src/api.ts"), "utf8");
 		// Move each overload with its comment. Only declaration order should change.
@@ -277,8 +299,9 @@ describe("Analysis session", () => {
 				"/** Internal overload documentation. @internal */\nexport function convert(value: number): number;\n/** Public overload documentation. @public */\nexport function convert(value: string): string;",
 			),
 		);
-		session.invalidate();
-		const reordered = session.analyze(configuration);
+		adapter.close();
+		adapter = createNativeAdapter();
+		const reordered = adapter.analyze(configuration);
 		assert.ok(reordered.ok);
 		const initialSignatures = first.value.declarations.find(
 			(item) => item.name === "convert",
@@ -291,7 +314,7 @@ describe("Analysis session", () => {
 			reorderedSignatures?.map((item) => item.id).sort(),
 		);
 		const copy = mkdtempSync(path.join(tmpdir(), "api-analyzer-copy-"));
-		const fresh = createAnalysisSession();
+		const fresh = createNativeAdapter();
 		try {
 			// Change the checkout path without changing package-relative paths or source text.
 			cpSync(directory, copy, { recursive: true });

@@ -263,6 +263,11 @@ Tests at this stage need not claim final artifact behavior that has not yet been
 
 The initial implementation requires callers to invalidate cached facts after input changes.
 Each session owns its cache. Automatic input tracking remains Stage 5 work.
+The public session's `analyze` method returns completion status or diagnostics, not analysis facts.
+Facts remain private to the session; the internal compiler adapter can return them to internal consumers and tests.
+Add future report, documentation model, declaration generation, and validation operations to the session itself.
+Do not introduce a separate public analysis-result object that exposes facts.
+The current standalone pipeline exports still require integration behind this session boundary.
 Facts are frozen and contain no compiler objects before the snapshot is disposed.
 Different TypeScript projects use separate cache entries.
 The data format remains provisional. Stable versioned identifiers, complete reference graphs, and the remaining documentation model fields require later contracts and tests.
@@ -315,7 +320,8 @@ These options affect presentation only. Tag-only comments do not count as descri
 Required package-documentation support is recorded in the follow-up tracker; broader presentation customization follows rough API Extractor parity.
 Public, complete, and empty reports use checked-in snapshots. Both TS6- and TS7-built function fixtures render the same snapshots after session closure.
 The builder explicitly rejects other declaration forms, including merged namespaces, rather than emitting partial reports.
-Structured documentation targets and same-package explicit function inheritance now feed report construction. Next, extend report facts and selection to other declaration forms, then add automatic member inheritance and suite resolution as specified below.
+Structured documentation targets and same-package explicit function inheritance now feed report construction.
+Next, extend report facts and selection to other declaration forms, integrate the automatic member resolver, and add suite resolution as specified below.
 Complete reference validation, actual conditional-entrypoint parity, and the repository pilot before closing Stage 2.
 The analysis facts still contain raw declaration text and export targets, not a complete type-reference graph.
 Signature documentation and classification inputs use a required `string | undefined` property.
@@ -336,21 +342,23 @@ The [resolver contract](../api-analyzer/README.md#explicit-documentation-inherit
 Pure tests cover chains, empty targets, blocks that remain local, invalid bindings, cycles, and unsupported features.
 Real-compiler tests resolve comments from TypeScript 6 and TypeScript 7 declaration builds after the TypeScript 7 analysis session closes.
 
-`bindDocumentationReferences` uses compiler lookup facts to bind unqualified standalone function references in the original declaration scope.
+`bindDocumentationReferences` uses compiler lookup facts to bind function references and namespace or instance method paths in the original declaration scope.
 This includes imported and exported aliases.
 The adapter collects targets that are not exported and retains the location and parameter facts for each signature.
 Tests verify lookup through re-exports and after session closure or JSON serialization.
-The binder requires one target signature with matching parameter names, optional parameter flags, rest parameter flags, and type-parameter names.
+The binder requires one target signature, selected by a one-based numeric TSDoc selector for overloaded targets, with matching parameter names, optional parameter flags, rest parameter flags, and type-parameter names.
 It reports missing targets, ambiguous overloads, and incompatible parameter shapes without comparing printed types.
 These checks do not establish TypeScript assignability.
 
-Qualified references, selectors, general overload matching, and parameter adaptation remain pending.
+Numeric selectors for same-package function and method inheritance are implemented, including bounds and selected-parameter validation.
+Method paths use terminal selectors; static class member paths and static/instance name collisions are rejected.
+Package-qualified references, nonnumeric selectors, and parameter adaptation remain pending. Automatic overload matching is deferred, not a Stage 2 requirement.
 Classification, reference binding, and content resolution now share explicit custom modifier configuration through `TsdocOptions`.
 Each operation creates an independent TSDoc configuration and rejects invalid names or redefinitions.
 Binding and resolution still fail on parser diagnostics when classification disables its own syntax diagnostics.
 Pure tests and fixtures built with both supported compilers verify local custom metadata, request isolation, and unchanged classification and selection after resolution.
 Custom block and inline tags, configuration-file loading, and general API link target support remain pending.
-The adapter now records API links in `FunctionDocumentationContext.links` using the shared `DocumentationReferenceLookup` type.
+The adapter now records API links in `SignatureDocumentationContext.links` using the shared `DocumentationReferenceLookup` type.
 Lookup retains original scope, aliases, non-exported targets, repeated links, and missing or unsupported reference results.
 Compiler tests cover links in documentation blocks, self-references, mutually linked declarations, URL exclusion, and detached JSON-compatible contexts for both input compilers.
 The separate internal `bindDocumentationLinks` operation now binds local links to structured targets using original classification metadata, independently of report selection.
@@ -380,20 +388,37 @@ Member source records replace location-only origins and preserve separate overlo
 Class and interface fixtures verify inherited generic member origins, absent and empty local overrides, and frozen detached records for both input compilers.
 Effective members now have identifiers scoped to their containing declaration and detached callable signatures in compiler order.
 Both input compilers verify generic substitution, optional methods, callable properties, independent overload selection, and frozen signature facts after session closure.
-These member identities do not establish ancestor or override relationships. Signature documentation contexts remain limited to supported standalone functions.
+These member identities do not establish ancestor or override relationships.
+Collected function and method targets retain signature documentation contexts; effective-member view contexts remain pending.
 Direct class and interface base declaration links are now retained through compiler-resolved symbols, including unexported ancestors without changing export surfaces.
 Both compiler inputs verify generic bases, class inheritance, a diamond hierarchy with a shared root, implements exclusion, and frozen detached links.
 Base targets describe original declarations rather than instantiated generic views. These links do not establish member overrides or overload compatibility.
 Local class implements targets are now retained separately from base declarations, including unexported contracts and type alias targets.
 Both compiler inputs verify direct-only implementation links, unchanged local comments and members, and frozen detached targets without adding exports.
-Implementation links do not retain instantiated contract context or establish member and overload matches. They do not yet supply resolved documentation.
-This does not choose merged-comment precedence or implement broader classification and rendering. Member and overload relationships and class/interface report support remain next steps.
-Later work must add automatic inheritance, suite resolution, and source information for each resolved documentation section.
+Direct declaration links are now accompanied by detached `HeritageFact` views with compiler-instantiated members for extends and implements clauses.
+Both compiler inputs verify interface and class bases, generic substitution, type-alias implementation targets, and frozen views after session closure.
+Direct heritage views now retain compiler-checked non-overloaded documentation matches, including instantiated contracts.
+The internal automatic binder selects one compatible original member source, deduplicates diamonds, and skips overloaded, conflicting, or unproven candidates.
+The resolver accepts these bindings through `automaticInheritance`, preserves local-comment suppression, follows source chains, and reuses explicit inheritance's content copying and link-policy validation.
+Pure and native tests cover local suppression, class bases, type aliases, generic substitutions, diamonds, conflicting sources, overloaded receiver/source exclusion, and frozen results after session closure and JSON serialization.
+This does not choose merged-comment precedence or implement broader classification and rendering.
+Individually collected methods now retain original-scope API-link and explicit-reference contexts, including numeric inheritance chains with inherited-link provenance.
+Effective-member context integration, recursive instantiated ancestry, and class/interface report support remain next steps.
+Later work must add suite resolution and source information for each resolved documentation section.
 This implementation does not satisfy the resolution acceptance criteria below.
+
+Deferred overload capability: the pinned native TS7 7.0.2 public checker has no pairwise signature-compatibility API.
+The attempted overload-isolation path fails: `getTypeFromTypeNode` cannot resolve a function-type node returned by `signatureToSignatureDeclaration`.
+A regression with equivalent generic overloads in different orders also shows that mutual parameter-type assignability rejects their independently declared type parameters.
+Both TS6- and TS7-built fixtures reproduce these results.
+Do not replace automatic semantic matching with printed-text matching, declaration-order matching, or a custom type checker.
+Automatic overload inheritance is excluded from Stage 2 and tracked in the [future follow-up](api-extractor-replacement-follow-ups.md#automatic-overload-documentation-inheritance).
+Explicit numeric selectors deliberately select by callable declaration order and do not require inferred overload matching.
+The tested compiler limitations are not a blocker for the revised Stage 2 scope.
 
 Implement a separate documentation-resolution API over detached facts and explicit dependency data.
 Use the official TSDoc parser for comment syntax and the official compiler API for declaration relationships.
-Extract target identities, origin context, ancestor relationships, and overload relationships before disposing of the compiler snapshot.
+Extract target identities, origin context, compatible non-overloaded ancestor relationships, and callable overload order for explicit selectors before disposing of the compiler snapshot.
 Do not derive these relationships from printed signature strings or assume that type-reference edges alone resolve documentation references.
 Retain effective content and its provenance in an immutable result that reports and later documentation models can reuse without compiler access.
 Keep file loading at the boundary. Keep resolution policy separate from I/O and from report rendering.
@@ -401,7 +426,7 @@ Keep file loading at the boundary. Keep resolution policy separate from I/O and 
 Implement and verify these increments in order:
 
 1. Resolve same-package explicit `@inheritDoc` requests and API links. Cover inheritance chains, missing or ambiguous targets, cycles, empty targets, and originating-package context through re-exports.
-2. Add automatic member inheritance with class and interface report support. Include compatible implemented interface members as documentation sources for class members with no local TSDoc. Keep implements relationships separate from base-class inheritance. Any local TSDoc comment, including an empty or tag-only comment, suppresses all automatic inheritance. Explicit inheritance remains a resolution request. Match overloads by signature, not declaration order. Define precedence between class and interface sources. Diagnose conflicting ancestors or interface sources and cases where matching or parameter adaptation requires a local comment.
+2. Add automatic member inheritance with class and interface report support. Include confidently compatible implemented interface members as documentation sources for class members with no local TSDoc. Keep implements relationships separate from base-class inheritance. Any local TSDoc comment, including an empty or tag-only comment, suppresses all automatic inheritance. Exclude automatic inheritance when the receiving member or a candidate source member is overloaded. Leave ambiguous, conflicting, or unproven automatic sources undocumented rather than guessing. Define precedence between class and interface sources. Explicit inheritance remains a validated resolution request: require one-based numeric selectors for overloaded targets and diagnose missing targets, invalid selectors, and incompatible parameter documentation.
 3. Add suite dependency-model loading, target identity, and compatibility contracts required for cross-package resolution. Support direct, transitive, and peer dependencies selected by package names or globs. Missing or incompatible models for any selected dependency fail package processing, even when unused. Reject API references outside the suite and preserve the documentation's originating package. Move the minimum dependency-model producer and reader support forward from Stage 3 to make this increment testable.
 
 An increment must diagnose resolution requests that require unsupported scope. Do not silently accept them as documented.
@@ -419,14 +444,16 @@ It measures content presence, not documentation quality or completeness. Paramet
 | Successfully resolved inheritance with no descriptive content | Undocumented. |
 | No local comment and no ancestor content | Undocumented. |
 | Empty or metadata-tag-only local comment without explicit inheritance | Undocumented; automatic inheritance is suppressed. |
-| Missing target, cycle, conflicting ancestors, or ambiguous overload match | Resolution diagnostic; do not construct a successful report with a guessed boolean. |
+| Overloaded receiver or candidate source, or no confidently compatible automatic source | No automatic inheritance; undocumented when local descriptive content is absent. |
+| Invalid explicit target or selector, incompatible explicit binding, or inheritance cycle | Resolution diagnostic; do not construct a successful report with a guessed boolean. |
 
 Resolution returns diagnostics for user-caused failures without a partial success value. Internal assertions and operational failures remain exceptions.
 If partial reports are introduced later, they must represent unresolved documentation explicitly rather than use `false` or `true` as a fallback.
 Function reports now implement effective-content boolean semantics. Extend the documented contract and tests together as automatic inheritance and suite resolution are added.
 
 Acceptance tests must cover every table row, local-comment precedence, signature matching, origin preservation, suite model failures, and reference policies.
-For implements relationships, cover absent, empty, and tag-only local comments, generic and overloaded contracts, multiple interface sources, conflicting documentation, and interaction with base-class sources.
+For implements relationships, cover absent, empty, and tag-only local comments, compatible generic non-overloaded contracts, multiple interface sources, and interaction with base-class sources.
+Verify that overloaded members and uncertain or conflicting automatic sources do not inherit content. Verify explicit numeric selectors, order sensitivity, bounds, and selected-parameter validation separately.
 Use pure resolver tests plus real-compiler fixtures built with TS6 and TS7 and analyzed with TS7.
 Verify resolution and report generation after session closure. Use checked-in report snapshots and confirm that classification and selection do not change when documentation is inherited.
 Stage 2 takes on these semantic prerequisites; Stage 3 retains the complete portable-model and downstream-consumption gates.

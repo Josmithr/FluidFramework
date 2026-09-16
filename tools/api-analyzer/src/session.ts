@@ -7,12 +7,15 @@ import { DiagnosticCode, failure, type Result } from "./result.js";
  * A synchronous owner of compiler resources and reusable facts.
  *
  * @remarks
- * Facts contain no compiler objects and remain usable after the session closes.
+ * Analysis facts remain private to the session for reuse by its operations.
  * The caller must invalidate the session when analysis inputs change.
  */
 export interface AnalysisSession {
+	// TODO (Stage 2 session outputs): Add report generation and validation operations that
+	// reuse private cached facts. Extend this pattern to documentation models and declarations
+	// in later stages; do not return facts or a separate public analysis object.
 	/**
-	 * Analyzes a configuration or returns its cached facts.
+	 * Analyzes a configuration or reuses its privately cached facts.
 	 *
 	 * @remarks
 	 * Calls block the calling thread. Cached requests do not contact the compiler.
@@ -21,12 +24,12 @@ export interface AnalysisSession {
 	 * An unexpected adapter failure closes the session and clears its cache.
 	 *
 	 * @param configuration - Effective settings returned by configuration resolution.
-	 * @returns Facts on success, or diagnostics on failure. Repeated requests for a cached
-	 * configuration return the same facts object. Requests after close return `session-closed`.
+	 * @returns Completion status without analysis facts, or diagnostics on failure.
+	 * Requests after close return `session-closed`.
 	 * @throws The original unexpected adapter error after closing the session and clearing its cache.
 	 * If cleanup also fails, throws an `AggregateError` containing both errors.
 	 */
-	analyze(configuration: EffectiveConfiguration): Result<AnalysisFacts>;
+	analyze(configuration: EffectiveConfiguration): Result<void>;
 	/**
 	 * Discards all cached facts and closes the current compiler connection.
 	 *
@@ -64,7 +67,7 @@ export interface AnalysisSession {
 	 * Closes the session and releases its cached facts and compiler connection.
 	 *
 	 * @remarks
-	 * Repeated calls have no effect. Previously returned facts remain usable.
+	 * Repeated calls have no effect. Retained analysis facts are discarded.
 	 * The session remains closed even if connection cleanup fails.
 	 *
 	 * @throws If the compiler connection cannot be closed.
@@ -124,7 +127,7 @@ export function createAnalysisSession(): AnalysisSession {
 			const cached = cache.get(key);
 			if (cached) {
 				cacheHits++;
-				return { ok: true, value: cached };
+				return { ok: true, value: undefined };
 			}
 			try {
 				adapter ??= createNativeAdapter();
@@ -132,6 +135,7 @@ export function createAnalysisSession(): AnalysisSession {
 				const result = adapter.analyze(configuration);
 				if (result.ok) {
 					cache.set(key, result.value);
+					return { ok: true, value: undefined };
 				}
 				return result;
 			} catch (error) {

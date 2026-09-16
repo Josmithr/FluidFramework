@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { TSDocParser, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
 import type { ApiItemId } from "./facts.js";
 import {
@@ -268,12 +269,10 @@ export function classifyApiItems(
 	const diagnostics: AnalyzerDiagnostic[] = [];
 	const classified: ApiItemMetadata[] = [];
 	for (const item of items) {
-		if (identifiers.has(item.id)) {
-			return failure(
-				DiagnosticCode.ClassificationDuplicateId,
-				`Duplicate item identifier ${item.id}. Supply distinct identifiers before classification.`,
-			);
-		}
+		assert.ok(
+			!identifiers.has(item.id),
+			"Classification inputs must have distinct identities.",
+		);
 		identifiers.add(item.id);
 
 		// Parse every present comment, including empty comments, even when syntax diagnostics are disabled.
