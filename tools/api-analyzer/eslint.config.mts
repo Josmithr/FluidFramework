@@ -1,3 +1,5 @@
+/* eslint import-x/no-default-export: "off", import-x/no-internal-modules: ["error", { allow: ["@fluidframework/eslint-config-fluid/flat.mts"] }] -- ESLint requires a default export and the shared preset's documented subpath. */
+
 import { strict } from "@fluidframework/eslint-config-fluid/flat.mts";
 import type { Linter } from "eslint";
 
@@ -19,19 +21,25 @@ const config: Linter.Config[] = [
 		rules: { "import-x/no-nodejs-modules": "off" },
 	},
 	{
-		files: ["src/nativeAdapter.ts", "src/test/nativeCapabilities.test.ts", "src/test/lifecycleWorker.ts"],
+		files: ["src/**/*.ts"],
 		rules: {
 			// These are official TS7 entrypoints; tests also verify the installed compiler versions.
 			"import-x/no-internal-modules": [
 				"error",
-				{ allow: ["typescript/unstable/**", "typescript/package.json", "typescript6/package.json"] },
+				{
+					allow: [
+						"typescript/unstable/**",
+						"typescript/package.json",
+						"typescript6/package.json",
+					],
+				},
 			],
 		},
 	},
 	{
-		files: ["src/nativeAdapter.ts", "src/test/nativeCapabilities.test.ts"],
-		// TypeScript exposes symbol flags as bit masks.
-		rules: { "no-bitwise": "off" },
+		files: ["src/test/**/*.ts"],
+		// Tests may intentionally verify JSON serialization, not in-memory cloning.
+		rules: { "unicorn/prefer-structured-clone": "off" },
 	},
 ];
 

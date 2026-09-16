@@ -32,7 +32,8 @@ describe("Explicit documentation inheritance", () => {
 		const result = resolveDocumentation(items, [binding("derived", "base")], options);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation);
+		assert(derived?.documentation !== undefined);
+		assert(derived.documentation !== "");
 		assert.equal(derived.documentation.includes("Summary."), true);
 		assert.equal(derived.documentation.includes("@localOnly"), true);
 		assert.equal(derived.documentation.includes("@sourceOnly"), false);
@@ -110,7 +111,8 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation);
+		assert.ok(derived?.documentation !== undefined);
+		assert.notEqual(derived.documentation, "");
 		assertSnapshot(derived.documentation, "documentation.direct.txt");
 		assert.deepEqual(derived.inheritedFrom, ["base"]);
 	});
@@ -133,7 +135,8 @@ describe("Explicit documentation inheritance", () => {
 			["base", "derived", "middle"],
 		);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation);
+		assert.ok(derived?.documentation !== undefined);
+		assert.notEqual(derived.documentation, "");
 		assert.deepEqual(derived.inheritedFrom, ["middle", "base"]);
 		assertSnapshot(derived.documentation, "documentation.chain.txt");
 		assert.equal(derived.documentation.includes("Converts a value."), true);
@@ -165,7 +168,8 @@ describe("Explicit documentation inheritance", () => {
 			const base = result.value.find((entry) => entry.id === "base");
 			assert.equal(base?.documentation === undefined, documentation === undefined);
 			const derived = result.value.find((entry) => entry.id === "derived");
-			assert.ok(derived?.documentation);
+			assert.ok(derived?.documentation !== undefined);
+			assert.notEqual(derived.documentation, "");
 			assert.deepEqual(derived.inheritedFrom, ["base"]);
 			assert.equal(derived.documentation.includes("@inheritDoc"), false);
 			assert.equal(derived.documentation.includes("@internal"), false);
@@ -223,7 +227,8 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation);
+		assert.ok(derived?.documentation !== undefined);
+		assert.notEqual(derived.documentation, "");
 		assert.equal(derived.documentation.includes("Summary."), true);
 		assert.equal(derived.documentation.includes("Local example."), true);
 		assertSnapshot(derived.documentation, "documentation.local-blocks.txt");

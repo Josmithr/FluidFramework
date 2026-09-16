@@ -492,18 +492,40 @@ Run these commands from this package directory to install pinned dependencies an
 
 ```sh
 pnpm install
+pnpm lint
 pnpm test:contracts
 pnpm check:format
 ```
 
 The package has an independent workspace and lockfile so it does not change the client release group's compiler.
-The test build uses TS7. TS6 is a fixture-build and consumer-check dependency only, not an analysis fallback.
+The test build uses TS7.
+TS6 supplies the conventional compiler API required by ESLint and also builds fixtures and checks declaration consumers.
+It is not an analysis fallback.
 Run `pnpm test` to include all Stage 0 investigation gates as well. That command intentionally remains unsuccessful while the three recorded gates fail.
 `test:contracts` runs the analysis and configuration contracts plus release-classification and metadata-selection tests.
 `test:stage1` retains its existing command name and selects the `Effective configuration`, `Analysis session`, and `Adapter fact extraction` suites, plus session-lifecycle worker tests.
 Test names describe behavior. Applicable design identifiers appear in comments above tests.
 Temporary investigation tests have comments that explain their purpose and when to remove or replace them.
 The focused command is not a claim that the excluded gates pass.
+
+### Linting
+
+[eslint.config.mts](eslint.config.mts) uses the `strict` preset from the in-repo `@fluidframework/eslint-config-fluid` package.
+`pnpm lint` checks the package with zero warnings allowed.
+Use `pnpm lint:fix` to apply automatic fixes, then rerun the build and contract tests.
+Some fixes require manual review, especially changes to imports or test assertions.
+Biome remains the formatter; run `pnpm check:format` after lint fixes.
+
+The ESLint configuration documents shared allowances for Node.js built-ins and official TypeScript subpath imports.
+A test-wide rule exception permits JSON round-trip tests instead of in-memory cloning.
+File-local ESLint directives explain exceptions for compiler symbol bit masks and intentional `null` states.
+Generated output and [compiler fixture inputs](src/test/fixtures/README.md) are excluded from ESLint.
+Fixtures are formatted and validated in their temporary compiler projects instead.
+
+[pnpm-workspace.yaml](pnpm-workspace.yaml) gives the shared lint configuration its own TypeScript 6 dependency.
+This keeps the lint plugins compatible without replacing the analyzer's native TypeScript 7 dependency.
+Comments explain the compatibility overrides, reviewed trust exceptions, and allowed dependency build scripts.
+The package retains strict peer dependency checks and supply-chain policies.
 
 ## Stage 0 results
 

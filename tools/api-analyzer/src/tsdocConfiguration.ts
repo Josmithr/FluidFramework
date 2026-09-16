@@ -1,5 +1,6 @@
 import { TSDocConfiguration, TSDocTagDefinition, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
-import { DiagnosticCode, failure, type Result } from "./result.js";
+import { failure } from "./result.js";
+import type { DiagnosticCode, Result } from "./result.js";
 
 /**
  * The custom tag vocabulary for classification and documentation resolution.

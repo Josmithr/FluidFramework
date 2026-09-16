@@ -48,14 +48,18 @@ describe("Review baseline handling", () => {
 				assert.equal(stale.diagnostics[0]?.code, "baseline-stale");
 			}
 			assert.equal(await readFile(baselinePath, "utf8"), "accepted\n");
-			assert.ok((await updateReviewBaseline("new\n", baselinePath)).ok);
+			const updated = await updateReviewBaseline("new\n", baselinePath);
+			assert.equal(updated.ok, true);
 			assert.equal(await readFile(baselinePath, "utf8"), "new\n");
-			assert.ok((await checkReviewBaseline("new\n", baselinePath)).ok);
+			const checked = await checkReviewBaseline("new\n", baselinePath);
+			assert.equal(checked.ok, true);
 			assert.equal(compareReviewBaseline("different\n", "new\n").ok, false);
 			assert.equal(await readFile(baselinePath, "utf8"), "new\n");
 			await rm(baselinePath);
-			assert.ok((await updateReviewBaseline("", baselinePath)).ok);
-			assert.ok((await checkReviewBaseline("", baselinePath)).ok);
+			const emptyUpdated = await updateReviewBaseline("", baselinePath);
+			assert.equal(emptyUpdated.ok, true);
+			const emptyChecked = await checkReviewBaseline("", baselinePath);
+			assert.equal(emptyChecked.ok, true);
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}

@@ -355,7 +355,7 @@ export function renderReviewReport(
 			}
 			tags.push(
 				...signature.modifierTags.filter(
-					(tag) => !releaseTags.has(tag) && options.additionalTags?.includes(tag),
+					(tag) => !releaseTags.has(tag) && options.additionalTags?.includes(tag) === true,
 				),
 			);
 			if (options.includeUndocumentedNotice !== false && !signature.documented) {
@@ -363,12 +363,12 @@ export function renderReviewReport(
 			}
 			const comment = tags.length > 0 ? `// ${tags.join(" ")}\n` : "";
 			declarations.push(
-				`${comment}${direct === undefined ? "declare" : "export"} function ${localName}${signature.text.replace(/\r\n?/g, "\n").trimEnd()}`,
+				`${comment}${direct === undefined ? "declare" : "export"} function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
 			);
 		}
 		for (const exported of group) {
 			if (exported !== direct) {
-				const exportName = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(exported.name)
+				const exportName = /^[$A-Z_a-z][\w$]*$/.test(exported.name)
 					? exported.name
 					: JSON.stringify(exported.name);
 				aliases.push(

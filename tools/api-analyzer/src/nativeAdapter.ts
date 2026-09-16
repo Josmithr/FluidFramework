@@ -1,3 +1,6 @@
+/* eslint-disable no-bitwise -- TypeScript exposes symbol flags as bit masks. */
+/* eslint-disable unicorn/no-null -- Null is an input normalization case and the explicit unresolved readonly state. */
+
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -47,6 +50,20 @@ import type {
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
 
 /**
+ * An internal owner of a synchronous native compiler connection.
+ */
+export interface NativeAdapter {
+	/**
+	 * Extracts detached facts from a configuration using the owned connection.
+	 */
+	analyze(configuration: EffectiveConfiguration): Result<AnalysisFacts>;
+	/**
+	 * Closes the owned compiler connection.
+	 */
+	close(): void;
+}
+
+/**
  * Creates a synchronous adapter that owns a native TypeScript compiler connection.
  *
  * @remarks
@@ -58,7 +75,7 @@ import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
  * @returns An adapter with analysis and connection-cleanup operations.
  * @throws If the native compiler connection cannot be created.
  */
-export function createNativeAdapter() {
+export function createNativeAdapter(): NativeAdapter {
 	const api = new API();
 	return {
 		/**
@@ -326,9 +343,7 @@ export function identity(locations: LocationContext, symbol: CompilerSymbol): Ap
 	}
 	return JSON.stringify([
 		// Declaration order and repeated declarations in one file must not change the ID.
-		Array.from(
-			new Set(declarationLocations.map((location) => JSON.stringify(location))),
-		).sort(),
+		[...new Set(declarationLocations.map((location) => JSON.stringify(location)))].sort(),
 		...parents,
 		symbol.declarations.some((handle) => handle.kind === SyntaxKind.SourceFile)
 			? "<module>"
@@ -466,14 +481,14 @@ export function exportTypeOnly(
 		}
 	}
 	// Explicit exports take precedence over star exports with the same name.
-	if (explicit.length) {
+	if (explicit.length > 0) {
 		return explicit.every(Boolean);
 	}
 	const symbol = checker.getExportsOfModule(moduleSymbol).find((item) => item.name === name);
 	if (
 		symbol?.declarations.some((handle) =>
 			moduleSymbol.declarations.some((moduleHandle) => moduleHandle.path === handle.path),
-		)
+		) === true
 	) {
 		return aliasTypeOnly(checker, symbol);
 	}
@@ -569,15 +584,16 @@ export function members(
 				.map((handle) => handle.resolve())
 				.filter((item): item is Node => item !== undefined);
 			const declaration = nodes[0];
-			const nameNode = declaration && "name" in declaration ? declaration.name : undefined;
+			const nameNode: unknown =
+				declaration && "name" in declaration ? declaration.name : undefined;
 			// Print computed names to avoid compiler symbol names that contain temporary IDs.
 			const name =
-				nameNode && typeof nameNode === "object" && "kind" in nameNode
+				nameNode !== null && typeof nameNode === "object" && "kind" in nameNode
 					? emitter.printNode(nameNode as Node).trim()
 					: property.name;
 			const readonly =
 				modifiers.get(property.name) ??
-				(nodes.length
+				(nodes.length > 0
 					? nodes.some(
 							(item) =>
 								"modifiers" in item &&
@@ -806,13 +822,7 @@ export function collect(
 			const node = handle?.resolve();
 			const fact = callSignatures[index];
 			assert.ok(fact, "Compiler signatures must correspond to extracted signature facts.");
-			if (
-				handle &&
-				node &&
-				isFunctionDeclaration(node) &&
-				node.parent &&
-				isSourceFile(node.parent)
-			) {
+			if (handle && node && isFunctionDeclaration(node) && isSourceFile(node.parent)) {
 				const source = node.parent;
 				const location = origin(locations, handle.path, node.pos);
 				const comment = new TSDocParser().parseString(

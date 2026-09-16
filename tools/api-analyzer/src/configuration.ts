@@ -230,7 +230,8 @@ function mergeConfigurationLayers(
 	const normalized = layers.map((layer) =>
 		Object.fromEntries(
 			Object.entries(layer).filter(
-				([key, value]) => configurationSchema.hasKey(key) && value != null,
+				([key, value]) =>
+					configurationSchema.hasKey(key) && value !== undefined && value !== null,
 			),
 		),
 	);
@@ -267,7 +268,14 @@ function validateAndNormalizeConfiguration(
 	merged: Omit<Configuration, "extends">,
 	workingDirectory: string,
 ): Result<EffectiveConfiguration> {
-	if (!merged.packageName?.trim() || !merged.project?.trim() || !merged.entrypoints?.length) {
+	if (
+		merged.packageName === undefined ||
+		merged.packageName.trim().length === 0 ||
+		merged.project === undefined ||
+		merged.project.trim().length === 0 ||
+		merged.entrypoints === undefined ||
+		merged.entrypoints.length === 0
+	) {
 		return failure(
 			DiagnosticCode.ConfigurationRequired,
 			"Supply packageName, project, and at least one entrypoint.",

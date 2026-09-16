@@ -5,6 +5,8 @@ import {
 	DiagnosticCode,
 	ReleaseLevel,
 	selectApiItems,
+	type ApiClassification,
+	type ApiItemMetadata,
 	type ApiItemSelection,
 } from "../index.js";
 
@@ -72,7 +74,9 @@ describe("Release classification and metadata selection", () => {
 		assert.equal(malformed.ok, false);
 		if (!malformed.ok) {
 			assert.ok(
-				malformed.diagnostics.some((diagnostic) => diagnostic.code === "classification-tsdoc"),
+				malformed.diagnostics.some(
+					(diagnostic) => diagnostic.code === DiagnosticCode.ClassificationTsdoc,
+				),
 			);
 		}
 	});
@@ -198,7 +202,8 @@ describe("Release classification and metadata selection", () => {
 			const result = classifyApiItems([{ id: "affected", documentation }]);
 			assert.equal(result.ok, false);
 			if (!result.ok) {
-				assert.equal(JSON.parse(JSON.stringify(result)).diagnostics[0].code, serializedCode);
+				const restored = JSON.parse(JSON.stringify(result)) as typeof result;
+				assert.equal(restored.diagnostics[0]?.code, serializedCode);
 				assert.ok(
 					result.diagnostics.some(
 						(diagnostic) =>
@@ -231,7 +236,10 @@ describe("Release classification and metadata selection", () => {
 		});
 		assert.ok(included.ok);
 		assert.equal(included.value.items.length, 1);
-		const restored = JSON.parse(JSON.stringify(result.value));
+		const restored = JSON.parse(JSON.stringify(result.value)) as ApiClassification & {
+			items: ApiItemMetadata[];
+		};
+		assert.ok(restored.items[0]);
 		assert.equal(Object.hasOwn(restored.items[0], "releaseLevel"), false);
 		assert.equal(restored.items[0].releaseLevel, undefined);
 		restored.items.push({
@@ -270,7 +278,9 @@ describe("Release classification and metadata selection", () => {
 		assert.equal(invalid.ok, false);
 		if (!invalid.ok) {
 			assert.ok(
-				invalid.diagnostics.some((diagnostic) => diagnostic.code === "classification-tsdoc"),
+				invalid.diagnostics.some(
+					(diagnostic) => diagnostic.code === DiagnosticCode.ClassificationTsdoc,
+				),
 			);
 		}
 	});
@@ -284,7 +294,7 @@ describe("Release classification and metadata selection", () => {
 			assert.ok(
 				failed.diagnostics.some(
 					(diagnostic) =>
-						diagnostic.code === "classification-tsdoc" &&
+						diagnostic.code === DiagnosticCode.ClassificationTsdoc &&
 						diagnostic.message.includes("invalid-comment"),
 				),
 			);
@@ -348,7 +358,7 @@ describe("Release classification and metadata selection", () => {
 		if (!invalid.ok) {
 			assert.equal(invalid.diagnostics[0]?.code, "selection-configuration");
 		}
-		const mutable = JSON.parse(JSON.stringify(result.value));
+		const mutable = structuredClone(result.value);
 		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] as const };
 		const first = selectApiItems(mutable, selection);
 		const second = selectApiItems(mutable, selection);

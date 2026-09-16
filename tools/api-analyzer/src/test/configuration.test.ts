@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/no-null -- Null is an input normalization case and the explicit unresolved readonly state. */
+
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "mocha";

@@ -196,6 +196,7 @@ export interface MemberFact {
 	 * `true` indicates a readonly modifier; `false` indicates no readonly modifier.
 	 * `null` means that the analyzer could not resolve the modifier state.
 	 */
+	// eslint-disable-next-line @rushstack/no-new-null -- The detached fact contract uses null to distinguish unresolved from false.
 	readonly readonly: boolean | null;
 	/**
 	 * The source locations associated with the member's declarations.

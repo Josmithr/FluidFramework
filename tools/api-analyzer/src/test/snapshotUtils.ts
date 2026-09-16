@@ -20,7 +20,7 @@ export function assertSnapshot(
 	name: string,
 	directory: URL = new URL("../../src/test/snapshots/", import.meta.url),
 ): string {
-	assert.match(name, /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "Expected a snapshot file name");
+	assert.match(name, /^[\dA-Za-z][\w.-]*$/, "Expected a snapshot file name");
 	const file = new URL(name, directory);
 	const expected = readFileSync(file, "utf8");
 	assert.equal(actual, expected, `Snapshot differs: ${file.pathname}`);

@@ -160,7 +160,7 @@ export function bindDocumentationReferences(
 			const targetSignature = target.signatures[0];
 			assert.ok(targetSignature, "Single-signature targets must have a signature.");
 			const targetContext = targetSignature.documentationContext;
-			if (!targetContext || targetContext.origin.packageName !== context.origin.packageName) {
+			if (targetContext?.origin.packageName !== context.origin.packageName) {
 				return failure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${signature.id}: target ${lookup.reference} requires same-package standalone function facts. Cross-package targets require future suite resolution.`,
@@ -333,7 +333,7 @@ export function resolveDocumentation(
 					`Item ${item.id}: supply an explicit same-package inheritance target. Automatic and cross-package inheritance are not supported yet.`,
 				);
 			}
-			if (binding === undefined || binding.reference !== reference.emitAsTsdoc()) {
+			if (binding?.reference !== reference.emitAsTsdoc()) {
 				return failure(
 					DiagnosticCode.DocumentationReference,
 					`Item ${item.id}: supply one binding for ${reference.emitAsTsdoc()} in package ${item.packageName}.`,

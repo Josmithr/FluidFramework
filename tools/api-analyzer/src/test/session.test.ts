@@ -84,7 +84,7 @@ describe("Analysis session", () => {
 			const signature: SignatureFact | undefined = declaration?.signatures[0];
 			assert.ok(signature);
 			assert.equal(signature.documentation, expected, name);
-			assert.ok(declaration?.declarations[0]?.text.includes(`function ${name}`));
+			assert.equal(declaration?.declarations[0]?.text.includes(`function ${name}`), true);
 		}
 	});
 
@@ -149,9 +149,18 @@ describe("Analysis session", () => {
 		)?.signatures;
 		assert.equal(overloads?.length, 2);
 		assert.equal(new Set(overloads?.map((signature) => signature.id)).size, 2);
-		assert.ok(overloads?.some((signature) => signature.documentation?.includes("@internal")));
-		assert.ok(overloads?.some((signature) => signature.documentation?.includes("@public")));
-		assert.ok(derived?.members.every((member) => member.origins.length > 0));
+		assert.equal(
+			overloads?.some((signature) => signature.documentation?.includes("@internal") === true),
+			true,
+		);
+		assert.equal(
+			overloads?.some((signature) => signature.documentation?.includes("@public") === true),
+			true,
+		);
+		assert.equal(
+			derived?.members.every((member) => member.origins.length > 0),
+			true,
+		);
 	});
 
 	// Design feature: F1.
@@ -198,7 +207,7 @@ describe("Analysis session", () => {
 		});
 		assert.equal(result.ok, false);
 		if (!result.ok) {
-			assert.ok(result.diagnostics[0]?.message.includes("missing.json"));
+			assert.equal(result.diagnostics[0]?.message.includes("missing.json"), true);
 		}
 		assert.ok(session.analyze(configuration).ok);
 	});

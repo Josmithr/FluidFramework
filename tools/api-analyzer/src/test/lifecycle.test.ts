@@ -30,7 +30,7 @@ async function runWorker(mode: string): Promise<string> {
 	);
 	const worker = spawn(
 		process.execPath,
-		[fileURLToPath(new URL("./lifecycleWorker.js", import.meta.url)), mode, directory],
+		[fileURLToPath(new URL("lifecycleWorker.js", import.meta.url)), mode, directory],
 		{
 			detached: true,
 			stdio: ["ignore", "pipe", "pipe"],
@@ -43,6 +43,7 @@ async function runWorker(mode: string): Promise<string> {
 	worker.stderr.on("data", (chunk: Buffer) => {
 		output += chunk.toString();
 	});
+	const errors: unknown[] = [];
 	try {
 		await new Promise<void>((resolve, reject) => {
 			const deadline = setTimeout(
@@ -59,17 +60,28 @@ async function runWorker(mode: string): Promise<string> {
 				else reject(new Error(`Lifecycle worker failed (${code}, ${signal}): ${output}`));
 			});
 		});
-		return output;
+	} catch (error) {
+		errors.push(error);
 	} finally {
 		if (worker.pid !== undefined) {
 			try {
 				process.kill(-worker.pid, "SIGKILL");
 			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+				if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
+					errors.push(error);
+				}
 			}
 		}
-		rmSync(directory, { recursive: true, force: true });
+		try {
+			rmSync(directory, { recursive: true, force: true });
+		} catch (error) {
+			errors.push(error);
+		}
 	}
+	if (errors.length > 0) {
+		throw new AggregateError(errors, "Lifecycle worker execution or cleanup failed.");
+	}
+	return output;
 }
 
 describe("Native TS7 lifecycle (Linux process checks)", () => {

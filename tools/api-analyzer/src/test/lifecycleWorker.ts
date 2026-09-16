@@ -9,7 +9,8 @@ import { createAnalysisSession } from "../session.js";
 
 const mode = process.argv[2];
 const directory = process.argv[3];
-assert.ok(directory);
+assert(directory !== undefined);
+assert.notEqual(directory, "");
 
 function childPids(): readonly number[] {
 	return readFileSync(`/proc/self/task/${process.pid}/children`, "utf8")
@@ -36,7 +37,8 @@ if (mode === "session" || mode === "session-crash") {
 		const owned = childPids().filter((pid) => !before.includes(pid));
 		assert.equal(owned.length, 1);
 		const nativePid = owned[0];
-		assert.ok(nativePid);
+		assert(nativePid !== undefined);
+		assert.equal(nativePid > 0, true);
 		if (mode === "session-crash") {
 			process.kill(nativePid, "SIGKILL");
 			// Use an uncached configuration so the next request contacts the failed compiler process.
@@ -85,7 +87,8 @@ if (mode === "session" || mode === "session-crash") {
 			const owned = childPids().filter((pid) => !before.includes(pid));
 			assert.equal(owned.length, 1);
 			const nativePid = owned[0];
-			assert.ok(nativePid);
+			assert(nativePid !== undefined);
+			assert.equal(nativePid > 0, true);
 			const command = readFileSync(`/proc/${nativePid}/cmdline`, "utf8").split("\0");
 			assert.equal(path.basename(command[0] ?? ""), "tsc");
 			assert.ok(command.includes("--api"));
@@ -100,12 +103,14 @@ if (mode === "session" || mode === "session-crash") {
 } else {
 	const before = childPids();
 	const api = new AsyncAPI({ cwd: directory, collectTiming: true });
+	const errors: unknown[] = [];
 	try {
 		const snapshot = await api.updateSnapshot();
 		const owned = childPids().filter((pid) => !before.includes(pid));
 		assert.equal(owned.length, 1, "One native compiler child must belong to this worker");
 		const nativePid = owned[0];
-		assert.ok(nativePid);
+		assert(nativePid !== undefined);
+		assert.equal(nativePid > 0, true);
 		const command = readFileSync(`/proc/${nativePid}/cmdline`, "utf8").split("\0");
 		assert.equal(path.basename(command[0] ?? ""), "tsc");
 		assert.ok(command.includes("--api") && command.includes("--async"));
@@ -118,13 +123,21 @@ if (mode === "session" || mode === "session-crash") {
 			assert.equal(snapshot.isDisposed(), true);
 			assert.throws(() => snapshot.getProjects());
 		}
+	} catch (error) {
+		errors.push(error);
 	} finally {
 		try {
 			await api.close();
 		} catch (error) {
-			if (mode !== "crash") throw error;
-			console.log(`close after native termination: ${String(error)}`);
+			if (mode === "crash") {
+				console.log(`close after native termination: ${String(error)}`);
+			} else {
+				errors.push(error);
+			}
 		}
+	}
+	if (errors.length > 0) {
+		throw new AggregateError(errors, "Async compiler probe or cleanup failed.");
 	}
 	console.log("async client disposed");
 }

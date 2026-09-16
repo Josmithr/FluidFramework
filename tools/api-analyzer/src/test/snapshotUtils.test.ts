@@ -67,7 +67,7 @@ describe("Snapshot assertions", () => {
 			"..",
 			"../example.txt",
 			"/example.txt",
-			"dir\\example.txt",
+			String.raw`dir\example.txt`,
 			"file?x",
 			"file#x",
 		]) {

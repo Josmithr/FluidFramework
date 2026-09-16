@@ -1,3 +1,5 @@
+/* eslint-disable no-bitwise -- TypeScript exposes symbol flags as bit masks. */
+
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -7,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { TSDocParser } from "@microsoft/tsdoc";
-import { after, before, describe, it } from "mocha";
+import { after, before as beforeAll, describe, it } from "mocha";
 import { SyntaxKind } from "typescript/unstable/ast";
 import {
 	isExportDeclaration,
@@ -25,7 +27,7 @@ import {
 } from "typescript/unstable/sync";
 import { resolveConfiguration } from "../configuration.js";
 import { bindDocumentationReferences } from "../documentation.js";
-import type { DocumentationReferenceLookup } from "../facts.js";
+import type { AnalysisFacts, DocumentationReferenceLookup } from "../facts.js";
 import {
 	classifyApiItems,
 	ReleaseLevel,
@@ -44,8 +46,8 @@ import {
 	exportTypeOnly,
 	identity,
 	members as extractMembers,
-	origin,
-	signatures,
+	origin as resolveOrigin,
+	signatures as extractSignatures,
 	target as resolveTarget,
 	type CollectionState,
 	type LocationContext,
@@ -273,9 +275,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		let project: Project;
 		let exports: readonly CompilerSymbol[];
 
-		before(async () => {
-			assert.equal(require("typescript/package.json").version, "7.0.2");
-			assert.equal(require("typescript6/package.json").version, "6.0.3");
+		beforeAll(() => {
+			assert.equal(
+				(require("typescript/package.json") as { version: string }).version,
+				"7.0.2",
+			);
+			assert.equal(
+				(require("typescript6/package.json") as { version: string }).version,
+				"6.0.3",
+			);
 			directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-"));
 			cpSync(fixtureDirectory, path.join(directory, "src"), { recursive: true });
 			cpSync(
@@ -321,60 +329,58 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}),
 			);
 			api = new API({ cwd: directory, collectTiming: true });
-			snapshot = await api.updateSnapshot({ openProjects: [configFileName] });
+			snapshot = api.updateSnapshot({ openProjects: [configFileName] });
 			const openedProject = snapshot.getProject(configFileName);
 			assert.ok(openedProject, "The configured declaration project must be available");
 			project = openedProject;
-			const source = await project.program.getSourceFile(
+			const source = project.program.getSourceFile(
 				path.join(directory, "declarations/index.d.ts"),
 			);
 			assert.ok(source);
-			const moduleSymbol = await project.checker.getSymbolAtLocation(source);
+			const moduleSymbol = project.checker.getSymbolAtLocation(source);
 			assert.ok(moduleSymbol);
-			exports = await project.checker.getExportsOfModule(moduleSymbol);
+			exports = project.checker.getExportsOfModule(moduleSymbol);
 		});
 
-		after(async () => {
+		after(() => {
 			try {
-				await api?.close();
+				api?.close();
 			} finally {
 				if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
 			}
 		});
 
-		async function target(name: string): Promise<CompilerSymbol> {
+		function target(name: string): CompilerSymbol {
 			const exported = exports.find((symbol) => symbol.name === name);
 			assert.ok(exported, `Missing export: ${name}`);
-			return (exported.flags & SymbolFlags.Alias) !== 0
-				? project.checker.getAliasedSymbol(exported)
-				: exported;
+			return (exported.flags & SymbolFlags.Alias) === 0
+				? exported
+				: project.checker.getAliasedSymbol(exported);
 		}
 
-		async function members(name: string): Promise<Readonly<Record<string, string>>> {
-			const declared = await project.checker.getDeclaredTypeOfSymbol(await target(name));
-			const properties = await project.checker.getPropertiesOfType(declared);
-			const entries = await Promise.all(
-				properties.map(async (property) => {
-					const type = await project.checker.getTypeOfSymbol(property);
-					assert.ok(type);
-					return [property.name, await project.checker.typeToString(type)] as const;
-				}),
-			);
+		function members(name: string): Readonly<Record<string, string>> {
+			const declared = project.checker.getDeclaredTypeOfSymbol(target(name));
+			const properties = project.checker.getPropertiesOfType(declared);
+			const entries = properties.map((property) => {
+				const type = project.checker.getTypeOfSymbol(property);
+				assert.ok(type);
+				return [property.name, project.checker.typeToString(type)] as const;
+			});
 			return Object.fromEntries(entries);
 		}
 
 		// Design requirement: W4.
-		it("declaration inputs have no compiler diagnostics", async () => {
-			assert.deepEqual(await project.program.getSyntacticDiagnostics(), []);
-			assert.deepEqual(await project.program.getSemanticDiagnostics(), []);
-			assert.deepEqual(await project.program.getProgramDiagnostics(), []);
+		it("declaration inputs have no compiler diagnostics", () => {
+			assert.deepEqual(project.program.getSyntacticDiagnostics(), []);
+			assert.deepEqual(project.program.getSemanticDiagnostics(), []);
+			assert.deepEqual(project.program.getProgramDiagnostics(), []);
 		});
 
 		// Design regressions: B1, B2.
-		it("preserves exported aliases, target identity, and type-only syntax", async () => {
-			assert.equal((await target("PublicIdentity")).id, (await target("TypeIdentity")).id);
-			assert.equal((await target("PublicIdentity")).name, "Identity");
-			const source = await project.program.getSourceFile(
+		it("preserves exported aliases, target identity, and type-only syntax", () => {
+			assert.equal(target("PublicIdentity").id, target("TypeIdentity").id);
+			assert.equal(target("PublicIdentity").name, "Identity");
+			const source = project.program.getSourceFile(
 				path.join(directory, "declarations/index.d.ts"),
 			);
 			assert.ok(source);
@@ -385,55 +391,55 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		// Design feature: F1.
-		it("specializes inherited interface and class members", async () => {
-			assert.equal((await members("Derived")).value, "string");
-			assert.equal((await members("DerivedClass")).value, "string");
+		it("specializes inherited interface and class members", () => {
+			assert.equal(members("Derived").value, "string");
+			assert.equal(members("DerivedClass").value, "string");
 		});
 
 		// Design feature: F1.
-		it("computes ordinary intersections and utility member selections", async () => {
-			assert.deepEqual(await members("Combined"), {
+		it("computes ordinary intersections and utility member selections", () => {
+			assert.deepEqual(members("Combined"), {
 				value: "string",
 				optional: "number | undefined",
 				count: "number",
 				enabled: "boolean",
 			});
-			assert.deepEqual(await members("Selected"), {
+			assert.deepEqual(members("Selected"), {
 				value: "string",
 				optional: "number | undefined",
 			});
-			assert.deepEqual(await members("Omitted"), {
+			assert.deepEqual(members("Omitted"), {
 				value: "string",
 				optional: "number | undefined",
 				enabled: "boolean",
 			});
-			assert.deepEqual(await members("Frozen"), {
+			assert.deepEqual(members("Frozen"), {
 				value: "string",
 				optional: "number | undefined",
 			});
-			const frozen = await project.checker.getDeclaredTypeOfSymbol(await target("Frozen"));
-			const optional = await project.checker.getPropertyOfType(frozen, "optional");
+			const frozen = project.checker.getDeclaredTypeOfSymbol(target("Frozen"));
+			const optional = project.checker.getPropertyOfType(frozen, "optional");
 			assert.ok(optional);
 			assert.notEqual(optional.flags & SymbolFlags.Optional, 0);
 		});
 
 		// Design feature: F4.
-		it("exposes callable overloads and preserves declaration comments", async () => {
-			const symbol = await target("convert");
-			const type = await project.checker.getTypeOfSymbol(symbol);
+		it("exposes callable overloads and preserves declaration comments", () => {
+			const symbol = target("convert");
+			const type = project.checker.getTypeOfSymbol(symbol);
 			assert.ok(type);
-			const signatures = await project.checker.getSignaturesOfType(type, SignatureKind.Call);
+			const signatures = project.checker.getSignaturesOfType(type, SignatureKind.Call);
 			assert.equal(signatures.length, 2);
-			const comments = await project.checker.getDocumentationCommentOfSymbol(symbol);
+			const comments = project.checker.getDocumentationCommentOfSymbol(symbol);
 			assert.match(comments, /Public overload documentation/);
 			const declarations = readFileSync(path.join(directory, "declarations/api.d.ts"), "utf8");
 			assert.match(declarations, /@public/);
 			assert.match(declarations, /@internal/);
 			for (const signature of signatures) {
-				assert.ok(await signature.declaration?.resolve());
+				assert.ok(signature.declaration?.resolve());
 			}
-			const firstDeclaration = await signatures[0]?.declaration?.resolve();
-			const secondDeclaration = await signatures[1]?.declaration?.resolve();
+			const firstDeclaration = signatures[0]?.declaration?.resolve();
+			const secondDeclaration = signatures[1]?.declaration?.resolve();
 			assert.ok(firstDeclaration && secondDeclaration);
 			assert.match(firstDeclaration.getFullText(), /Public overload documentation.*@public/);
 			assert.match(
@@ -443,9 +449,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		// Design feature: F1.
-		it("materializes readonly and optional modifiers through public type nodes", async () => {
-			const frozen = await project.checker.getDeclaredTypeOfSymbol(await target("Frozen"));
-			const node = await project.checker.typeToTypeNode(
+		it("materializes readonly and optional modifiers through public type nodes", () => {
+			const frozen = project.checker.getDeclaredTypeOfSymbol(target("Frozen"));
+			const node = project.checker.typeToTypeNode(
 				frozen,
 				undefined,
 				NodeBuilderFlags.InTypeAlias,
@@ -457,8 +463,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.equal(node.members.length, 2);
 			for (const member of node.members) {
 				assert.ok(isPropertySignatureDeclaration(member));
-				assert.ok(
+				assert.equal(
 					member.modifiers?.some((modifier) => modifier.kind === SyntaxKind.ReadonlyKeyword),
+					true,
 				);
 			}
 			assert.equal(
@@ -469,22 +476,19 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				).length,
 				1,
 			);
-			const printed = await project.emitter.printNode(node);
+			const printed = project.emitter.printNode(node);
 			assert.match(printed, /readonly value: string/);
 			console.log(`Effective readonly type: ${printed.trim()}`);
 		});
 
 		// Design requirement: W5; baseline for declaration generation.
-		it("printed complete declarations compile with both consumer compilers", async () => {
+		it("printed complete declarations compile with both consumer compilers", () => {
 			for (const name of ["api", "index"]) {
-				const source = await project.program.getSourceFile(
+				const source = project.program.getSourceFile(
 					path.join(directory, `declarations/${name}.d.ts`),
 				);
 				assert.ok(source);
-				writeFileSync(
-					path.join(directory, `${name}.d.ts`),
-					await project.emitter.printNode(source),
-				);
+				writeFileSync(path.join(directory, `${name}.d.ts`), project.emitter.printNode(source));
 			}
 			cpSync(
 				new URL("../../src/test/fixtures/consumer/consumer.ts", import.meta.url),
@@ -520,12 +524,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		// Design requirement: W6.
-		it("reuses a snapshot and cached exports for repeated semantic queries", async () => {
-			const namespace = await target("ApiNamespace");
-			const first = await namespace.getExports();
-			await api.resetTimingInfo();
-			const second = await namespace.getExports();
-			const timing = await api.getTimingInfo();
+		it("reuses a snapshot and cached exports for repeated semantic queries", () => {
+			const namespace = target("ApiNamespace");
+			const first = namespace.getExports();
+			api.resetTimingInfo();
+			const second = namespace.getExports();
+			const timing = api.getTimingInfo();
 			assert.strictEqual(first, second);
 			assert.ok(timing.enabled);
 			assert.equal(
@@ -538,7 +542,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				!timing.recentRequests.some((request) => request.method === "getExportsOfModule"),
 			);
 			assert.strictEqual(snapshot.getProject(project.configFileName), project);
-			assert.deepEqual(await members("Derived"), await members("Derived"));
+			assert.deepEqual(members("Derived"), members("Derived"));
 			console.log(`Cached export query timing: ${JSON.stringify(timing.totals)}`);
 		});
 
@@ -554,20 +558,21 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					packageCache: new Map(),
 				};
 				try {
-					assert.deepEqual(origin(locations, fileName, 17), {
+					assert.deepEqual(resolveOrigin(locations, fileName, 17), {
 						packageName: "dependency",
 						file: "index.d.ts",
 						start: 17,
 					});
 					writeFileSync(manifest, JSON.stringify({ name: "updated" }));
 					// A new extraction must supply a new cache after package metadata changes.
-					assert.equal(origin(locations, fileName, 0).packageName, "dependency");
+					assert.equal(resolveOrigin(locations, fileName, 0).packageName, "dependency");
 					const fresh: LocationContext = { ...locations, packageCache: new Map() };
-					assert.equal(origin(fresh, fileName, 0).packageName, "updated");
+					assert.equal(resolveOrigin(fresh, fileName, 0).packageName, "updated");
 					assert.equal(locations.packageCache.size, 1);
 					assert.equal(fresh.packageCache.size, 1);
 					assert.equal(
-						origin(locations, path.join(directory, "declarations/index.d.ts"), 0).packageName,
+						resolveOrigin(locations, path.join(directory, "declarations/index.d.ts"), 0)
+							.packageName,
 						"fixture",
 					);
 				} finally {
@@ -610,12 +615,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.equal(seen.size, 0);
 			});
 
-			it("extracts specialized members, modifiers, and documented overloads without collection state", async () => {
+			it("extracts specialized members, modifiers, and documented overloads without collection state", () => {
 				const locations: LocationContext = {
 					configuration: { packageName: "fixture", packageRoot: directory },
 					packageCache: new Map(),
 				};
-				const derived = await target("Derived");
+				const derived = target("Derived");
 				const derivedType = project.checker.getDeclaredTypeOfSymbol(derived);
 				assert.equal(
 					extractMembers(project, locations, derivedType).find(
@@ -623,7 +628,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					)?.type,
 					"string",
 				);
-				const frozen = await target("Frozen");
+				const frozen = target("Frozen");
 				const frozenMembers = extractMembers(
 					project,
 					locations,
@@ -634,15 +639,21 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					frozenMembers.find((member) => member.name === "optional")?.optional,
 					true,
 				);
-				const callable = await target("convert");
+				const callable = target("convert");
 				const callableType = project.checker.getTypeOfSymbol(callable);
 				assert.ok(callableType);
-				const result = signatures(project, callableType, "owner");
+				const result = extractSignatures(project, callableType, "owner");
 				assert.equal(result.length, 2);
 				assert.equal(new Set(result.map((signature) => signature.id)).size, 2);
 				assert.ok(result.every((signature) => signature.id.startsWith("owner:")));
-				assert.ok(result.some((signature) => signature.documentation?.includes("@public")));
-				assert.ok(result.some((signature) => signature.documentation?.includes("@internal")));
+				assert.equal(
+					result.some((signature) => signature.documentation?.includes("@public") === true),
+					true,
+				);
+				assert.equal(
+					result.some((signature) => signature.documentation?.includes("@internal") === true),
+					true,
+				);
 			});
 
 			it("collection helpers keep traversal state separate between calls", () => {
@@ -743,9 +754,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						{ name: "empty", documentation: "/** */" },
 						{ name: "ordinary", documentation: undefined },
 					]);
-					const restored = JSON.parse(JSON.stringify(comments));
-					assert.equal(restored[0].documentation, undefined);
-					assert.equal(restored[2].documentation, "/** */");
+					const restored = JSON.parse(JSON.stringify(comments)) as typeof comments;
+					assert.equal(restored[0]?.documentation, undefined);
+					assert.equal(restored[2]?.documentation, "/** */");
 					const metadata = classifyApiItems(
 						comments.map((item) => ({ id: item.name, documentation: item.documentation })),
 						{ rules: { requireReleaseLevel: false } },
@@ -792,7 +803,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(publicView.value.items.length, 1);
 					assert.equal(
 						publicView.value.items[0]?.id,
-						overloads.find((item) => item.documentation?.includes("@public"))?.id,
+						overloads.find((item) => item.documentation?.includes("@public") === true)?.id,
 					);
 					const complete = selectApiItems(metadata.value, {
 						name: "complete",
@@ -947,7 +958,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const derived = result.value.find(
 						(entry) => entry.id === selected.value.items[0]?.id,
 					);
-					assert.ok(derived?.documentation);
+					assert.ok(derived?.documentation !== undefined);
+					assert.notEqual(derived.documentation, "");
 					assert.ok(derived.documentation.includes("Summary."));
 					assert.ok(derived.documentation.includes("@localOnly"));
 					assert.equal(derived.documentation.includes("@sourceOnly"), false);
@@ -1021,7 +1033,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const effective = result.value.find(
 						(entry) => entry.id === derived.signatures[0]?.id,
 					);
-					assert.ok(effective?.documentation);
+					assert.ok(effective?.documentation !== undefined);
+					assert.notEqual(effective.documentation, "");
 					assertSnapshot(effective.documentation, "documentation.direct.txt");
 					assert.ok(effective.documentation.includes("Converts a value."));
 					assert.equal(effective.documentation.includes("@internal"), false);
@@ -1086,7 +1099,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const analysis = session.analyze(configuration.value);
 						assert.ok(analysis.ok, JSON.stringify(analysis));
 						session.close();
-						const detached = JSON.parse(JSON.stringify(analysis.value));
+						const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
 						const bindings = bindDocumentationReferences(detached, {});
 						assert.ok(bindings.ok, JSON.stringify(bindings));
 						const expectedName = name === "hidden" ? "hidden" : "base";
@@ -1094,15 +1107,17 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							name === "hidden"
 								? "declarations/inheritance-hidden.d.ts"
 								: "declarations/inheritance.d.ts";
-						const target = analysis.value.declarations.find(
+						const targetDeclaration = analysis.value.declarations.find(
 							(declaration) =>
 								declaration.name === expectedName &&
 								declaration.declarations[0]?.file === expectedFile,
 						);
-						assert.ok(target?.signatures[0]);
-						assert.equal(bindings.value[0]?.target, target.signatures[0].id);
+						assert.ok(targetDeclaration?.signatures[0]);
+						assert.equal(bindings.value[0]?.target, targetDeclaration.signatures[0].id);
 						assert.equal(
-							analysis.value.surfaces[0]?.exports.some((entry) => entry.target === target.id),
+							analysis.value.surfaces[0]?.exports.some(
+								(entry) => entry.target === targetDeclaration.id,
+							),
 							false,
 						);
 						assert.deepEqual(
