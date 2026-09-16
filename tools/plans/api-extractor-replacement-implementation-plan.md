@@ -53,6 +53,11 @@ Write documentation in Simplified Technical English (ASD-STE100).
 Follow the repository's [Documentation Guidelines](../../docs/content/Guidelines/Documentation-Guidelines.md) and the applicable guidance linked there, including source-code documentation guidance.
 These requirements apply to design documents, API documentation, code examples, and user and migration guides.
 
+When the purpose or importance of code might not be clear to a developer or AI agent reading it for the first time, add inline comments to explain it.
+Use Simplified Technical English for these comments.
+Apply this rule to implementation code, tests, and configuration.
+Explain the reason, constraint, or consequence that the reader needs to understand; do not restate obvious operations.
+
 1. Identify the requirement and acceptance scenarios for the change.
 2. Write or update the behavior contract before implementation. Specify inputs, outputs, invariants, diagnostics, failure behavior, and compatibility effects.
 3. For public APIs and configuration, document representative usage and observable behavior before committing to a signature or schema.
@@ -64,15 +69,30 @@ Reuse the planning documents and the future package's existing documentation whe
 Do not create a separate design document for every small change.
 Documentation must describe supported behavior, not promise unverified compiler capabilities.
 
+#### TODO maintenance
+
+Whenever you add or modify code, review the need for TODO comments in the affected code, including tests and configuration.
+Add a targeted TODO when a known limitation, deferred requirement, or temporary constraint requires follow-up work.
+Place it near the relevant code and state the required action and the reason or condition for that action.
+Reference the applicable implementation stage or tracked issue when available.
+Do not add speculative TODOs or use a TODO instead of completing work required by the current change.
+
+Review existing TODOs in the affected code during the same change.
+Update them when the remaining work, scope, or constraints change.
+Remove them when the work is complete or no longer applies.
+Keep retained TODOs consistent with the implementation plan and documented limitations.
+
 #### Documentation validation checklist
 
 Complete these checks after each code change, including changes to tests and configuration:
 
 - Review the affected API comments, implementation comments, examples, README content, and plan status against the current code. Correct missing or outdated contracts.
+- Check that inline comments explain code whose purpose or importance might not be clear on a first reading.
 - Use Simplified Technical English. Keep sentences short, use consistent terms, and define unfamiliar terms and abbreviations. Preserve technical accuracy.
 - Use multiline TSDoc for public declarations and their members. Keep the summary concise. Put detailed contracts in `@remarks` and use applicable `@param`, `@returns`, and `@throws` tags.
 - Introduce each code example with an English description. Add comments for behavior that is not obvious. Use one sentence per line in Markdown prose.
-- State supported behavior and limitations accurately. Keep planned behavior separate from current contracts. Add or update targeted TODO comments where later stages must change the implementation.
+- State supported behavior and limitations accurately. Keep planned behavior separate from current contracts.
+- Review TODOs in the affected code. Add actionable follow-up comments where needed, update changed requirements, and remove completed or obsolete TODOs.
 - Run focused formatting and editor checks. When source documentation changes, validate its syntax with the official TSDoc parser. Check Markdown whitespace and any changed links or examples as applicable.
 - Review wording manually. Passing syntax and formatting checks does not establish language quality or technical accuracy. Fix documentation issues before declaring the code change complete, and disclose any checks that could not run.
 
@@ -295,7 +315,7 @@ These options affect presentation only. Tag-only comments do not count as descri
 Required package-documentation support is recorded in the follow-up tracker; broader presentation customization follows rough API Extractor parity.
 Public, complete, and empty reports use checked-in snapshots. Both TS6- and TS7-built function fixtures render the same snapshots after session closure.
 The builder explicitly rejects other declaration forms, including merged namespaces, rather than emitting partial reports.
-Next, add structured documentation targets and same-package explicit inheritance resolution. Extend report facts and selection to other declaration forms, then add automatic member inheritance and suite resolution as specified below.
+Structured documentation targets and same-package explicit function inheritance now feed report construction. Next, extend report facts and selection to other declaration forms, then add automatic member inheritance and suite resolution as specified below.
 Complete reference validation, actual conditional-entrypoint parity, and the repository pilot before closing Stage 2.
 The analysis facts still contain raw declaration text and export targets, not a complete type-reference graph.
 Signature documentation and classification inputs use a required `string | undefined` property.
@@ -304,8 +324,8 @@ Explicit empty comments remain distinguishable from absence for the future local
 Classification reads comment text into separate release-level and modifier metadata; it does not implement inheritance or resolve semantic references.
 Do not infer semantic references by parsing printed type strings. Extend facts through the compiler adapter and verify them with real-compiler fixtures.
 Extract the required reference facts before disposing of the snapshot so later policies can reuse detached data without repeating full analysis.
-Documentation-link resolution and inheritance now belong to Stage 2. The current report builder still checks raw parsed comments and treats an explicit inheritance request as documentation without resolving it.
-This is temporary behavior, not the target documentation-status contract. Code TODOs identify the report input and presence checks that must change.
+Documentation-link resolution and inheritance now belong to Stage 2. The function report builder resolves all supplied signature comments before selection and measures effective content.
+An inheritance request alone does not count as documentation. Empty inherited content remains undocumented.
 The declaration-generation gate does not block review and validation work. It remains open for the generation path.
 The async termination failure also remains open; Stage 2 continues with the documented synchronous session contract.
 
@@ -329,15 +349,46 @@ Classification, reference binding, and content resolution now share explicit cus
 Each operation creates an independent TSDoc configuration and rejects invalid names or redefinitions.
 Binding and resolution still fail on parser diagnostics when classification disables its own syntax diagnostics.
 Pure tests and fixtures built with both supported compilers verify local custom metadata, request isolation, and unchanged classification and selection after resolution.
-Custom block and inline tags, configuration-file loading, API link validation, and report integration remain pending.
+Custom block and inline tags, configuration-file loading, and general API link target support remain pending.
 The adapter now records API links in `FunctionDocumentationContext.links` using the shared `DocumentationReferenceLookup` type.
 Lookup retains original scope, aliases, non-exported targets, repeated links, and missing or unsupported reference results.
 Compiler tests cover links in documentation blocks, self-references, mutually linked declarations, URL exclusion, and detached JSON-compatible contexts for both input compilers.
-This is lookup only: the resolver still rejects API links.
-Next, bind these results to structured link targets and validate package scope and release policy using original classification metadata, independently of report selection.
-Then preserve the originating context of inherited links before integrating resolved documentation with reports.
+The separate internal `bindDocumentationLinks` operation now binds local links to structured targets using original classification metadata, independently of report selection.
+This increment supports same-package standalone function targets with one callable signature.
+It preserves source signature identity, API link occurrence index, reference text, target declaration identity, and original comment location in frozen results.
+It permits public-to-beta links and rejects links from non-internal APIs to internal APIs.
+Missing classification or release levels fail validation; no public release level is inferred.
+General declaration and overload targets remain unsupported until their classification and target semantics are defined.
+Pure tests cover the release-policy matrix and failure boundaries; both compiler fixtures verify detached binding after session closure and JSON serialization.
+The content resolver now accepts validated link bindings and original classification through `DocumentationResolutionOptions.linkValidation`.
+Bindings include the target signature identity for classification as well as the target declaration identity.
+The resolver associates original TSDoc link nodes with their bindings before copying inherited sections.
+Effective links preserve their original source signature, occurrence index, and location through chains; retained local blocks keep their own bindings.
+Target-only blocks that are not copied do not contribute inherited links.
+Each receiving API is checked against the target's original release level, independently of report selection.
+Pure tests verify section provenance, binding validation, and rejection of inherited internal targets for non-internal receivers.
+Both compiler inputs verify original scope through aliases after session closure and JSON serialization.
+Complete-comment snapshots cover inherited links and copied sections with local examples.
+Function reports now run both binders and content resolution before applying selection.
+Required report options supply full original classification and the shared custom modifier vocabulary, including unselected targets.
+Documentation failures prevent successful reports even when the selection is empty.
+Reports measure effective content but retain original selected release metadata and local annotation tags.
+Pure tests cover empty inherited content, inherited API links, strict parsing, missing metadata, and resolution failures.
+Both compiler inputs produce the same descriptive and empty-inheritance report snapshots after session closure and JSON serialization.
+The next extraction prerequisite now retains original TSDoc on each source declaration for symbols and effective members.
+Member source records replace location-only origins and preserve separate overload and merged-declaration comments.
+Class and interface fixtures verify inherited generic member origins, absent and empty local overrides, and frozen detached records for both input compilers.
+Effective members now have identifiers scoped to their containing declaration and detached callable signatures in compiler order.
+Both input compilers verify generic substitution, optional methods, callable properties, independent overload selection, and frozen signature facts after session closure.
+These member identities do not establish ancestor or override relationships. Signature documentation contexts remain limited to supported standalone functions.
+Direct class and interface base declaration links are now retained through compiler-resolved symbols, including unexported ancestors without changing export surfaces.
+Both compiler inputs verify generic bases, class inheritance, a diamond hierarchy with a shared root, implements exclusion, and frozen detached links.
+Base targets describe original declarations rather than instantiated generic views. These links do not establish member overrides or overload compatibility.
+Local class implements targets are now retained separately from base declarations, including unexported contracts and type alias targets.
+Both compiler inputs verify direct-only implementation links, unchanged local comments and members, and frozen detached targets without adding exports.
+Implementation links do not retain instantiated contract context or establish member and overload matches. They do not yet supply resolved documentation.
+This does not choose merged-comment precedence or implement broader classification and rendering. Member and overload relationships and class/interface report support remain next steps.
 Later work must add automatic inheritance, suite resolution, and source information for each resolved documentation section.
-The current report documentation-presence check remains unchanged.
 This implementation does not satisfy the resolution acceptance criteria below.
 
 Implement a separate documentation-resolution API over detached facts and explicit dependency data.
@@ -350,7 +401,7 @@ Keep file loading at the boundary. Keep resolution policy separate from I/O and 
 Implement and verify these increments in order:
 
 1. Resolve same-package explicit `@inheritDoc` requests and API links. Cover inheritance chains, missing or ambiguous targets, cycles, empty targets, and originating-package context through re-exports.
-2. Add automatic member inheritance with class and interface report support. Any local TSDoc comment, including an empty or tag-only comment, suppresses all automatic inheritance. Explicit inheritance remains a resolution request. Match overloads by signature, not declaration order. Diagnose conflicting ancestors and cases where matching or parameter adaptation requires a local comment.
+2. Add automatic member inheritance with class and interface report support. Include compatible implemented interface members as documentation sources for class members with no local TSDoc. Keep implements relationships separate from base-class inheritance. Any local TSDoc comment, including an empty or tag-only comment, suppresses all automatic inheritance. Explicit inheritance remains a resolution request. Match overloads by signature, not declaration order. Define precedence between class and interface sources. Diagnose conflicting ancestors or interface sources and cases where matching or parameter adaptation requires a local comment.
 3. Add suite dependency-model loading, target identity, and compatibility contracts required for cross-package resolution. Support direct, transitive, and peer dependencies selected by package names or globs. Missing or incompatible models for any selected dependency fail package processing, even when unused. Reject API references outside the suite and preserve the documentation's originating package. Move the minimum dependency-model producer and reader support forward from Stage 3 to make this increment testable.
 
 An increment must diagnose resolution requests that require unsupported scope. Do not silently accept them as documented.
@@ -372,9 +423,10 @@ It measures content presence, not documentation quality or completeness. Paramet
 
 Resolution returns diagnostics for user-caused failures without a partial success value. Internal assertions and operational failures remain exceptions.
 If partial reports are introduced later, they must represent unresolved documentation explicitly rather than use `false` or `true` as a fallback.
-Keep the current boolean semantics documented until the resolver is integrated; change its contract and behavior in the same tested increment.
+Function reports now implement effective-content boolean semantics. Extend the documented contract and tests together as automatic inheritance and suite resolution are added.
 
 Acceptance tests must cover every table row, local-comment precedence, signature matching, origin preservation, suite model failures, and reference policies.
+For implements relationships, cover absent, empty, and tag-only local comments, generic and overloaded contracts, multiple interface sources, conflicting documentation, and interaction with base-class sources.
 Use pure resolver tests plus real-compiler fixtures built with TS6 and TS7 and analyzed with TS7.
 Verify resolution and report generation after session closure. Use checked-in report snapshots and confirm that classification and selection do not change when documentation is inherited.
 Stage 2 takes on these semantic prerequisites; Stage 3 retains the complete portable-model and downstream-consumption gates.

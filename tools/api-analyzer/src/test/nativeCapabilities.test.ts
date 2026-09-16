@@ -26,7 +26,7 @@ import {
 	type Symbol as CompilerSymbol,
 } from "typescript/unstable/sync";
 import { resolveConfiguration } from "../configuration.js";
-import { bindDocumentationReferences } from "../documentation.js";
+import { bindDocumentationLinks, bindDocumentationReferences } from "../documentation.js";
 import type { AnalysisFacts, DocumentationReferenceLookup } from "../facts.js";
 import {
 	classifyApiItems,
@@ -547,6 +547,376 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		describe("Adapter fact extraction", () => {
+			it("retains direct implements targets separately from base declarations and original comments", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/member-documentation.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					session.close();
+					const serialized = JSON.stringify(analysis.value);
+					const facts = JSON.parse(serialized) as AnalysisFacts;
+					const byId = new Map(facts.declarations.map((entry) => [entry.id, entry]));
+					const implementation = facts.declarations.find(
+						(entry) => entry.name === "DocumentedImplementation",
+					);
+					const contract = facts.declarations.find(
+						(entry) => entry.name === "HiddenImplementationOnly",
+					);
+					const alias = facts.declarations.find(
+						(entry) => entry.name === "DocumentedAliasImplementation",
+					);
+					const derived = facts.declarations.find(
+						(entry) => entry.name === "DocumentedImplementationDerived",
+					);
+					assert.ok(implementation);
+					assert.ok(contract);
+					assert.ok(alias);
+					assert.ok(derived);
+					assert.deepEqual(
+						implementation.implementedDeclarations.map((id) => byId.get(id)?.name),
+						["HiddenRoot", "HiddenImplementationOnly"],
+					);
+					assert.deepEqual(implementation.baseDeclarations, []);
+					assert.deepEqual(
+						alias.implementedDeclarations.map((id) => byId.get(id)?.name),
+						["HiddenImplementationAlias"],
+					);
+					assert.equal(
+						byId.get(alias.implementedDeclarations[0] ?? "")?.declarations[0]?.kind,
+						"TypeAliasDeclaration",
+					);
+					// Direct clauses are not copied from a base class; callers can follow the separate base link.
+					assert.deepEqual(derived.implementedDeclarations, []);
+					assert.deepEqual(derived.baseDeclarations, [implementation.id]);
+					assert.deepEqual(contract.implementedDeclarations, []);
+					assert.equal(
+						contract.declarations[0]?.documentation,
+						"/** Implementation-only contract. @internal */",
+					);
+					assert.equal(
+						contract.members.find((entry) => entry.name === "root")?.signatures[0]
+							?.functionTypeText,
+						"(value: Value) => Value",
+					);
+					const root = implementation.members.find((entry) => entry.name === "root");
+					assert.ok(root);
+					// Documentation resolution must copy compatible interface content separately from these raw facts.
+					// TODO (Stage 2 automatic inheritance): Test absent, empty, and tag-only implementation comments,
+					// overload matching, and conflicting interface sources when resolution supports implements links.
+					assert.equal(root.declarations[0]?.documentation, undefined);
+					assert.equal(root.signatures[0]?.documentation, undefined);
+					assert.equal(
+						implementation.members.some((entry) => entry.name === "optionalContractProperty"),
+						false,
+					);
+					assert.equal(
+						facts.surfaces
+							.flatMap((surface) => surface.exports)
+							.some((entry) => entry.target === contract.id),
+						false,
+					);
+					for (const declaration of analysis.value.declarations) {
+						assert.equal(Object.isFrozen(declaration.implementedDeclarations), true);
+						assert.equal(
+							declaration.implementedDeclarations.every((id) => byId.has(id)),
+							true,
+						);
+					}
+					assert.equal(JSON.stringify(facts), serialized);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
+			it("retains direct base declaration links without exporting hidden ancestors", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/member-documentation.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					session.close();
+					const serialized = JSON.stringify(analysis.value);
+					const facts = JSON.parse(serialized) as AnalysisFacts;
+					const byId = new Map(
+						facts.declarations.map((declaration) => [declaration.id, declaration]),
+					);
+					const expected = new Map<string, readonly string[]>([
+						["DocumentedDerived", ["DocumentedBase"]],
+						["DocumentedClass", ["DocumentedClassBase"]],
+						["DocumentedDiamond", ["HiddenLeft", "HiddenRight"]],
+						["HiddenLeft", ["HiddenRoot"]],
+						["HiddenRight", ["HiddenRoot"]],
+						["HiddenRoot", []],
+						// Implements targets are separate contract links, not inherited members or class base types.
+						["DocumentedImplementation", []],
+					]);
+					for (const [name, bases] of expected) {
+						const declaration = facts.declarations.find((entry) => entry.name === name);
+						assert.ok(declaration);
+						assert.deepEqual(
+							declaration.baseDeclarations.map((id) => byId.get(id)?.name),
+							bases,
+						);
+					}
+					const hidden = facts.declarations.find((entry) => entry.name === "HiddenRoot");
+					assert.ok(hidden);
+					assert.equal(
+						hidden.declarations[0]?.documentation,
+						"/** Hidden root contract. @internal */",
+					);
+					assert.equal(facts.declarations.filter((entry) => entry.id === hidden.id).length, 1);
+					assert.equal(
+						facts.surfaces
+							.flatMap((surface) => surface.exports)
+							.some((entry) => entry.name.startsWith("Hidden")),
+						false,
+					);
+					for (const declaration of analysis.value.declarations) {
+						assert.equal(Object.isFrozen(declaration.baseDeclarations), true);
+						assert.equal(
+							declaration.baseDeclarations.every((id) => byId.has(id)),
+							true,
+						);
+					}
+					assert.equal(JSON.stringify(facts), serialized);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
+			it("identifies effective members and retains independently selectable call signatures", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/member-documentation.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					session.close();
+					const before = JSON.stringify(analysis.value);
+					const facts = JSON.parse(before) as AnalysisFacts;
+					const base = facts.declarations.find((entry) => entry.name === "DocumentedBase");
+					const derived = facts.declarations.find(
+						(entry) => entry.name === "DocumentedDerived",
+					);
+					assert.ok(base);
+					assert.ok(derived);
+					const baseForward = base.members.find((entry) => entry.name === "forward");
+					const forward = derived.members.find((entry) => entry.name === "forward");
+					assert.ok(baseForward);
+					assert.ok(forward);
+					// Shared source records do not imply the same effective API item or signature.
+					assert.deepEqual(forward.declarations, baseForward.declarations);
+					assert.notEqual(forward.id, baseForward.id);
+					assert.notEqual(forward.signatures[0]?.id, baseForward.signatures[0]?.id);
+					assert.equal(forward.signatures[0]?.functionTypeText, "(value: string) => string");
+					assert.equal(baseForward.signatures[0]?.functionTypeText, "(value: Value) => Value");
+					assert.equal(
+						forward.signatures[0]?.documentation,
+						"/** Inherited generic operation. @public */",
+					);
+					const parse = derived.members.find((entry) => entry.name === "parse");
+					assert.ok(parse);
+					assert.deepEqual(
+						parse.signatures.map((signature) => signature.callSignatureText),
+						["(value: string): string;", "(value: number): number;"],
+					);
+					const classified = classifyApiItems(parse.signatures);
+					assert.equal(classified.ok, true);
+					const selected = selectApiItems(classified.value, {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					});
+					assert.equal(selected.ok, true);
+					assert.deepEqual(
+						selected.value.items.map((entry) => entry.id),
+						[parse.signatures[0]?.id],
+					);
+					const optional = derived.members.find((entry) => entry.name === "optionalOperation");
+					assert.ok(optional);
+					assert.equal(optional.optional, true);
+					assert.equal(optional.signatures.length, 1);
+					assert.equal(
+						optional.signatures[0]?.documentation,
+						"/** Optional operation. @public */",
+					);
+					const callback = derived.members.find((entry) => entry.name === "callback");
+					assert.ok(callback);
+					assert.equal(callback.signatures.length, 1);
+					// Property documentation must not be synthesized as documentation on its function-type node.
+					assert.equal(callback.signatures[0]?.documentation, undefined);
+					assert.equal(
+						derived.members.find((entry) => entry.name === "value")?.signatures.length,
+						0,
+					);
+					const identifiers = facts.declarations.flatMap((entry) =>
+						entry.members.flatMap((member) => [
+							member.id,
+							...member.signatures.map((signature) => signature.id),
+						]),
+					);
+					assert.equal(new Set(identifiers).size, identifiers.length);
+					for (const declaration of analysis.value.declarations) {
+						for (const member of declaration.members) {
+							assert.equal(Object.isFrozen(member.signatures), true);
+							assert.equal(member.signatures.every(Object.isFrozen), true);
+							assert.equal(
+								member.signatures.every(
+									(signature) => signature.documentationContext === undefined,
+								),
+								true,
+							);
+						}
+					}
+					assert.equal(JSON.stringify(facts), before);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
+			it("retains original class and interface comments without resolving inheritance", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/member-documentation.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					session.close();
+					// Source comments must remain available without live compiler handles or inherited-comment synthesis.
+					for (const declaration of analysis.value.declarations) {
+						assert.equal(Object.isFrozen(declaration.declarations), true);
+						for (const member of declaration.members) {
+							assert.equal(Object.isFrozen(member.declarations), true);
+							for (const source of member.declarations) {
+								assert.equal(Object.isFrozen(source), true);
+								assert.equal(Object.hasOwn(source, "documentation"), true);
+							}
+						}
+					}
+					const serialized = JSON.stringify(analysis.value);
+					const facts = JSON.parse(serialized) as AnalysisFacts;
+					const derived = facts.declarations.find(
+						(entry) => entry.name === "DocumentedDerived",
+					);
+					assert.ok(derived);
+					assert.equal(
+						derived.declarations[0]?.documentation,
+						"/** Derived contract. @beta */",
+					);
+					const value = derived.members.find((entry) => entry.name === "value");
+					assert.ok(value);
+					assert.equal(value.type, "string");
+					assert.equal(
+						value.declarations[0]?.documentation,
+						"/** Inherited value. @public */",
+					);
+					const base = facts.declarations.find((entry) => entry.name === "DocumentedBase");
+					assert.ok(base);
+					// Generic substitution changes the effective type, not the source location or original declaration text.
+					assert.deepEqual(
+						value.declarations,
+						base.members.find((entry) => entry.name === "value")?.declarations,
+					);
+					// Unlike an absent comment, this explicitly empty local comment must suppress future
+					// automatic inheritance. Extraction preserves it without resolving ancestor documentation.
+					assert.equal(
+						derived.members.find((entry) => entry.name === "convert")?.declarations[0]
+							?.documentation,
+						"/** */",
+					);
+					assert.equal(
+						derived.members.find((entry) => entry.name === "tagOnly")?.declarations[0]
+							?.documentation,
+						"/** @public */",
+					);
+					for (const name of ["absent", "ordinary"]) {
+						const member: (typeof derived.members)[number] | undefined = derived.members.find(
+							(entry) => entry.name === name,
+						);
+						assert.ok(member);
+						assert.equal(member.declarations[0]?.documentation, undefined);
+					}
+					assert.deepEqual(
+						derived.members
+							.find((entry) => entry.name === "parse")
+							?.declarations.map((entry) => entry.documentation),
+						["/** String overload. @public */", "/** Number overload. @internal */"],
+					);
+					const merged = facts.declarations.find((entry) => entry.name === "DocumentedMerged");
+					assert.ok(merged);
+					assert.deepEqual(
+						merged.declarations.map((entry) => entry.documentation),
+						["/** First declaration. @public */", "/** Second declaration. @beta */"],
+					);
+					assert.deepEqual(
+						merged.members
+							.find((entry) => entry.name === "shared")
+							?.declarations.map((entry) => entry.documentation),
+						[
+							"/** First member declaration. @public */",
+							"/** Second member declaration. @beta */",
+						],
+					);
+					const classFact = facts.declarations.find(
+						(entry) => entry.name === "DocumentedClass",
+					);
+					assert.ok(classFact);
+					assert.equal(
+						classFact.declarations[0]?.documentation,
+						"/** Derived class. @public */",
+					);
+					assert.equal(
+						classFact.members.find((entry) => entry.name === "value")?.declarations[0]
+							?.documentation,
+						"/** Inherited class value. @public */",
+					);
+					const override = classFact.members.find((entry) => entry.name === "convert");
+					assert.ok(override);
+					assert.equal(override.declarations.length, 1);
+					// Raw facts preserve the absent local comment. Future automatic resolution should inherit
+					// the compatible base method's documentation separately, without changing these source facts.
+					assert.equal(override.declarations[0]?.documentation, undefined);
+					assert.equal(override.declarations[0]?.kind, "MethodDeclaration");
+					assert.equal(JSON.stringify(facts), serialized);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
 			it("location lookup uses only the supplied cache and package settings", () => {
 				const ownerDirectory = path.join(directory, "owner");
 				mkdirSync(ownerDirectory);
@@ -623,7 +993,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const derived = target("Derived");
 				const derivedType = project.checker.getDeclaredTypeOfSymbol(derived);
 				assert.equal(
-					extractMembers(project, locations, derivedType).find(
+					extractMembers(project, locations, derivedType, "derived").find(
 						(member) => member.name === "value",
 					)?.type,
 					"string",
@@ -633,6 +1003,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					project,
 					locations,
 					project.checker.getDeclaredTypeOfSymbol(frozen),
+					"frozen",
 				);
 				assert.equal(frozenMembers.find((member) => member.name === "value")?.readonly, true);
 				assert.equal(
@@ -720,7 +1091,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.ok(second.ok);
 					assert.strictEqual(second.value, first.value);
 					session.close();
-					assert.deepEqual(JSON.parse(JSON.stringify(first.value)), first.value);
+					// JSON omits undefined documentation fields; the serialized representation must remain stable.
+					const serialized = JSON.stringify(first.value);
+					assert.equal(JSON.stringify(JSON.parse(serialized)), serialized);
 				} finally {
 					session.close();
 				}
@@ -824,7 +1197,181 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			});
 		});
 
+		describe("Documentation link binding", () => {
+			it("validates original-scope links after session closure without selecting their targets", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [
+							{ name: ".", path: "declarations/documentation-link-policy-reexport.d.ts" },
+						],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					session.close();
+					const facts = analysis.value;
+					const before = JSON.stringify(facts);
+					const linked = facts.declarations.find((entry) => entry.name === "linked");
+					// The entrypoint also exports an internal base; links must use the original module's beta base.
+					const base = facts.declarations.find(
+						(entry) =>
+							entry.name === "base" &&
+							entry.declarations[0]?.file === "declarations/documentation-link-policy.d.ts",
+					);
+					const hidden = facts.declarations.find((entry) => entry.name === "hidden");
+					assert.ok(linked);
+					assert.ok(base);
+					assert.ok(hidden);
+					const signature = linked.signatures[0];
+					assert.ok(signature?.documentationContext);
+					const classified = classifyApiItems(
+						facts.declarations.flatMap((entry) => entry.signatures),
+					);
+					assert.equal(classified.ok, true);
+					const selected = selectApiItems(classified.value, {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					});
+					assert.equal(selected.ok, true);
+					assert.deepEqual(
+						selected.value.items.map((entry) => entry.id),
+						[signature.id],
+					);
+					// Link validation needs the unselected beta targets, so pass full classification rather than selected items.
+					const result = bindDocumentationLinks(facts, classified.value, {});
+					assert.equal(result.ok, true);
+					// Five occurrences belong to linked; the sixth is base's back-reference to linked.
+					assert.equal(result.value.length, 6);
+					assert.deepEqual(
+						result.value.filter((entry) => entry.source === signature.id),
+						[
+							{ reference: "base", target: base.id },
+							{ reference: "alias", target: base.id },
+							{ reference: "hidden", target: hidden.id },
+							{ reference: "linked", target: linked.id },
+							{ reference: "base", target: base.id },
+						].map((entry, linkIndex) => ({
+							...entry,
+							source: signature.id,
+							targetSignature: facts.declarations.find(
+								(declaration) => declaration.id === entry.target,
+							)?.signatures[0]?.id,
+							linkIndex,
+							origin: signature.documentationContext?.origin,
+						})),
+					);
+					assert.equal(
+						signature.documentationContext.origin.file,
+						"declarations/documentation-link-policy.d.ts",
+					);
+					assert.equal(
+						facts.surfaces[0]?.exports.some((entry) => entry.target === hidden.id),
+						false,
+					);
+					assert.equal(Object.isFrozen(result.value), true);
+					assert.equal(
+						result.value.every(
+							(entry) => Object.isFrozen(entry) && Object.isFrozen(entry.origin),
+						),
+						true,
+					);
+					// Rebinding deserialized facts must not depend on compiler handles or object identity.
+					assert.deepEqual(
+						bindDocumentationLinks(JSON.parse(before) as AnalysisFacts, classified.value, {}),
+						result,
+					);
+					assert.equal(JSON.stringify(facts), before);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+		});
+
 		describe("Explicit documentation inheritance", () => {
+			it("resolves inherited links in their original scope after session closure", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/inheritance-links-reexport.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const session = createAnalysisSession();
+				try {
+					const analysis = session.analyze(configuration.value);
+					assert.equal(analysis.ok, true);
+					// Close before serialization so every subsequent operation uses detached data only.
+					session.close();
+					const before = JSON.stringify(analysis.value);
+					const facts = JSON.parse(before) as AnalysisFacts;
+					const inputs = facts.declarations.flatMap((entry) =>
+						entry.signatures.map((signature) => {
+							assert.ok(signature.documentationContext);
+							return {
+								id: signature.id,
+								documentation: signature.documentation,
+								packageName: signature.documentationContext.origin.packageName,
+							};
+						}),
+					);
+					const classification = classifyApiItems(inputs);
+					assert.equal(classification.ok, true);
+					const inheritance = bindDocumentationReferences(facts, {});
+					assert.equal(inheritance.ok, true, JSON.stringify(inheritance));
+					const links = bindDocumentationLinks(facts, classification.value, {});
+					assert.equal(links.ok, true);
+					// Only base contains a local API link; middle and derived receive it through inheritance.
+					assert.equal(links.value.length, 1);
+					const result = resolveDocumentation(inputs, inheritance.value, {
+						linkValidation: { bindings: links.value, classification: classification.value },
+					});
+					assert.equal(result.ok, true);
+					const receiver = facts.declarations.find((entry) => entry.name === "derived");
+					assert.ok(receiver);
+					const derived = result.value.find(
+						(entry) => entry.id === receiver.signatures[0]?.id,
+					);
+					assert.ok(derived?.documentation !== undefined);
+					// Share the pure resolver's expected comment to check compiler-backed and synthetic inputs agree.
+					assertSnapshot(derived.documentation, "documentation.inherited-link.txt");
+					assert.equal(derived.inheritedFrom.length, 2);
+					// Inheritance preserves the original occurrence, not a new binding in derived's scope.
+					assert.deepEqual(derived.links, links.value);
+					assert.equal(derived.links[0]?.origin.file, "declarations/inheritance-links.d.ts");
+					// A same-named internal target exists in the receiving module and must not replace this beta target.
+					const originalTarget = facts.declarations.find(
+						(entry) =>
+							entry.name === "target" &&
+							entry.declarations[0]?.file === "declarations/inheritance-links.d.ts",
+					);
+					assert.ok(originalTarget);
+					assert.equal(derived.links[0]?.target, originalTarget.id);
+					// The public view excludes both ancestors and the link target, but they still supply resolution data.
+					const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+					const selected = selectApiItems(classification.value, selection);
+					assert.equal(selected.ok, true);
+					assert.deepEqual(
+						selected.value.items.map((entry) => entry.id),
+						[derived.id],
+					);
+					assert.deepEqual(classifyApiItems(inputs), classification);
+					assert.equal(Object.isFrozen(derived.links[0]?.origin), true);
+					assert.equal(JSON.stringify(facts), before);
+					assert.equal(session.getStatistics().analyses, 1);
+				} finally {
+					session.close();
+				}
+			});
+
 			it("retains API link lookup facts without accepting un-validated links", () => {
 				const configuration = resolveConfiguration(
 					{
@@ -1138,6 +1685,61 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		describe("Review report generation", () => {
+			it("renders resolved inheritance after session closure against shared report snapshots", () => {
+				for (const [fixture, snapshotName, documented] of [
+					["report-inheritance", "functions.inherited.md", true],
+					["report-inheritance-empty", "functions.inherited-empty.md", false],
+				] as const) {
+					const configuration = resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: `declarations/${fixture}.d.ts` }],
+						},
+						directory,
+					);
+					assert.equal(configuration.ok, true);
+					const session = createAnalysisSession();
+					try {
+						const analysis = session.analyze(configuration.value);
+						assert.equal(analysis.ok, true);
+						session.close();
+						// Report resolution must work from plain serialized facts without a live compiler or caches.
+						const before = JSON.stringify(analysis.value);
+						const facts = JSON.parse(before) as AnalysisFacts;
+						const classified = classifyApiItems(
+							facts.declarations.flatMap((entry) => entry.signatures),
+						);
+						assert.equal(classified.ok, true);
+						const selected = selectApiItems(classified.value, {
+							name: "public",
+							releaseLevels: [ReleaseLevel.Public],
+						});
+						assert.equal(selected.ok, true);
+						assert.equal(selected.value.items.length, 1);
+						const report = createReviewReport(facts, ".", selected.value, {
+							classification: classified.value,
+						});
+						assert.equal(report.ok, true, JSON.stringify(report));
+						assert.equal(report.value.exports[0]?.signatures[0]?.documented, documented);
+						// The pure and compiler-backed paths must agree on complete output, including local-only tags.
+						assertSnapshot(
+							renderReviewReport(report.value, { additionalTags: ["@deprecated"] }),
+							snapshotName,
+						);
+						assert.deepEqual(
+							classifyApiItems(facts.declarations.flatMap((entry) => entry.signatures)),
+							classified,
+						);
+						assert.equal(JSON.stringify(facts), before);
+						assert.equal(Object.isFrozen(report.value.exports), true);
+						assert.equal(session.getStatistics().analyses, 1);
+					} finally {
+						session.close();
+					}
+				}
+			});
+
 			it("renders detached compiler facts against shared report snapshots", () => {
 				const configuration = resolveConfiguration(
 					{
@@ -1165,7 +1767,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					] as const) {
 						const selection = selectApiItems(classification.value, { name, releaseLevels });
 						assert.ok(selection.ok);
-						const report = createReviewReport(analysis.value, "./functions", selection.value);
+						const report = createReviewReport(analysis.value, "./functions", selection.value, {
+							classification: classification.value,
+							customModifierTags: ["@partner"],
+						});
 						assert.ok(report.ok, JSON.stringify(report));
 						const text = renderReviewReport(report.value);
 						const expected = assertSnapshot(text, `functions.${name}.md`);

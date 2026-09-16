@@ -9,13 +9,22 @@
  * describes a limitation in otherwise successful analysis facts.
  * Diagnostic messages provide details specific to the affected input.
  */
+// TODO: split this into separate types for separate conceptual operations:
+// - Configuration validation
+// - Session invariants (e.g. "session-closed")
+// - Documentation parsing (including reference validation)
+// - Model generation
+// - Report generation
+// - Roll-up generation
 export enum DiagnosticCode {
 	/**
-	 * Documentation inputs or custom modifier definitions are invalid.
+	 * Documentation inputs, link classification metadata, or custom modifier definitions are invalid.
 	 *
 	 * @remarks
 	 * Supply distinct identifiers and non-blank names for the packages that contain the original comments.
 	 * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.
+	 * API link binding requires original source and target classification with explicit release levels.
+	 * Content resolution also requires original classification for every API that receives inherited links.
 	 */
 	DocumentationConfiguration = "documentation-configuration",
 	/**
@@ -27,20 +36,31 @@ export enum DiagnosticCode {
 	 */
 	DocumentationTsdoc = "documentation-tsdoc",
 	/**
-	 * A documentation inheritance reference or binding failed validation.
+	 * A documentation inheritance reference, API link lookup, or binding failed validation.
 	 *
 	 * @remarks
 	 * The target or binding can be missing, ambiguous, or out of date.
 	 * Parameter incompatibility also produces this diagnostic.
 	 * Correct the reference, analyze the changed declarations again, or provide local documentation.
-	 * For a manual binding, supply one source identifier, the reference printed by TSDoc, and one target identifier.
+	 * For a manual inheritance binding, supply one source identifier, the reference printed by TSDoc, and one target identifier.
+	 * For API links, supply exactly one binding per original occurrence, with its index, target declaration
+	 * and signature identifiers, and original location. Remove unused bindings and update stale references.
 	 */
 	DocumentationReference = "documentation-reference",
+	/**
+	 * A non-internal API links to an internal API.
+	 *
+	 * @remarks
+	 * Remove the link or correct the original release tags.
+	 * Report selection does not change this policy. Public-to-beta links are permitted.
+	 * Inherited links are checked against each receiving API's original release level.
+	 */
+	DocumentationLinkPolicy = "documentation-link-policy",
 	/**
 	 * A comment or binding requests a documentation feature that is not supported.
 	 *
 	 * @remarks
-	 * Use explicit inheritance within the same package without API links.
+	 * Use explicit inheritance within the same package and provide validation inputs for API links.
 	 * For compiler-backed binding, use an unqualified reference to a standalone function.
 	 * See the diagnostic message for the specific limitation.
 	 */

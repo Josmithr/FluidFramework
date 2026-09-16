@@ -26,6 +26,7 @@ import {
 	isTypeLiteralNode,
 	isFunctionDeclaration,
 	isIdentifier,
+	isClassDeclaration,
 } from "typescript/unstable/ast/is";
 import {
 	API,
@@ -46,6 +47,7 @@ import type {
 	MemberFact,
 	Origin,
 	SignatureFact,
+	SourceDeclarationFact,
 } from "./facts.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
 
@@ -540,16 +542,86 @@ export function signatures(
 }
 
 /**
+ * Detaches one source declaration without combining or inheriting its documentation.
+ *
+ * @param locations - Package settings and cache used for the original location.
+ * @param handle - A compiler declaration handle from a symbol.
+ * @returns Original location, syntax kind, source text, and the closest attached TSDoc comment.
+ */
+function sourceDeclaration(
+	locations: LocationContext,
+	handle: CompilerSymbol["declarations"][number],
+): SourceDeclarationFact {
+	const node = handle.resolve();
+	return {
+		...origin(locations, handle.path, node?.pos ?? 0),
+		kind: SyntaxKind[handle.kind],
+		text: node?.getFullText() ?? "",
+		documentation: node?.jsDoc?.at(-1)?.getText(),
+	};
+}
+
+/**
+ * Collects declaration targets named by local class implements clauses.
+ *
+ * @remarks
+ * Looks up the named expression rather than the resulting type to retain type alias declarations.
+ * Does not instantiate targets, match members, or copy documentation.
+ *
+ * @param compiler - The checker and emitter for the active compiler snapshot.
+ * @param locations - Package settings and cache used for target identities.
+ * @param state - Declaration tracking shared with recursive target collection.
+ * @param symbol - The symbol whose original class declarations are inspected.
+ * @returns Direct target identifiers in source declaration and clause order, without adding exports.
+ * @throws If a class declaration or implements target cannot be resolved.
+ */
+function implementedDeclarations(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	symbol: CompilerSymbol,
+): ApiItemId[] {
+	const identifiers: ApiItemId[] = [];
+	for (const handle of symbol.declarations) {
+		if (handle.kind !== SyntaxKind.ClassDeclaration) {
+			continue;
+		}
+		const node = handle.resolve();
+		assert.ok(
+			node && isClassDeclaration(node),
+			"The compiler must resolve a class declaration.",
+		);
+		for (const clause of node.heritageClauses ?? []) {
+			if (clause.token !== SyntaxKind.ImplementsKeyword) {
+				continue;
+			}
+			for (const implemented of clause.types) {
+				const implementedSymbol = compiler.checker.getSymbolAtLocation(implemented.expression);
+				assert.ok(implementedSymbol, "The compiler must resolve an implements target.");
+				identifiers.push(
+					collect(compiler, locations, state, target(compiler.checker, implementedSymbol)),
+				);
+			}
+		}
+	}
+	return identifiers;
+}
+
+/**
  * Extracts effective properties and methods from an object or intersection type.
  *
  * @remarks
  * Uses compiler-resolved property types, including supported inherited and generic members.
+ * Retains each member's original source declarations and comments without merging overload documentation.
+ * Scopes member identities to the containing declaration and extracts effective call signatures.
+ * Removes null and undefined from member types so optional methods retain their signatures.
  * Reads readonly modifiers from a generated type literal where possible, then from declarations.
  * Uses `null` for readonly state when neither source is available.
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for member origins.
  * @param type - The compiler type whose effective members are requested.
+ * @param owner - The identifier of the containing declaration in this result.
  * @returns Detached members sorted by name. Other type categories produce an empty array.
  * @throws If the compiler cannot resolve an effective property type.
  */
@@ -557,6 +629,7 @@ export function members(
 	compiler: Pick<Project, "checker" | "emitter">,
 	locations: LocationContext,
 	type: Type,
+	owner: ApiItemId,
 ): MemberFact[] {
 	const { checker, emitter } = compiler;
 	if (!type.isObjectType() && !type.isIntersectionType()) {
@@ -604,13 +677,17 @@ export function members(
 						)
 					: null);
 			assert.ok(propertyType, "The compiler must resolve the effective type of a member.");
+			const id = `member:${JSON.stringify([owner, name])}`;
+			const callableType = checker.getNonNullableType(propertyType);
 			return {
+				id,
+				signatures: callableType ? signatures(compiler, callableType, id) : [],
 				name,
 				type: checker.typeToString(propertyType, declaration),
 				optional: Boolean(property.flags & SymbolFlags.Optional),
 				readonly,
-				origins: property.declarations.map((handle) =>
-					origin(locations, handle.path, handle.resolve()?.pos ?? 0),
+				declarations: property.declarations.map((handle) =>
+					sourceDeclaration(locations, handle),
 				),
 			};
 		})
@@ -760,6 +837,9 @@ export function collectLinks(
  * Excludes URL links from lookup. Missing and unsupported references remain explicit lookup results.
  * Resolves documentation names in the original declaration scope before checking module export aliases.
  * Retains documentation targets that are not exported, if they exist in the compiler inputs.
+ * Retains direct class and interface base declarations through compiler-resolved symbols.
+ * Collects unexported bases without adding them to the export surface.
+ * Retains local class implements targets separately from base declarations without copying their members.
  * Does not validate TSDoc syntax, check target compatibility, or copy inherited documentation content.
  * Marks conditional, indexed-access, and union types as partial, along with member lists
  * that contain an unresolved readonly state.
@@ -770,7 +850,7 @@ export function collectLinks(
  * @param state - Declaration tracking updated in place. Discard it if extraction throws.
  * @param symbol - A declaration target after alias resolution.
  * @returns The provisional identifier used to reference the declaration in this result.
- * @throws If the symbol is unresolved or extraction of its required facts fails.
+ * @throws If a declaration or heritage target cannot be resolved, or extraction of required facts fails.
  */
 export function collect(
 	compiler: Pick<Project, "checker" | "emitter">,
@@ -799,9 +879,22 @@ export function collect(
 		: symbol.flags & SymbolFlags.Type
 			? checker.getDeclaredTypeOfSymbol(symbol)
 			: checker.getTypeOfSymbol(symbol);
-	const effectiveMembers = type ? members(compiler, locations, type) : [];
+	const effectiveMembers = type ? members(compiler, locations, type, id) : [];
+	const baseDeclarations =
+		symbol.flags & (SymbolFlags.Class | SymbolFlags.Interface) &&
+		type?.isClassOrInterface() === true
+			? checker.getBaseTypes(type).map((base) => {
+					const baseSymbol = base.getSymbol();
+					assert.ok(
+						baseSymbol,
+						"The compiler must resolve a declaration symbol for a base type.",
+					);
+					return collect(compiler, locations, state, target(checker, baseSymbol));
+				})
+			: [];
 	const namespaceExports =
 		symbol.flags & SymbolFlags.Module ? exportsOf(compiler, locations, state, symbol) : [];
+	const implemented = implementedDeclarations(compiler, locations, state, symbol);
 	const partial = Boolean(
 		type &&
 			(type.isConditionalType() ||
@@ -862,15 +955,10 @@ export function collect(
 	}
 	declarations.set(id, {
 		id,
+		baseDeclarations,
+		implementedDeclarations: implemented,
 		name: moduleSource ? origin(locations, moduleSource.path, 0).file : symbol.name,
-		declarations: symbol.declarations.map((handle) => {
-			const node = handle.resolve();
-			return {
-				...origin(locations, handle.path, node?.pos ?? 0),
-				kind: SyntaxKind[handle.kind],
-				text: node?.getFullText() ?? "",
-			};
-		}),
+		declarations: symbol.declarations.map((handle) => sourceDeclaration(locations, handle)),
 		type: type ? checker.typeToString(type, symbol.declarations[0]?.resolve()) : "",
 		memberView: partial ? "partial" : "complete",
 		limitations: partial

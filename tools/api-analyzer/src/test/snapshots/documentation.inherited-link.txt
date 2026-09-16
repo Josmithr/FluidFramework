@@ -1,0 +1,5 @@
+/**
+ * See {@link target}.
+ *
+ * @public
+ */

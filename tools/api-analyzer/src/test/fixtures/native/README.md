@@ -34,13 +34,25 @@ Do not treat current unsupported outcomes as permanent limitations.
 - [inheritance-reexport.ts](inheritance-reexport.ts) checks that a same-named declaration in the re-exporting module does not change lookup scope.
 - [inheritance-hidden.ts](inheritance-hidden.ts) checks collection of a target that is not exported.
 - [inheritance-custom.ts](inheritance-custom.ts) uses `@sourceOnly` and `@localOnly` to check shared custom modifier configuration without copying target metadata.
+- [inheritance-links.ts](inheritance-links.ts) supplies a linked comment and an inheritance chain with an original beta target.
+- [inheritance-links-reexport.ts](inheritance-links-reexport.ts) checks inherited-link resolution through aliases despite a same-named internal target in the receiving module.
 - [documentation-links.ts](documentation-links.ts) covers aliases, hidden targets, overloads, missing and unsupported references, repeated links, URL exclusion, self-links, and collection cycles.
 - [documentation-links-reexport.ts](documentation-links-reexport.ts) checks original-scope API link lookup through a re-export.
+- [documentation-link-policy.ts](documentation-link-policy.ts) supplies valid public-to-beta links, aliases, an unexported target, repeated links, self-links, and mutual links for detached policy validation.
+- [documentation-link-policy-reexport.ts](documentation-link-policy-reexport.ts) checks that a same-named internal declaration at the entrypoint does not replace the original beta target.
 - [comments.ts](comments.ts) distinguishes absent, empty, ordinary, and closest attached documentation comments.
+- [member-documentation.ts](member-documentation.ts) preserves original class, interface, and member comments, including separate overloads and merged declarations. Inherited generic members retain their source records, while local overrides do not receive ancestor comments. It also covers effective member identities, substituted call signatures, overload selection, optional methods, and callable property comment ownership. Direct base links retain hidden ancestors and a shared diamond root without changing exports. Separate implements links retain hidden contracts and type alias targets without copying members or documentation; a derived class does not repeat its base class's implements clauses.
+- [report-inheritance.ts](report-inheritance.ts) supplies descriptive inheritance from an unexported internal ancestor without copying its deprecated annotation into a public report.
+- [report-inheritance-empty.ts](report-inheritance-empty.ts) supplies an empty inherited result that remains undocumented in a public report.
 
 The `KeepHidden` type queries keep hidden targets in emitted declarations.
 Do not remove them: documentation references alone do not make the TypeScript emitter retain those declarations.
-Lookup tests do not establish API link policy validity.
+The lookup-only fixtures do not establish API link policy validity.
+The policy fixtures also run the link binder using original classification metadata, independently of public report selection.
+The inherited-link fixtures also run content resolution after JSON serialization and session closure.
+The imported inheritance alias is re-exported so declaration emission retains it for documentation lookup.
+The report-inheritance fixtures use parameter type queries to retain their unexported ancestors.
+Their detached reports match the pure report snapshots after session closure and JSON serialization for both input compilers.
 
 ## Verification
 

@@ -41,6 +41,22 @@ Tests cover inherited configurations, relative paths, precedence, invalid inputs
 Include a representative API Extractor migration fixture that reuses its existing TSDoc configuration.
 Direct programmatic use remains available without filesystem access.
 
+## Configurable documentation inheritance rules
+
+Status: open; future investigation. No configurable inheritance rules are implemented or committed by this item.
+
+Evaluate whether consumers need configuration beyond the fixed [documentation inheritance rules](../api-analyzer/README.md#explicit-documentation-inheritance-contract).
+Keep the current rules as the default while evaluating use cases and compatibility with TSDoc and API Extractor.
+
+- Consider which documentation sections can be inherited, including blocks that currently remain local, such as examples and deprecation notices.
+- Consider local-content precedence and the planned rule that any local TSDoc comment suppresses automatic inheritance. Distinguish explicit requests from automatic inheritance.
+- Keep content inheritance separate from release classification, API selection, and reference validation. Configuration must not implicitly change API visibility or bypass link policy.
+- Define deterministic behavior for conflicting settings, inheritance chains, and package boundaries before implementing options.
+- Assess effects on report documentation status, annotation tags, provenance, and future documentation models. Identify the tests and snapshots needed for each supported option.
+
+Outcome: record whether configuration is justified and which rules, if any, should become configurable.
+This investigation does not defer the required automatic-inheritance or suite-resolution work in the implementation plan.
+
 ## Required package documentation support
 
 Status: open; required follow-up for API Extractor parity, not an optional presentation enhancement.

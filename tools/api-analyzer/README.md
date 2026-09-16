@@ -77,15 +77,79 @@ Use portable data without compiler handles. Report limitations when a representa
 Identifiers are provisional and must not use compiler handle numbers or traversal order.
 The Stage 1 representation is not yet a versioned documentation model or a complete API reference graph.
 
+### Original declaration comments
+
+`SourceDeclarationFact.documentation` retains the closest attached TSDoc comment, including delimiters, or `undefined` when absent.
+Empty and tag-only comments remain present. Ordinary comments are excluded.
+The adapter reads attached compiler AST comments; it does not recover documentation by parsing printed declaration text.
+An unavailable declaration node supplies no comment. JSON serialization omits absent documentation properties.
+
+Both `DeclarationFact.declarations` and `MemberFact.declarations` retain source records with locations, syntax kinds, source text, and original comments.
+The member records replace the former location-only `origins` array. Read locations from `declarations`.
+Records follow compiler declaration order. Overloads and merged declarations retain separate comments; extraction does not select or combine them.
+An effective inherited member retains its original source records, even when generic substitution changes its effective type.
+A local override retains only its own declaration comments. An absent or empty override comment does not receive ancestor content during extraction.
+These records remain frozen and usable after session closure. They describe original declarations, not resolved documentation.
+
+Compiler tests cover classes, interfaces, inherited generic members, local overrides, overloads, and merged declarations for both supported input compilers.
+This is a prerequisite for broader classification and reporting. It does not define merged-comment precedence or implement automatic inheritance.
+Class and interface report rendering remains unsupported.
+
+### Effective member identities and signatures
+
+`MemberFact.id` identifies a member on its containing declaration. It combines the declaration identifier with the compiler-printed member name.
+An inherited member has different identifiers on different containing declarations, even when its source records are the same.
+These identifiers are provisional. They do not identify an ancestor or establish an override relationship.
+
+`MemberFact.signatures` retains effective call signatures in compiler order, with generic substitutions and separate original comments for overloads.
+The adapter removes null and undefined from the member type before requesting call signatures. This includes optional methods.
+Non-callable members have an empty signature array. Callable properties retain comments from their signature declarations, not copied property comments.
+Signature identifiers use the effective member as their owner and retain the limitations documented on `SignatureFact.id`.
+Callers can pass these signatures to classification and selection independently. This does not define classification rules for a whole class or interface.
+
+Both input compilers verify overload selection, inherited generic signatures, optional methods, callable properties, and frozen facts after session closure and JSON serialization.
+Construct signatures, member documentation lookup contexts, ancestor matching, and class/interface reports remain unsupported.
+
+### Direct base declarations
+
+`DeclarationFact.baseDeclarations` contains direct class or interface base declaration identifiers in compiler order.
+The adapter follows compiler-resolved base symbols and retains all target declarations in the same analysis result.
+Unexported bases remain outside the entrypoint export surface. Shared ancestors are collected once, including in diamond hierarchies.
+The links remain frozen and usable after session closure and JSON serialization.
+
+Targets describe original declarations, not instantiated generic base views. For example, a base reached as `Base<string>` retains its original type parameter.
+These links exclude `implements` clauses and are empty for declaration forms other than classes and interfaces.
+If the compiler supplies a base type without a declaration symbol, extraction fails instead of silently omitting that base.
+The links do not establish member overrides, select matching overloads, or authorize documentation inheritance.
+Those operations still require additional compiler-backed facts and resolution rules.
+
+### Direct implementation declarations
+
+`DeclarationFact.implementedDeclarations` contains declaration identifiers named by local class `implements` clauses, in source declaration and clause order.
+The adapter uses compiler symbol lookup, resolves import aliases, and retains the targets without adding exports.
+Type alias declarations remain targets; extraction does not replace them with their constituent types.
+Targets describe original declarations, not instantiated generic views.
+Clauses inherited through a base class are not copied into this array. Follow `baseDeclarations` to reach that class instead.
+The array is empty for other declaration forms. Unresolved class declarations or targets cause extraction to fail.
+Both input compilers verify hidden and type-alias targets, direct-only links, unchanged local comments and members, and frozen facts after session closure and JSON serialization.
+
+An `implements` clause checks a type contract but does not add members to a class.
+Documentation inheritance is a separate, planned operation: a class member with no local TSDoc can receive content from a compatible implemented interface member.
+Any local TSDoc, including an empty or tag-only comment, suppresses automatic inheritance. Explicit inheritance remains a resolution request.
+Conflicting interface sources require a diagnostic rather than an arbitrary choice.
+Instantiated contract context, member and overload matching, and precedence between class and interface sources remain required before this behavior can be implemented.
+Current extraction does not copy interface documentation or change release classification.
+
 ## Explicit documentation inheritance contract
 
 `resolveDocumentation(items, bindings, options)` copies documentation for explicit inheritance requests within the same package.
 A binding associates a request with its target declaration or signature.
 The internal `bindDocumentationReferences(facts, options)` operation produces bindings from supported compiler lookup facts.
 It is not exported from the package entrypoint.
-Neither operation is part of report construction yet.
+Function report construction runs binding and content resolution before applying report selection.
 
-Both operations use `TsdocOptions` with an optional `customModifierTags` array.
+Both operations accept the optional `customModifierTags` array defined by `TsdocOptions`.
+The content resolver uses `DocumentationResolutionOptions`, which also accepts API link validation inputs.
 The internal binder requires an options argument; pass `{}` for standard TSDoc tags only.
 The content resolver permits omitted options, which register only standard TSDoc tags.
 Pass the same custom modifier vocabulary to `classifyApiItems`, `bindDocumentationReferences`, and `resolveDocumentation`.
@@ -133,7 +197,7 @@ const result = resolveDocumentation(
 ```
 
 Successful output is deeply frozen and sorted by item identifier.
-Each result contains a comment printed by TSDoc and an `inheritedFrom` array of target identifiers.
+Each result contains a comment printed by TSDoc, an `inheritedFrom` array of target identifiers, and effective API `links`.
 The array follows the inheritance path from the immediate target to the last target.
 TSDoc supplies parsing and printing.
 The resolver does not splice comment text or parse printed TypeScript signatures.
@@ -141,6 +205,7 @@ It copies the target's summary, remarks, parameter documentation, type-parameter
 Other blocks and modifier tags come from the local comment.
 In the example, the derived comment receives the summary and retains `@public`.
 It does not receive `@internal`.
+These copying rules are fixed. Evaluating configurable rules is a [future follow-up](../plans/api-extractor-replacement-follow-ups.md#configurable-documentation-inheritance-rules).
 
 Use the original inputs for release classification.
 Do not classify the resolved comment as a new API item.
@@ -153,8 +218,9 @@ It does not yet contain structured content or the source information for each se
 Invalid syntax, missing or ambiguous bindings, stale bindings, and inheritance cycles return typed diagnostics without a partial success value.
 Unexpected processing errors propagate as exceptions.
 The resolver does not change inputs, and each call owns its caches.
-It does not support automatic inheritance, parameter renaming, custom block or inline tags, inheritance from other packages, or API link resolution.
-Requests for inheritance from other packages, requests without explicit targets, and API links produce diagnostics.
+It does not support automatic inheritance, parameter renaming, custom block or inline tags, or inheritance from other packages.
+Requests for inheritance from other packages and requests without explicit targets produce diagnostics.
+API links require validated original bindings and classification as described below.
 Links to URLs remain unchanged, and the resolver does not access their destinations.
 The current resolver does not treat an absent comment as a request for automatic inheritance.
 It does not accept ancestor facts as inputs yet.
@@ -168,8 +234,9 @@ Keep separate assertions for target identifiers, inheritance paths, unchanged in
 Real-compiler tests verify binding and content resolution after the analysis session closes.
 These tests use declarations built with TypeScript 6 and TypeScript 7, both analyzed with TypeScript 7.
 Both compiler inputs and the direct-inheritance unit test use the same resolved-comment snapshot.
-Report inheritance snapshots remain planned work for report integration; they must not preserve the current unresolved-comment check as the final behavior.
-This increment does not change `ReviewSignature.documented`, report notices, or the Stage 2 completion status.
+Pure and compiler-backed report tests share snapshots for descriptive and empty inherited content.
+`ReviewSignature.documented` and report notices use successfully resolved content while annotation tags remain local.
+Broader declaration support, automatic inheritance, and suite resolution remain required before Stage 2 is complete.
 
 ### Compiler-backed function bindings
 
@@ -201,14 +268,14 @@ They do not compare parameter types, return types, generic constraints, or gener
 Qualified references, TSDoc selectors, targets in other packages, and other declaration forms produce diagnostics.
 TSDoc selectors identify a specific declaration, such as an overload, within a reference.
 Classification, binding, and content resolution share custom modifier configuration through `TsdocOptions`.
-Custom block and inline tag configuration, configuration-file loading, and API link validation remain pending.
+Custom block and inline tag configuration and configuration-file loading remain pending.
 
 Compiler fixture tests cover direct references, imported and exported aliases, original scope through re-exports, non-exported targets, missing names, ambiguous overloads, incompatible parameter shapes, and unsupported forms.
 Custom modifier fixtures verify binding and resolution after session closure for both compiler inputs.
 They also verify that original release classification and metadata selection do not change.
 Pass bindings to `resolveDocumentation` with the signature comments and their original package names.
 Use the original comments for classification.
-The current report notices do not use these bindings or resolved comments.
+Function reports use these bindings and resolved comments to determine documentation presence.
 
 ### Compiler-backed API link lookup
 
@@ -234,13 +301,87 @@ Qualified references, selectors, and target-less inheritance requests currently 
 All outcomes retain the printed `reference` text, including an empty string for a target-less inheritance request.
 Narrow on `status` before accessing `target`.
 Lookup does not validate the target's package scope, release level, or suitability for documentation links.
-The resolver continues to reject API links until those checks are implemented.
-Future validation must permit public-to-beta links independently of report selection and reject links from non-internal APIs to internal APIs.
-Inherited links must retain their original context when those checks are applied.
+The separate link binder validates the supported function subset described below.
+The content resolver consumes validated bindings and preserves their original context through inheritance.
 
 Compiler fixture tests cover these lookup cases using both supported declaration-build compilers.
 They verify detached access after session closure, frozen lookup results, and JSON round-tripping of the documentation context.
-This increment does not change report behavior or satisfy the API-link validation requirement.
+Lookup alone does not establish API-link validity. Function reports also run the link binder and content resolver.
+
+### Same-package API link binding
+
+The internal `bindDocumentationLinks(facts, classification, options)` operation in [documentation.ts](src/documentation.ts) validates local API links without compiler access.
+It is not exported from the package entrypoint.
+Supply original classification from the same analysis, including targets excluded from report selections.
+The binder does not recompute classification or validate that supplied metadata came from the current comments.
+Use the same custom modifier options for classification and binding.
+
+Sources must have standalone function documentation contexts.
+Targets must be standalone functions with exactly one callable signature and a documentation context.
+The source and target must belong to the same original package, which can differ from the package that re-exports them.
+Aliases and retained unexported targets are supported.
+Parameter names and types do not need to match because links do not copy parameter documentation.
+Overload targets, other declaration forms, qualified references, selectors, and cross-package links produce unsupported-feature diagnostics.
+These limits are provisional until declaration-level classification and broader target semantics are available.
+
+Public, beta, and alpha APIs can link to each other, independently of report selection.
+They cannot link to internal APIs.
+Internal APIs can link to any release level.
+Missing source or target metadata, including an unspecified release level, produces a configuration diagnostic.
+The binder does not treat missing metadata as public or infer it from a report selection.
+
+Each result retains the source signature identifier, API link index, reference text, target declaration and signature identifiers, and original comment location.
+Indices follow TSDoc tree traversal order and exclude URL links.
+Repeated links remain separate occurrences.
+Results are deeply frozen and sorted by source identifier and link index.
+URL destinations are not accessed or validated.
+The binder checks TSDoc syntax and verifies that lookup reference text and occurrence order match the comment.
+Missing names and stale lookups produce reference diagnostics; non-internal-to-internal links produce `documentation-link-policy`.
+Failures contain no partial bindings.
+Duplicate fact or metadata identifiers and missing retained target declarations are internal invariant failures and throw exceptions.
+
+Pure tests cover all release-level combinations, selection independence, stale and missing lookups, unsupported scopes, custom modifiers, and immutable results.
+Compiler tests verify aliases, unexported targets, repeated links, self-links, mutual links, and original scope through re-exports after session closure.
+They use declarations built with TypeScript 6 and TypeScript 7 and verify binding after JSON serialization.
+This operation validates links in original local comments.
+
+### Inherited API links
+
+Pass its bindings and the original classification through `resolveDocumentation`'s `linkValidation` option to resolve comments that contain API links.
+Omit this option only for comments without API links, including inherited content.
+Each binding identifies both the target declaration and its single callable signature for release-policy checks.
+The resolver requires exactly one binding per original API-link occurrence and rejects missing, duplicate, stale, or unused bindings.
+Manual bindings must satisfy the same target and scope checks as the compiler-backed binder.
+The target signature must have an input in the resolver request, even when it is not an inheritance target.
+The resolver does not verify the declaration-to-signature association or recompute the supplied classification.
+
+The following call uses original inputs, inheritance bindings, API link bindings, and classification from the same analysis:
+
+```typescript
+const resolved = resolveDocumentation(inputs, inheritanceBindings, {
+	...tsdocOptions,
+	linkValidation: {
+		bindings: linkBindings,
+		classification,
+	},
+});
+```
+
+Resolved comments expose a `links` array in effective TSDoc traversal order.
+Each entry preserves the original source signature, original link index, target identifiers, and comment location.
+The resolver associates bindings with original TSDoc nodes before copying inherited sections.
+It does not look up an inherited reference in the receiving declaration's scope.
+Only links in copied sections propagate; target-only examples and other blocks that are not copied do not contribute links.
+Local ancillary blocks retain their own link bindings.
+Every receiving API requires original release metadata when its effective comment contains API links.
+Non-internal APIs cannot receive an inherited link to an internal target, even if the original comment belongs to an internal API.
+Inherited content does not change classification or selection.
+Complete-comment snapshots cover inherited links and links in copied sections alongside local examples.
+Pure tests cover chains, identical reference text with different original targets, rejected bindings, and receiving release-policy failures.
+Both compiler inputs verify resolution through aliases after JSON serialization and session closure, using the same inherited-comment snapshot.
+Function reports validate local and inherited API links before constructing a successful report, including links in unselected signatures.
+Effective content determines `ReviewSignature.documented`; original classification and local tags determine report annotations.
+This function-only integration does not complete Stage 2.
 
 ## Release classification and selection contract
 
@@ -329,7 +470,13 @@ Separate selections must produce separate artifacts from shared analysis. Baseli
 The initial declaration renderer supports function-only entrypoints. Its report syntax is experimental.
 Raw declaration text is not a substitute for correctly selected declarations, and metadata-only output is not a complete API report.
 
-`createReviewReport(facts, entrypoint, selection)` joins a named metadata selection to detached callable signature facts.
+`createReviewReport(facts, entrypoint, selection, options)` joins a named metadata selection to detached callable signature facts.
+The required `ReviewReportOptions` supplies full original `classification` and the same `customModifierTags` used to classify the inputs.
+Report construction binds inheritance and API links, then resolves all supplied signature comments before applying report selection.
+Unselected ancestors and link targets remain available, and invalid documentation fails the request even for an empty selection.
+Documentation diagnostics propagate without a partial report.
+The `documented` flag measures descriptive content after resolution; an inheritance request alone does not count.
+Empty inherited content remains undocumented. Original release metadata and local block tags still control report annotations.
 The report identity uses the package name and selection name, not the physical entrypoint name.
 This lets two resolution contexts render under the same review identity for parity comparison.
 Exports are sorted by exported name. Aliases remain separate exports, and type-only export paths remain visible.
@@ -354,21 +501,19 @@ The report retains declaration identities internally to group aliases, but never
 Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.
 Release tags are controlled only by `includeReleaseTags`, not `additionalTags`. Permitted untagged items have no release annotation.
 The report builder preserves recognized modifier metadata and parsed block-tag presence for presentation.
-It uses the official TSDoc parser for documentation-content detection without repeating semantic classification or validation.
+It uses the official TSDoc parser for effective-content detection without repeating semantic classification.
 
 `includeUndocumentedNotice` defaults to `true`. Absent, empty, and tag-only comments receive `(undocumented)` annotations.
-Descriptive text in a summary or block, code, links, and explicit inheritance requests count as documentation.
-An inheritance request does not imply that inherited documentation has been resolved.
+Descriptive text in an effective summary or block, code, and validated API or URL links count as documentation.
+An explicit inheritance request counts only through its successfully resolved content.
+Missing targets, cycles, ambiguous overload targets, invalid TSDoc, and invalid API links prevent successful report construction.
+Inherited links retain their original targets and must also satisfy the receiving API's original release policy.
+This status measures content presence, not documentation quality or completeness.
 
-This documentation-presence check is temporary. The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) moves resolution ahead of report construction.
-The planned resolver retains effective content and provenance separately from release classification and selection.
-Reports will determine documentation presence from successfully resolved content, not from an inheritance request alone.
-Missing targets, cycles, conflicting ancestors, and ambiguous overload matches will produce resolution diagnostics instead of a guessed boolean.
-An empty inherited result will remain undocumented. Any local TSDoc comment will suppress automatic inheritance; an explicit inheritance request will still require resolution.
-This status will measure content presence, not documentation quality or completeness.
-Implementation proceeds through same-package explicit inheritance, automatic member inheritance, and cross-package suite resolution.
-The required dependency-model loading and compatibility support moves into Stage 2. Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
-These changes are planned, not implemented by the current report builder.
+Same-package explicit function inheritance and API links are implemented.
+The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) still requires broader declaration support, automatic member inheritance, and cross-package suite resolution.
+The planned automatic inheritance rule treats any local TSDoc comment, including an empty or tag-only comment, as an override.
+Dependency-model loading and compatibility support remain in Stage 2. Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
 Disabling the annotation does not disable documentation validation or change selected APIs.
 Display settings never remove metadata from the report model and do not alter semantic policy.
 

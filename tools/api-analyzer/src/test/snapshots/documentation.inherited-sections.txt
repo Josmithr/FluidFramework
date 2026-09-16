@@ -1,0 +1,19 @@
+/**
+ * See {@link target}.
+ *
+ * @remarks
+ *
+ * Details {@link target}.
+ *
+ * @param value - Input {@link target}.
+ *
+ * @typeParam Value - Type {@link target}.
+ *
+ * @returns Output {@link target}.
+ *
+ * @example
+ *
+ * Local {@link target}.
+ *
+ * @public
+ */

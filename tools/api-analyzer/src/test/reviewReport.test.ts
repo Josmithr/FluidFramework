@@ -6,6 +6,7 @@ import {
 	renderReviewReport,
 	selectApiItems,
 	ReleaseLevel,
+	DiagnosticCode,
 	type AnalysisFacts,
 } from "../index.js";
 import { assertSnapshot } from "./snapshotUtils.js";
@@ -33,10 +34,13 @@ const facts: AnalysisFacts = {
 					start: 100,
 					kind: "FunctionDeclaration",
 					text: "not-for-rendering",
+					documentation: "/** @public @partner */",
 				},
 			],
 			type: "not-for-rendering",
 			memberView: "complete",
+			baseDeclarations: [],
+			implementedDeclarations: [],
 			limitations: [],
 			members: [],
 			exports: [],
@@ -58,7 +62,338 @@ const facts: AnalysisFacts = {
 	],
 };
 
+/**
+ * Creates a public function inheriting from an unexported internal ancestor.
+ *
+ * @param documentation - The ancestor's original comment, or `undefined` when absent.
+ * @returns Mutable facts with matching parameter context and a single exported receiver.
+ */
+function inheritanceReportFacts(documentation: string | undefined): AnalysisFacts {
+	const template = facts.declarations[0];
+	assert.ok(template);
+	const signature = template.signatures[0];
+	assert.ok(signature);
+	const origin = { packageName: "example", file: "api.d.ts", start: 0 };
+	const context = {
+		origin,
+		parameters: [{ name: "value", optional: false, rest: false }],
+		typeParameters: [],
+		links: [],
+	};
+	return {
+		...facts,
+		surfaces: [
+			{ name: ".", exports: [{ name: "convert", target: "derived", typeOnly: false }] },
+		],
+		declarations: [
+			{
+				...template,
+				id: "base",
+				name: "base",
+				declarations: [{ ...origin, kind: "FunctionDeclaration", text: "", documentation }],
+				signatures: [
+					{ ...signature, id: "base-signature", documentation, documentationContext: context },
+				],
+			},
+			{
+				...template,
+				id: "derived",
+				declarations: [
+					{
+						...origin,
+						kind: "FunctionDeclaration",
+						text: "",
+						documentation: "/** {@inheritDoc base} @public */",
+					},
+				],
+				signatures: [
+					{
+						...signature,
+						id: "derived-signature",
+						documentation: "/** {@inheritDoc base} @public */",
+						documentationContext: {
+							...context,
+							inheritance: { reference: "base", status: "resolved", target: "base" },
+						},
+					},
+				],
+			},
+		],
+	};
+}
+
 describe("Review report generation", () => {
+	it("reports effective inherited content without inheriting target metadata", () => {
+		for (const [documentation, documented] of [
+			["/** Converts a value. @deprecated Target only. @internal */", true],
+			["/** @internal */", false],
+			["/** */", false],
+			[undefined, false],
+		] as const) {
+			const input = inheritanceReportFacts(documentation);
+			const classification = classifyApiItems(
+				input.declarations.flatMap((entry) => entry.signatures),
+				{ rules: { requireReleaseLevel: false } },
+			);
+			assert.equal(classification.ok, true);
+			const selection = selectApiItems(classification.value, {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert.equal(selection.ok, true);
+			// The ancestor is not exported or selected, but still supplies the effective comment.
+			assert.deepEqual(
+				selection.value.items.map((entry) => entry.id),
+				["derived-signature"],
+			);
+			const before = JSON.stringify({ input, classification, selection });
+			const report = createReviewReport(input, ".", selection.value, {
+				classification: classification.value,
+			});
+			assert.equal(report.ok, true);
+			assert.equal(report.value.exports[0]?.signatures[0]?.documented, documented);
+			assert.deepEqual(report.value.exports[0]?.signatures[0]?.modifierTags, ["@public"]);
+			assertSnapshot(
+				renderReviewReport(report.value, { additionalTags: ["@deprecated"] }),
+				documented ? "functions.inherited.md" : "functions.inherited-empty.md",
+			);
+			assert.equal(JSON.stringify({ input, classification, selection }), before);
+		}
+	});
+
+	it("validates inherited API links using full original classification", () => {
+		const input = inheritanceReportFacts("/** See {@link base}. @beta @ancestorOnly */");
+		const base = input.declarations[0];
+		assert.ok(base);
+		const signature = base.signatures[0];
+		assert.ok(signature?.documentationContext);
+		const linked: AnalysisFacts = {
+			...input,
+			declarations: [
+				{
+					...base,
+					signatures: [
+						{
+							...signature,
+							documentationContext: {
+								...signature.documentationContext,
+								links: [{ reference: "base", status: "resolved", target: "base" }],
+							},
+						},
+					],
+				},
+				...input.declarations.slice(1),
+			],
+		};
+		const options = { customModifierTags: ["@ancestorOnly"] };
+		const classified = classifyApiItems(
+			linked.declarations.flatMap((entry) => entry.signatures),
+			options,
+		);
+		assert.equal(classified.ok, true);
+		const selected = selectApiItems(classified.value, {
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert.equal(selected.ok, true);
+		const report = createReviewReport(linked, ".", selected.value, {
+			...options,
+			classification: classified.value,
+		});
+		assert.equal(report.ok, true);
+		assert.equal(report.value.exports[0]?.signatures[0]?.documented, true);
+		assert.deepEqual(report.value.exports[0]?.signatures[0]?.modifierTags, ["@public"]);
+		assertSnapshot(
+			renderReviewReport(report.value, { additionalTags: ["@ancestorOnly"] }),
+			"functions.inherited.md",
+		);
+		// Selection excludes the beta target, but both original author and receiver metadata are still required.
+		for (const id of ["base-signature", "derived-signature"]) {
+			const result = createReviewReport(linked, ".", selected.value, {
+				...options,
+				classification: {
+					...classified.value,
+					items: classified.value.items.filter((entry) => entry.id !== id),
+				},
+			});
+			assert.equal(result.ok, false);
+			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationConfiguration);
+		}
+		// A modifier used only by an unselected ancestor still belongs to the parser vocabulary.
+		const unconfigured = createReviewReport(linked, ".", selected.value, {
+			classification: classified.value,
+		});
+		assert.equal(unconfigured.ok, false);
+		assert.equal(unconfigured.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
+	});
+
+	it("propagates documentation failures even when no signatures are selected", () => {
+		const valid = inheritanceReportFacts("/** Base. @internal */");
+		const base = valid.declarations[0];
+		const derived = valid.declarations[1];
+		assert.ok(base);
+		assert.ok(derived);
+		const baseSignature = base.signatures[0];
+		const derivedSignature = derived.signatures[0];
+		assert.ok(baseSignature?.documentationContext);
+		assert.ok(derivedSignature?.documentationContext);
+		const baseContext = baseSignature.documentationContext;
+		const derivedContext = derivedSignature.documentationContext;
+		const cases: readonly { name: string; input: AnalysisFacts; code: DiagnosticCode }[] = [
+			{
+				name: "missing inheritance target",
+				input: {
+					...valid,
+					declarations: [
+						base,
+						{
+							...derived,
+							signatures: [
+								{
+									...derivedSignature,
+									documentationContext: {
+										...derivedContext,
+										inheritance: { reference: "base", status: "not-found" },
+									},
+								},
+							],
+						},
+					],
+				},
+				code: DiagnosticCode.DocumentationReference,
+			},
+			{
+				name: "ambiguous overload target",
+				input: {
+					...valid,
+					declarations: [
+						{
+							...base,
+							signatures: [baseSignature, { ...baseSignature, id: "base-overload" }],
+						},
+						derived,
+					],
+				},
+				code: DiagnosticCode.DocumentationReference,
+			},
+			{
+				name: "inheritance cycle",
+				input: {
+					...valid,
+					declarations: [
+						{
+							...base,
+							signatures: [
+								{
+									...baseSignature,
+									documentation: "/** {@inheritDoc derived} @internal */",
+									documentationContext: {
+										...baseContext,
+										inheritance: {
+											reference: "derived",
+											status: "resolved",
+											target: "derived",
+										},
+									},
+								},
+							],
+						},
+						derived,
+					],
+				},
+				code: DiagnosticCode.DocumentationCycle,
+			},
+			{
+				name: "missing API link",
+				input: {
+					...valid,
+					declarations: [
+						{
+							...base,
+							signatures: [
+								{
+									...baseSignature,
+									documentation: "/** {@link missing} @internal */",
+									documentationContext: {
+										...baseContext,
+										links: [{ reference: "missing", status: "not-found" }],
+									},
+								},
+							],
+						},
+						derived,
+					],
+				},
+				code: DiagnosticCode.DocumentationReference,
+			},
+			// The internal author's self-link is valid locally, but becomes invalid in the public receiver.
+			{
+				name: "inherited internal link",
+				input: {
+					...valid,
+					declarations: [
+						{
+							...base,
+							signatures: [
+								{
+									...baseSignature,
+									documentation: "/** {@link base} @internal */",
+									documentationContext: {
+										...baseContext,
+										links: [{ reference: "base", status: "resolved", target: "base" }],
+									},
+								},
+							],
+						},
+						derived,
+					],
+				},
+				code: DiagnosticCode.DocumentationLinkPolicy,
+			},
+			{
+				name: "invalid unselected comment",
+				input: {
+					...valid,
+					declarations: [
+						{
+							...base,
+							signatures: [{ ...baseSignature, documentation: "/** @unknown @internal */" }],
+						},
+						derived,
+					],
+				},
+				code: DiagnosticCode.DocumentationTsdoc,
+			},
+		];
+		for (const { name, input, code } of cases) {
+			// Classification may tolerate parser diagnostics; report validation must remain strict.
+			const classified = classifyApiItems(
+				input.declarations.flatMap((entry) => entry.signatures),
+				{ rules: { validateTsdocSyntax: false } },
+			);
+			assert.equal(classified.ok, true);
+			const selected = selectApiItems(classified.value, {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert.equal(selected.ok, true);
+			const before = JSON.stringify(input);
+			for (const items of [selected.value.items, []]) {
+				const result = createReviewReport(
+					input,
+					".",
+					{ ...selected.value, items },
+					{ classification: classified.value },
+				);
+				assert.equal(result.ok, false, name);
+				assert.equal(result.diagnostics[0]?.code, code, name);
+				assert.equal("value" in result, false);
+				assert.equal(Object.isFrozen(result.diagnostics), true);
+			}
+			assert.equal(JSON.stringify(input), before);
+		}
+	});
+
 	// Design requirements: W1, W2, W4. Initial function-only report coverage.
 	it("renders public and complete reports against checked-in snapshots", () => {
 		const before = JSON.stringify(facts);
@@ -69,13 +404,14 @@ describe("Review report generation", () => {
 			},
 		);
 		assert.ok(classification.ok);
+		const options = { classification: classification.value, customModifierTags: ["@partner"] };
 		for (const [name, releaseLevels] of [
 			["public", [ReleaseLevel.Public]],
 			["complete", [ReleaseLevel.Public, ReleaseLevel.Internal]],
 		] as const) {
 			const selection = selectApiItems(classification.value, { name, releaseLevels });
 			assert.ok(selection.ok);
-			const result = createReviewReport(facts, ".", selection.value);
+			const result = createReviewReport(facts, ".", selection.value, options);
 			assert.ok(result.ok);
 			assertSnapshot(renderReviewReport(result.value), `functions.${name}.md`);
 			assert.ok(Object.isFrozen(result.value.exports));
@@ -104,7 +440,7 @@ describe("Review report generation", () => {
 					exports: [...surface.exports].reverse(),
 				})),
 			};
-			assert.deepEqual(createReviewReport(reversed, ".", selection.value), result);
+			assert.deepEqual(createReviewReport(reversed, ".", selection.value, options), result);
 			if (name === "complete") {
 				const reordered = createReviewReport(
 					{
@@ -116,6 +452,7 @@ describe("Review report generation", () => {
 					},
 					".",
 					selection.value,
+					options,
 				);
 				assert.ok(reordered.ok);
 				assert.notEqual(renderReviewReport(reordered.value), renderReviewReport(result.value));
@@ -138,20 +475,26 @@ describe("Review report generation", () => {
 				},
 				".",
 				selection.value,
+				options,
 			);
 			assert.ok(changedSignature.ok);
 			assert.notEqual(
 				renderReviewReport(changedSignature.value),
 				renderReviewReport(result.value),
 			);
-			const changedMetadata = createReviewReport(facts, ".", {
-				...selection.value,
-				items: selection.value.items.map((item) => ({
-					...item,
-					releaseLevel: ReleaseLevel.Beta,
-					modifierTags: ["@beta"],
-				})),
-			});
+			const changedMetadata = createReviewReport(
+				facts,
+				".",
+				{
+					...selection.value,
+					items: selection.value.items.map((item) => ({
+						...item,
+						releaseLevel: ReleaseLevel.Beta,
+						modifierTags: ["@beta"],
+					})),
+				},
+				options,
+			);
 			assert.ok(changedMetadata.ok);
 			assert.notEqual(
 				renderReviewReport(changedMetadata.value),
@@ -171,6 +514,7 @@ describe("Review report generation", () => {
 				},
 				".",
 				selection.value,
+				options,
 			);
 			assert.ok(changedExport.ok);
 			assert.notEqual(
@@ -214,7 +558,10 @@ describe("Review report generation", () => {
 				includeUntagged: true,
 			});
 			assert.ok(selected.ok);
-			const report = createReviewReport(input, ".", selected.value);
+			const report = createReviewReport(input, ".", selected.value, {
+				classification: classified.value,
+				customModifierTags: ["@input", "@legacy"],
+			});
 			assert.ok(report.ok);
 			assert.equal(
 				report.value.exports[0]?.signatures[0]?.documented,
@@ -252,24 +599,41 @@ describe("Review report generation", () => {
 				exports: surface.exports.filter((binding) => binding.name === "alias"),
 			})),
 		};
-		const report = createReviewReport(input, ".", selected.value);
+		const report = createReviewReport(input, ".", selected.value, {
+			classification: classified.value,
+			customModifierTags: ["@partner"],
+		});
 		assert.ok(report.ok);
 		assertSnapshot(renderReviewReport(report.value), "functions.alias-only.md");
 	});
 
 	it("distinguishes invalid requests, broken facts, and unsupported declarations", () => {
 		const selection = { name: "public", items: [] };
-		assert.equal(createReviewReport(facts, "missing", selection).ok, false);
-		assert.equal(createReviewReport(facts, ".", { ...selection, name: " " }).ok, false);
+		const classified = classifyApiItems(
+			facts.declarations.flatMap((entry) => entry.signatures),
+			{ customModifierTags: ["@partner"] },
+		);
+		assert.equal(classified.ok, true);
+		const options = { classification: classified.value, customModifierTags: ["@partner"] };
+		assert.equal(createReviewReport(facts, "missing", selection, options).ok, false);
 		assert.equal(
-			createReviewReport(facts, ".", {
-				...selection,
-				items: [{ id: "unknown", releaseLevel: undefined, modifierTags: [] }],
-			}).ok,
+			createReviewReport(facts, ".", { ...selection, name: " " }, options).ok,
+			false,
+		);
+		assert.equal(
+			createReviewReport(
+				facts,
+				".",
+				{
+					...selection,
+					items: [{ id: "unknown", releaseLevel: undefined, modifierTags: [] }],
+				},
+				options,
+			).ok,
 			false,
 		);
 		assert.throws(
-			() => createReviewReport({ ...facts, declarations: [] }, ".", selection),
+			() => createReviewReport({ ...facts, declarations: [] }, ".", selection, options),
 			assert.AssertionError,
 		);
 		assert.throws(
@@ -287,10 +651,11 @@ describe("Review report generation", () => {
 					},
 					".",
 					selection,
+					options,
 				),
 			/not supported/,
 		);
-		const empty = createReviewReport(facts, ".", selection);
+		const empty = createReviewReport(facts, ".", selection, options);
 		assert.ok(empty.ok);
 		assertSnapshot(renderReviewReport(empty.value), "functions.empty.md");
 	});

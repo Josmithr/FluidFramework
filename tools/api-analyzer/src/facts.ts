@@ -4,7 +4,7 @@ import type { AnalyzerDiagnostic } from "./result.js";
  * An opaque string that identifies an API item within its owning data set.
  *
  * @remarks
- * Used for declaration and signature identities, export references, and classification metadata.
+ * Used for declaration, member, and signature identities, export references, and classification metadata.
  * Compare identifiers by exact string equality. Do not parse, trim, or normalize them.
  * No prescribed syntax, non-blank requirement, global uniqueness, or cross-version stability is guaranteed.
  * This alias does not add runtime validation or distinguish different kinds of API items.
@@ -15,7 +15,7 @@ import type { AnalyzerDiagnostic } from "./result.js";
  * Callers that supply their own documentation inputs also supply their identifiers.
  *
  * Analyzer-generated identifiers are provisional. See {@link DeclarationFact.id} and
- * {@link SignatureFact.id} for their generation rules and limitations.
+ * {@link MemberFact.id} and {@link SignatureFact.id} for their generation rules and limitations.
  */
 export type ApiItemId = string;
 
@@ -175,6 +175,25 @@ export interface SignatureFact {
  */
 export interface MemberFact {
 	/**
+	 * A provisional identifier for the member as observed on its containing declaration.
+	 *
+	 * @remarks
+	 * Combines the containing declaration identifier with the compiler-printed member name.
+	 * Inherited members on different containing declarations have different identifiers,
+	 * even when they share source declarations. The format is not a stable public contract.
+	 */
+	readonly id: ApiItemId;
+	/**
+	 * Effective call signatures in compiler order, including optional methods and callable properties.
+	 *
+	 * @remarks
+	 * Each signature retains its own source comment and uses this member's identifier as its owner.
+	 * Null and undefined are removed from the effective type before extracting call signatures.
+	 * Property comments are not copied to function-type signatures. Non-callable members have no signatures.
+	 * Construct signatures and member documentation lookup contexts are not extracted.
+	 */
+	readonly signatures: readonly SignatureFact[];
+	/**
 	 * The compiler-printed declaration name, or the symbol name when no name node is available.
 	 */
 	readonly name: string;
@@ -199,13 +218,15 @@ export interface MemberFact {
 	// eslint-disable-next-line @rushstack/no-new-null -- The detached fact contract uses null to distinguish unresolved from false.
 	readonly readonly: boolean | null;
 	/**
-	 * The source locations associated with the member's declarations.
+	 * The source declarations associated with the effective member, in compiler order.
 	 *
 	 * @remarks
-	 * Inherited members retain their original declaration locations.
+	 * Inherited members retain their original declarations and comments, not comments from the containing type.
+	 * Overloads and merged declarations retain separate records. No comment is selected or combined.
+	 * A local override without a comment remains undocumented in these raw facts.
 	 * The array can be empty when the compiler provides no declarations.
 	 */
-	readonly origins: readonly Origin[];
+	readonly declarations: readonly SourceDeclarationFact[];
 }
 
 /**
@@ -387,6 +408,16 @@ export interface FunctionDocumentationContext {
  */
 export interface SourceDeclarationFact extends Origin {
 	/**
+	 * The closest attached TSDoc comment, including delimiters, or `undefined` if absent.
+	 *
+	 * @remarks
+	 * Preserves empty and tag-only comments. Excludes ordinary comments and does not inherit content.
+	 * Records each declaration's own comment, including separate overload and merged-declaration comments.
+	 * Does not classify comments or choose precedence between merged declarations.
+	 * An unavailable declaration node supplies no comment. JSON serialization omits absent documentation.
+	 */
+	readonly documentation: string | undefined;
+	/**
 	 * The compiler syntax-kind name for this declaration.
 	 */
 	readonly kind: string;
@@ -410,6 +441,34 @@ export interface SourceDeclarationFact extends Origin {
 // declaration targets and ancestor/overload relationships. Preserve local-comment precedence.
 // These facts must support resolution without compiler handles or parsing printed type strings.
 export interface DeclarationFact {
+	/**
+	 * Identifiers of direct base declarations for a class or interface, in compiler order.
+	 *
+	 * @remarks
+	 * Targets are retained in the same analysis result, including bases that are not exported.
+	 * Shared ancestors are collected once. Each target describes its original declaration,
+	 * not a generic instantiation as observed from this declaration.
+	 * Excludes implements clauses and is empty for other declaration forms.
+	 * These links do not establish member overrides or compatible overload matches.
+	 */
+	// TODO (Stage 2 documentation resolution): Retain instantiated base context and
+	// compiler-backed member and overload relationships before resolving automatic inheritance.
+	// Do not infer compatible matches from declaration IDs or printed signature text.
+	readonly baseDeclarations: readonly ApiItemId[];
+	/**
+	 * Declaration identifiers named by local class implements clauses, in source declaration and clause order.
+	 *
+	 * @remarks
+	 * Targets are retained in the same analysis result without adding exports.
+	 * Import aliases are resolved, but type alias declarations remain targets rather than being expanded.
+	 * Targets describe original declarations, not generic instantiations.
+	 * Excludes clauses inherited through a base class and is empty for other declaration forms.
+	 * These links neither add members nor copy documentation to the implementing class.
+	 */
+	// TODO (Stage 2 documentation resolution): Retain instantiated contract context and member/overload
+	// matches for implements targets. Apply local-comment precedence and diagnose conflicting sources
+	// before inheriting interface documentation; do not treat these links as base-class inheritance.
+	readonly implementedDeclarations: readonly ApiItemId[];
 	/**
 	 * An opaque identifier used by export targets within the analysis result.
 	 *
@@ -514,11 +573,12 @@ export interface AnalysisFacts {
 	 */
 	readonly surfaces: readonly SurfaceFact[];
 	/**
-	 * Declaration facts referenced by exports or supported documentation lookups, sorted by identifier.
+	 * Declaration facts referenced by exports, supported documentation lookups, or heritage links, sorted by identifier.
 	 *
 	 * @remarks
 	 * Shared export targets use the same declaration fact.
 	 * Documentation targets can be retained without being exported by a configured surface.
+	 * Base and implements targets can also be retained without being exported.
 	 * This collection is not a complete graph of every type referenced by those declarations.
 	 */
 	readonly declarations: readonly DeclarationFact[];

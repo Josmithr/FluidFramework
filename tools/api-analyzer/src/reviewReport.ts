@@ -4,17 +4,24 @@ import {
 	DocCodeSpan,
 	DocFencedCode,
 	DocLinkTag,
-	DocInheritDocTag,
 	DocBlock,
-	TSDocConfiguration,
 	TSDocParser,
-	TSDocTagDefinition,
-	TSDocTagSyntaxKind,
 	type DocNode,
 } from "@microsoft/tsdoc";
-import { ReleaseLevel, type SelectedApiItems } from "./classification.js";
+import {
+	ReleaseLevel,
+	type ApiClassification,
+	type SelectedApiItems,
+} from "./classification.js";
+import {
+	bindDocumentationLinks,
+	bindDocumentationReferences,
+	resolveDocumentation,
+	type ResolvedDocumentation,
+} from "./documentation.js";
 import type { AnalysisFacts, ApiItemId, DeclarationFact } from "./facts.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
+import { createTsdocConfiguration, type TsdocOptions } from "./tsdocConfiguration.js";
 
 /**
  * A selected callable signature and its review metadata.
@@ -25,14 +32,13 @@ export interface ReviewSignature {
 	 */
 	readonly text: string;
 	/**
-	 * Whether the comment contains descriptive text, code, a link, or an explicit inheritance request.
+	 * Whether effective documentation contains descriptive text, code, or a validated link.
 	 *
 	 * @remarks
-	 * Empty comments and comments containing only metadata tags are undocumented.
-	 * An explicit `@inheritDoc` request counts as documentation. This flag does not indicate whether
-	 * its target exists or whether documentation was successfully inherited.
+	 * Absent, empty, and metadata-only comments are undocumented, including empty inherited content.
+	 * Inheritance requests must resolve successfully before a report is constructed.
+	 * Measures content presence, not documentation quality or completeness.
 	 */
-	// TODO (Stage 2 documentation resolution): Derive this flag from effective documentation after inheritance.
 	readonly documented: boolean;
 	/**
 	 * The classified release level, or `undefined` for a permitted untagged signature.
@@ -40,7 +46,7 @@ export interface ReviewSignature {
 	readonly releaseLevel: ReleaseLevel | undefined;
 	/**
 	 * Recognized tags available for presentation, including release tags and block tags such as `@deprecated`.
-	 * Sorted and deduplicated. The property name is retained for compatibility with the initial report model.
+	 * Sorted and deduplicated. Block tags come from the local comment, not inherited content.
 	 */
 	readonly modifierTags: readonly string[];
 }
@@ -97,20 +103,36 @@ export interface ReviewReport {
 }
 
 /**
- * Constructs a review report for a function-only entrypoint from detached facts and metadata.
+ * Original metadata and parser configuration required for function report resolution.
+ */
+export interface ReviewReportOptions extends TsdocOptions {
+	/**
+	 * Full original classification for the supplied signature facts, independent of report selection.
+	 *
+	 * @remarks
+	 * Include unselected inheritance ancestors and API link targets. Do not classify inherited comments.
+	 * Use the same custom modifier vocabulary for classification and reporting.
+	 */
+	readonly classification: ApiClassification;
+}
+
+/**
+ * Constructs a review report after resolving documentation in detached signature facts.
  *
  * @remarks
- * Reuses identifiers to associate selection metadata with signatures. Parses comments with TSDoc
- * for documentation presence and block tags, without repeating classification or validation.
+ * Binds inheritance and API links and resolves all supplied signature comments before selection.
+ * Documentation failures, including failures in unselected signatures, prevent report construction.
+ * Reuses original selection metadata and local block tags for annotations without reclassification.
  * Selection must come from the same analysis facts. Selected signatures from other entrypoints are allowed.
  * Preserves exported aliases, type-only export paths, and the order of selected overloads.
  * Does not render implementation bodies, source locations, or provisional identifiers.
- * Does not query the compiler, mutate inputs, validate references, or write files.
+ * Does not query the compiler, mutate inputs, or write files.
  *
  * @param facts - Detached analysis facts containing all export targets.
  * @param entrypoint - Configured entrypoint name to report.
  * @param selection - Named metadata selection for signature facts in this analysis.
- * @returns A frozen report, or diagnostics for an unknown entrypoint, blank name, or invalid selected identifiers.
+ * @param options - Full original classification and explicit parser configuration.
+ * @returns A frozen report, or report-configuration and documentation diagnostics without a partial report.
  * @throws If facts violate internal identity invariants or the entrypoint contains unsupported declarations.
  * The initial implementation supports only standalone function declarations, not merged namespaces or other forms.
  */
@@ -118,6 +140,7 @@ export function createReviewReport(
 	facts: AnalysisFacts,
 	entrypoint: string,
 	selection: SelectedApiItems,
+	options: ReviewReportOptions,
 ): Result<ReviewReport> {
 	const surface = facts.surfaces.find((item) => item.name === entrypoint);
 	if (surface === undefined || selection.name.trim().length === 0) {
@@ -152,15 +175,19 @@ export function createReviewReport(
 			`Package ${facts.packageName}, entrypoint ${entrypoint}: supply distinct selected identifiers from this analysis's signature facts.`,
 		);
 	}
-	const configuration = new TSDocConfiguration();
-	for (const tagName of new Set(selection.items.flatMap((item) => item.modifierTags))) {
-		if (configuration.tryGetTagDefinition(tagName) === undefined) {
-			configuration.addTagDefinition(
-				new TSDocTagDefinition({ tagName, syntaxKind: TSDocTagSyntaxKind.ModifierTag }),
-			);
-		}
+	const documentation = resolveReportDocumentation(facts, options);
+	if (!documentation.ok) {
+		return documentation;
 	}
-	const parser = new TSDocParser(configuration);
+	const effective = new Map(documentation.value.map((item) => [item.id, item]));
+	const configured = createTsdocConfiguration(
+		options,
+		DiagnosticCode.DocumentationConfiguration,
+	);
+	if (!configured.ok) {
+		return configured;
+	}
+	const parser = new TSDocParser(configured.value);
 	const exports: ReviewExport[] = [];
 	const names = new Set<string>();
 	for (const binding of surface.exports) {
@@ -186,9 +213,13 @@ export function createReviewReport(
 		for (const signature of declaration.signatures) {
 			const selected = metadata.get(signature.id);
 			if (selected !== undefined) {
-				// TODO (Stage 2 documentation resolution): Consume resolved content and provenance here.
-				// Resolution failures must prevent report construction, not become a guessed documented flag.
-				// Keep release classification and selection independent of inherited documentation.
+				const resolved = effective.get(signature.id);
+				assert.ok(resolved, "Selected signatures must have resolved documentation.");
+				// Presence uses inherited content, but annotations retain the local declaration's metadata.
+				const effectiveComment =
+					resolved.documentation === undefined
+						? undefined
+						: parser.parseString(resolved.documentation).docComment;
 				const comment =
 					signature.documentation === undefined
 						? undefined
@@ -200,7 +231,8 @@ export function createReviewReport(
 						.map((block) => block.blockTag.tagName) ?? [];
 				signatures.push({
 					text: signature.callSignatureText,
-					documented: comment !== undefined && hasDocumentationContent(comment),
+					documented:
+						effectiveComment !== undefined && hasDocumentationContent(effectiveComment),
 					releaseLevel: selected.releaseLevel,
 					modifierTags: [...new Set([...selected.modifierTags, ...blockTags])].sort(),
 				});
@@ -229,6 +261,47 @@ export function createReviewReport(
 }
 
 /**
+ * Resolves all signature comments before a report applies its metadata selection.
+ *
+ * @param facts - Detached facts, including unselected documentation targets.
+ * @param options - Original classification and the shared custom modifier vocabulary.
+ * @returns Effective comments and link provenance, or unchanged binding and resolution diagnostics.
+ * @throws If a signature has no original declaration location.
+ */
+function resolveReportDocumentation(
+	facts: AnalysisFacts,
+	options: ReviewReportOptions,
+): Result<readonly ResolvedDocumentation[]> {
+	const inheritance = bindDocumentationReferences(facts, options);
+	if (!inheritance.ok) {
+		return inheritance;
+	}
+	const links = bindDocumentationLinks(facts, options.classification, options);
+	if (!links.ok) {
+		return links;
+	}
+	const inputs = facts.declarations.flatMap((declaration) =>
+		declaration.signatures.map((signature) => {
+			// Plain comments do not require lookup context. Their declaration still supplies the original package.
+			const origin = signature.documentationContext?.origin ?? declaration.declarations[0];
+			assert.ok(
+				origin,
+				"Report signature facts must retain an original declaration location.",
+			);
+			return {
+				id: signature.id,
+				documentation: signature.documentation,
+				packageName: origin.packageName,
+			};
+		}),
+	);
+	return resolveDocumentation(inputs, inheritance.value, {
+		...options,
+		linkValidation: { bindings: links.value, classification: options.classification },
+	});
+}
+
+/**
  * Checks parsed documentation content without treating tag names or comment delimiters as prose.
  *
  * @param node - A node from the official TSDoc parser.
@@ -241,9 +314,8 @@ function hasDocumentationContent(node: DocNode): boolean {
 	if (node instanceof DocCodeSpan || node instanceof DocFencedCode) {
 		return node.code.trim().length > 0;
 	}
-	// TODO (Stage 2 documentation resolution): Check inherited content, not the request node.
-	// Validate API link targets before this presence check; URL destinations must not be fetched.
-	if (node instanceof DocLinkTag || node instanceof DocInheritDocTag) {
+	// API links have passed policy validation; URL links require no destination access.
+	if (node instanceof DocLinkTag) {
 		return true;
 	}
 	return node.getChildNodes().some(hasDocumentationContent);

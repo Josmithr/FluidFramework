@@ -14,6 +14,9 @@ export { resolveDocumentation } from "./documentation.js";
 export type {
 	DocumentationInput,
 	DocumentationReferenceBinding,
+	DocumentationLinkBinding,
+	DocumentationLinkValidation,
+	DocumentationResolutionOptions,
 	ResolvedDocumentation,
 } from "./documentation.js";
 export type {
@@ -47,6 +50,7 @@ export type {
 	ReviewReport,
 	ReviewSignature,
 	ReviewPresentationOptions,
+	ReviewReportOptions,
 } from "./reviewReport.js";
 export type { AnalysisSession } from "./session.js";
 export type { TsdocOptions } from "./tsdocConfiguration.js";
