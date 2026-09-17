@@ -21,4 +21,4 @@ The relocation test copies the temporary project to a different checkout path.
 The overload-reordering test transforms the copied shared API source while keeping each overload's comment attached.
 Both operations remain in the test because the change itself is the behavior under test.
 
-Run `pnpm build` and `pnpm exec mocha lib/test/session.test.js --timeout 20000` from the package directory.
+Run `pnpm build` and `pnpm exec mocha --no-config lib/test/session.test.js --timeout 20000` from the package directory.

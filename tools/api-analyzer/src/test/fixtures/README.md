@@ -36,5 +36,5 @@ Apply these rules when adding or changing any TypeScript fixture, including `.d.
 Review the overview and API-level explanations as part of each fixture change.
 Required explanatory comments describe the test, not additional product documentation to inherit or classify.
 
-Run the contract tests from the package directory with `pnpm test:contracts`.
+Run `pnpm build` before `pnpm test` from the package directory; the test script does not build the tests.
 The native fixture guide also lists the separate declaration-consumer check.

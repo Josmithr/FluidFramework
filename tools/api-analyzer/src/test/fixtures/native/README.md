@@ -59,5 +59,6 @@ Their detached reports match the pure report snapshots after session closure and
 
 ## Verification
 
-Run `pnpm test:contracts` from the package directory for adapter and documentation contracts.
-After `pnpm build`, run `pnpm exec mocha lib/test/nativeCapabilities.test.js --grep "printed complete declarations" --timeout 20000` for the separate declaration-consumer check.
+Run `pnpm build`, then `pnpm test` from the package directory for adapter, documentation, and declaration-consumer checks.
+Known failing capability probes remain pending through `it.skip` and have stage-specific TODO comments.
+After `pnpm build`, run `pnpm exec mocha --no-config lib/test/nativeCapabilities.test.js --grep "printed complete declarations" --timeout 20000` to run only the declaration-consumer check.

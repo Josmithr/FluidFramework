@@ -135,6 +135,12 @@ Use semantic test and suite names that describe the behavior under test.
 Keep design requirement identifiers in comments above the applicable tests, not in test names.
 For a temporary investigation test, add a comment that states its purpose and when to remove or replace it.
 When renaming tests or suites, verify that test-selection commands still run the intended coverage.
+Use one CommonJS `.mocharc.cjs` configuration file for glob-based test discovery, timeouts, and shared runner settings.
+Keep the test script limited to running Mocha; developers must build before running tests.
+Do not maintain suite-name allowlists in package scripts; new `.test.ts` modules must join supported validation automatically.
+Use `it.skip` for known failing capability probes and add a TODO with the development stage, blocker, and condition for re-enabling or replacing the probe.
+Keep those probes visible as pending in the single `pnpm test` run; do not add custom markers, filtering infrastructure, or separate scripts.
+A skipped probe does not waive the corresponding capability requirement.
 
 Use checked-in snapshot files for full generated-report expectations rather than inline expected report strings.
 Normal test runs must compare snapshots without updating them. Review intentional snapshot changes as API or report-format changes.
