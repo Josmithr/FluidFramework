@@ -36,6 +36,9 @@ importers:
       eslint:
         specifier: ~9.39.1
         version: 9.39.5(jiti@2.7.0)(supports-color@8.1.1)
+      good-fences:
+        specifier: 0.10.0
+        version: 0.10.0
       jiti:
         specifier: ^2.6.1
         version: 2.7.0
@@ -900,6 +903,10 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
+  commander@7.2.0:
+    resolution: {integrity: sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==}
+    engines: {node: '>= 10'}
+
   comment-parser@1.4.8:
     resolution: {integrity: sha512-rKZTGo4fzKYna8UcL0isTg5wkBNla7bxTypLwZQXjIdi++IdP1OJ41rI5Mti3/jltkPujbu4i9LIARYA+zpotQ==}
     engines: {node: '>= 12.0.0'}
@@ -1255,6 +1262,10 @@ packages:
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
+
+  good-fences@0.10.0:
+    resolution: {integrity: sha512-MeYtRHNKbs37V6/c45aI61YOdDP43ZoihczREdPF+ZcwTXhyorI7OujgtsZYVp81qeBuUt1FxIQ6Z0g9D6qflQ==}
+    hasBin: true
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -1760,6 +1771,11 @@ packages:
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
+
+  typescript@4.9.5:
+    resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -2731,6 +2747,8 @@ snapshots:
 
   color-name@1.1.4: {}
 
+  commander@7.2.0: {}
+
   comment-parser@1.4.8: {}
 
   comment-parser@1.4.9: {}
@@ -3170,6 +3188,12 @@ snapshots:
       path-scurry: 1.11.1
 
   globals@14.0.0: {}
+
+  good-fences@0.10.0:
+    dependencies:
+      commander: 7.2.0
+      minimatch: 3.1.5
+      typescript: 4.9.5
 
   has-flag@4.0.0: {}
 
@@ -3616,6 +3640,8 @@ snapshots:
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
+
+  typescript@4.9.5: {}
 
   typescript@6.0.3: {}
 
