@@ -17,8 +17,13 @@ export type {
 	Configuration,
 	EffectiveConfiguration,
 	Entrypoint,
+	SuiteConfiguration,
 } from "./analysis-types/configuration.js";
 export { DiagnosticCode } from "./analysis-types/result.js";
 export type { AnalyzerDiagnostic, Result } from "./analysis-types/result.js";
 export type { ReviewPresentationOptions } from "./report-generation/reviewReport.js";
 export type { TsdocOptions } from "./analysis-types/tsdocOptions.js";
+export type {
+	ReferencePolicies,
+	DirectionalReferenceRule,
+} from "./analysis-types/referencePolicy.js";

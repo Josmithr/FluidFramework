@@ -38,6 +38,7 @@
 	"packageManager": "pnpm@11.15.1",
 	"dependencies": {
 		"@eslint/object-schema": "3.0.5",
-		"@microsoft/tsdoc": "0.16.0"
+		"@microsoft/tsdoc": "0.16.0",
+		"zod": "^4.5.4"
 	}
 }

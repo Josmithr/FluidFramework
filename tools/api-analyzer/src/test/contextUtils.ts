@@ -13,6 +13,7 @@ import type { AnalysisFacts } from "../analysis-types/facts.js";
 import { DiagnosticCode, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import type { DocumentationResolutionOptions } from "../analysis-types/documentation.js";
+import type { ReferencePolicies } from "../analysis-types/referencePolicy.js";
 
 /**
  * Creates a parsed fixture context whose configuration is expected to be valid.
@@ -49,12 +50,12 @@ export function documentationContext<Input extends ApiItemDocumentation>(
  *
  * @param facts - Detached fixture declarations.
  * @param options - Parser vocabulary and optional classification overrides.
- * @returns A context with original metadata for every retained signature.
+ * @returns A context with original metadata for every retained documentation input.
  * @throws If context creation or classification fails.
  */
 export function analysisContext(
 	facts: AnalysisFacts,
-	options: ClassificationOptions = {},
+	options: ClassificationOptions & { readonly referencePolicies?: ReferencePolicies } = {},
 ): AnalysisContext {
 	const context = createAnalysisContext(freezeData(structuredClone(facts)), {
 		...options,

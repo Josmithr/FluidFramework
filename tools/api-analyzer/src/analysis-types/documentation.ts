@@ -56,17 +56,18 @@ export interface DocumentationReferenceBinding {
  */
 export interface AutomaticDocumentationBinding {
 	/**
-	 * The receiving member identifier.
+	 * The receiving member identifier, or its single callable signature identifier during completion.
 	 */
 	readonly source: ApiItemId;
 	/**
-	 * The original source member identifier, not an instantiated view identifier.
+	 * The original source member identifier, or its single callable signature identifier during completion.
+	 * Does not identify a heritage comparison view.
 	 */
 	readonly target: ApiItemId;
 }
 
 /**
- * A validated API link occurrence in an original function comment.
+ * A validated API link occurrence in an original supported documentation input.
  *
  * @remarks
  * Created by the internal compiler-backed binder and consumed by documentation resolution.
@@ -124,6 +125,16 @@ export interface DocumentationLinkValidation {
  */
 export interface DocumentationResolutionOptions {
 	/**
+	 * Validated resolved dependency comments, which must not repeat semantic resolution.
+	 * @defaultValue Omitted; resolution starts with no cached dependency results.
+	 */
+	readonly dependencies?: ReadonlyMap<ApiItemId, ResolvedDocumentation>;
+	/**
+	 * Packages authorized for cross-package inheritance by suite loading.
+	 * @defaultValue Omitted; only same-package inheritance is permitted.
+	 */
+	readonly packages?: ReadonlySet<string>;
+	/**
 	 * Confident non-overloaded member bindings established from compiler relationships.
 	 *
 	 * @remarks
@@ -146,6 +157,12 @@ export interface DocumentationResolutionOptions {
  * Documentation after the resolver applies explicit or validated automatic inheritance.
  */
 export interface ResolvedDocumentation extends DocumentationInput {
+	/**
+	 * Original input identity for each resolved descriptive or retained local block.
+	 * @defaultValue Omitted when provenance was not supplied by an internal input.
+	 * Resolver outputs populate this field; model decoding requires explicit section records.
+	 */
+	readonly sections?: readonly DocumentationSectionSource[];
 	/**
 	 * Validated links in effective comment traversal order, excluding links with URL destinations.
 	 *
@@ -172,4 +189,22 @@ export interface ResolvedDocumentation extends DocumentationInput {
 	 * Empty when no explicit or automatic inheritance is applied.
 	 */
 	readonly inheritedFrom: readonly ApiItemId[];
+}
+
+/**
+ * Provenance for a resolved documentation section, independent of a live parser tree.
+ */
+export interface DocumentationSectionSource {
+	/**
+	 * Section identity, such as summary, remarks, or a named parameter block.
+	 */
+	readonly section: string;
+	/**
+	 * Source documentation input identity.
+	 */
+	readonly source: ApiItemId;
+	/**
+	 * Package where the source comment originated.
+	 */
+	readonly packageName: string;
 }

@@ -78,8 +78,9 @@ export interface SignatureFact {
 	 * Compiler lookup and parameter facts for function or method documentation.
 	 *
 	 * @remarks
-	 * The analyzer provides this property for collected function and method declarations.
-	 * Other declaration forms omit it.
+	 * The analyzer provides this property for collected functions and methods and inspectable effective callable signatures.
+	 * Effective signatures retain their original declaration scope even when parameter types are substituted.
+	 * Low-level signature extraction and heritage comparison views can omit it.
 	 * An absent property does not mean that the comment has no references.
 	 *
 	 * @defaultValue Omitted for unsupported declaration forms.
@@ -175,6 +176,12 @@ export interface SignatureFact {
  */
 export interface MemberFact {
 	/**
+	 * Original reference lookup facts for a single property declaration, including callable properties.
+	 * @defaultValue Omitted for methods, accessors, merged declarations, heritage comparison views, or unavailable extraction state.
+	 * Methods retain lookup facts on their signatures instead.
+	 */
+	readonly documentationContext?: DocumentationReferenceContext;
+	/**
 	 * A provisional identifier for the member as observed on its containing declaration or heritage view.
 	 *
 	 * @remarks
@@ -190,7 +197,9 @@ export interface MemberFact {
 	 * Each signature retains its own source comment and uses this member's identifier as its owner.
 	 * Null and undefined are removed from the effective type before extracting call signatures.
 	 * Property comments are not copied to function-type signatures. Non-callable members have no signatures.
-	 * Construct signatures and member documentation lookup contexts are not extracted.
+	 * Effective callable signatures retain original-scope documentation lookup contexts when their declarations are inspectable.
+	 * Property-owned comments are separate from these signatures; non-callable property contexts are on the member.
+	 * Construct signatures and contexts on heritage comparison views are not extracted.
 	 */
 	readonly signatures: readonly SignatureFact[];
 	/**
@@ -359,15 +368,21 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
 }
 
 /**
- * Documentation lookup and parameter facts for one collected function or method signature.
+ * Original-scope reference facts for a declaration or effective member comment.
  *
  * @remarks
  * These facts contain no compiler objects.
  * Optional properties are omitted when their values are absent, including during JSON serialization.
  */
-export interface SignatureDocumentationContext {
+export interface DocumentationReferenceContext {
 	/**
-	 * The original signature location, independent of the entrypoint that re-exports it.
+	 * Compiler-resolved declaration references in this API's type syntax.
+	 * @defaultValue Omitted when reference extraction was not supplied, as in synthetic internal facts.
+	 * An empty array means extraction supplied no supported reference occurrences.
+	 */
+	readonly typeReferences?: readonly DeclarationReferenceFact[];
+	/**
+	 * The original declaration location, independent of the receiving type or re-exporting entrypoint.
 	 */
 	readonly origin: Origin;
 	/**
@@ -376,28 +391,50 @@ export interface SignatureDocumentationContext {
 	 * @remarks
 	 * Excludes URL links. Empty when the parser found no API links.
 	 * Results retain unsupported and missing targets but do not establish valid TSDoc or release-policy compliance.
-	 * Lookup uses the original callable declaration scope, including for links inside documentation blocks.
+	 * Lookup uses the original declaration scope, including for links inside documentation blocks.
 	 */
 	readonly links: readonly DocumentationReferenceLookup[];
-	/**
-	 * Parameter names and optional and rest parameter flags, in declaration order.
-	 */
-	readonly parameters: readonly FunctionParameterFact[];
-	/**
-	 * Type-parameter names in declaration order.
-	 *
-	 * @remarks
-	 * These facts do not include type-parameter constraints or defaults.
-	 */
-	readonly typeParameters: readonly string[];
 	/**
 	 * The lookup result for an explicit documentation inheritance request.
 	 *
 	 * @remarks
 	 * Omitted when the parser found no inheritance request.
 	 * This result does not indicate whether the full comment passed TSDoc validation.
+	 * @defaultValue Omitted when the original comment contains no explicit inheritance request.
 	 */
 	readonly inheritance?: DocumentationReferenceLookup;
+}
+
+/**
+ * A declaration reference with original source spelling and compiler-resolved identity.
+ */
+export interface DeclarationReferenceFact {
+	/**
+	 * The original referenced type or value name, including aliases.
+	 */
+	readonly text: string;
+	/**
+	 * The target declaration identity, independent of its exported alias.
+	 */
+	readonly target: ApiItemId;
+	/**
+	 * The location of the reference in the original declaration input.
+	 */
+	readonly origin: Origin;
+}
+
+/**
+ * Original reference lookup and parameter facts for one callable signature.
+ */
+export interface SignatureDocumentationContext extends DocumentationReferenceContext {
+	/**
+	 * Parameter names and optional and rest parameter flags, in declaration order.
+	 */
+	readonly parameters: readonly FunctionParameterFact[];
+	/**
+	 * Type-parameter names in declaration order, without constraints or defaults.
+	 */
+	readonly typeParameters: readonly string[];
 }
 
 /**
@@ -467,6 +504,52 @@ export interface HeritageFact {
 }
 
 /**
+ * Detached syntax and independently documented members of a class, interface, or enum.
+ *
+ * @remarks
+ * The declaration name is stored on the owning declaration so renderers can preserve export aliases.
+ * Effective instance members remain on {@link DeclarationFact.members}.
+ */
+export interface DeclarationContainerFact {
+	/**
+	 * The declaration form represented by this container.
+	 */
+	readonly kind: "class" | "interface" | "enum";
+	/**
+	 * Keywords and modifiers before the declaration name, including trailing whitespace.
+	 */
+	readonly prefix: string;
+	/**
+	 * Type parameters and heritage clauses after the name, excluding the member body.
+	 */
+	readonly suffix: string;
+	/**
+	 * Whether the container has no implementation bodies or static blocks that prevent review rendering.
+	 * This flag does not establish support for every member's documentation or reference semantics.
+	 */
+	readonly supported: boolean;
+	/**
+	 * Independently documented constructors, static members, accessors, or enum members in source order.
+	 * These records supplement rather than replace effective instance members.
+	 */
+	readonly declaredMembers: readonly DeclaredMemberFact[];
+}
+
+/**
+ * Compiler-derived syntax around the name of an atomic type alias or variable declaration.
+ */
+export interface DeclarationStatementFact {
+	/**
+	 * Declaration keyword and trailing whitespace before the name.
+	 */
+	readonly prefix: string;
+	/**
+	 * Type parameters, type or initializer, and terminating semicolon after the name.
+	 */
+	readonly suffix: string;
+}
+
+/**
  * Provisional semantic facts for a resolved declaration symbol.
  *
  * @remarks
@@ -477,6 +560,24 @@ export interface HeritageFact {
 // declaration targets and member references. Preserve local-comment precedence.
 // These facts must support resolution without compiler handles or parsing printed type strings.
 export interface DeclarationFact {
+	/**
+	 * Compiler-derived syntax around the name of an atomic type alias or variable declaration.
+	 *
+	 * @defaultValue Omitted for other declaration forms or when the source node is unavailable.
+	 */
+	readonly statement?: DeclarationStatementFact;
+	/**
+	 * Detached container syntax assembled from compiler nodes, without source comments or member bodies.
+	 *
+	 * @defaultValue Omitted for unsupported or merged container forms, other declarations, or unavailable source nodes.
+	 */
+	readonly container?: DeclarationContainerFact;
+	/**
+	 * Original lookup context for a non-callable declaration comment.
+	 * @defaultValue Omitted for merged, unavailable, or unsupported declaration-level comments.
+	 * Callable function and method contexts are retained on signatures instead.
+	 */
+	readonly documentationContext?: DocumentationReferenceContext;
 	/**
 	 * Direct instantiated heritage views in source declaration and clause order.
 	 *
@@ -575,6 +676,24 @@ export interface DeclarationFact {
 }
 
 /**
+ * An independently documented constructor, static member, accessor, or signature declaration.
+ */
+export interface DeclaredMemberFact extends SourceDeclarationFact {
+	/**
+	 * Identity scoped to the owner and compiler-printed declaration.
+	 */
+	readonly id: ApiItemId;
+	/**
+	 * Compiler-printed declaration without source trivia.
+	 */
+	readonly printed: string;
+	/**
+	 * Reference lookup in the original member declaration scope.
+	 */
+	readonly documentationContext: DocumentationReferenceContext;
+}
+
+/**
  * Exported bindings for one configured entrypoint.
  *
  * @remarks
@@ -600,6 +719,11 @@ export interface SurfaceFact {
  */
 export interface AnalysisFacts {
 	/**
+	 * Hashes of package-owned compiler inputs used to validate dependency model freshness.
+	 * @defaultValue Omitted on synthetic internal facts without captured inputs; those facts cannot generate dependency models.
+	 */
+	readonly inputFiles?: readonly InputFileFact[];
+	/**
 	 * The configured name of the package being analyzed.
 	 */
 	readonly packageName: string;
@@ -621,4 +745,23 @@ export interface AnalysisFacts {
 	 * This collection is not a complete graph of every type referenced by those declarations.
 	 */
 	readonly declarations: readonly DeclarationFact[];
+}
+
+/**
+ * An analyzed file's package-relative name and SHA-256 digest of its UTF-8 text.
+ */
+export interface InputFileFact {
+	/**
+	 * Package-relative file path with forward slash separators.
+	 */
+	readonly file: string;
+	/**
+	 * Hexadecimal SHA-256 digest of the analyzed file's UTF-8 text, retained before compiler disposal.
+	 *
+	 * @remarks
+	 * Suite loading hashes the installed file again and rejects the model if the values differ.
+	 * This detects stale recorded inputs; it is not an authenticity signature or a semantic API hash.
+	 * Comment and whitespace changes also change the digest. No incremental cache uses it.
+	 */
+	readonly sha256: string;
 }

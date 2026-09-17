@@ -6,8 +6,37 @@ import type {
 import assert from "node:assert/strict";
 import path from "node:path";
 import { ObjectSchema, ValidationStrategy } from "@eslint/object-schema";
+import { z } from "zod";
 import { DiagnosticCode, failure, type Result } from "./analysis-types/result.js";
 import { freezeData } from "./utilities/freezeData.js";
+
+/**
+ * Validates directional selector shape; registered tag names are checked later against classification.
+ */
+const selectionShape = z.strictObject({
+	releaseLevels: z.array(z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)])),
+	includeUntagged: z.boolean().optional(),
+	requireTags: z.array(z.string()).optional(),
+	excludeTags: z.array(z.string()).optional(),
+});
+/**
+ * Validates nested reference policy configuration without merging settings or evaluating API relationships.
+ */
+const policyShape = z.strictObject({
+	releaseCompatibility: z.boolean().optional(),
+	entrypointExposure: z.boolean().optional(),
+	inheritanceVisibility: z.boolean().optional(),
+	directional: z
+		.array(
+			z.strictObject({
+				name: z.string().trim().min(1),
+				source: selectionShape,
+				target: selectionShape,
+				enabled: z.boolean().optional(),
+			}),
+		)
+		.optional(),
+});
 
 /**
  * Defines property validation and merge policies for configuration layers.
@@ -21,6 +50,40 @@ import { freezeData } from "./utilities/freezeData.js";
  * {@link validateAndNormalizeConfiguration} after merging.
  */
 const configurationSchema = new ObjectSchema({
+	suite: {
+		merge: "replace",
+		validate(value: unknown) {
+			ValidationStrategy.object(value);
+			const suite = value as { packages: string[]; modelFile: string };
+			if (Object.keys(suite).some((key) => key !== "packages" && key !== "modelFile"))
+				throw new TypeError("Unknown suite setting.");
+			ValidationStrategy.array(suite.packages);
+			ValidationStrategy.string(suite.modelFile);
+			if (
+				suite.packages.length === 0 ||
+				suite.modelFile.trim().length === 0 ||
+				path.isAbsolute(suite.modelFile) ||
+				suite.modelFile.split(/[/\\]/).includes("..")
+			)
+				throw new TypeError(
+					"Supply suite package selectors and a package-relative modelFile without parent traversal.",
+				);
+			for (const pattern of suite.packages) {
+				ValidationStrategy.string(pattern);
+				if (pattern.trim().length === 0)
+					throw new TypeError("Suite package selectors must not be blank.");
+			}
+		},
+	},
+	referencePolicies: {
+		merge: "replace",
+		validate(value: unknown) {
+			const shape = policyShape.safeParse(value);
+			if (!shape.success)
+				throw new TypeError(`Invalid reference policy: ${shape.error.message}`);
+			// Zod owns the nested shape; ObjectSchema still owns ordered configuration merging.
+		},
+	},
 	packageName: { merge: "replace", validate: "string" },
 	packageRoot: { merge: "replace", validate: "string" },
 	project: { merge: "replace", validate: "string" },
@@ -210,6 +273,10 @@ function validateAndNormalizeConfiguration(
 			})),
 			rules: { ...merged.rules },
 			customModifierTags: [...(merged.customModifierTags ?? [])],
+			...(merged.suite === undefined ? {} : { suite: structuredClone(merged.suite) }),
+			...(merged.referencePolicies === undefined
+				? {}
+				: { referencePolicies: structuredClone(merged.referencePolicies) }),
 		},
 	});
 }

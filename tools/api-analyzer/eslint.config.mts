@@ -8,10 +8,11 @@ const config: Linter.Config[] = [
 	{ ignores: ["lib/**", "src/test/fixtures/**"] },
 	...strict,
 	{
-		files: ["eslint.config.mts"],
+		files: ["**/*.{ts,mts}"],
 		languageOptions: {
 			parserOptions: {
-				// This tooling file is outside the source build's root directory.
+				// The shared project service must receive the same allowance regardless of lint order.
+				// Only this tooling file is outside the source build's root directory.
 				projectService: { allowDefaultProject: ["eslint.config.mts"] },
 			},
 		},

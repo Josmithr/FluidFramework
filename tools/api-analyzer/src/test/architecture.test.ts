@@ -19,6 +19,7 @@ describe("Directory dependency boundaries", () => {
 				"analysis",
 				"analysis-types",
 				"report-generation",
+				"model-generation",
 				"utilities",
 				"test",
 				"analysis/test",
@@ -43,6 +44,7 @@ describe("Directory dependency boundaries", () => {
 				"analysis-types/facts",
 				"utilities/assertDefined",
 				"report-generation/reviewReport",
+				"model-generation/dependencyModel",
 				"test/contextUtils",
 				"index",
 			];
@@ -53,6 +55,11 @@ describe("Directory dependency boundaries", () => {
 				);
 			}
 			const probes = [
+				// Model codecs may use shared contracts, but must remain independent of analysis and reports.
+				[
+					"model-generation/permitted.ts",
+					'import type { Shape } from "../analysis-types/facts.js";',
+				],
 				["analysis/permitted.ts", 'import { value } from "../analysis-types/facts.js";'],
 				["analysis/test/permitted.ts", 'import { value } from "../../test/contextUtils.js";'],
 				["composition.ts", 'import { value } from "./analysis/nativeAdapter.js";'],
@@ -75,6 +82,22 @@ describe("Directory dependency boundaries", () => {
 			const permitted = run();
 			assert.equal(permitted.status, 0, String(permitted.stdout) + String(permitted.stderr));
 			const forbidden = [
+				[
+					"analysis/modelBypass.ts",
+					'import { value } from "../model-generation/dependencyModel.js";',
+				],
+				[
+					"report-generation/modelPeer.ts",
+					'import type { Shape } from "../model-generation/dependencyModel.js";',
+				],
+				[
+					"model-generation/analysisPeer.ts",
+					'export { value } from "../analysis/nativeAdapter.js";',
+				],
+				[
+					"model-generation/reportPeer.ts",
+					'import { value } from "../report-generation/reviewReport.js";',
+				],
 				[
 					"analysis/typesOnly.ts",
 					'import type { Shape } from "../report-generation/reviewReport.js";',

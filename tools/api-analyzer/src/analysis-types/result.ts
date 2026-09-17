@@ -17,6 +17,14 @@
 // - Roll-up generation
 export enum DiagnosticCode {
 	/**
+	 * A selected dependency model is missing, incompatible, or structurally invalid.
+	 */
+	DependencyModel = "dependency-model",
+	/**
+	 * A configured declaration or documentation reference policy rejected an API relationship.
+	 */
+	ReferencePolicy = "reference-policy",
+	/**
 	 * Required release tags are absent, or custom modifier definitions are invalid.
 	 *
 	 * @remarks

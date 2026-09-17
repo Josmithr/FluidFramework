@@ -1,9 +1,10 @@
 import type { ApiClassification } from "./classification.js";
 import type { ResolvedDocumentation } from "./documentation.js";
 import type { AnalysisFacts } from "./facts.js";
+import type { DependencyModel } from "./dependencyModel.js";
 
 /**
- * Resolved callable documentation with original metadata retained separately from inherited content.
+ * Resolved documentation with original metadata retained separately from inherited content.
  */
 export interface CompletedDocumentation extends ResolvedDocumentation {
 	/**
@@ -22,9 +23,14 @@ export interface CompletedDocumentation extends ResolvedDocumentation {
  * @remarks
  * Contains no compiler objects, TSDoc nodes, or mutable construction indexes.
  * This internal graph is not a versioned serialized model.
- * General declaration documentation, complete type-reference edges, and per-section provenance remain pending.
+ * General merged-declaration documentation and complete type-reference edges remain pending.
  */
 export interface CompletedAnalysis {
+	/**
+	 * Validated dependency documentation needed to retain external identities in generated models.
+	 * @defaultValue Omitted for internal graphs without selected dependencies; generators treat it as an empty list.
+	 */
+	readonly dependencies?: readonly DependencyModel[];
 	/**
 	 * Original declaration, relationship, and export facts from compiler extraction.
 	 */
@@ -34,7 +40,7 @@ export interface CompletedAnalysis {
 	 */
 	readonly classification: ApiClassification;
 	/**
-	 * Resolved callable comments, link targets, and inheritance paths in identifier order.
+	 * Resolved callable and single-declaration non-callable property comments, links, and inheritance paths in identifier order.
 	 */
 	readonly documentation: readonly CompletedDocumentation[];
 }

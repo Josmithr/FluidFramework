@@ -14,6 +14,9 @@ import {
 } from "@microsoft/tsdoc";
 import {
 	SyntaxKind,
+	NodeFlags,
+	getSynthesizedDeepClone,
+	getLeadingCommentRanges,
 	type CallSignatureDeclaration,
 	type FunctionLikeDeclaration,
 	type FunctionTypeNode,
@@ -33,15 +36,19 @@ import {
 	isExportSpecifier,
 	isPropertySignatureDeclaration,
 	isTypeLiteralNode,
-	isFunctionDeclaration,
 	isFunctionLikeDeclaration,
 	isMethodSignatureDeclaration,
-	isMethodDeclaration,
 	isCallSignatureDeclaration,
 	isFunctionTypeNode,
 	isIdentifier,
 	isClassDeclaration,
 	isInterfaceDeclaration,
+	isEnumDeclaration,
+	isTypeAliasDeclaration,
+	isVariableDeclaration,
+	isTypeReferenceNode,
+	isTypeQueryNode,
+	isExpressionWithTypeArguments,
 } from "typescript/unstable/ast/is";
 import {
 	API,
@@ -58,6 +65,11 @@ import type {
 	AnalysisFacts,
 	ApiItemId,
 	DeclarationFact,
+	DeclarationContainerFact,
+	DeclarationStatementFact,
+	DeclaredMemberFact,
+	DeclarationReferenceFact,
+	DocumentationReferenceContext,
 	DocumentationReferenceLookup,
 	ExportFact,
 	MemberFact,
@@ -80,7 +92,7 @@ export interface NativeAdapter {
 	 * Extracts detached facts from a configuration using the owned connection.
 	 *
 	 * @param configuration - Resolved package inputs and modifier vocabulary.
-	 * @param comments - Optional empty map populated with original parsed comments for this invocation.
+	 * @param comments - Empty map populated with original parsed comments. Omit when the caller does not need the captured parser results.
 	 * @returns Frozen facts or expected input diagnostics.
 	 * @throws If compiler queries, file access, or extraction fail unexpectedly.
 	 */
@@ -104,7 +116,7 @@ export interface NativeAdapter {
  *
  * @param configuration - Resolved package inputs.
  * @param adapter - An adapter whose ownership transfers to this call. Defaults to a new native adapter.
- * @param comments - Optional empty map to receive parsed original comments for context creation.
+ * @param comments - Empty map to receive parsed comments for context creation. Omit when the caller does not need to reuse parser results after extraction.
  * @returns Detached facts or compiler input diagnostics.
  * @throws Propagates operational failures, preserving both extraction and cleanup errors when both fail.
  */
@@ -157,7 +169,7 @@ export function createNativeAdapter(): NativeAdapter {
 		 * Does not close the adapter's native connection or cache the returned facts.
 		 *
 		 * @param configuration - Resolved settings with absolute project and entrypoint paths.
-		 * @param comments - Optional empty map populated with original parsed comments; discard it on failure.
+		 * @param comments - Empty map populated with original parsed comments; discard it on failure. Omit to keep the extraction's parser-result map private.
 		 * @returns Frozen, detached facts on success, or diagnostics for project,
 		 * compiler, or entrypoint validation failures.
 		 * @throws If compiler communication, file access, or fact extraction fails unexpectedly.
@@ -250,6 +262,20 @@ export interface LocationContext {
 }
 
 /**
+ * Invocation-owned TSDoc parser and captured comments, without compiler handles.
+ */
+export interface CollectionDocumentation {
+	/**
+	 * Parser configured with the invocation's custom modifier vocabulary.
+	 */
+	readonly parser: TSDocParser;
+	/**
+	 * Parsed comments indexed by documentation input identity for reuse after compiler disposal.
+	 */
+	readonly comments: ExtractedComments;
+}
+
+/**
  * Mutable state for declaration collection during one analysis.
  */
 export interface CollectionState {
@@ -258,18 +284,10 @@ export interface CollectionState {
 	 *
 	 * @remarks
 	 * Extraction supplies this state so each callable comment is parsed once with the shared vocabulary.
-	 * Low-level callers can omit it when they do not need parsed comments after collection.
+	 * @defaultValue Omitted by low-level callers that do not retain parser results.
+	 * Lookup then creates standard-vocabulary parsers as needed and does not capture their results.
 	 */
-	readonly documentation?: {
-		/**
-		 * The parser configured for the invocation's custom modifiers.
-		 */
-		readonly parser: TSDocParser;
-		/**
-		 * Parsed comments indexed by signature identity.
-		 */
-		readonly comments: ExtractedComments;
-	};
+	readonly documentation?: CollectionDocumentation;
 	/**
 	 * Completed declaration facts keyed by provisional identifier.
 	 */
@@ -342,18 +360,46 @@ function extractFacts(
 			exports: exportsOf(project, locations, state, moduleSymbol),
 		});
 	}
+	// Preserve the exact analyzed inputs so consumers can reject stale dependency models without reanalysis.
+	const inputPaths = new Set(
+		[
+			...configuration.entrypoints.map((entrypoint) => origin(locations, entrypoint.path, 0)),
+			...[...state.declarations.values()].flatMap((declaration) => declaration.declarations),
+		]
+			.filter((source) => source.packageName === configuration.packageName)
+			.map((source) => source.file),
+	);
+	const inputFiles = [...inputPaths].sort().map((file) => {
+		const source = project.program.getSourceFile(
+			path.resolve(configuration.packageRoot, file),
+		);
+		assert.ok(source, "Model input files must exist in the analyzed compiler project.");
+		return { file, sha256: createHash("sha256").update(source.text).digest("hex") };
+	});
 	// Sort the result independently of traversal order before making it immutable.
 	return freezeData({
 		ok: true,
 		value: {
 			packageName: configuration.packageName,
 			compilerVersion: "7.0.2",
+			inputFiles,
 			surfaces,
 			declarations: [...state.declarations.values()].sort((left, right) =>
 				left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
 			),
 		},
 	});
+}
+
+/**
+ * Package-name metadata read while locating a declaration's owning package.
+ */
+interface PackageNameMetadata {
+	/**
+	 * Package name declared in the nearest manifest.
+	 * @defaultValue Omitted; ownership lookup uses the configured package name instead.
+	 */
+	readonly name?: string;
 }
 
 /**
@@ -378,7 +424,7 @@ export function origin(locations: LocationContext, fileName: string, start: numb
 		while (true) {
 			const manifest = path.join(directory, "package.json");
 			if (existsSync(manifest)) {
-				const metadata = JSON.parse(readFileSync(manifest, "utf8")) as { name?: string };
+				const metadata = JSON.parse(readFileSync(manifest, "utf8")) as PackageNameMetadata;
 				owner = {
 					packageName:
 						directory === configuration.packageRoot
@@ -638,7 +684,7 @@ export function signatures(
 			callSignatureText: emitter.printNode(declaration).trim(),
 			id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
 			functionTypeText,
-			documentation: signature.declaration?.resolve()?.jsDoc?.at(-1)?.getText(),
+			documentation: originalComment(signature.declaration?.resolve()),
 		};
 	});
 }
@@ -659,7 +705,13 @@ function sourceDeclaration(
 		...origin(locations, handle.path, node?.pos ?? 0),
 		kind: SyntaxKind[handle.kind],
 		text: node?.getFullText() ?? "",
-		documentation: node?.jsDoc?.at(-1)?.getText(),
+		documentation: originalComment(
+			node &&
+				isVariableDeclaration(node) &&
+				node.parent.kind === SyntaxKind.VariableDeclarationList
+				? node.parent.parent
+				: node,
+		),
 	};
 }
 
@@ -985,11 +1037,14 @@ function documentationTypesMatch(
  * Removes null and undefined from member types so optional methods retain their signatures.
  * Reads readonly modifiers from a generated type literal where possible, then from declarations.
  * Uses `null` for readonly state when neither source is available.
+ * When extraction state is supplied, callable signatures and single non-callable properties retain original lookup context.
+ * Callable-property comments, accessors, merged properties, and heritage comparison views do not receive property contexts.
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for member origins.
  * @param type - The compiler type whose effective members are requested.
  * @param owner - The identifier of the containing declaration or instantiated heritage view.
+ * @param state - Extraction state for original-scope lookup and target collection. Omit to extract member syntax and source records without documentation lookup contexts.
  * @returns Detached members sorted by name. Other type categories produce an empty array.
  * @throws If the compiler cannot resolve an effective property type.
  */
@@ -998,6 +1053,7 @@ export function members(
 	locations: LocationContext,
 	type: Type,
 	owner: ApiItemId,
+	state?: CollectionState,
 ): MemberFact[] {
 	const { checker, emitter } = compiler;
 	if (!type.isObjectType() && !type.isIntersectionType()) {
@@ -1047,16 +1103,44 @@ export function members(
 			assert.ok(propertyType, "The compiler must resolve the effective type of a member.");
 			const id = `member:${JSON.stringify([owner, name])}`;
 			const callableType = checker.getNonNullableType(propertyType);
+			const callableSignatures = callableType ? signatures(compiler, callableType, id) : [];
+			const sourceDeclarations = property.declarations.map((handle) =>
+				sourceDeclaration(locations, handle),
+			);
+			const propertyContext =
+				state &&
+				property.declarations.length === 1 &&
+				declaration &&
+				(declaration.kind === SyntaxKind.PropertyDeclaration ||
+					declaration.kind === SyntaxKind.PropertySignature)
+					? referenceContext(
+							compiler,
+							locations,
+							state,
+							declaration,
+							assertDefined(sourceDeclarations[0]),
+							id,
+							sourceDeclarations[0]?.documentation,
+						)
+					: undefined;
 			return {
 				id,
-				signatures: callableType ? signatures(compiler, callableType, id) : [],
+				...(propertyContext === undefined ? {} : { documentationContext: propertyContext }),
+				signatures:
+					callableType && state
+						? withDocumentationContexts(
+								compiler,
+								locations,
+								state,
+								callableType,
+								callableSignatures,
+							)
+						: callableSignatures,
 				name,
 				type: checker.typeToString(propertyType, declaration),
 				optional: Boolean(property.flags & SymbolFlags.Optional),
 				readonly,
-				declarations: property.declarations.map((handle) =>
-					sourceDeclaration(locations, handle),
-				),
+				declarations: sourceDeclarations,
 			};
 		})
 		.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
@@ -1113,7 +1197,7 @@ export function exportsOf(
  * @param state - Declaration tracking updated in place. Discard it if extraction throws.
  * @param node - The original declaration node used for name resolution.
  * @param source - The source file that contains the original declaration.
- * @param reference - A parsed declaration reference, or an absent implicit inheritance target.
+ * @param reference - Parsed declaration reference. Undefined represents a target-less inheritance request and produces an unsupported lookup, not an inferred target.
  * @param allowIndexSelector - Whether this lookup accepts numeric inheritance selectors.
  * @returns Detached lookup facts without compatibility or release-policy validation.
  * @throws If compiler queries or target collection fail unexpectedly.
@@ -1263,6 +1347,7 @@ export function collectLinks(
  * Tracks identifiers on the current traversal path to stop collection cycles.
  * Adds completed facts to the supplied declaration map.
  * For collected functions and methods, retains parameter facts and original-scope documentation lookups.
+ * Effective callable member views retain the same lookup facts independently of their substituted types.
  * Records API links in TSDoc tree traversal order, including links inside blocks and repeated references.
  * Excludes URL links from lookup. Missing and unsupported references remain explicit lookup results.
  * Resolves documentation names in the original declaration scope before checking module export aliases.
@@ -1310,19 +1395,11 @@ export function collect(
 		: symbol.flags & SymbolFlags.Type
 			? checker.getDeclaredTypeOfSymbol(symbol)
 			: checker.getTypeOfSymbol(symbol);
-	const effectiveMembers = type ? members(compiler, locations, type, id) : [];
-	const baseDeclarations =
-		symbol.flags & (SymbolFlags.Class | SymbolFlags.Interface) &&
-		type?.isClassOrInterface() === true
-			? checker.getBaseTypes(type).map((base) => {
-					const baseSymbol = base.getSymbol();
-					assert.ok(
-						baseSymbol,
-						"The compiler must resolve a declaration symbol for a base type.",
-					);
-					return collect(compiler, locations, state, target(checker, baseSymbol));
-				})
+	const effectiveMembers =
+		type && !(symbol.flags & SymbolFlags.Module)
+			? members(compiler, locations, type, id, state)
 			: [];
+	const baseDeclarations = collectBaseDeclarations(compiler, locations, state, symbol, type);
 	const namespaceExports =
 		symbol.flags & SymbolFlags.Module ? exportsOf(compiler, locations, state, symbol) : [];
 	const heritage = heritageFacts(
@@ -1344,87 +1421,34 @@ export function collect(
 				type.isUnionType() ||
 				effectiveMembers.some((member) => member.readonly === null)),
 	);
-	const callSignatures = type ? signatures(compiler, type, id) : [];
-	// TODO (Stage 2 documentation references): Support package-qualified references, nonnumeric selectors,
-	// and effective-member contexts beyond individually collected methods. Preserve original scope.
-	if (
-		type &&
-		symbol.declarations.every(
-			(handle) =>
-				handle.kind === SyntaxKind.FunctionDeclaration ||
-				handle.kind === SyntaxKind.MethodDeclaration ||
-				handle.kind === SyntaxKind.MethodSignature,
-		)
-	) {
-		const compilerSignatures = checker.getSignaturesOfType(type, SignatureKind.Call);
-		for (const [index, signature] of compilerSignatures.entries()) {
-			const handle = signature.declaration;
-			const node = handle?.resolve();
-			const fact = assertDefined(
-				callSignatures[index],
-				"Compiler signatures must correspond to extracted signature facts.",
-			);
-			if (
-				handle &&
-				node &&
-				(isFunctionDeclaration(node) ||
-					isMethodDeclaration(node) ||
-					isMethodSignatureDeclaration(node))
-			) {
-				let source: Node = node;
-				while (!isSourceFile(source)) {
-					source = source.parent;
-				}
-				assert.ok(
-					isSourceFile(source),
-					"Callable documentation must have an original source file.",
-				);
-				const location = origin(locations, handle.path, node.pos);
-				const parsed = (state.documentation?.parser ?? new TSDocParser()).parseString(
-					fact.documentation ?? "/** */",
-				);
-				state.documentation?.comments.set(fact.id, parsed);
-				const comment = parsed.docComment;
-				const links = collectLinks(comment, (reference) =>
-					lookupReference(compiler, locations, state, node, source, reference, false),
-				);
-				const inheritance =
-					comment.inheritDocTag === undefined
-						? undefined
-						: lookupReference(
-								compiler,
-								locations,
-								state,
-								node,
-								source,
-								comment.inheritDocTag.declarationReference,
-								true,
-							);
-				callSignatures[index] = {
-					...fact,
-					documentationContext: {
-						origin: location,
-						links,
-						parameters: node.parameters.map((parameter) => ({
-							...(isIdentifier(parameter.name) ? { name: parameter.name.text } : {}),
-							optional:
-								parameter.questionToken !== undefined || parameter.initializer !== undefined,
-							rest: parameter.dotDotDotToken !== undefined,
-						})),
-						typeParameters: node.typeParameters?.map((parameter) => parameter.name.text) ?? [],
-						...(inheritance === undefined ? {} : { inheritance }),
-					},
-				};
-			}
-		}
-	}
+	const callSignatures = declarationSignatures(compiler, locations, state, symbol, type, id);
+	const sources = symbol.declarations.map((handle) => sourceDeclaration(locations, handle));
+	const source = sources[0];
+	const sourceNode = symbol.declarations[0]?.resolve();
+	const documentationContext = declarationDocumentationContext(
+		compiler,
+		locations,
+		state,
+		sources,
+		sourceNode,
+		id,
+	);
+	const container =
+		sourceNode && source && sources.length === 1
+			? containerSyntax(compiler, locations, state, sourceNode, source, id)
+			: undefined;
+	const statement = statementSyntax(compiler, sourceNode, type);
+	// Publish only after recursive dependencies have been collected; active identities prevent cycles.
 	declarations.set(id, {
 		id,
+		...(documentationContext === undefined ? {} : { documentationContext }),
+		...(container === undefined ? {} : { container }),
+		...(statement === undefined ? {} : { statement }),
 		baseDeclarations,
 		heritage,
 		implementedDeclarations: implemented,
 		name: moduleSource ? origin(locations, moduleSource.path, 0).file : symbol.name,
-		declarations: symbol.declarations.map((handle) => sourceDeclaration(locations, handle)),
+		declarations: sources,
 		type: type ? checker.typeToString(type, symbol.declarations[0]?.resolve()) : "",
 		memberView: partial ? "partial" : "complete",
 		limitations: partial
@@ -1441,4 +1465,467 @@ export function collect(
 	});
 	visiting.delete(id);
 	return id;
+}
+
+/**
+ * Collects original base declarations without treating implements clauses as inherited bases.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Shared declaration collection and active traversal identities.
+ * @param symbol - Resolved declaration symbol.
+ * @param type - Declared type, or undefined for source-file modules; those have no bases.
+ * @returns Base declaration identities in compiler order, or an empty array for other forms.
+ */
+function collectBaseDeclarations(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	symbol: CompilerSymbol,
+	type: Type | undefined,
+): ApiItemId[] {
+	if (
+		!(symbol.flags & (SymbolFlags.Class | SymbolFlags.Interface)) ||
+		type?.isClassOrInterface() !== true
+	)
+		return [];
+	return compiler.checker.getBaseTypes(type).map((base) => {
+		const baseSymbol = base.getSymbol();
+		assert.ok(baseSymbol, "The compiler must resolve a declaration symbol for a base type.");
+		return collect(compiler, locations, state, target(compiler.checker, baseSymbol));
+	});
+}
+
+/**
+ * Extracts callable signatures and adds original lookup context for function and method declarations.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Target collection and parsed comments for this invocation.
+ * @param symbol - Resolved declaration symbol.
+ * @param type - Callable type, or undefined when no type was extracted; produces no signatures.
+ * @param id - Owning declaration identity.
+ * @returns Detached signatures in compiler order, with lookup contexts where supported.
+ */
+function declarationSignatures(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	symbol: CompilerSymbol,
+	type: Type | undefined,
+	id: ApiItemId,
+): SignatureFact[] {
+	if (type === undefined) return [];
+	const facts = signatures(compiler, type, id);
+	const hasCallableComment = symbol.declarations.every(
+		(handle) =>
+			handle.kind === SyntaxKind.FunctionDeclaration ||
+			handle.kind === SyntaxKind.MethodDeclaration ||
+			handle.kind === SyntaxKind.MethodSignature,
+	);
+	return hasCallableComment
+		? withDocumentationContexts(compiler, locations, state, type, facts)
+		: facts;
+}
+
+/**
+ * Captures a single declaration's documentation without selecting a comment from merged sources.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Target collection and parsed comments for this invocation.
+ * @param sources - Original declaration records in compiler order.
+ * @param sourceNode - First declaration node, or undefined when unavailable; no context is produced then.
+ * @param id - Owning declaration identity.
+ * @returns Original reference context, or undefined for merged, unavailable, or unsupported declarations.
+ */
+function declarationDocumentationContext(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	sources: readonly SourceDeclarationFact[],
+	sourceNode: Node | undefined,
+	id: ApiItemId,
+): DocumentationReferenceContext | undefined {
+	const source = sources[0];
+	if (!sourceNode || !source || sources.length !== 1) return undefined;
+	const supported =
+		source.kind === "PropertyDeclaration" ||
+		source.kind === "PropertySignature" ||
+		isClassDeclaration(sourceNode) ||
+		isInterfaceDeclaration(sourceNode) ||
+		isEnumDeclaration(sourceNode) ||
+		isTypeAliasDeclaration(sourceNode) ||
+		isModuleDeclaration(sourceNode) ||
+		isVariableDeclaration(sourceNode);
+	return supported
+		? referenceContext(
+				compiler,
+				locations,
+				state,
+				sourceNode,
+				source,
+				id,
+				source.documentation,
+			)
+		: undefined;
+}
+
+/**
+ * Extracts a container header and syntax not represented by effective instance properties.
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Target collection and parsed comments for this invocation.
+ * @param node - The single original declaration node.
+ * @param source - Original declaration location and comment.
+ * @param id - Owning declaration identity.
+ * @returns A detached class, interface, or enum container; undefined for other forms.
+ */
+function containerSyntax(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	node: Node,
+	source: SourceDeclarationFact,
+	id: ApiItemId,
+): DeclarationContainerFact | undefined {
+	if (isClassDeclaration(node) || isInterfaceDeclaration(node)) {
+		const kind = isClassDeclaration(node) ? "class" : "interface";
+		const parameters =
+			node.typeParameters?.map((parameter) => compiler.emitter.printNode(parameter).trim()) ??
+			[];
+		const heritage =
+			node.heritageClauses?.map((clause) => compiler.emitter.printNode(clause).trim()) ?? [];
+		return {
+			kind,
+			prefix: `${node.modifiers?.some((modifier) => modifier.kind === SyntaxKind.AbstractKeyword) === true ? "abstract " : ""}${kind} `,
+			suffix: `${parameters.length > 0 ? `<${parameters.join(", ")}>` : ""}${heritage.length > 0 ? ` ${heritage.join(" ")}` : ""}`,
+			supported: node.members.every(
+				(member) =>
+					member.kind !== SyntaxKind.ClassStaticBlockDeclaration &&
+					!("body" in member && member.body !== undefined),
+			),
+			declaredMembers: node.members.filter(needsDeclaredMemberRecord).map((member) => {
+				// Remove trivia only on the printing clone; lookup still uses the original member node.
+				const printed = compiler.emitter.printNode(getSynthesizedDeepClone(member)).trim();
+				const memberId = `${id}:declared:${createHash("sha256").update(printed).digest("hex")}`;
+				return declaredMemberRecord(
+					compiler,
+					locations,
+					state,
+					member,
+					source,
+					memberId,
+					printed,
+				);
+			}),
+		};
+	}
+	if (isEnumDeclaration(node)) {
+		return {
+			kind: "enum",
+			prefix: `${node.modifiers?.some((modifier) => modifier.kind === SyntaxKind.ConstKeyword) === true ? "const " : ""}enum `,
+			suffix: "",
+			supported: true,
+			declaredMembers: node.members.map((member) => {
+				const printed = `${compiler.emitter.printNode(getSynthesizedDeepClone(member)).trim()},`;
+				const memberId = `${id}:enum:${compiler.emitter.printNode(member.name).trim()}`;
+				return declaredMemberRecord(
+					compiler,
+					locations,
+					state,
+					member,
+					source,
+					memberId,
+					printed,
+				);
+			}),
+		};
+	}
+	return undefined;
+}
+
+/**
+ * Identifies members whose syntax or visibility requires a separate declaration record.
+ * @param member - Original class or interface member.
+ * @returns Whether this member is not an ordinary public instance property or method.
+ */
+function needsDeclaredMemberRecord(member: Node): boolean {
+	return (
+		(member.kind !== SyntaxKind.PropertyDeclaration &&
+			member.kind !== SyntaxKind.PropertySignature &&
+			member.kind !== SyntaxKind.MethodDeclaration &&
+			member.kind !== SyntaxKind.MethodSignature) ||
+		("modifiers" in member &&
+			Array.isArray(member.modifiers) &&
+			member.modifiers.some(
+				(modifier: Node) =>
+					modifier.kind === SyntaxKind.StaticKeyword ||
+					modifier.kind === SyntaxKind.PrivateKeyword ||
+					modifier.kind === SyntaxKind.ProtectedKeyword,
+			))
+	);
+}
+
+/**
+ * Retains original documentation and independently printed syntax for one declaration member.
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Target collection and parsed comments for this invocation.
+ * @param member - Original member node, not a synthesized printing clone.
+ * @param source - Location of the containing declaration.
+ * @param id - Member identity derived from its owner and syntax.
+ * @param printed - Comment-free compiler-printed syntax.
+ * @returns Detached source and reference records for this member.
+ */
+function declaredMemberRecord(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	member: Node,
+	source: Origin,
+	id: ApiItemId,
+	printed: string,
+): DeclaredMemberFact {
+	const location = { packageName: source.packageName, file: source.file, start: member.pos };
+	const documentation = originalComment(member);
+	return {
+		...location,
+		kind: SyntaxKind[member.kind],
+		text: member.getFullText(),
+		documentation,
+		id,
+		printed,
+		documentationContext: referenceContext(
+			compiler,
+			locations,
+			state,
+			member,
+			location,
+			id,
+			documentation,
+		),
+	};
+}
+
+/**
+ * Extracts atomic declaration syntax while keeping the name available for alias rendering.
+ * @param compiler - Active checker and emitter.
+ * @param sourceNode - Original node, or undefined when unavailable; produces no statement then.
+ * @param type - Effective variable type; if undefined and no type or initializer exists, prints unknown.
+ * @returns Detached type alias or variable syntax, or undefined for other declarations.
+ */
+function statementSyntax(
+	compiler: Pick<Project, "checker" | "emitter">,
+	sourceNode: Node | undefined,
+	type: Type | undefined,
+): DeclarationStatementFact | undefined {
+	if (sourceNode && isTypeAliasDeclaration(sourceNode)) {
+		return {
+			prefix: "type ",
+			suffix: `${sourceNode.typeParameters === undefined ? "" : `<${sourceNode.typeParameters.map((parameter) => compiler.emitter.printNode(getSynthesizedDeepClone(parameter)).trim()).join(", ")}>`} = ${compiler.emitter.printNode(getSynthesizedDeepClone(sourceNode.type)).trim()};`,
+		};
+	}
+	if (sourceNode && isVariableDeclaration(sourceNode)) {
+		return {
+			prefix:
+				sourceNode.parent.flags & NodeFlags.Const
+					? "const "
+					: sourceNode.parent.flags & NodeFlags.Let
+						? "let "
+						: "var ",
+			suffix: sourceNode.type
+				? `: ${compiler.emitter.printNode(getSynthesizedDeepClone(sourceNode.type)).trim()};`
+				: sourceNode.initializer
+					? ` = ${compiler.emitter.printNode(getSynthesizedDeepClone(sourceNode.initializer)).trim()};`
+					: `: ${type ? compiler.checker.typeToString(type, sourceNode) : "unknown"};`,
+		};
+	}
+	return undefined;
+}
+
+/**
+ * Adds original-scope lookup context without changing instantiated signature text or identity.
+ *
+ * @param compiler - The checker and emitter for the active snapshot.
+ * @param locations - Original package-location lookup state.
+ * @param state - Target collection and parsed comments owned by this extraction.
+ * @param type - The callable type whose signatures were extracted.
+ * @param facts - Signature facts in the same order as the compiler signatures.
+ * @returns New signature records with context for inspectable callable declarations.
+ * @throws If compiler signature identities or original source locations are inconsistent.
+ */
+function withDocumentationContexts(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	type: Type,
+	facts: readonly SignatureFact[],
+): SignatureFact[] {
+	return compiler.checker
+		.getSignaturesOfType(type, SignatureKind.Call)
+		.map((signature, index) => {
+			const fact = assertDefined(
+				facts[index],
+				"Compiler signatures must correspond to extracted signature facts.",
+			);
+			const handle = signature.declaration;
+			const node = handle?.resolve();
+			if (!handle || !isDocumentationSignatureDeclaration(node)) {
+				return fact;
+			}
+			return {
+				...fact,
+				documentationContext: {
+					...referenceContext(
+						compiler,
+						locations,
+						state,
+						node,
+						origin(locations, handle.path, node.pos),
+						fact.id,
+						fact.documentation,
+					),
+					parameters: node.parameters.map((parameter) => ({
+						...(isIdentifier(parameter.name) ? { name: parameter.name.text } : {}),
+						optional:
+							parameter.questionToken !== undefined || parameter.initializer !== undefined,
+						rest: parameter.dotDotDotToken !== undefined,
+					})),
+					typeParameters: node.typeParameters?.map((parameter) => parameter.name.text) ?? [],
+				},
+			};
+		});
+}
+
+/**
+ * Captures original name lookup without retaining compiler nodes in the extracted facts.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package-location lookup state.
+ * @param state - Target collection and parsed comments for this invocation.
+ * @param node - Original declaration, including for instantiated member views.
+ * @param location - Original package-relative location.
+ * @param id - Identity of the comment input.
+ * @param documentation - Original comment text, including explicit empty comments. Undefined uses an empty parser tree without adding a source comment.
+ * @returns Detached reference facts; parsed nodes remain private to the invocation.
+ */
+function referenceContext(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	node: Node,
+	location: Origin,
+	id: ApiItemId,
+	documentation: string | undefined,
+): DocumentationReferenceContext {
+	let source = node;
+	while (!isSourceFile(source)) {
+		source = source.parent;
+	}
+	const parsed = (state.documentation?.parser ?? new TSDocParser()).parseString(
+		documentation ?? "/** */",
+	);
+	state.documentation?.comments.set(id, parsed);
+	const links = collectLinks(parsed.docComment, (reference) =>
+		lookupReference(compiler, locations, state, node, source, reference, false),
+	);
+	const request = parsed.docComment.inheritDocTag;
+	const inheritance =
+		request === undefined
+			? undefined
+			: lookupReference(
+					compiler,
+					locations,
+					state,
+					node,
+					source,
+					request.declarationReference,
+					true,
+				);
+	return {
+		origin: { packageName: location.packageName, file: location.file, start: location.start },
+		typeReferences: declarationReferences(compiler, locations, state, node, location),
+		links,
+		...(inheritance === undefined ? {} : { inheritance }),
+	};
+}
+
+/**
+ * Captures reference identities from original type syntax without parsing printed types.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Shared target collection for this invocation.
+ * @param node - Original declaration whose type syntax is inspected.
+ * @param location - Package-relative declaration location.
+ * @returns Ordered reference occurrences, excluding type parameters and standard-library targets.
+ */
+function declarationReferences(
+	compiler: Pick<Project, "checker" | "emitter">,
+	locations: LocationContext,
+	state: CollectionState,
+	node: Node,
+	location: Origin,
+): DeclarationReferenceFact[] {
+	const references: DeclarationReferenceFact[] = [];
+	function visit(current: Node): void {
+		if (current.kind === SyntaxKind.Block) return;
+		const name = isTypeReferenceNode(current)
+			? current.typeName
+			: isTypeQueryNode(current)
+				? current.exprName
+				: isExpressionWithTypeArguments(current)
+					? current.expression
+					: undefined;
+		if (name !== undefined) {
+			const symbol = compiler.checker.getSymbolAtLocation(name);
+			if (symbol && !compiler.checker.isUnknownSymbol(symbol)) {
+				const resolved = target(compiler.checker, symbol);
+				if (
+					!(resolved.flags & SymbolFlags.TypeParameter) &&
+					resolved.declarations.length > 0 &&
+					!resolved.declarations.every(
+						(handle) =>
+							/^lib\.[^.].*\.d\.ts$/.test(path.basename(handle.path)) &&
+							origin(locations, handle.path, 0).packageName === "typescript",
+					)
+				) {
+					references.push({
+						text: compiler.emitter.printNode(name).trim(),
+						target: collect(compiler, locations, state, resolved),
+						origin: {
+							packageName: location.packageName,
+							file: location.file,
+							start: name.pos,
+						},
+					});
+				}
+			}
+		}
+		if (isClassDeclaration(current) || isInterfaceDeclaration(current)) {
+			for (const parameter of current.typeParameters ?? []) visit(parameter);
+			for (const clause of current.heritageClauses ?? []) visit(clause);
+		} else {
+			current.forEachChild(visit);
+		}
+	}
+	visit(node);
+	return references;
+}
+
+/**
+ * Reads the closest attached TSDoc block without preceding native-node trivia.
+ * @param node - Original declaration or variable statement that owns the comment.
+ * @returns Exact comment text, or undefined when no TSDoc is attached.
+ */
+function originalComment(node: Node | undefined): string | undefined {
+	const comment = node?.jsDoc?.at(-1);
+	if (node === undefined || comment === undefined) return undefined;
+	const source = node.getSourceFile().text;
+	const range = getLeadingCommentRanges(source, comment.pos)?.find(
+		(entry) => entry.end === comment.end && entry.kind === SyntaxKind.MultiLineCommentTrivia,
+	);
+	assert.ok(range, "Attached TSDoc nodes must identify an original comment range.");
+	return source.slice(range.pos, range.end);
 }

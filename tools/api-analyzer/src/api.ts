@@ -15,6 +15,8 @@ import {
 } from "./report-generation/reviewReport.js";
 import { freezeData } from "./utilities/freezeData.js";
 import type { Result } from "./analysis-types/result.js";
+import { encodeDependencyModel } from "./model-generation/dependencyModel.js";
+import { loadDependencyModels } from "./suite.js";
 
 /**
  * Counts of declarations and callable signatures retained by this analysis.
@@ -42,6 +44,11 @@ export interface APIStatistics {
  */
 export interface APIAnalysis {
 	/**
+	 * Generates the versioned dependency documentation artifact without compiler or file access.
+	 * @returns JSON artifact content. The caller owns its destination and writes.
+	 */
+	generateModel(): string;
+	/**
 	 * The immutable effective configuration used for this invocation.
 	 */
 	readonly configuration: EffectiveConfiguration;
@@ -50,15 +57,16 @@ export interface APIAnalysis {
 	 *
 	 * @returns Counts over the collected analysis, independently of report selection.
 	 */
+	// TODO: just make this a readonly property? It's currently a method but could be a simple getter.
 	getStatistics(): APIStatistics;
 	/**
 	 * Generates report text from prepared data without compiler or filesystem access.
 	 *
 	 * @param entrypoint - Configured entrypoint name.
 	 * @param selection - Release levels and modifier filters for this report.
-	 * @param presentation - Optional report formatting settings.
+	 * @param presentation - Report formatting settings. Omit to include release tags and undocumented notices, with no additional tags.
 	 * @returns Report text, or selection and entrypoint diagnostics.
-	 * @throws If the entrypoint contains declarations outside the current function-only report scope.
+	 * @throws If the entrypoint contains unsupported declaration forms or unresolved merged ownership.
 	 */
 	generateReport(
 		entrypoint: string,
@@ -74,7 +82,8 @@ export interface APIAnalysis {
  * Resolves ordinary configuration internally. The synchronous compiler adapter blocks the event loop
  * during extraction. Compiler resources are released before the promise settles.
  * Changed inputs require a new invocation; no analysis cache is retained across invocations.
- * Currently validates collected callable comments and same-package documentation references only.
+ * Validates supported original declaration and member comments, selected dependency models, and configured reference policies.
+ * Release-tag requirements apply to each original documentation input; enclosing type tags are not substituted.
  *
  * @param configuration - Package inputs and inherited settings.
  * @param workingDirectory - Absolute base for relative paths. Defaults to the process working directory.
@@ -90,6 +99,10 @@ export async function analyzeAPIs(
 		if (!configured.ok) {
 			return configured;
 		}
+		const dependencies = loadDependencyModels(configured.value);
+		if (!dependencies.ok) {
+			return dependencies;
+		}
 		const comments: ExtractedComments = new Map();
 		const extracted = analyzeDeclarations(configured.value, undefined, comments);
 		if (!extracted.ok) {
@@ -97,7 +110,12 @@ export async function analyzeAPIs(
 		}
 		const facts = extracted.value;
 		const signatures = facts.declarations.flatMap((declaration) => declaration.signatures);
-		const context = createAnalysisContext(facts, configured.value, comments);
+		const context = createAnalysisContext(
+			facts,
+			configured.value,
+			comments,
+			dependencies.value,
+		);
 		if (!context.ok) {
 			return context;
 		}
@@ -106,9 +124,9 @@ export async function analyzeAPIs(
 			return completed;
 		}
 		const prepared = prepareReviewReport(completed.value);
-		// TODO (Stage 2 completion): Add general declaration validation and suite model loading.
-		// TODO (Stages 3 and 4 outputs): Retain portable-model and declaration-rollup data before
-		// exposing those methods. They must not require a live compiler or repeat full analysis.
+		// TODO (Stage 2 completion): Complete merged-declaration and remaining reference validation.
+		// TODO (Stages 3 and 4 outputs): Extend the dependency format to a complete portable model
+		// and retain rollup data without requiring a live compiler or repeating analysis.
 		const statistics = freezeData({
 			entrypoints: facts.surfaces.length,
 			declarations: facts.declarations.length,
@@ -118,6 +136,7 @@ export async function analyzeAPIs(
 			ok: true,
 			value: {
 				configuration: configured.value,
+				generateModel: () => encodeDependencyModel(completed.value),
 				getStatistics: () => statistics,
 				generateReport(
 					entrypoint: string,

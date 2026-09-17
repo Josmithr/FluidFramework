@@ -5,6 +5,14 @@ It uses the official native TypeScript 7 API and includes the Stage 0 compiler c
 Its API is not stable. It does not generate production artifacts or replace API Extractor.
 Publication remains a separate decision.
 
+## Current Stage 2 scope
+
+Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
+Selected dependency models supply already-resolved documentation, link origins, and section provenance.
+Reports support functions, single-declaration classes and interfaces, property and callable member selection, declared constructors and static members, enums, type aliases, variables, and namespaces.
+Merged-declaration documentation ownership, recursive namespace aliases, complete type-reference extraction, and some explicit reference forms still need acceptance work.
+These limitations prevent closing Stage 2; the implemented checks do not waive the remaining gates.
+
 ## Development contract
 
 Follow the [implementation plan](../plans/api-extractor-replacement-implementation-plan.md), including documentation-driven development, test-driven development, and functional architecture.
@@ -51,7 +59,8 @@ Return readonly effective configuration without mutating the supplied configurat
 Relative paths use the explicit working directory, which defaults to the process working directory.
 Reject unknown settings and unimplemented rule names instead of silently ignoring them.
 
-Each `analyzeAPIs` invocation resolves configuration, extracts facts, classifies callable signatures, and prepares their documentation and report metadata.
+Each `analyzeAPIs` invocation resolves configuration, loads selected dependency models, extracts facts, and classifies supported original declaration and member comments.
+It then validates configured reference policies, completes documentation processing, and prepares report metadata.
 All currently implemented shared validation completes before a successful result.
 The invocation closes the compiler connection before its promise settles, including on failure.
 The official synchronous close destroys streams and signals child termination but does not wait for operating-system process reaping.
@@ -62,7 +71,8 @@ There is no persistent analysis cache or watch service.
 Unexpected extraction errors are propagated after cleanup; if connection cleanup also fails, an `AggregateError` retains both errors.
 The asynchronous entrypoint still blocks the Node.js event loop during synchronous compiler work.
 An active compiler call cannot be canceled.
-General declaration validation, automatic member report integration, suite model loading, portable models, and declaration rollups remain pending.
+Merged documentation ownership and complete reference validation remain pending in Stage 2.
+Complete portable models and declaration rollups remain required by later stages.
 These limitations do not waive the corresponding delivery requirements.
 
 Failure diagnostics describe only user-caused issues, including invalid input, configuration, and caller actions.
@@ -92,7 +102,7 @@ These records remain frozen and usable after session closure. They describe orig
 
 Compiler tests cover classes, interfaces, inherited generic members, local overrides, overloads, and merged declarations for both supported input compilers.
 This is a prerequisite for broader classification and reporting. It does not define merged-comment precedence or implement automatic inheritance.
-Class and interface report rendering remains unsupported.
+Single-declaration class and interface reports now consume the completed member documentation.
 
 ### Effective member identities and signatures
 
@@ -104,11 +114,21 @@ These identifiers are provisional. They do not identify an ancestor or establish
 The adapter removes null and undefined from the member type before requesting call signatures. This includes optional methods.
 Non-callable members have an empty signature array. Callable properties retain comments from their signature declarations, not copied property comments.
 Signature identifiers use the effective member as their owner and retain the limitations documented on `SignatureFact.id`.
-Callers can pass these signatures to classification and selection independently. This does not define classification rules for a whole class or interface.
+Analysis classifies each effective callable signature from its original comment.
+Release-tag requirements apply to untagged methods and supported non-callable properties as well as standalone functions.
+An enclosing class or interface tag does not supply a missing member tag.
+This does not define classification rules for a whole class or interface.
 
 Both input compilers verify overload selection, inherited generic signatures, optional methods, callable properties, and frozen facts after session closure and JSON serialization.
-Construct signatures, effective-member lookup contexts, and class/interface reports remain unsupported.
-Individually collected method targets retain signature contexts; conservative ancestor matching is described below.
+Effective callable signatures retain original-scope lookup contexts when their signature declarations are inspectable.
+Inherited generic substitution changes the signature type but does not change the lookup scope.
+Single-declaration non-callable properties retain `MemberFact.documentationContext` with their original location and reference lookups.
+Analysis classifies and resolves these comments under member identifiers, without creating synthetic signatures.
+Callable properties use their property comments for classification and remain properties in reports.
+Declared constructors, static members, accessors, and signature declarations retain separate comment and printed-syntax records.
+Automatic accessor inheritance, merged-property precedence, and broader explicit reference forms remain incomplete.
+Heritage comparison views do not receive lookup contexts or separate classification.
+Conservative ancestor matching is described below.
 
 ### Direct base declarations
 
@@ -180,7 +200,9 @@ The [architecture proposal](Architecture-Proposal.md) defines the layer dependen
 `analysis` owns compiler queries, original classification, documentation resolution, and mutable working state.
 `report-generation` consumes the completed graph without importing analysis implementation or TSDoc.
 `utilities` contains only generic assertions and freezing helpers.
-Model and rollup layers will be introduced when implemented; their required capabilities remain pending.
+`model-generation` owns versioned dependency model encoding, decoding, and artifact validation.
+The root composition reads artifacts and supplies validated model data to analysis.
+Declaration rollup generation remains pending; no empty rollup layer is introduced.
 
 Each public invocation creates one internal `AnalysisContext` from immutable compiler facts.
 Context creation validates declaration and signature identities, indexes declarations, and classifies original comments.
@@ -195,7 +217,7 @@ Classify and bind original comments before running inheritance resolution once.
 Resolution changes only those working nodes, not original comment strings or compiler facts.
 Discard the context after completion or failure; do not resolve it again or reuse it with different inputs.
 `completeAnalysis(context)` resolves and validates documentation, then returns a frozen `CompletedAnalysis` graph.
-The graph retains original facts and classification plus resolved comments, content status, original block tags, link targets, and inheritance paths.
+The graph retains original facts and classification plus resolved comments, content status, original block tags, link targets, inheritance paths, and section provenance.
 It contains no TSDoc nodes or mutable construction indexes and is not a versioned model artifact.
 `prepareReviewReport(graph)` copies report fields from this completed graph without performing semantic analysis.
 Report calls validate new selection criteria without repeating parsing, fixed export validation, or semantic analysis.
@@ -227,7 +249,7 @@ If you construct bindings manually, resolve each target in the original comment'
 Verify that the source and target signatures have compatible parameters and type parameters.
 Bindings must contain unique sources, valid target identities, and reference text from the original comments.
 The binder establishes these invariants; the resolver does not repeat them.
-The resolver retains checks for required inputs, unsupported cross-package inheritance, cycles, and receiving link policy.
+The resolver retains checks for required inputs, suite authorization, cycles, and receiving link policy.
 
 The following internal example resolves an explicitly bound function comment without compiler access.
 The import is relative to a module in `src`; this operation is not a package export.
@@ -309,7 +331,8 @@ These tests use declarations built with TypeScript 6 and TypeScript 7, both anal
 Both compiler inputs and the direct-inheritance unit test use the same resolved-comment snapshot.
 Pure and compiler-backed report tests share snapshots for descriptive and empty inherited content.
 `ReviewSignature.documented` and report notices use successfully resolved content while annotation tags remain local.
-Broader declaration support, automatic inheritance integration in class/interface reports, and suite resolution remain required before Stage 2 is complete.
+Selected container reports and model-backed suite resolution now use this effective-content contract.
+Remaining declaration ownership and reference coverage still prevent closing Stage 2.
 
 ### Compiler-backed callable bindings
 
@@ -325,9 +348,12 @@ A target must still exist in the declaration inputs because TypeScript emission 
 
 `SignatureFact.documentationContext` retains the original location, parameter names, optional parameter flags, rest parameter flags, and type-parameter names.
 It also retains the lookup result for an inheritance request.
-The analyzer supplies this field for collected function declarations and method declarations reached through explicit references.
-Its type is `SignatureDocumentationContext`; effective-member view signatures still omit reference contexts.
-Other declaration forms omit it.
+The analyzer supplies this field for collected functions, methods reached through explicit references, and inspectable effective callable member signatures.
+Its type is `SignatureDocumentationContext`.
+Single-declaration non-callable properties retain a `DocumentationReferenceContext` on the member instead.
+This context has reference and location facts but no callable parameters.
+Heritage comparison views omit documentation contexts.
+Callable property signatures do not acquire the containing property's comment.
 An inheritance request on a supported declaration without the required lookup context throws an assertion error.
 The binder does not guess a target from its name.
 These facts remain usable after the session closes or after JSON serialization.
@@ -381,10 +407,15 @@ Original inputs remain unchanged, and results remain frozen and usable without a
 Pure tests cover chains, local suppression, ambiguous bindings, cycles, and inherited-link policies.
 Both compiler inputs cover instantiated contracts, type aliases, diamonds, conflicting sources, reordered traversal, and overloaded source/receiver exclusion after JSON serialization.
 
-This is an opt-in resolver capability, not class/interface report support.
-Automatic source selection does not yet handle merged members or cross-package sources.
+Analysis completion maps eligible automatic member bindings to property or single callable signature identifiers.
+It resolves effective method and supported property comments and validates their API links before reporting success.
+Explicit method and single-declaration non-callable property references are supported, including property chains.
+An inherited link still requires the receiving signature's original release metadata, even when the missing-release-tag rule is disabled.
+Both input compilers verify namespace-scoped inherited links, explicit method references, automatic suppression, and detached completion.
+Callable-property comments and supported declared member syntax now enter classification and reports separately.
+Automatic source selection can use selected suite dependencies, but still excludes merged or uncertain sources.
 Individually collected method targets support explicit-reference chains and API links to supported standalone functions.
-Effective-member views still require context integration before general member comments can be resolved automatically.
+Automatic accessor inheritance and recursive instantiated ancestry require further integration.
 Do not discard link or explicit-reference diagnostics to treat an unsupported member comment as documented.
 
 ### Compiler-backed API link lookup
@@ -426,13 +457,14 @@ It is not exported from the package entrypoint.
 The context supplies original classification, including targets excluded from report selections.
 The binder does not recompute classification or rebuild its metadata index.
 
-Sources must have original function or method documentation contexts.
-Targets must be standalone functions with exactly one callable signature and a documentation context.
+Sources must have original supported declaration or member documentation contexts.
+Targets must have declaration-level documentation contexts, or one supported callable signature with its original context.
 The source and target must belong to the same original package, which can differ from the package that re-exports them.
 Aliases and retained unexported targets are supported.
 Parameter names and types do not need to match because links do not copy parameter documentation.
-Overload targets, other declaration forms, qualified references, selectors, and cross-package links produce unsupported-feature diagnostics.
-These limits are provisional until declaration-level classification and broader target semantics are available.
+Ambiguous local overload targets and unsupported local path or selector syntax produce diagnostics.
+Qualified references into selected dependency models use the exported paths in those models.
+These limits are provisional until the remaining target semantics are defined and verified.
 
 Public, beta, and alpha APIs can link to each other, independently of report selection.
 They cannot link to internal APIs.
@@ -494,7 +526,7 @@ Pure tests cover chains, identical reference text with different original target
 Both compiler inputs verify resolution through aliases after JSON serialization and session closure, using the same inherited-comment snapshot.
 Function reports validate local and inherited API links before constructing a successful report, including links in unselected signatures.
 Effective content determines `ReviewSignature.documented`; original classification and local tags determine report annotations.
-This function-only integration does not complete Stage 2.
+This integration does not complete the remaining Stage 2 declaration and reference acceptance work.
 
 ## Release classification and selection contract
 
@@ -589,7 +621,8 @@ Review artifacts must identify the package and configured surface. Their API con
 type-only export paths, callable signatures, release levels, and policy-relevant modifiers.
 Generation must use deterministic ordering and exclude volatile data such as timestamps and absolute checkout paths.
 Separate selections must produce separate artifacts from shared analysis. Baseline comparison must not trigger analysis.
-The initial declaration renderer supports function-only entrypoints. Its report syntax is experimental.
+The declaration renderer supports functions, single-declaration containers, enums, type aliases, variables, and namespaces.
+Its report syntax is experimental and is not a declaration rollup.
 Raw declaration text is not a substitute for correctly selected declarations, and metadata-only output is not a complete API report.
 
 Internally, `completeAnalysis(context)` owns binding and resolution and produces the immutable generator input.
@@ -610,11 +643,11 @@ Unknown entrypoints return `report-configuration` diagnostics.
 Report callers supply release levels and tag filters, not independently assembled classification records or selected identifiers.
 Invalid criteria produce selection diagnostics.
 Duplicate fact identities assert during context creation, and unresolved export targets assert during preparation.
-The initial builder throws for non-function exports or function/namespace merges, even when no overload is selected.
+The builder throws for unsupported forms, including unresolved merged ownership, recursive namespace aliases, and container implementation bodies.
 These are unsupported library capabilities, not user-input diagnostics. No partial report is returned.
 
 `renderReviewReport(report, options?)` produces API Extractor-like Markdown: a package heading, generated-file notice,
-surface identity, and one `ts` block containing function declarations and explicit export statements.
+surface identity, and one `ts` block containing selected declarations and explicit export statements.
 Each function is declared once, with per-overload comments. Alias and type-only exports refer to that declaration.
 A declaration used only through aliases is not accidentally exported under its implementation name.
 Call-signature declaration text is printed by the compiler during analysis; the renderer does not rewrite arrow-function type strings.
@@ -625,7 +658,7 @@ The report retains declaration identities internally to group aliases, but never
 Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.
 Release tags are controlled only by `includeReleaseTags`, not `additionalTags`. Permitted untagged items have no release annotation.
 The report builder preserves recognized modifier metadata and parsed block-tag presence for presentation.
-It uses the official TSDoc parser for effective-content detection without repeating semantic classification.
+Analysis uses the official TSDoc parser for effective-content detection; report generation reads only completed data.
 
 `includeUndocumentedNotice` defaults to `true`. Absent, empty, and tag-only comments receive `(undocumented)` annotations.
 Descriptive text in an effective summary or block, code, and validated API or URL links count as documentation.
@@ -634,10 +667,11 @@ Missing targets, cycles, ambiguous overload targets, invalid TSDoc, and invalid 
 Inherited links retain their original targets and must also satisfy the receiving API's original release policy.
 This status measures content presence, not documentation quality or completeness.
 
-Same-package explicit function inheritance and API links are implemented.
-The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) still requires broader declaration support, automatic member inheritance integration in reports, and cross-package suite resolution.
+Same-package explicit inheritance, selected-suite resolution, and automatic member report integration are implemented for the supported scope.
+The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) records remaining declaration and reference acceptance work.
 The resolver's automatic inheritance rule treats any local TSDoc comment, including an empty or tag-only comment, as an override.
-Dependency-model loading and compatibility support remain in Stage 2. Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
+Versioned dependency-model loading and structural validation now run before compiler extraction.
+Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
 Disabling the annotation does not disable documentation validation or change selected APIs.
 Display settings never remove metadata from the report model and do not alter semantic policy.
 
@@ -685,8 +719,9 @@ This increment establishes baseline handling only; it does not satisfy the Stage
 Package exports are limited to anticipated user-facing workflows.
 `analyzeAPIs` is the only exported function, alongside `ReleaseLevel`, `DiagnosticCode`, and supporting types.
 Configuration resolution, classification, selection, documentation processing, report rendering, and baseline comparison are internal operations.
-The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, and `generateReport(entrypoint, selection, presentation?)`.
-Model and declaration-rollup methods remain required future work; no placeholder methods are exposed.
+The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, `generateReport(entrypoint, selection, presentation?)`, and `generateModel()`.
+`generateModel()` returns versioned dependency documentation as JSON with a final newline.
+Declaration-rollup methods remain required future work; no placeholder methods are exposed.
 
 The following example analyzes a package once and generates public report text without writing a file.
 The configured project must include the declaration entrypoint and its dependencies.
@@ -737,7 +772,7 @@ Internal assertions and unexpected operational failures reject the promise.
 `getStatistics()` returns immutable `entrypoints`, `declarations`, and `signatures` counts.
 These count collected declarations, including unexported targets, and their callable signatures; effective member-view signatures are not counted again.
 They are API counts, not analysis-performance or cache counters.
-`generateReport` returns `Result<string>` and currently supports function-only entrypoints.
+`generateReport` returns `Result<string>` for the supported declaration forms described above.
 An invalid selection or unknown entrypoint produces diagnostics; unsupported declaration forms still throw.
 Multiple reports can use different selections and presentation options without reanalysis.
 
@@ -750,7 +785,77 @@ Ordinary comments do not count as TSDoc. Explicit empty TSDoc comments remain pr
 The enclosing declaration fact retains full source declaration text separately; signature `text` retains the printed function type.
 JSON serialization omits `undefined` documentation fields. Reading an omitted field returns `undefined`, while explicit empty comment strings remain intact.
 These comments are not parsed or resolved documentation models.
-Construct signatures, structured index signatures, and a complete graph of referenced types are not part of this initial fact format.
+Declared constructors and index signatures retain detached syntax and original documentation records.
+The fact format still does not represent every type-reference form.
+
+### Suite configuration and models
+
+`suite.packages` selects installed dependencies by exact package names or Node.js glob patterns.
+Discovery follows direct, transitive, and peer dependencies.
+`suite.modelFile` identifies the model artifact relative to each selected package root.
+Absolute paths and parent traversal are rejected.
+Every selector must match an installed dependency.
+Every selected model must exist and validate, even if no API uses it.
+Multiple selected installations with the same package name are rejected as ambiguous.
+External model identities must resolve to the selected suite.
+
+The following configuration enables dependency documentation and independent reference policies.
+The repository-specific `@legacy` rule is ordinary configuration, not built-in behavior.
+
+```typescript
+import { analyzeAPIs, ReleaseLevel } from "api-analyzer";
+
+const levels = [ReleaseLevel.Public, ReleaseLevel.Beta, ReleaseLevel.Alpha, ReleaseLevel.Internal];
+const result = await analyzeAPIs({
+	packageName: "example-consumer",
+	project: "tsconfig.api.json",
+	entrypoints: [{ name: ".", path: "lib/index.d.ts" }],
+	customModifierTags: ["@legacy"],
+	// Selected dependency packages must generate this artifact before consumer analysis.
+	suite: { packages: ["@example/*"], modelFile: "api-model.json" },
+	referencePolicies: {
+		releaseCompatibility: true,
+		entrypointExposure: true,
+		inheritanceVisibility: true,
+		directional: [{
+			name: "no-current-to-legacy",
+			// The reverse relationship remains permitted unless another rule rejects it.
+			source: { releaseLevels: levels, excludeTags: ["@legacy"] },
+			target: { releaseLevels: levels, requireTags: ["@legacy"] },
+		}],
+	},
+});
+if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+// Callers choose whether and where to write the artifact.
+const modelText = result.value.generateModel();
+```
+
+The artifact identifies format `api-analyzer-documentation`, version `1`, identity version `1`, and compiler version `7.0.2`.
+It retains original metadata, resolved documentation, link and section origins, callable parameter facts, exported paths in overload order, external identities, and hashes of analyzed package files.
+The codec validates schema, package identity, uniqueness, target integrity, resolved TSDoc syntax, and stored link occurrences.
+Dependency comments are parsed for structural validation and content copying, but their targets and inheritance chains are not resolved again.
+This artifact is not a complete portable API model and cannot restore an entire analysis or generate declaration rollups.
+The loader rejects missing or changed analyzed package files by comparing their SHA-256 hashes before consumer analysis.
+Transitive resolved-content freshness and completeness across unsupported declaration forms still require acceptance work.
+
+### Reference policies
+
+`referencePolicies.releaseCompatibility` rejects references from a more stable API to a less stable target.
+`entrypointExposure` checks same-package declaration targets without requiring dependency types to be re-exported by a consumer.
+`inheritanceVisibility` rejects explicit inheritance from internal targets when the receiver is non-internal.
+These three switches default to disabled and are independent of report selection.
+Directional rules use the ordinary release and custom-tag selectors on both source and target metadata.
+Each directional rule defaults to enabled and can be disabled with `enabled: false`.
+Inherited `referencePolicies` and `suite` objects are replaced as complete values by local configuration.
+API links retain their separate non-internal-to-internal restriction; public-to-beta links remain valid.
+Invalid configuration or reference relationships produce diagnostics without partial analysis.
+
+### Verification scope
+
+Native fixtures built with TS6 and TS7 verify detached member reports, namespace filtering, type-only aliases, and built-in-shadow exclusion.
+Suite tests verify direct, peer, and transitive model resolution, original scope through re-exports, and missing or malformed unused models.
+Separate Node/browser TypeScript projects verify real conditional-export parity without baseline writes.
+The repository pilot reads built core-utils comparison declarations and applies a configured legacy rule without changing production build integration.
 
 ## Commands
 

@@ -19,10 +19,14 @@ import type {
 	AnalysisFacts,
 	ApiItemId,
 	DeclarationFact,
+	DeclaredMemberFact,
+	MemberFact,
 	SignatureFact,
 } from "../analysis-types/facts.js";
 import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
+import type { ReferencePolicies } from "../analysis-types/referencePolicy.js";
+import type { DependencyModel } from "../analysis-types/dependencyModel.js";
 
 /**
  * An original input and its parsed comment, with metadata captured before inheritance.
@@ -45,7 +49,7 @@ export type ParsedDocumentationItem<Input extends ApiItemDocumentation> = Input 
 };
 
 /**
- * Parsed comments retained during one extraction, indexed by signature identifier.
+ * Parsed comments retained during one extraction, indexed by documentation input identifier.
  *
  * @remarks
  * Contains TSDoc nodes, not compiler objects.
@@ -88,23 +92,42 @@ export interface DocumentationContext<
 }
 
 /**
- * A callable comment associated with its original detached declaration and signature.
+ * An original callable or non-callable property comment associated with detached facts.
  */
 export interface AnalysisDocumentationInput extends DocumentationInput {
 	/**
-	 * The immutable declaration that contains this signature.
+	 * The immutable declaration that contains this documentation input.
 	 */
 	readonly declaration: DeclarationFact;
 	/**
-	 * The original signature, including its compiler lookup results.
+	 * The effective member that owns this comment or signature.
+	 * @defaultValue Omitted for declaration-level inputs and independently retained declared members.
 	 */
-	readonly signature: SignatureFact;
+	readonly member?: MemberFact;
+	/**
+	 * The original callable signature.
+	 * @defaultValue Omitted when the comment belongs to a property, declaration, or independently retained declared member.
+	 */
+	readonly signature?: SignatureFact;
+	/**
+	 * An independently documented declaration member outside the effective instance-property view.
+	 * @defaultValue Omitted for ordinary effective members and declaration-level inputs.
+	 */
+	readonly declaredMember?: DeclaredMemberFact;
 }
 
 /**
  * One indexed fact set with original classification and invocation-owned parsed documentation.
  */
 export interface AnalysisContext extends DocumentationContext<AnalysisDocumentationInput> {
+	/**
+	 * Validated dependency models selected before compiler extraction; empty when no suite is configured.
+	 */
+	readonly dependencies: readonly DependencyModel[];
+	/**
+	 * Configured semantic reference policies, independent of output selection.
+	 */
+	readonly referencePolicies: ReferencePolicies;
 	/**
 	 * Immutable compiler facts from this invocation.
 	 */
@@ -124,6 +147,17 @@ export interface AnalysisContext extends DocumentationContext<AnalysisDocumentat
 }
 
 /**
+ * Original classification settings and optional semantic policies for an analysis context.
+ */
+export interface AnalysisContextOptions extends ClassificationOptions {
+	/**
+	 * Reference checks evaluated before documentation completion.
+	 * @defaultValue Omitted; analysis uses an empty policy object and skips optional reference checks.
+	 */
+	readonly referencePolicies?: ReferencePolicies;
+}
+
+/**
  * Parses original inputs and validates their identities once for a semantic pipeline.
  *
  * @remarks
@@ -135,9 +169,9 @@ export interface AnalysisContext extends DocumentationContext<AnalysisDocumentat
  *
  * @typeParam Input - Original input records to index.
  * @param inputs - Original comments with distinct identifiers.
- * @param options - Shared modifier vocabulary and classification rules.
- * @param diagnosticCode - Configuration diagnostic category for the owning operation.
- * @param extractedComments - Optional parsed comments from this invocation with the same modifier vocabulary.
+ * @param options - Shared vocabulary and classification rules. Omit for standard tags and enabled classification rules.
+ * @param diagnosticCode - Configuration diagnostic category. Omit to use DocumentationConfiguration.
+ * @param extractedComments - Parsed comments with the same modifier vocabulary. Omit to parse all inputs here.
  * @returns A request-owned context or invalid-vocabulary diagnostics.
  * @throws If identities are duplicated, an included package name is blank, or parsing fails unexpectedly.
  */
@@ -206,23 +240,28 @@ export function apiLinkNodes(node: DocNode): readonly DocLinkTag[] {
 }
 
 /**
- * Indexes immutable declaration facts and prepares their original callable comments.
+ * Indexes immutable facts and prepares supported original declaration and member comments.
  *
  * @remarks
  * Owns declaration and signature identity validation for the downstream pipeline.
  * Builds classification and its lookup index from the same original inputs.
  * Uses signature lookup context for package ownership, or the original declaration when no lookup is needed.
+ * Includes effective callable signatures, single-declaration properties, and separately documented declaration members.
+ * Does not merge property and signature comments or choose precedence for merged declarations.
+ * Heritage comparison views are not separate receiving APIs and are not classified again.
  *
  * @param facts - One extracted fact set.
- * @param options - Shared modifier vocabulary and classification rules.
- * @param extractedComments - Optional parsed comments from this extraction. Reused without copying their nodes.
+ * @param options - Shared classification and reference settings. Omit for standard tags, enabled classification rules, and no optional reference checks.
+ * @param extractedComments - Parsed comments reused without copying nodes. Omit to parse all inputs during context creation.
+ * @param dependencies - Validated dependency models whose metadata is retained for reference checks. Omit for an empty dependency list.
  * @returns The indexed analysis or configuration and classification diagnostics.
- * @throws If declaration or signature identities are duplicated or an original location is missing.
+ * @throws If declaration or documentation input identities are duplicated or an original location is missing.
  */
 export function createAnalysisContext(
 	facts: AnalysisFacts,
-	options: ClassificationOptions = {},
+	options: AnalysisContextOptions = {},
 	extractedComments?: ExtractedComments,
+	dependencies: readonly DependencyModel[] = [],
 ): Result<AnalysisContext> {
 	const declarations = new Map<ApiItemId, DeclarationFact>();
 	const inputs: AnalysisDocumentationInput[] = [];
@@ -232,8 +271,37 @@ export function createAnalysisContext(
 			"Declaration facts must have distinct identities.",
 		);
 		declarations.set(declaration.id, declaration);
-		for (const signature of declaration.signatures) {
-			const origin = signature.documentationContext?.origin ?? declaration.declarations[0];
+		for (const declaredMember of declaration.container?.declaredMembers ?? []) {
+			inputs.push({
+				id: declaredMember.id,
+				declaration,
+				declaredMember,
+				documentation: declaredMember.documentation,
+				packageName: declaredMember.packageName,
+			});
+		}
+		if (declaration.documentationContext !== undefined) {
+			inputs.push({
+				id: declaration.id,
+				documentation: declaration.declarations[0]?.documentation,
+				packageName: declaration.documentationContext.origin.packageName,
+				declaration,
+			});
+		}
+		// Effective signatures have view-specific identities but retain their original comment scope.
+		const callables = [
+			...(declaration.documentationContext === undefined
+				? declaration.signatures.map((signature) => ({ signature, member: undefined }))
+				: []),
+			...declaration.members.flatMap((member) =>
+				member.documentationContext === undefined
+					? member.signatures.map((signature) => ({ signature, member }))
+					: [],
+			),
+		];
+		for (const { signature, member } of callables) {
+			const origin =
+				signature.documentationContext?.origin ?? (member ?? declaration).declarations[0];
 			assert.ok(origin, "Signature facts must retain an original declaration location.");
 			inputs.push({
 				id: signature.id,
@@ -241,6 +309,23 @@ export function createAnalysisContext(
 				packageName: origin.packageName,
 				declaration,
 				signature,
+				...(member === undefined ? {} : { member }),
+			});
+		}
+		for (const member of declaration.members) {
+			const source = member.declarations[0];
+			if (
+				member.declarations.length !== 1 ||
+				(source?.kind !== "PropertyDeclaration" && source?.kind !== "PropertySignature")
+			) {
+				continue;
+			}
+			inputs.push({
+				id: member.id,
+				documentation: source.documentation,
+				packageName: source.packageName,
+				declaration,
+				member,
 			});
 		}
 	}
@@ -259,10 +344,17 @@ export function createAnalysisContext(
 				ok: true,
 				value: {
 					...parsed.value,
+					referencePolicies: options.referencePolicies ?? {},
 					facts,
+					dependencies,
 					declarations,
 					classification: classification.value,
-					metadata: new Map(classification.value.items.map((item) => [item.id, item])),
+					metadata: new Map([
+						...classification.value.items.map((item) => [item.id, item] as const),
+						...dependencies.flatMap((model) =>
+							model.apis.map((api) => [api.id, api.metadata] as const),
+						),
+					]),
 				},
 			}
 		: classification;

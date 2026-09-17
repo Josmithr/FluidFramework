@@ -36,7 +36,12 @@ import {
 	resolveDocumentation,
 } from "../analysis/documentation.js";
 import type { ResolvedDocumentation } from "../analysis-types/documentation.js";
-import type { AnalysisFacts, DocumentationReferenceLookup } from "../analysis-types/facts.js";
+import type {
+	AnalysisFacts,
+	DocumentationReferenceLookup,
+	SignatureFact,
+} from "../analysis-types/facts.js";
+import type { CompletedDocumentation } from "../analysis-types/completedGraph.js";
 import { ReleaseLevel, DiagnosticCode, analyzeAPIs } from "../index.js";
 import {
 	createReviewReport,
@@ -61,7 +66,15 @@ import {
 	type LocationContext,
 } from "../analysis/nativeAdapter.js";
 import { assertSnapshot } from "./snapshotUtils.js";
+import {
+	encodeDependencyModel,
+	decodeDependencyModel,
+} from "../model-generation/dependencyModel.js";
 import { completeAnalysis } from "../analysis/completeAnalysis.js";
+import {
+	createAnalysisContext,
+	type ExtractedComments,
+} from "../analysis/documentationContext.js";
 import { documentationContext, analysisContext, success } from "./contextUtils.js";
 
 describe("Adapter fact extraction: documentation links", () => {
@@ -937,6 +950,487 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("completes effective member documentation in its original scope", () => {
+				const configuration = resolveConfiguration(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [
+							{ name: ".", path: "declarations/member-documentation.d.ts" },
+							{ name: "./references", path: "declarations/member-references.d.ts" },
+						],
+					},
+					directory,
+				);
+				assert.equal(configuration.ok, true);
+				const adapter = createNativeAdapter();
+				try {
+					const comments: ExtractedComments = new Map();
+					const extracted = adapter.analyze(configuration.value, comments);
+					assert.equal(extracted.ok, true);
+					adapter.close();
+					const facts = JSON.parse(JSON.stringify(extracted.value)) as AnalysisFacts;
+					// The untagged automatic link receiver is checked separately for missing release metadata.
+					const supported = {
+						...facts,
+						declarations: facts.declarations.filter(
+							(item) => item.name !== "ScopedAutomaticReceiver",
+						),
+					};
+					const context = analysisContext(supported);
+					const completed = completeAnalysis(context);
+					assert.equal(completed.ok, true, JSON.stringify(completed));
+					const scoped = facts.declarations.find(
+						(declaration) => declaration.name === "ScopedMemberReceiver",
+					);
+					assert.ok(scoped);
+					const property = scoped.members.find((member) => member.name === "linkedProperty");
+					assert.ok(property);
+					assert.equal(property.signatures.length, 0);
+					const capturedProperty = comments.get(property.id);
+					assert.ok(capturedProperty);
+					const retained = createAnalysisContext(
+						extracted.value,
+						{ rules: { requireReleaseLevel: false } },
+						comments,
+					);
+					assert.equal(retained.ok, true);
+					assert.strictEqual(retained.value.items.get(property.id)?.parsed, capturedProperty);
+					const originalProperty = extracted.value.declarations
+						.find((item) => item.id === scoped.id)
+						?.members.find((item) => item.id === property.id);
+					assert.ok(originalProperty?.documentationContext);
+					assert.equal(Object.isFrozen(originalProperty.documentationContext.links), true);
+					const resolvedProperty = completed.value.documentation.find(
+						(item) => item.id === property.id,
+					);
+					assert.ok(resolvedProperty);
+					assert.equal(resolvedProperty.documented, true);
+					assert.equal(resolvedProperty.links.length, 1);
+					assert.equal(
+						context.metadata.get(resolvedProperty.links[0]?.targetSignature ?? "")
+							?.releaseLevel,
+						ReleaseLevel.Beta,
+					);
+					assert.equal(context.metadata.get(property.id)?.releaseLevel, ReleaseLevel.Public);
+					const redirect = facts.declarations.find((item) => item.name === "PropertyRedirect")
+						?.members[0];
+					assert.ok(redirect);
+					const redirected = completed.value.documentation.find(
+						(item) => item.id === redirect.id,
+					);
+					assert.ok(redirected);
+					assert.equal(redirected.documented, true);
+					assert.equal(redirected.inheritedFrom.length, 2);
+					assert.equal(
+						redirected.sections?.find((section) => section.section === "summary")?.source,
+						redirected.inheritedFrom.at(-1),
+					);
+					assert.equal(redirected.links.length, 1);
+					assert.equal(
+						redirected.links[0]?.origin.file,
+						property.documentationContext?.origin.file,
+					);
+					const inheritedProperty = facts.declarations
+						.find((item) => item.name === "PropertyImplementation")
+						?.members.find((item) => item.name === "value");
+					assert.ok(inheritedProperty);
+					const resolvedInheritedProperty = completed.value.documentation.find(
+						(item) => item.id === inheritedProperty.id,
+					);
+					assert.ok(resolvedInheritedProperty);
+					assert.equal(resolvedInheritedProperty.documented, true);
+					assert.equal(resolvedInheritedProperty.inheritedFrom.length, 1);
+					for (const name of ["empty", "tagOnly"]) {
+						const suppressed = facts.declarations
+							.find((item) => item.name === "PropertyImplementation")
+							?.members.find((item) => item.name === name);
+						assert.ok(suppressed);
+						const resolved: CompletedDocumentation | undefined =
+							completed.value.documentation.find((item) => item.id === suppressed.id);
+						assert.ok(resolved);
+						assert.equal(resolved.documented, false, name);
+						assert.equal(resolved.inheritedFrom.length, 0, name);
+					}
+					const propertySource = property.declarations[0];
+					assert.ok(propertySource);
+					assert.ok(property.documentationContext);
+					for (const [documentation, expected] of [
+						[
+							"/** Property without release metadata. */",
+							DiagnosticCode.ClassificationReleaseMissing,
+						],
+						["/** See {@link missing}. @public */", DiagnosticCode.DocumentationReference],
+						["/** {@inheritDoc missing} @public */", DiagnosticCode.DocumentationReference],
+					] as const) {
+						const input = createAnalysisContext({
+							...facts,
+							surfaces: [],
+							declarations: [
+								{
+									...scoped,
+									heritage: [],
+									baseDeclarations: [],
+									members: [
+										{
+											...property,
+											declarations: [{ ...propertySource, documentation }],
+											documentationContext: {
+												...property.documentationContext,
+												inheritance: { reference: "missing", status: "not-found" },
+												links: [{ reference: "missing", status: "not-found" }],
+											},
+										},
+									],
+								},
+							],
+						});
+						const invalidProperty = input.ok ? completeAnalysis(input.value) : input;
+						assert.equal(invalidProperty.ok, false, documentation);
+						assert.equal(invalidProperty.diagnostics[0]?.code, expected, documentation);
+						assert.equal("value" in invalidProperty, false);
+					}
+					for (const name of ["linked", "redirected"]) {
+						const signature: SignatureFact | undefined = scoped.members.find(
+							(member) => member.name === name,
+						)?.signatures[0];
+						assert.ok(signature);
+						const resolved: CompletedDocumentation | undefined =
+							completed.value.documentation.find((item) => item.id === signature.id);
+						assert.ok(resolved, name);
+						assert.equal(resolved.documented, true);
+						assert.equal(resolved.links.length, 1);
+						const link: CompletedDocumentation["links"][number] | undefined =
+							resolved.links[0];
+						assert.ok(link);
+						assert.equal(
+							context.metadata.get(link.targetSignature)?.releaseLevel,
+							ReleaseLevel.Beta,
+						);
+						assert.equal(
+							context.metadata.get(signature.id)?.releaseLevel,
+							ReleaseLevel.Public,
+						);
+					}
+					for (const [owner, method, expected] of [
+						["DocumentedClass", "convert", true],
+						["DocumentedAliasDerived", "root", true],
+						["EmptyImplementation", "root", false],
+						["TagOnlyImplementation", "root", false],
+						["DocumentedImplementation", "root", false],
+						["RenamedImplementation", "root", false],
+						["SingleCallReceiver", "operation", false],
+						["OverloadedReceiver", "operation", false],
+						["UnconstrainedReceiver", "operation", false],
+					] as const) {
+						const signature: SignatureFact | undefined = facts.declarations
+							.find((item) => item.name === owner)
+							?.members.find((item) => item.name === method)?.signatures[0];
+						assert.ok(signature);
+						const resolved: CompletedDocumentation | undefined =
+							completed.value.documentation.find((item) => item.id === signature.id);
+						assert.ok(resolved, owner);
+						assert.equal(resolved.documented, expected, owner);
+						assert.equal(resolved.inheritedFrom.length > 0, expected, owner);
+					}
+					const reportOwners = new Set([
+						"DocumentedClass",
+						"EmptyImplementation",
+						"TagOnlyImplementation",
+						"DocumentedImplementation",
+						"SingleCallReceiver",
+						"RenamedImplementation",
+					]);
+					const reportGraph = {
+						...completed.value,
+						facts: {
+							...completed.value.facts,
+							surfaces: completed.value.facts.surfaces.map((surface) => ({
+								...surface,
+								exports: surface.exports.filter((entry) => reportOwners.has(entry.name)),
+							})),
+						},
+					};
+					const memberReport = success(
+						createReviewReport(prepareReviewReport(reportGraph), ".", {
+							name: "members",
+							releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta, ReleaseLevel.Internal],
+							includeUntagged: true,
+						}),
+					);
+					for (const entry of memberReport.exports) {
+						const method = entry.container?.members.find((item) =>
+							item.text.startsWith(
+								entry.name === "DocumentedClass"
+									? "convert("
+									: entry.name === "SingleCallReceiver"
+										? "operation("
+										: "root(",
+							),
+						);
+						assert.ok(method, entry.name);
+						assert.equal(method.documented, entry.name === "DocumentedClass", entry.name);
+					}
+					const missingLevel = completeAnalysis(analysisContext(facts));
+					assert.equal(missingLevel.ok, false);
+					assert.equal(
+						missingLevel.diagnostics[0]?.code,
+						DiagnosticCode.DocumentationConfiguration,
+					);
+					const invalid = {
+						...supported,
+						declarations: supported.declarations.map((declaration) =>
+							declaration.id === scoped.id
+								? {
+										...declaration,
+										members: declaration.members.map((member) =>
+											member.name === "linked"
+												? {
+														...member,
+														signatures: member.signatures.map((signature) => {
+															assert.ok(signature.documentationContext);
+															return {
+																...signature,
+																documentation: "/** See {@link missing}. @public */",
+																documentationContext: {
+																	...signature.documentationContext,
+																	links: [
+																		{ reference: "missing", status: "not-found" as const },
+																	],
+																},
+															};
+														}),
+													}
+												: member,
+										),
+									}
+								: declaration,
+						),
+					};
+					const invalidReference = completeAnalysis(analysisContext(invalid));
+					assert.equal(invalidReference.ok, false);
+					assert.equal(
+						invalidReference.diagnostics[0]?.code,
+						DiagnosticCode.DocumentationReference,
+					);
+					assert.equal("value" in invalidReference, false);
+				} finally {
+					adapter.close();
+				}
+			});
+
+			it("retains unexported declaration references after compiler disposal", () => {
+				const configuration = success(
+					resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/type-references.d.ts" }],
+							customModifierTags: ["@legacy"],
+						},
+						directory,
+					),
+				);
+				const adapter = createNativeAdapter();
+				try {
+					const extracted = success(adapter.analyze(configuration));
+					adapter.close();
+					const facts = JSON.parse(JSON.stringify(extracted)) as AnalysisFacts;
+					const source = facts.declarations.find((item) => item.name === "useHidden");
+					assert.ok(source);
+					const references = source.signatures[0]?.documentationContext?.typeReferences;
+					assert.equal(references?.length, 2);
+					for (const reference of references ?? []) {
+						assert.equal(reference.text, "HiddenContract");
+						assert.equal(
+							facts.declarations.find((item) => item.id === reference.target)?.name,
+							"HiddenContract",
+						);
+						assert.equal(
+							facts.surfaces[0]?.exports.some((item) => item.target === reference.target),
+							false,
+						);
+					}
+					for (const [referencePolicies, expected] of [
+						[{}, true],
+						[{ releaseCompatibility: true }, false],
+						[{ entrypointExposure: true }, false],
+						[{ releaseCompatibility: false, entrypointExposure: false }, true],
+					] as const) {
+						const result = completeAnalysis(
+							analysisContext(facts, { referencePolicies, customModifierTags: ["@legacy"] }),
+						);
+						assert.equal(result.ok, expected, JSON.stringify(referencePolicies));
+						if (!result.ok) {
+							assert.equal(result.diagnostics[0]?.code, "reference-policy");
+							assert.match(result.diagnostics[0]?.message ?? "", /HiddenContract/);
+						}
+					}
+					const levels = [
+						ReleaseLevel.Public,
+						ReleaseLevel.Beta,
+						ReleaseLevel.Alpha,
+						ReleaseLevel.Internal,
+					];
+					const current = { releaseLevels: levels, excludeTags: ["@legacy"] };
+					const legacy = { releaseLevels: levels, requireTags: ["@legacy"] };
+					for (const [from, to, enabled, expected] of [
+						[current, legacy, true, false],
+						[legacy, current, true, true],
+						[current, legacy, false, true],
+					] as const) {
+						const result = completeAnalysis(
+							analysisContext(facts, {
+								customModifierTags: ["@legacy"],
+								referencePolicies: {
+									directional: [
+										{ name: "no-current-to-legacy", source: from, target: to, enabled },
+									],
+								},
+							}),
+						);
+						assert.equal(result.ok, expected);
+						if (!result.ok)
+							assert.match(result.diagnostics[0]?.message ?? "", /no-current-to-legacy/);
+					}
+					const hidden = facts.declarations.find((item) => item.name === "HiddenContract");
+					assert.ok(hidden);
+					const exposed = {
+						...facts,
+						surfaces: facts.surfaces.map((surface) => ({
+							...surface,
+							exports: [
+								...surface.exports,
+								{ name: "ContractAlias", target: hidden.id, typeOnly: true },
+							],
+						})),
+					};
+					assert.equal(
+						completeAnalysis(
+							analysisContext(exposed, {
+								customModifierTags: ["@legacy"],
+								referencePolicies: { entrypointExposure: true },
+							}),
+						).ok,
+						true,
+					);
+				} finally {
+					adapter.close();
+				}
+			});
+
+			it("renders selected class and interface members after compiler disposal", () => {
+				const configuration = success(
+					resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/report-members.d.ts" }],
+						},
+						directory,
+					),
+				);
+				const adapter = createNativeAdapter();
+				try {
+					const facts = success(adapter.analyze(configuration));
+					adapter.close();
+					const completed = success(
+						completeAnalysis(
+							analysisContext(JSON.parse(JSON.stringify(facts)) as AnalysisFacts),
+						),
+					);
+					const prepared = prepareReviewReport(completed);
+					const report = success(
+						createReviewReport(prepared, ".", {
+							name: "public",
+							releaseLevels: [ReleaseLevel.Public],
+						}),
+					);
+					const text = renderReviewReport(report);
+					assert.equal(text.includes("export namespace Operations {"), true, text);
+					assert.equal(text.includes("export function visible(): void;"), true, text);
+					assert.equal(text.includes("function hidden()"), false, text);
+					assertSnapshot(text, "declarations.public.md");
+					const encoded = encodeDependencyModel(completed);
+					const model = success(decodeDependencyModel(encoded, "example"));
+					assert.equal(Object.isFrozen(model.apis), true);
+					assert.equal(
+						model.exports.some(
+							(entry) => entry.path.join(".") === "TypeImplementation" && entry.typeOnly,
+						),
+						true,
+					);
+					assert.equal(
+						model.apis.some(
+							(item) =>
+								item.documentation.inheritedFrom.length > 0 &&
+								item.documentation.sections?.some((section) => section.source !== item.id) ===
+									true,
+						),
+						true,
+					);
+					assert.equal(decodeDependencyModel(encoded, "wrong-package").ok, false);
+					assert.equal(
+						decodeDependencyModel(JSON.stringify({ ...model, version: 2 }), "example").ok,
+						false,
+					);
+					assert.equal(
+						decodeDependencyModel(JSON.stringify({ ...model, apis: [] }), "example").ok,
+						false,
+					);
+					assert.equal(decodeDependencyModel("not json", "example").ok, false);
+					assert.equal(
+						text.includes("export interface Store<Value extends string = string>"),
+						true,
+					);
+					assert.equal(text.includes("readonly value: Value;"), true);
+					assert.equal(text.includes("lookup(value: string): Value;"), true);
+					assert.equal(text.includes("lookup(value: number)"), false);
+					assert.equal(text.includes("count?"), false);
+					assert.equal(
+						text.includes("callback?: ((value: Value) => void) | undefined;"),
+						true,
+						text,
+					);
+					assert.equal(text.includes("export class Implementation extends Base"), true, text);
+					assert.equal(text.includes("constructor(label: string);"), true, text);
+					assert.equal(
+						text.includes("static readonly nameOfImplementation: string;"),
+						true,
+						text,
+					);
+					assert.equal(text.includes("Construct an implementation"), false);
+					assert.equal(text.includes("export type ValueName = string;"), true, text);
+					assert.equal(text.includes('export const version: "v1";'), true, text);
+					assert.equal(text.includes("export enum Mode"), true, text);
+					assert.equal(text.includes("Visible = 1"), true, text);
+					assert.equal(text.includes("Hidden = 2"), false, text);
+					assert.equal(text.includes("performance"), false, text);
+					assert.equal(
+						text.includes("export type { Implementation as TypeImplementation };"),
+						true,
+						text,
+					);
+					const completeReport = renderReviewReport(
+						success(
+							createReviewReport(prepared, ".", {
+								name: "complete",
+								releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta, ReleaseLevel.Internal],
+							}),
+						),
+					);
+					assert.equal(
+						completeReport.includes("export const performance: number;"),
+						true,
+						completeReport,
+					);
+					assert.match(text, /\/\/ @public\n {4}operation\(value: string\): string;/);
+					assert.match(text, /\/\/ @public \(undocumented\)\n {4}label: string;/);
+				} finally {
+					adapter.close();
+				}
+			});
+
 			it("identifies effective members and retains independently selectable call signatures", () => {
 				const configuration = resolveConfiguration(
 					{
@@ -970,6 +1464,13 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.notEqual(forward.signatures[0]?.id, baseForward.signatures[0]?.id);
 					assert.equal(forward.signatures[0]?.functionTypeText, "(value: string) => string");
 					assert.equal(baseForward.signatures[0]?.functionTypeText, "(value: Value) => Value");
+					const forwardContext = forward.signatures[0]?.documentationContext;
+					assert.ok(forwardContext);
+					assert.deepEqual(forwardContext, baseForward.signatures[0]?.documentationContext);
+					assert.equal(forwardContext.origin.file, "declarations/member-documentation.d.ts");
+					assert.deepEqual(forwardContext.parameters, [
+						{ name: "value", optional: false, rest: false },
+					]);
 					assert.equal(
 						forward.signatures[0]?.documentation,
 						"/** Inherited generic operation. @public */",
@@ -995,6 +1496,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.ok(optional);
 					assert.equal(optional.optional, true);
 					assert.equal(optional.signatures.length, 1);
+					assert.ok(optional.signatures[0]?.documentationContext);
 					assert.equal(
 						optional.signatures[0]?.documentation,
 						"/** Optional operation. @public */",
@@ -1019,12 +1521,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						for (const member of declaration.members) {
 							assert.equal(Object.isFrozen(member.signatures), true);
 							assert.equal(member.signatures.every(Object.isFrozen), true);
-							assert.equal(
-								member.signatures.every(
-									(signature) => signature.documentationContext === undefined,
-								),
-								true,
-							);
+							for (const signature of member.signatures) {
+								if (signature.documentationContext !== undefined) {
+									assert.equal(Object.isFrozen(signature.documentationContext), true);
+								}
+							}
 						}
 					}
 					assert.equal(JSON.stringify(facts), before);
@@ -1304,7 +1805,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const result = await analyzeAPIs(configuration.value);
+				const strict = await analyzeAPIs(configuration.value);
+				assert.equal(strict.ok, false);
+				assert.equal(strict.diagnostics[0]?.code, DiagnosticCode.ClassificationReleaseMissing);
+				// This broad compiler fixture intentionally contains untagged members.
+				const result = await analyzeAPIs({
+					...configuration.value,
+					rules: { requireReleaseLevel: false },
+				});
 				assert.equal(result.ok, true, JSON.stringify(result));
 				assert.equal("close" in result.value, false);
 				assert.equal("facts" in result.value, false);
@@ -1852,10 +2360,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const analysis = adapter.analyze(configuration.value);
 						assert.ok(analysis.ok, JSON.stringify(analysis));
 						adapter.close();
-						const result = bindDocumentationReferences(analysisContext(analysis.value, {}));
+						const context = analysisContext(analysis.value, {});
+						const result = bindDocumentationReferences(context);
 						if (fixture.expected === undefined) {
 							assert.ok(result.ok, JSON.stringify(result));
-							assert.equal(result.value.length, fixture.name === "selector" ? 3 : 1);
+							assert.equal(result.value.length, fixture.name === "selector" ? 4 : 1);
 							assert.equal(
 								result.value.some((binding) => binding.reference === fixture.reference),
 								true,
@@ -1880,42 +2389,27 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 										?.target,
 									base.signatures[1]?.id,
 								);
-								const classification = classifyApiItems(
-									documentationContext(
-										analysis.value.declarations.flatMap((entry) => entry.signatures),
-									),
+								const methodTarget = analysis.value.declarations.find(
+									(entry) => entry.name === "operation" && entry.signatures.length === 2,
 								);
-								assert.equal(classification.ok, true);
-								const links = bindDocumentationLinks(analysisContext(analysis.value, {}));
+								const effectiveRedirect = analysis.value.declarations
+									.find((entry) => entry.name === "MethodRedirect")
+									?.members.find((member) => member.name === "operation")?.signatures[0];
+								assert.ok(methodTarget?.signatures[1]);
+								assert.ok(effectiveRedirect);
+								assert.equal(
+									result.value.find((binding) => binding.source === effectiveRedirect.id)
+										?.target,
+									methodTarget.signatures[1].id,
+								);
+								const links = bindDocumentationLinks(context);
 								assert.equal(links.ok, true);
-								const resolved = resolveDocumentation(
-									documentationContext(
-										analysis.value.declarations.flatMap((entry) =>
-											entry.signatures.map((signature) => ({
-												id: signature.id,
-												packageName: "example",
-												documentation: signature.documentation,
-											})),
-										),
-										{
-											linkValidation: {
-												bindings: links.value,
-												metadata: new Map(
-													classification.value.items.map((item) => [item.id, item]),
-												),
-											},
-										},
-									),
-									result.value,
-									{
-										linkValidation: {
-											bindings: links.value,
-											metadata: new Map(
-												classification.value.items.map((item) => [item.id, item]),
-											),
-										},
+								const resolved = resolveDocumentation(context, result.value, {
+									linkValidation: {
+										bindings: links.value,
+										metadata: context.metadata,
 									},
-								);
+								});
 								assert.equal(resolved.ok, true);
 								const fromMethod = analysis.value.declarations.find(
 									(entry) => entry.name === "fromMethod",
@@ -1927,7 +2421,20 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								assert.ok(inheritedMethod);
 								assert.equal(inheritedMethod.documentation?.includes("String method."), true);
 								assert.equal(inheritedMethod.inheritedFrom.length, 2);
-								assert.deepEqual(inheritedMethod.links, links.value);
+								assert.equal(inheritedMethod.links.length, 1);
+								assert.deepEqual(
+									inheritedMethod.links,
+									links.value.filter((link) => link.source === methodTarget.signatures[1]?.id),
+								);
+								const effectiveMethod = resolved.value.find(
+									(entry) => entry.id === effectiveRedirect.id,
+								);
+								assert.ok(effectiveMethod);
+								assert.equal(effectiveMethod.documentation?.includes("String method."), true);
+								assert.deepEqual(effectiveMethod.inheritedFrom, [
+									methodTarget.signatures[1].id,
+								]);
+								assert.deepEqual(effectiveMethod.links, inheritedMethod.links);
 								assert.match(
 									resolved.value.find((entry) => entry.id === derived.signatures[0]?.id)
 										?.documentation ?? "",

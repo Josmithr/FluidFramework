@@ -5,19 +5,38 @@ import type {
 	DocumentationLinkBinding,
 	DocumentationResolutionOptions,
 	ResolvedDocumentation,
+	DocumentationSectionSource,
 } from "../analysis-types/documentation.js";
 import assert from "node:assert/strict";
-import { type DocLinkTag, SelectorKind, type DocComment } from "@microsoft/tsdoc";
+import {
+	type DocLinkTag,
+	SelectorKind,
+	type DocComment,
+	type DocNode,
+	DocParamBlock,
+	type DocDeclarationReference,
+} from "@microsoft/tsdoc";
 import { ReleaseLevel, type ApiItemMetadata } from "../analysis-types/classification.js";
-import type { AnalysisFacts, ApiItemId, MemberFact } from "../analysis-types/facts.js";
+import type {
+	AnalysisFacts,
+	ApiItemId,
+	MemberFact,
+	DeclarationFact,
+	SignatureFact,
+	SignatureDocumentationContext,
+	DocumentationReferenceContext,
+	DocumentationReferenceLookup,
+} from "../analysis-types/facts.js";
 import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
+import { dependencyReference } from "./dependencyReferences.js";
 import {
 	apiLinkNodes,
 	type AnalysisContext,
 	type DocumentationContext,
 	type ParsedDocumentationItem,
+	type AnalysisDocumentationInput,
 } from "./documentationContext.js";
 
 /**
@@ -29,7 +48,7 @@ import {
  * Supports unqualified names, such as `base`, export aliases, and namespace or instance method paths.
  * The compiler resolves names in the original declaration scope, including imported aliases.
  *
- * The target must be a function or method in the same package.
+ * Sources include effective method signatures. The target must be a function or method in the same package.
  * Numeric method references use a terminal selector, such as `Base.(method:2)`.
  * Static class member paths and static/instance name collisions are unsupported.
  * Numeric selectors choose a callable overload by its one-based declaration order.
@@ -57,29 +76,45 @@ export function bindDocumentationReferences(
 		return validation;
 	}
 	const bindings: DocumentationReferenceBinding[] = [];
-	for (const { declaration, signature, parsed } of analysis.items.values()) {
+	for (const {
+		id,
+		declaration,
+		member,
+		declaredMember,
+		signature,
+		parsed,
+	} of analysis.items.values()) {
+		if (analysis.dependencies.some((model) => model.apis.some((api) => api.id === id)))
+			continue;
 		const request = parsed.docComment.inheritDocTag;
 		if (request === undefined) {
 			continue;
 		}
 		// TODO (Stage 2 documentation references): Support other declaration kinds once
 		// the adapter extracts their original-scope documentation lookup context.
+		const sources =
+			declaredMember === undefined ? (member ?? declaration).declarations : [declaredMember];
 		if (
-			declaration.declarations.length === 0 ||
-			declaration.declarations.some(
+			sources.length === 0 ||
+			sources.some(
 				(source) =>
 					source.kind !== "FunctionDeclaration" &&
 					source.kind !== "MethodDeclaration" &&
-					source.kind !== "MethodSignature",
+					source.kind !== "MethodSignature" &&
+					!(
+						signature === undefined &&
+						sources.length === 1 &&
+						(source.kind === "PropertyDeclaration" || source.kind === "PropertySignature")
+					),
 			)
 		) {
 			return failure(
 				DiagnosticCode.DocumentationUnsupported,
-				`Item ${signature.id}: @inheritDoc is supported only on functions and methods. Replace @inheritDoc with local documentation for this declaration.`,
+				`Item ${id}: @inheritDoc requires a function, method, or single-declaration property. Supply local documentation for this declaration.`,
 			);
 		}
 		const context = assertDefined(
-			signature.documentationContext,
+			(signature ?? declaredMember ?? member ?? declaration).documentationContext,
 			"Supported inheritance sources must retain documentation context.",
 		);
 		const lookup = assertDefined(
@@ -91,96 +126,103 @@ export function bindDocumentationReferences(
 			request.declarationReference?.emitAsTsdoc() ?? "",
 			"Inheritance lookup facts must match the original comment.",
 		);
+		const dependency = dependencyReference(
+			analysis,
+			request.declarationReference,
+			lookup,
+			context.origin.packageName,
+		);
+		if (!dependency.ok) return dependency;
+		if (dependency.value !== undefined) {
+			const dependencyTarget = dependency.value;
+			if (signature !== undefined) {
+				const parameters = assertDefined(
+					signature.documentationContext,
+					"Supported inheritance sources must retain documentation context.",
+				);
+				if (
+					parameters.parameters.length !== dependencyTarget.parameters?.length ||
+					parameters.parameters.some(
+						(parameter, index) =>
+							parameter.name === undefined ||
+							parameter.name !== dependencyTarget.parameters?.[index]?.name ||
+							parameter.optional !== dependencyTarget.parameters?.[index]?.optional ||
+							parameter.rest !== dependencyTarget.parameters?.[index]?.rest,
+					) ||
+					JSON.stringify(parameters.typeParameters) !==
+						JSON.stringify(dependencyTarget.typeParameters)
+				)
+					return failure(
+						DiagnosticCode.DocumentationReference,
+						`Item ${id}: parameter documentation does not match dependency target ${lookup.reference}. Supply local documentation.`,
+					);
+			} else if (dependencyTarget.parameters !== undefined)
+				return failure(
+					DiagnosticCode.DocumentationUnsupported,
+					`Item ${id}: non-callable documentation cannot inherit callable parameters from ${lookup.reference}.`,
+				);
+			bindings.push({ source: id, reference: lookup.reference, target: dependencyTarget.id });
+			continue;
+		}
 		if (lookup.status === "unsupported") {
 			return failure(
 				DiagnosticCode.DocumentationUnsupported,
-				`Item ${signature.id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a function or instance method in the same package, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select an overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
+				`Item ${id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a function, instance method, or property in the same package, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select a callable overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
 			);
 		}
 		if (lookup.status === "not-found") {
 			return failure(
 				DiagnosticCode.DocumentationReference,
-				`Item ${signature.id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the reference.`,
+				`Item ${id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the reference.`,
 			);
 		}
 		const target = declarations.get(lookup.target);
 		assert.ok(target, "Documentation lookup targets must be retained in declaration facts.");
-		// TODO (Stage 2 documentation targets): Support non-callable targets with declaration-level
-		// documentation contexts and bindings instead of requiring a callable signature below.
-		if (
-			target.declarations.length === 0 ||
-			target.declarations.some(
-				(source) =>
-					source.kind !== "FunctionDeclaration" &&
-					source.kind !== "MethodDeclaration" &&
-					source.kind !== "MethodSignature",
-			)
-		) {
-			return failure(
-				DiagnosticCode.DocumentationUnsupported,
-				`Item ${signature.id}: target ${lookup.reference} must be a function or method.`,
-			);
-		}
-		const selector = request.declarationReference?.memberReferences.at(-1)?.selector;
-		if (selector !== undefined && selector.selectorKind !== SelectorKind.Index) {
-			return failure(
-				DiagnosticCode.DocumentationUnsupported,
-				`Item ${signature.id}: use a numeric overload selector.`,
-			);
-		}
-		if (selector === undefined && target.signatures.length !== 1) {
-			return failure(
-				DiagnosticCode.DocumentationReference,
-				`Item ${signature.id}: target ${lookup.reference} has ${target.signatures.length} callable signatures. Supply a one-based numeric selector such as (foo:1), or local documentation.`,
-			);
-		}
-		const ordinal = selector === undefined ? 1 : Number(selector.selector);
-		if (!Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > target.signatures.length) {
-			return failure(
-				DiagnosticCode.DocumentationReference,
-				`Item ${signature.id}: overload selector ${selector?.selector} is outside the callable signature range 1..${target.signatures.length} for ${lookup.reference}.`,
-			);
-		}
-		const targetSignature = target.signatures[ordinal - 1];
-		assert.ok(targetSignature, "Validated overload selectors must identify a signature.");
-		const targetContext = assertDefined(
-			targetSignature.documentationContext,
-			"Supported inheritance targets must retain documentation context.",
-		);
-		if (targetContext.origin.packageName !== context.origin.packageName) {
-			return failure(
-				DiagnosticCode.DocumentationUnsupported,
-				`Item ${signature.id}: target ${lookup.reference} requires same-package callable documentation facts. Cross-package targets require future suite resolution.`,
-			);
-		}
-		if (
-			context.parameters.some((parameter) => parameter.name === undefined) ||
-			targetContext.parameters.some((parameter) => parameter.name === undefined) ||
-			context.parameters.length !== targetContext.parameters.length ||
-			context.parameters.some((parameter, index) => {
-				const other = targetContext.parameters[index];
-				return (
-					other === undefined ||
-					parameter.name !== other.name ||
-					parameter.optional !== other.optional ||
-					parameter.rest !== other.rest
+		if (signature === undefined) {
+			if (
+				target.signatures.length > 0 ||
+				target.declarations.length !== 1 ||
+				!target.declarations.every(
+					(source) =>
+						source.kind === "PropertyDeclaration" || source.kind === "PropertySignature",
+				)
+			) {
+				return failure(
+					DiagnosticCode.DocumentationUnsupported,
+					`Item ${id}: target ${lookup.reference} must be a single-declaration non-callable property.`,
 				);
-			}) ||
-			context.typeParameters.length !== targetContext.typeParameters.length ||
-			context.typeParameters.some(
-				(name, index) => name !== targetContext.typeParameters[index],
-			)
-		) {
-			return failure(
-				DiagnosticCode.DocumentationReference,
-				`Item ${signature.id}: parameters or type parameters do not match ${lookup.reference}. Supply local documentation; parameter adaptation is not supported yet.`,
+			}
+			if (
+				request.declarationReference?.memberReferences.some(
+					(part) => part.selector !== undefined,
+				) === true
+			) {
+				return failure(
+					DiagnosticCode.DocumentationReference,
+					`Item ${id}: property inheritance does not accept overload selectors.`,
+				);
+			}
+			const propertyContext = assertDefined(
+				target.documentationContext,
+				"Supported property targets must retain documentation context.",
 			);
+			if (propertyContext.origin.packageName !== context.origin.packageName) {
+				return failure(
+					DiagnosticCode.DocumentationUnsupported,
+					`Item ${id}: cross-package property inheritance requires suite resolution.`,
+				);
+			}
+			bindings.push({ source: id, reference: lookup.reference, target: target.id });
+			continue;
 		}
-		bindings.push({
-			source: signature.id,
-			reference: lookup.reference,
-			target: targetSignature.id,
-		});
+		const callable = bindCallableInheritance(
+			signature,
+			target,
+			request.declarationReference,
+			lookup.reference,
+		);
+		if (!callable.ok) return callable;
+		bindings.push(callable.value);
 	}
 	return freezeData({
 		ok: true,
@@ -188,6 +230,124 @@ export function bindDocumentationReferences(
 			left.source < right.source ? -1 : left.source > right.source ? 1 : 0,
 		),
 	});
+}
+
+/**
+ * Selects and validates an explicit same-package callable inheritance target.
+ * @param signature - Receiving callable signature with original lookup context.
+ * @param target - Compiler-resolved target declaration.
+ * @param reference - Parsed target reference; undefined means no selector was supplied.
+ * @param referenceText - Original reference text used in bindings and diagnostics.
+ * @returns A validated binding or a target, selector, package, or parameter diagnostic.
+ */
+function bindCallableInheritance(
+	signature: SignatureFact,
+	target: DeclarationFact,
+	reference: DocDeclarationReference | undefined,
+	referenceText: string,
+): Result<DocumentationReferenceBinding> {
+	const sourceContext = assertDefined(
+		signature.documentationContext,
+		"Supported inheritance sources must retain documentation context.",
+	);
+	const selected = selectInheritanceOverload(signature.id, target, reference, referenceText);
+	if (!selected.ok) return selected;
+	const targetContext = assertDefined(
+		selected.value.documentationContext,
+		"Supported inheritance targets must retain documentation context.",
+	);
+	if (targetContext.origin.packageName !== sourceContext.origin.packageName)
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${signature.id}: target ${referenceText} requires same-package callable documentation facts. Cross-package targets require future suite resolution.`,
+		);
+	if (!matchingDocumentationParameters(sourceContext, targetContext))
+		return failure(
+			DiagnosticCode.DocumentationReference,
+			`Item ${signature.id}: parameters or type parameters do not match ${referenceText}. Supply local documentation; parameter adaptation is not supported yet.`,
+		);
+	return {
+		ok: true,
+		value: { source: signature.id, reference: referenceText, target: selected.value.id },
+	};
+}
+
+/**
+ * Selects a callable by explicit one-based ordinal, never by inferred overload similarity.
+ * @param source - Receiving signature identity for diagnostics.
+ * @param target - Original target declaration and callable signatures in compiler order.
+ * @param reference - Parsed reference; undefined requires an unambiguous single-signature target.
+ * @param referenceText - Original text used in diagnostics.
+ * @returns Selected signature or a target-form, selector-kind, or range diagnostic.
+ */
+function selectInheritanceOverload(
+	source: ApiItemId,
+	target: DeclarationFact,
+	reference: DocDeclarationReference | undefined,
+	referenceText: string,
+): Result<SignatureFact> {
+	if (
+		target.declarations.length === 0 ||
+		target.declarations.some(
+			(declaration) =>
+				declaration.kind !== "FunctionDeclaration" &&
+				declaration.kind !== "MethodDeclaration" &&
+				declaration.kind !== "MethodSignature",
+		)
+	)
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${source}: target ${referenceText} must be a function or method.`,
+		);
+	const selector = reference?.memberReferences.at(-1)?.selector;
+	if (selector !== undefined && selector.selectorKind !== SelectorKind.Index)
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${source}: use a numeric overload selector.`,
+		);
+	if (selector === undefined && target.signatures.length !== 1)
+		return failure(
+			DiagnosticCode.DocumentationReference,
+			`Item ${source}: target ${referenceText} has ${target.signatures.length} callable signatures. Supply a one-based numeric selector such as (foo:1), or local documentation.`,
+		);
+	const ordinal = selector === undefined ? 1 : Number(selector.selector);
+	if (!Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > target.signatures.length)
+		return failure(
+			DiagnosticCode.DocumentationReference,
+			`Item ${source}: overload selector ${selector?.selector} is outside the callable signature range 1..${target.signatures.length} for ${referenceText}.`,
+		);
+	const signature = target.signatures[ordinal - 1];
+	assert.ok(signature, "Validated overload selectors must identify a signature.");
+	return { ok: true, value: signature };
+}
+
+/**
+ * Checks whether parameter documentation can be copied without renaming or adapting it.
+ * @param source - Original receiving callable parameter facts.
+ * @param target - Original selected target parameter facts.
+ * @returns Whether names, ordering, optional/rest flags, and type-parameter names match.
+ */
+function matchingDocumentationParameters(
+	source: SignatureDocumentationContext,
+	target: SignatureDocumentationContext,
+): boolean {
+	// This checks documentation shape only; compiler type compatibility is a separate concern.
+	return (
+		!source.parameters.some((parameter) => parameter.name === undefined) &&
+		!target.parameters.some((parameter) => parameter.name === undefined) &&
+		source.parameters.length === target.parameters.length &&
+		source.parameters.every((parameter, index) => {
+			const other = target.parameters[index];
+			return (
+				other !== undefined &&
+				parameter.name === other.name &&
+				parameter.optional === other.optional &&
+				parameter.rest === other.rest
+			);
+		}) &&
+		source.typeParameters.length === target.typeParameters.length &&
+		source.typeParameters.every((name, index) => name === target.typeParameters[index])
+	);
 }
 
 /**
@@ -201,13 +361,15 @@ export function bindDocumentationReferences(
  * Original member identifiers permit resolution through base classes and implemented contracts.
  *
  * @param facts - Detached facts with compiler-checked heritage documentation matches.
+ * @param packages - Authorized dependency packages. Omit for same-package automatic inheritance only.
  * @returns Frozen automatic bindings, sorted by receiving member identifier.
  */
 export function bindAutomaticDocumentationReferences(
 	facts: AnalysisFacts,
+	packages: ReadonlySet<string> = new Set(),
 ): readonly AutomaticDocumentationBinding[] {
-	// TODO (Stage 2 member documentation): Define merged-member precedence and extract original
-	// member link/reference contexts before integrating this binder into class/interface reports.
+	// TODO (Stage 2 member documentation): Define merged-member precedence and accessor
+	// comment ownership before extending completion and integrating class/interface reports.
 	const declarations = new Map(facts.declarations.map((entry) => [entry.id, entry]));
 	const bindings: AutomaticDocumentationBinding[] = [];
 	for (const declaration of facts.declarations) {
@@ -238,7 +400,8 @@ export function bindAutomaticDocumentationReferences(
 					!view.documentationMatches.some(
 						(match) => match.source === member.id && match.target === candidate.id,
 					) ||
-					candidate.declarations[0]?.packageName !== member.declarations[0]?.packageName
+					(candidate.declarations[0]?.packageName !== member.declarations[0]?.packageName &&
+						!packages.has(candidate.declarations[0]?.packageName ?? ""))
 				) {
 					uncertain = true;
 					break;
@@ -287,7 +450,7 @@ function memberSourceKey(member: MemberFact): string {
 }
 
 /**
- * Binds and validates API links in collected function and method comments.
+ * Binds and validates API links in original function, method, and non-callable property comments.
  *
  * @remarks
  * Internal operation. Should not be exported from the package entrypoint.
@@ -308,118 +471,58 @@ function memberSourceKey(member: MemberFact): string {
 export function bindDocumentationLinks(
 	analysis: AnalysisContext,
 ): Result<readonly DocumentationLinkBinding[]> {
-	const { declarations, metadata, validation } = analysis;
+	const { metadata, validation } = analysis;
 	if (!validation.ok) {
 		return validation;
 	}
 	const bindings: DocumentationLinkBinding[] = [];
-	for (const { declaration, signature, originalLinks } of analysis.items.values()) {
-		const references = originalLinks.map((node) => node.codeDestination?.emitAsTsdoc());
-		const context = signature.documentationContext;
-		if (context === undefined && references.length === 0) {
+	for (const item of analysis.items.values()) {
+		if (analysis.dependencies.some((model) => model.apis.some((api) => api.id === item.id)))
 			continue;
-		}
-		// TODO (Stage 2 link sources): Bind links on other declaration kinds and effective members
-		// once their original-scope lookup contexts and original classification are available.
-		if (
-			references.length > 0 &&
-			(declaration.declarations.length === 0 ||
-				declaration.declarations.some(
-					(source) =>
-						source.kind !== "FunctionDeclaration" &&
-						source.kind !== "MethodDeclaration" &&
-						source.kind !== "MethodSignature",
-				))
-		) {
-			return failure(
-				DiagnosticCode.DocumentationUnsupported,
-				`Item ${signature.id}: API links are supported only in function and method comments. Use plain text for this declaration.`,
-			);
-		}
-		assert.ok(context, "Supported API link sources must retain documentation context.");
-		assert.equal(
-			references.length,
-			context.links.length,
-			"API link lookup counts must match the original comment.",
-		);
-		assert.ok(
-			references.every(
-				(reference, index) => reference === assertDefined(context.links[index]).reference,
-			),
-			"API link lookup references must match the original comment.",
-		);
+		const sourceContext = validateLinkSource(item);
+		if (!sourceContext.ok) return sourceContext;
+		const context = sourceContext.value;
+		if (context === undefined) continue;
 		for (const [linkIndex, lookup] of context.links.entries()) {
-			if (lookup.status === "unsupported") {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: use an unqualified API link reference. Qualified references and selectors are not supported yet.`,
-				);
-			}
-			if (lookup.status === "not-found") {
-				return failure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${signature.id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the API link.`,
-				);
-			}
-			const target = declarations.get(lookup.target);
-			assert.ok(target, "Documentation lookup targets must be retained in declaration facts.");
-			// TODO (Stage 2 link targets): Add declaration-level classification and overload
-			// target semantics before accepting other target forms or selecting a signature.
-			if (
-				target.declarations.length === 0 ||
-				target.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
-				target.signatures.length !== 1
-			) {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: target ${lookup.reference} requires a standalone function with one callable signature and documentation context. Other declaration forms and overload targets are not supported yet.`,
-				);
-			}
-			const targetSignature = assertDefined(
-				target.signatures[0],
-				"Single-signature targets must have a signature.",
+			const dependency = dependencyReference(
+				analysis,
+				item.originalLinks[linkIndex]?.codeDestination,
+				lookup,
+				context.origin.packageName,
 			);
-			const targetContext = assertDefined(
-				targetSignature.documentationContext,
-				"Supported API link targets must retain documentation context.",
-			);
-			if (
-				targetContext.origin.packageName !== context.origin.packageName ||
-				target.declarations.some((source) => source.packageName !== context.origin.packageName)
-			) {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Cross-package links require future suite resolution.`,
-				);
+			if (!dependency.ok) return dependency;
+			if (dependency.value !== undefined) {
+				const dependencyTarget = dependency.value;
+				const receivingLevel = metadata.get(item.id)?.releaseLevel;
+				if (
+					receivingLevel === undefined ||
+					dependencyTarget.metadata.releaseLevel === undefined
+				)
+					return failure(
+						DiagnosticCode.DocumentationConfiguration,
+						`Item ${item.id}: dependency links require release tags on source and target ${lookup.reference}.`,
+					);
+				if (
+					receivingLevel !== ReleaseLevel.Internal &&
+					dependencyTarget.metadata.releaseLevel === ReleaseLevel.Internal
+				)
+					return failure(
+						DiagnosticCode.DocumentationLinkPolicy,
+						`Item ${item.id}: non-internal APIs cannot link to internal dependency target ${lookup.reference}.`,
+					);
+				bindings.push({
+					source: item.id,
+					linkIndex,
+					reference: lookup.reference,
+					target: dependencyTarget.declarationId,
+					targetSignature: dependencyTarget.id,
+					origin: context.origin,
+				});
+				continue;
 			}
-			const sourceLevel = assertDefined(
-				metadata.get(signature.id),
-				"API link sources must have original classification metadata.",
-			).releaseLevel;
-			const targetLevel = assertDefined(
-				metadata.get(targetSignature.id),
-				"API link targets must have original classification metadata.",
-			).releaseLevel;
-			if (sourceLevel === undefined || targetLevel === undefined) {
-				return failure(
-					DiagnosticCode.DocumentationConfiguration,
-					`Item ${signature.id}: API links require release tags on both the source and target ${lookup.reference}. Add a release tag to each untagged declaration.`,
-				);
-			}
-			if (sourceLevel !== ReleaseLevel.Internal && targetLevel === ReleaseLevel.Internal) {
-				return failure(
-					DiagnosticCode.DocumentationLinkPolicy,
-					`Item ${signature.id}: non-internal APIs cannot link to internal target ${lookup.reference}. Remove the link or correct the original release tags.`,
-				);
-			}
-			bindings.push({
-				source: signature.id,
-				linkIndex,
-				reference: lookup.reference,
-				target: target.id,
-				targetSignature: targetSignature.id,
-				origin: { ...context.origin },
-			});
+			const local = bindLocalLink(analysis, item.id, context, lookup, linkIndex);
+			if (!local.ok) return local;
+			bindings.push(local.value);
 		}
 	}
 	return freezeData({
@@ -432,6 +535,151 @@ export function bindDocumentationLinks(
 					: left.linkIndex - right.linkIndex,
 		),
 	});
+}
+
+/**
+ * Checks that a supported source comment still corresponds to its retained lookup occurrences.
+ * @param item - Original parsed input with detached source records.
+ * @returns Its original context, undefined when no context or links exist, or an unsupported-source diagnostic.
+ * @throws If supported sources lack context or recorded links do not match the parsed comment.
+ */
+function validateLinkSource(
+	item: ParsedDocumentationItem<AnalysisDocumentationInput>,
+): Result<DocumentationReferenceContext | undefined> {
+	const { declaration, member, declaredMember, originalLinks } = item;
+	const source = item.signature ?? declaredMember ?? member ?? declaration;
+	const references = originalLinks.map((node) => node.codeDestination?.emitAsTsdoc());
+	const context = source.documentationContext;
+	if (context === undefined && references.length === 0) return { ok: true, value: undefined };
+	const sources =
+		declaredMember === undefined ? (member ?? declaration).declarations : [declaredMember];
+	if (
+		references.length > 0 &&
+		declaredMember === undefined &&
+		declaration.documentationContext === undefined &&
+		(sources.length === 0 ||
+			sources.some(
+				(record) =>
+					record.kind !== "FunctionDeclaration" &&
+					record.kind !== "MethodDeclaration" &&
+					record.kind !== "MethodSignature" &&
+					!(
+						item.signature === undefined &&
+						sources.length === 1 &&
+						(record.kind === "PropertyDeclaration" || record.kind === "PropertySignature")
+					),
+			))
+	) {
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${source.id}: API links are supported only in function, method, and single-declaration non-callable property comments. Use plain text for this declaration.`,
+		);
+	}
+	assert.ok(context, "Supported API link sources must retain documentation context.");
+	assert.equal(
+		references.length,
+		context.links.length,
+		"API link lookup counts must match the original comment.",
+	);
+	assert.ok(
+		references.every(
+			(reference, index) => reference === assertDefined(context.links[index]).reference,
+		),
+		"API link lookup references must match the original comment.",
+	);
+	return { ok: true, value: context };
+}
+
+/**
+ * Binds one local API link after the source occurrence has been validated.
+ * @param analysis - Detached declarations and original metadata.
+ * @param source - Receiving documentation input identity.
+ * @param context - Source lookup facts and original package location.
+ * @param lookup - Retained compiler lookup outcome for this occurrence.
+ * @param linkIndex - Original occurrence index in TSDoc traversal order.
+ * @returns A binding or the first lookup, target-form, package, or visibility diagnostic.
+ */
+function bindLocalLink(
+	analysis: AnalysisContext,
+	source: ApiItemId,
+	context: DocumentationReferenceContext,
+	lookup: DocumentationReferenceLookup,
+	linkIndex: number,
+): Result<DocumentationLinkBinding> {
+	if (lookup.status === "unsupported")
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${source}: use an unqualified API link reference. Qualified references and selectors are not supported yet.`,
+		);
+	if (lookup.status === "not-found")
+		return failure(
+			DiagnosticCode.DocumentationReference,
+			`Item ${source}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the API link.`,
+		);
+	const target = analysis.declarations.get(lookup.target);
+	assert.ok(target, "Documentation lookup targets must be retained in declaration facts.");
+	if (
+		target.documentationContext === undefined &&
+		(target.declarations.length === 0 ||
+			target.declarations.some(
+				(record) =>
+					record.kind !== "FunctionDeclaration" &&
+					record.kind !== "MethodDeclaration" &&
+					record.kind !== "MethodSignature",
+			) ||
+			target.signatures.length !== 1)
+	) {
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${source}: target ${lookup.reference} requires a standalone function with one callable signature and documentation context. Other declaration forms and overload targets are not supported yet.`,
+		);
+	}
+	const targetSignature = assertDefined(
+		target.documentationContext === undefined ? target.signatures[0] : target,
+		"Single-signature targets must have a signature.",
+	);
+	const targetContext = assertDefined(
+		targetSignature.documentationContext,
+		"Supported API link targets must retain documentation context.",
+	);
+	if (
+		targetContext.origin.packageName !== context.origin.packageName ||
+		target.declarations.some((record) => record.packageName !== context.origin.packageName)
+	)
+		return failure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${source}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Cross-package links require future suite resolution.`,
+		);
+	// Link visibility uses original metadata, independently of whether the target appears in a report.
+	const sourceLevel = assertDefined(
+		analysis.metadata.get(source),
+		"API link sources must have original classification metadata.",
+	).releaseLevel;
+	const targetLevel = assertDefined(
+		analysis.metadata.get(targetSignature.id),
+		"API link targets must have original classification metadata.",
+	).releaseLevel;
+	if (sourceLevel === undefined || targetLevel === undefined)
+		return failure(
+			DiagnosticCode.DocumentationConfiguration,
+			`Item ${source}: API links require release tags on both the source and target ${lookup.reference}. Add a release tag to each untagged declaration.`,
+		);
+	if (sourceLevel !== ReleaseLevel.Internal && targetLevel === ReleaseLevel.Internal)
+		return failure(
+			DiagnosticCode.DocumentationLinkPolicy,
+			`Item ${source}: non-internal APIs cannot link to internal target ${lookup.reference}. Remove the link or correct the original release tags.`,
+		);
+	return {
+		ok: true,
+		value: {
+			source,
+			linkIndex,
+			reference: lookup.reference,
+			target: target.id,
+			targetSignature: targetSignature.id,
+			origin: { ...context.origin },
+		},
+	};
 }
 
 /**
@@ -465,7 +713,7 @@ export function bindDocumentationLinks(
  *
  * @param context - Invocation-owned parsed comments before inheritance, with validated original identities.
  * @param bindings - Validated associations produced from these original comments.
- * @param options - Optional automatic inheritance bindings, API link bindings, and original metadata.
+ * @param options - Automatic bindings, link metadata, and authorized dependency results. Omit for same-package explicit resolution without automatic inheritance or API links.
  * @returns Deeply frozen comments and inheritance paths sorted by item identifier,
  * or diagnostics without a partial value.
  * @throws If an internal invariant fails or an unexpected processing error occurs.
@@ -498,21 +746,22 @@ export function resolveDocumentation(
 		targets,
 		linksBySource,
 		options.linkValidation !== undefined,
+		options,
 	);
 	if (!parsed.ok) {
 		return parsed;
 	}
-	const { comments, nodesToBindings } = parsed.value;
+	const { comments, nodesToBindings, sectionSources } = parsed.value;
 	// Validate automatic bindings even when suppressed. Any local comment prevents automatic inheritance.
 	const automatic = new Map<ApiItemId, Set<ApiItemId>>();
 	for (const binding of options.automaticInheritance ?? []) {
 		const source = assertDefined(inputs.get(binding.source), "Automatic sources must exist.");
 		const target = assertDefined(inputs.get(binding.target), "Automatic targets must exist.");
-		assert.equal(
-			source.packageName,
-			target.packageName,
-			"Automatic bindings must retain same-package source and target inputs.",
-		);
+		if (source.packageName !== target.packageName)
+			assert.ok(
+				options.packages?.has(target.packageName) === true,
+				"Automatic bindings must retain same-package source and target inputs.",
+			);
 		if (source.documentation !== undefined) {
 			continue;
 		}
@@ -531,7 +780,7 @@ export function resolveDocumentation(
 	}
 	// Share parsed comments, a resolution cache, and an active path across recursive inheritance traversal.
 	// The traversal resolves targets first, detects cycles, and validates links for each receiving API.
-	const resolved = new Map<ApiItemId, ResolvedDocumentation>();
+	const resolved = new Map<ApiItemId, ResolvedDocumentation>(options.dependencies);
 	const visiting = new Set<ApiItemId>();
 	const results: ResolvedDocumentation[] = [];
 	const state: DocumentationTraversalState = {
@@ -540,6 +789,7 @@ export function resolveDocumentation(
 		automaticTargets,
 		comments,
 		nodesToBindings,
+		sectionSources,
 		metadata,
 		resolved,
 		visiting,
@@ -572,14 +822,27 @@ function associateDocumentationBindings(
 	targets: ReadonlyMap<ApiItemId, DocumentationReferenceBinding>,
 	linksBySource: ReadonlyMap<ApiItemId, ReadonlyMap<number, DocumentationLinkBinding>>,
 	hasLinkValidation: boolean,
+	options: DocumentationResolutionOptions,
 ): Result<{
 	readonly comments: ReadonlyMap<ApiItemId, DocComment>;
 	readonly nodesToBindings: ReadonlyMap<DocLinkTag, DocumentationLinkBinding>;
+	readonly sectionSources: ReadonlyMap<DocNode, Omit<DocumentationSectionSource, "section">>;
 }> {
 	const comments = new Map<ApiItemId, DocComment>();
 	const nodesToBindings = new Map<DocLinkTag, DocumentationLinkBinding>();
+	const sectionSources = new Map<DocNode, Omit<DocumentationSectionSource, "section">>();
 	for (const item of ordered) {
 		const comment = item.parsed.docComment;
+		const dependency = options.dependencies?.get(item.id);
+		for (const section of documentationSections(comment)) {
+			const original = dependency?.sections?.find(
+				(entry) => entry.section === section.section,
+			);
+			sectionSources.set(
+				section.node,
+				original ?? { source: item.id, packageName: item.packageName },
+			);
+		}
 		const linkNodes = item.originalLinks;
 		assert.ok(
 			linkNodes.length === 0 || hasLinkValidation,
@@ -588,7 +851,7 @@ function associateDocumentationBindings(
 		const sourceLinks = linksBySource.get(item.id);
 		for (const [linkIndex, node] of linkNodes.entries()) {
 			const link = assertDefined(
-				sourceLinks?.get(linkIndex),
+				dependency?.links[linkIndex] ?? sourceLinks?.get(linkIndex),
 				"Every API link occurrence must have a binding.",
 			);
 			nodesToBindings.set(node, link);
@@ -602,7 +865,9 @@ function associateDocumentationBindings(
 			// availability and compatibility for every selected dependency, including unused dependencies.
 			if (
 				reference === undefined ||
-				(reference.packageName !== undefined && reference.packageName !== item.packageName)
+				(reference.packageName !== undefined &&
+					reference.packageName !== item.packageName &&
+					options.packages?.has(reference.packageName) !== true)
 			) {
 				return failure(
 					DiagnosticCode.DocumentationUnsupported,
@@ -612,7 +877,10 @@ function associateDocumentationBindings(
 			assert.ok(binding, "Explicit inheritance requests must have validated bindings.");
 			const target = inputs.get(binding.target);
 			assert.ok(target, "Validated documentation bindings must have target inputs.");
-			if (target.packageName !== item.packageName) {
+			if (
+				target.packageName !== item.packageName &&
+				options.packages?.has(target.packageName) !== true
+			) {
 				return failure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${item.id}: target ${target.id} belongs to ${target.packageName}. Cross-package inheritance requires suite resolution, which is not supported yet.`,
@@ -621,13 +889,17 @@ function associateDocumentationBindings(
 		}
 		comments.set(item.id, comment);
 	}
-	return { ok: true, value: { comments, nodesToBindings } };
+	return { ok: true, value: { comments, nodesToBindings, sectionSources } };
 }
 
 /**
  * Dependencies and mutable traversal state owned by one documentation resolution request.
  */
 interface DocumentationTraversalState {
+	/**
+	 * Original identity associated with each section node before content copying.
+	 */
+	readonly sectionSources: ReadonlyMap<DocNode, Omit<DocumentationSectionSource, "section">>;
 	/**
 	 * Unique automatic sources for inputs without local comments.
 	 */
@@ -710,6 +982,13 @@ function resolveDocumentationItem(
 	// do not supply all information required by the portable model contract.
 	const value: ResolvedDocumentation = {
 		id: item.id,
+		sections: documentationSections(comment).map(({ section, node }) => ({
+			section,
+			...assertDefined(
+				state.sectionSources.get(node),
+				"Resolved sections must retain their original input identity.",
+			),
+		})),
 		packageName: item.packageName,
 		documentation:
 			item.documentation === undefined && targetId === undefined
@@ -721,6 +1000,38 @@ function resolveDocumentationItem(
 	visiting.delete(id);
 	resolved.set(id, value);
 	return { ok: true, value };
+}
+
+/**
+ * Enumerates descriptive sections and retained local blocks in deterministic order.
+ *
+ * @param comment - Original or resolved TSDoc comment.
+ * @returns Section identities and their existing nodes, without cloning content.
+ */
+function documentationSections(comment: DocComment): { section: string; node: DocNode }[] {
+	const sections: { section: string; node: DocNode }[] = [
+		{ section: "summary", node: comment.summarySection },
+	];
+	const counts = new Map<string, number>();
+	for (const block of [
+		comment.remarksBlock,
+		comment.returnsBlock,
+		...comment.params.blocks,
+		...comment.typeParams.blocks,
+		comment.deprecatedBlock,
+		...comment.seeBlocks,
+		...comment.customBlocks,
+	]) {
+		if (block === undefined) continue;
+		const name =
+			block instanceof DocParamBlock
+				? `${block.blockTag.tagName}:${block.parameterName}`
+				: block.blockTag.tagName;
+		const ordinal = counts.get(name) ?? 0;
+		counts.set(name, ordinal + 1);
+		sections.push({ section: ordinal === 0 ? name : `${name}:${ordinal}`, node: block });
+	}
+	return sections;
 }
 
 /**

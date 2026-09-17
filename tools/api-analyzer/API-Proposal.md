@@ -1,6 +1,6 @@
 # `api-analyzer` API Proposal
 
-Status: API direction agreed on 2026-09-17; an initial callable-analysis implementation is available.
+Status: API direction agreed on 2026-09-17; declaration reports and versioned dependency-model generation are implemented for the current Stage 2 subset.
 The [README](README.md#experimental-api) describes the implemented subset and remaining limitations.
 The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
@@ -36,7 +36,8 @@ It should offer the following capabilities:
 
 Declaration rollup generation remains required functionality.
 The initial report method and API counts are documented in the README.
-Model and rollup method signatures, artifact schemas, and broader statistics remain to be specified.
+`generateModel(): string` returns the initial versioned dependency documentation artifact.
+The complete portable-model contract, rollup method signatures, and broader statistics remain to be specified.
 API statistics are distinct from analysis timing and cache counters.
 
 ## Completion and outputs

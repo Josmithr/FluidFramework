@@ -5,7 +5,12 @@ import {
 	type ApiClassification,
 	type ApiItemSelection,
 } from "../analysis-types/classification.js";
-import type { ApiItemId } from "../analysis-types/facts.js";
+import type {
+	ApiItemId,
+	ExportFact,
+	DeclarationFact,
+	DeclarationStatementFact,
+} from "../analysis-types/facts.js";
 import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
 import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
@@ -39,9 +44,49 @@ export interface ReviewSignature {
 }
 
 /**
- * An exported function binding with independently selected overloads.
+ * A selected namespace with independently selected exports and original annotations.
+ */
+export interface ReviewNamespace extends ReviewSignature {
+	/**
+	 * Selected nested bindings in canonical export order.
+	 */
+	readonly exports: readonly ReviewExport[];
+}
+
+/**
+ * A selected atomic declaration whose name is supplied by its exported binding.
+ */
+export interface ReviewStatement extends ReviewSignature, DeclarationStatementFact {}
+
+/**
+ * A selected container header and independently selected member declarations.
+ */
+export interface ReviewContainer extends ReviewStatement {
+	/**
+	 * Selected member syntax with effective documentation status and original annotations.
+	 */
+	readonly members: readonly ReviewSignature[];
+}
+
+/**
+ * An exported declaration binding with independently selected members or overloads.
  */
 export interface ReviewExport {
+	/**
+	 * Independently selected nested namespace exports and original namespace metadata.
+	 * @defaultValue Omitted for non-namespace declarations.
+	 */
+	readonly namespace?: ReviewNamespace;
+	/**
+	 * Selected atomic declaration syntax and metadata.
+	 * @defaultValue Omitted for functions, namespaces, and containers.
+	 */
+	readonly statement?: ReviewStatement;
+	/**
+	 * Selected container declaration and its effective members.
+	 * @defaultValue Omitted for declarations other than classes, interfaces, and enums.
+	 */
+	readonly container?: ReviewContainer;
 	/**
 	 * The original declaration identity, used to emit shared alias targets once. Not rendered.
 	 */
@@ -68,7 +113,7 @@ export interface ReviewExport {
 }
 
 /**
- * A detached, experimental function-only review report.
+ * A detached, experimental selected-declaration review report.
  *
  * @remarks
  * Not a declaration rollup, documentation model, or complete type-reference graph.
@@ -90,13 +135,64 @@ export interface ReviewReport {
 }
 
 /**
- * A fixed export record with signature identifiers used only for selection.
+ * A prepared item retaining its original identity for selection.
  */
-interface PreparedExport extends Omit<ReviewExport, "signatures"> {
+interface PreparedSignature extends ReviewSignature {
+	/**
+	 * Original documentation input identity, removed from selected records.
+	 */
+	readonly id: ApiItemId;
+}
+
+/**
+ * A namespace with identities retained throughout its export tree.
+ */
+interface PreparedNamespace extends PreparedSignature {
+	/**
+	 * Complete nested bindings before selection.
+	 */
+	readonly exports: readonly PreparedExport[];
+}
+
+/**
+ * Atomic declaration syntax with its selection identity.
+ */
+interface PreparedStatement extends PreparedSignature, DeclarationStatementFact {}
+
+/**
+ * Container syntax with member identities retained for independent selection.
+ */
+interface PreparedContainer extends PreparedStatement {
+	/**
+	 * Complete member records in extraction order.
+	 */
+	readonly members: readonly PreparedSignature[];
+}
+
+/**
+ * A fixed export record with item identifiers used only for selection.
+ */
+interface PreparedExport
+	extends Omit<ReviewExport, "signatures" | "container" | "statement" | "namespace"> {
+	/**
+	 * Original namespace identity and recursively prepared exports.
+	 * @defaultValue Omitted for non-namespace or unsupported namespace records.
+	 */
+	readonly namespace?: PreparedNamespace;
+	/**
+	 * Atomic declaration identity retained for selection.
+	 * @defaultValue Omitted when no atomic statement representation exists.
+	 */
+	readonly statement?: PreparedStatement;
+	/**
+	 * Container and member identities retained for independent selection.
+	 * @defaultValue Omitted for non-container or unsupported container records.
+	 */
+	readonly container?: PreparedContainer;
 	/**
 	 * Complete signature records in compiler order.
 	 */
-	readonly signatures: readonly (ReviewSignature & { readonly id: ApiItemId })[];
+	readonly signatures: readonly PreparedSignature[];
 }
 
 /**
@@ -154,8 +250,13 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 	const metadataById = new Map(graph.classification.items.map((item) => [item.id, item]));
 	const documentationById = new Map(graph.documentation.map((item) => [item.id, item]));
 	// Capture effective content after inheritance, but keep the original tags for annotations.
-	const signatures = new Map<ApiItemId, ReviewSignature & { readonly id: ApiItemId }>();
-	for (const item of facts.declarations.flatMap((declaration) => declaration.signatures)) {
+	const signatures = new Map<ApiItemId, PreparedSignature>();
+	for (const item of facts.declarations.flatMap((declaration) => [
+		...(declaration.documentationContext === undefined ? declaration.signatures : []),
+		...declaration.members.flatMap((member) =>
+			member.documentationContext === undefined ? member.signatures : [],
+		),
+	])) {
 		const metadata = metadataById.get(item.id);
 		assert.ok(metadata, "Prepared signatures must have original classification metadata.");
 		const documentation = documentationById.get(item.id);
@@ -170,49 +271,177 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 			].sort(),
 		});
 	}
+	/**
+	 * Joins rendered syntax to completed content status without reclassifying inherited tags.
+	 * @param id - Original documentation input identity.
+	 * @param text - Detached compiler-derived syntax.
+	 * @returns An independently selectable record with original annotations.
+	 */
+	function prepareItem(id: ApiItemId, text: string): PreparedSignature {
+		const metadata = metadataById.get(id);
+		const documentation = documentationById.get(id);
+		assert.ok(
+			metadata && documentation,
+			"Prepared items must have original metadata and completed documentation.",
+		);
+		return {
+			id,
+			text,
+			documented: documentation.documented,
+			releaseLevel: metadata.releaseLevel,
+			modifierTags: [
+				...new Set([...metadata.modifierTags, ...documentation.originalBlockTags]),
+			].sort(),
+		};
+	}
 	// Resolve and validate fixed export data once; report calls only filter these records.
 	const surfaces = new Map<string, PreparedSurface>();
 	for (const surface of facts.surfaces) {
-		const names = new Set<string>();
 		assert.ok(!surfaces.has(surface.name), "Entrypoint facts must have distinct names.");
 		let unsupported: string | undefined;
-		const exports = surface.exports.map((binding) => {
-			assert.ok(!names.has(binding.name), "Entrypoint exports must have distinct names.");
-			names.add(binding.name);
-			const declaration = declarations.get(binding.target);
-			assert.ok(declaration, "Every export target must have a declaration fact.");
-			// TODO (Stage 2 report declarations): Prepare class, interface, and merged-declaration records.
-			if (
-				declaration.declarations.length === 0 ||
-				declaration.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
-				declaration.exports.length > 0 ||
-				declaration.members.length > 0
-			) {
-				unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: this declaration form is not supported by the function-only report builder.`;
-			} else {
-				assert.ok(
-					declaration.signatures.length > 0,
-					"Function declarations must have callable signatures.",
-				);
-			}
-			return {
-				declarationId: declaration.id,
-				declarationName: declaration.name,
-				name: binding.name,
-				typeOnly: binding.typeOnly,
-				signatures: declaration.signatures.map((signature) => {
-					const prepared = signatures.get(signature.id);
-					assert.ok(prepared, "Collected signatures must have prepared report data.");
-					return prepared;
-				}),
-			};
-		});
-		exports.sort((left, right) =>
-			left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
-		);
-		surfaces.set(surface.name, freezeData({ exports, unsupported }));
+		/**
+		 * Prepares one namespace level and retains the first unsupported-form explanation.
+		 * @param bindings - Exported bindings at this level.
+		 * @param active - Namespace identities already on the path, for cycle detection.
+		 * @returns Sorted prepared bindings without applying a report selection.
+		 */
+		function prepareEntries(
+			bindings: readonly ExportFact[],
+			active: ReadonlySet<ApiItemId>,
+		): PreparedExport[] {
+			const names = new Set<string>();
+			const exports = bindings.map((binding): PreparedExport => {
+				assert.ok(!names.has(binding.name), "Entrypoint exports must have distinct names.");
+				names.add(binding.name);
+				const declaration = declarations.get(binding.target);
+				assert.ok(declaration, "Every export target must have a declaration fact.");
+				let namespace: PreparedExport["namespace"];
+				if (
+					declaration.documentationContext !== undefined &&
+					declaration.declarations.every((source) => source.kind === "ModuleDeclaration")
+				) {
+					if (active.has(declaration.id)) {
+						unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}: recursive namespace export ${binding.name} requires an alias reference representation.`;
+					} else {
+						namespace = {
+							...prepareItem(declaration.id, ""),
+							exports: prepareEntries(
+								declaration.exports,
+								new Set([...active, declaration.id]),
+							),
+						};
+					}
+				}
+				let container: PreparedExport["container"];
+				const statement =
+					declaration.statement === undefined
+						? undefined
+						: { ...prepareItem(declaration.id, ""), ...declaration.statement };
+				if (declaration.container !== undefined) {
+					container = prepareContainer(declaration, documentationById, prepareItem);
+					if (container === undefined) {
+						unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: container members require unsupported syntax or comment ownership.`;
+					}
+				} else if (
+					namespace === undefined &&
+					statement === undefined &&
+					(declaration.declarations.length === 0 ||
+						declaration.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
+						declaration.exports.length > 0 ||
+						declaration.members.length > 0)
+				) {
+					unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: this declaration form is not supported by the function-only report builder.`;
+				} else if (statement === undefined && namespace === undefined) {
+					assert.ok(
+						declaration.signatures.length > 0,
+						"Function declarations must have callable signatures.",
+					);
+				}
+				return {
+					...(namespace === undefined ? {} : { namespace }),
+					...(container === undefined ? {} : { container }),
+					...(statement === undefined ? {} : { statement }),
+					declarationId: declaration.id,
+					declarationName: declaration.name,
+					name: binding.name,
+					typeOnly: binding.typeOnly,
+					signatures: (declaration.documentationContext === undefined
+						? declaration.signatures
+						: []
+					).map((signature) => {
+						const prepared = signatures.get(signature.id);
+						assert.ok(prepared, "Collected signatures must have prepared report data.");
+						return prepared;
+					}),
+				};
+			});
+			exports.sort((left, right) =>
+				left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+			);
+			return exports;
+		}
+		const preparedExports = prepareEntries(surface.exports, new Set());
+		surfaces.set(surface.name, freezeData({ exports: preparedExports, unsupported }));
 	}
 	return { packageName: facts.packageName, surfaces, classification: graph.classification };
+}
+
+/**
+ * Prepares supported container members without duplicating their declared and effective views.
+ * @param declaration - Owning declaration with detached container syntax.
+ * @param documentation - Completed documentation indexed by original input identity.
+ * @param prepareItem - Joins syntax with the invocation's completed metadata.
+ * @returns Prepared container data, or undefined when syntax or member ownership is unsupported.
+ */
+function prepareContainer(
+	declaration: DeclarationFact,
+	documentation: ReadonlyMap<ApiItemId, CompletedAnalysis["documentation"][number]>,
+	prepareItem: (id: ApiItemId, text: string) => PreparedSignature,
+): PreparedContainer | undefined {
+	const syntax = declaration.container;
+	assert.ok(syntax, "Container preparation requires detached container syntax.");
+	// Accessors and visibility-specific declarations can also appear in the effective member view.
+	// Keep their declared syntax once, rather than rendering a second property representation.
+	const effectiveMembers = declaration.members.filter(
+		(member) =>
+			!syntax.declaredMembers.some((record) =>
+				member.declarations.some(
+					(source) => source.file === record.file && source.start === record.start,
+				),
+			),
+	);
+	if (
+		!syntax.supported ||
+		(declaration.memberView === "partial" && syntax.kind !== "enum") ||
+		effectiveMembers.some(
+			(member) => member.signatures.length === 0 && !documentation.has(member.id),
+		)
+	)
+		return undefined;
+	const members = [
+		...syntax.declaredMembers.map((member) => prepareItem(member.id, member.printed)),
+		...effectiveMembers.flatMap((member) =>
+			member.signatures.length > 0 && member.documentationContext === undefined
+				? member.signatures.map((signature) =>
+						prepareItem(
+							signature.id,
+							`${member.name}${member.optional ? "?" : ""}${signature.callSignatureText}`,
+						),
+					)
+				: [
+						prepareItem(
+							member.id,
+							`${member.readonly === true ? "readonly " : ""}${member.name}${member.optional ? "?" : ""}: ${member.type};`,
+						),
+					],
+		),
+	];
+	return {
+		...prepareItem(declaration.id, ""),
+		prefix: syntax.prefix,
+		suffix: syntax.suffix,
+		members,
+	};
 }
 
 /**
@@ -245,21 +474,63 @@ export function createReviewReport(
 		throw new Error(surface.unsupported);
 	}
 	const selectedIds = new Set(selected.value.items.map((item) => item.id));
-	const exports: ReviewExport[] = [];
-	for (const entry of surface.exports) {
-		const signatures = entry.signatures
-			.filter((signature) => selectedIds.has(signature.id))
-			.map(({ id: _id, ...signature }) => signature);
-		if (signatures.length > 0) {
-			exports.push({ ...entry, signatures });
+	/**
+	 * Selects a namespace tree without changing the shared prepared records.
+	 * @param entries - Complete bindings at one namespace level.
+	 * @returns Selected records with internal selection identities removed from their items.
+	 */
+	function selectEntries(entries: readonly PreparedExport[]): ReviewExport[] {
+		const exports: ReviewExport[] = [];
+		for (const entry of entries) {
+			if (entry.namespace !== undefined) {
+				if (selectedIds.has(entry.namespace.id)) {
+					const { id: _id, exports: nested, ...namespace } = entry.namespace;
+					exports.push({
+						...entry,
+						namespace: { ...namespace, exports: selectEntries(nested) },
+						signatures: [],
+					});
+				}
+				continue;
+			}
+			if (entry.statement !== undefined) {
+				if (selectedIds.has(entry.statement.id)) {
+					const { id: _id, ...statement } = entry.statement;
+					exports.push({ ...entry, statement, signatures: [] });
+				}
+				continue;
+			}
+			if (entry.container !== undefined) {
+				if (selectedIds.has(entry.container.id)) {
+					const { id: _id, members, ...container } = entry.container;
+					exports.push({
+						...entry,
+						signatures: [],
+						container: {
+							...container,
+							members: members
+								.filter((member) => selectedIds.has(member.id))
+								.map(({ id: _memberId, ...member }) => member),
+						},
+					});
+				}
+				continue;
+			}
+			const signatures = entry.signatures
+				.filter((signature) => selectedIds.has(signature.id))
+				.map(({ id: _id, ...signature }) => signature);
+			if (signatures.length > 0) {
+				exports.push({ ...entry, signatures });
+			}
 		}
+		return exports;
 	}
 	return freezeData({
 		ok: true,
 		value: {
 			packageName,
 			surface: selection.name,
-			exports,
+			exports: selectEntries(surface.exports),
 		},
 	});
 }
@@ -313,13 +584,41 @@ function codeSpan(text: string): string {
  * Output is review text, not compilable declarations. No baseline is read or updated.
  *
  * @param report - Detached function report in canonical export and overload order.
- * @param options - Tag and undocumented-annotation display settings.
+ * @param options - Display settings. Omit to show release tags and undocumented notices without additional tags.
  * @returns The complete Markdown report.
  * @throws If a release level violates the report model's internal contract.
  */
 export function renderReviewReport(
 	report: ReviewReport,
 	options: ReviewPresentationOptions = {},
+): string {
+	const body = renderDeclarationText(report.exports, options);
+	const fence = "`".repeat(
+		Math.max(3, ...(body.match(/`+/g) ?? []).map((run) => run.length + 1)),
+	);
+	return [
+		`## API Report File for ${JSON.stringify(report.packageName)}`,
+		"",
+		"> Generated by api-analyzer. Do not edit directly.",
+		"",
+		`Surface: ${codeSpan(JSON.stringify(report.surface))}`,
+		"",
+		`${fence}ts`,
+		body,
+		fence,
+		"",
+	].join("\n");
+}
+
+/**
+ * Renders selected declarations within one lexical namespace without Markdown framing.
+ * @param exports - Selected exported bindings in canonical order.
+ * @param options - Annotation presentation settings.
+ * @returns Declaration-oriented text, including required exported aliases.
+ */
+function renderDeclarationText(
+	exports: readonly ReviewExport[],
+	options: ReviewPresentationOptions,
 ): string {
 	const levels: Readonly<Record<ReleaseLevel, string>> = {
 		[ReleaseLevel.Public]: "public",
@@ -328,15 +627,31 @@ export function renderReviewReport(
 		[ReleaseLevel.Internal]: "internal",
 	};
 	const groups = new Map<ApiItemId, ReviewExport[]>();
-	for (const binding of report.exports) {
+	for (const binding of exports) {
 		const group = groups.get(binding.declarationId) ?? [];
 		group.push(binding);
 		groups.set(binding.declarationId, group);
 	}
-	const usedNames = new Set(report.exports.map((binding) => binding.name));
+	const usedNames = new Set(exports.map((binding) => binding.name));
 	const declarations: string[] = [];
 	const aliases: string[] = [];
 	const releaseTags = new Set(Object.values(levels).map((level) => `@${level}`));
+	function commentFor(signature: ReviewSignature): string {
+		const tags: string[] = [];
+		if (signature.releaseLevel !== undefined) {
+			const level = levels[signature.releaseLevel];
+			assert.ok(level !== undefined, "Review signatures must have supported release levels.");
+			if (options.includeReleaseTags !== false) tags.push(`@${level}`);
+		}
+		tags.push(
+			...signature.modifierTags.filter(
+				(tag) => !releaseTags.has(tag) && options.additionalTags?.includes(tag) === true,
+			),
+		);
+		if (options.includeUndocumentedNotice !== false && !signature.documented)
+			tags.push("(undocumented)");
+		return tags.length > 0 ? `// ${tags.join(" ")}\n` : "";
+	}
 	for (const group of groups.values()) {
 		const binding = group[0];
 		assert.ok(binding, "Report export groups must not be empty.");
@@ -356,27 +671,37 @@ export function renderReviewReport(
 			}
 		}
 		usedNames.add(localName);
-		for (const signature of binding.signatures) {
-			const tags: string[] = [];
-			if (signature.releaseLevel !== undefined) {
-				const level = levels[signature.releaseLevel];
-				assert.ok(
-					level !== undefined,
-					"Review signatures must have supported release levels.",
-				);
-				if (options.includeReleaseTags !== false) {
-					tags.push(`@${level}`);
-				}
-			}
-			tags.push(
-				...signature.modifierTags.filter(
-					(tag) => !releaseTags.has(tag) && options.additionalTags?.includes(tag) === true,
-				),
+		if (binding.namespace !== undefined) {
+			const nested = renderDeclarationText(binding.namespace.exports, options)
+				.split("\n")
+				.map((line) => (line.length > 0 ? `    ${line}` : ""))
+				.join("\n");
+			declarations.push(
+				`${commentFor(binding.namespace)}${direct === undefined ? "declare" : "export"} namespace ${localName} {\n${nested}\n}`,
 			);
-			if (options.includeUndocumentedNotice !== false && !signature.documented) {
-				tags.push("(undocumented)");
-			}
-			const comment = tags.length > 0 ? `// ${tags.join(" ")}\n` : "";
+		}
+		if (binding.statement !== undefined) {
+			const statement = binding.statement;
+			declarations.push(
+				`${commentFor(statement)}${direct === undefined ? "declare" : "export"} ${statement.prefix}${localName}${statement.suffix}`,
+			);
+		}
+		if (binding.container !== undefined) {
+			const container = binding.container;
+			const memberText = container.members
+				.map((member) =>
+					`${commentFor(member)}${member.text}`
+						.split("\n")
+						.map((line) => `    ${line}`)
+						.join("\n"),
+				)
+				.join("\n");
+			declarations.push(
+				`${commentFor(container)}${direct === undefined ? "declare" : "export"} ${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
+			);
+		}
+		for (const signature of binding.signatures) {
+			const comment = commentFor(signature);
 			declarations.push(
 				`${comment}${direct === undefined ? "declare" : "export"} function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
 			);
@@ -392,20 +717,5 @@ export function renderReviewReport(
 			}
 		}
 	}
-	const body = [...declarations, ...aliases.sort()].join("\n\n") || "// No selected exports.";
-	const fence = "`".repeat(
-		Math.max(3, ...(body.match(/`+/g) ?? []).map((run) => run.length + 1)),
-	);
-	return [
-		`## API Report File for ${JSON.stringify(report.packageName)}`,
-		"",
-		"> Generated by api-analyzer. Do not edit directly.",
-		"",
-		`Surface: ${codeSpan(JSON.stringify(report.surface))}`,
-		"",
-		`${fence}ts`,
-		body,
-		fence,
-		"",
-	].join("\n");
+	return [...declarations, ...aliases.sort()].join("\n\n") || "// No selected exports.";
 }

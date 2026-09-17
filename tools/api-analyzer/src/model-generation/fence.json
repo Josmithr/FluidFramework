@@ -1,0 +1,6 @@
+{
+	"tags": ["model-generation"],
+	"exports": ["dependencyModel"],
+	"imports": ["analysis-types", "utilities"],
+	"dependencies": ["zod", "node:assert/strict", "@microsoft/tsdoc"]
+}

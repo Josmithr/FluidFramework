@@ -1,5 +1,6 @@
 import type { ClassificationRules } from "./classification.js";
 import type { TsdocOptions } from "./tsdocOptions.js";
+import type { ReferencePolicies } from "./referencePolicy.js";
 
 /**
  * A named declaration entrypoint in one compiler resolution context.
@@ -30,6 +31,17 @@ export interface Entrypoint {
  * Later bases and local values override earlier values.
  */
 export interface Configuration extends TsdocOptions {
+	/**
+	 * Dependency package names or globs and the package-relative model artifact path.
+	 * Local settings replace the inherited suite as a whole.
+	 * @defaultValue The inherited suite. If none is supplied, no dependency models are loaded.
+	 */
+	readonly suite?: SuiteConfiguration;
+	/**
+	 * Configured declaration-reference policies. Local values replace the inherited policy object.
+	 * @defaultValue Inherited policies. If none are supplied, optional reference checks are disabled.
+	 */
+	readonly referencePolicies?: ReferencePolicies;
 	/**
 	 * Base configurations applied in array order before this configuration.
 	 *
@@ -98,6 +110,16 @@ export interface Configuration extends TsdocOptions {
  */
 export interface EffectiveConfiguration {
 	/**
+	 * Selected dependency-model settings after configuration inheritance.
+	 * @defaultValue Omitted when no suite is configured; no dependency discovery or model loading runs.
+	 */
+	readonly suite?: SuiteConfiguration;
+	/**
+	 * Declaration-reference policies after configuration inheritance.
+	 * @defaultValue Omitted when no policies are configured; analysis uses an empty policy object.
+	 */
+	readonly referencePolicies?: ReferencePolicies;
+	/**
 	 * The resolved, nonempty package name used in API facts.
 	 */
 	readonly packageName: string;
@@ -130,4 +152,20 @@ export interface EffectiveConfiguration {
 	 * Custom modifier names shared by classification and documentation processing.
 	 */
 	readonly customModifierTags: readonly string[];
+}
+
+/**
+ * Selects installed direct, transitive, and peer dependencies for documentation resolution.
+ */
+export interface SuiteConfiguration {
+	/**
+	 * Nonempty exact names or glob patterns matched against installed direct, transitive, and peer dependencies.
+	 * Every selector must match at least one dependency.
+	 */
+	readonly packages: readonly string[];
+	/**
+	 * Artifact path relative to each selected package root, without absolute paths or parent traversal.
+	 * Each selected artifact is required even when no documentation reference uses it.
+	 */
+	readonly modelFile: string;
 }

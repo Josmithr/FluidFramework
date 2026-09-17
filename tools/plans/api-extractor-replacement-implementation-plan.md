@@ -5,14 +5,15 @@
 API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](../api-analyzer/API-Proposal.md).
 The reusable public session has been removed in favor of `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
 The initial implementation completes existing callable classification and documentation validation before success and closes the compiler connection before returning.
-The completed analysis exposes effective configuration, API counts, and function report generation from prepared data.
-General declaration validation, suite loading, model generation, and declaration rollups remain incomplete; this migration does not close Stage 2 or later gates.
+The completed analysis exposes effective configuration, API counts, selected declaration reports, and versioned dependency-model generation.
+Stage 2 remains open for remaining declaration ownership, reference coverage, and model compatibility acceptance; declaration rollups remain incomplete.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](../api-analyzer/Architecture-Proposal.md).
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
 Analysis completion now owns documentation resolution and returns a frozen graph for the currently supported callable scope.
-Reporting consumes that graph without compiler or parser access; model and rollup layers and broader graph completeness remain pending.
+Reporting consumes that graph without compiler or parser access.
+The model layer now owns versioned encoding, decoding, and artifact validation; rollups and broader graph completeness remain pending.
 `good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
 
 Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 29 focused contract tests, verified on 2026-09-15.
@@ -21,7 +22,8 @@ The first Stage 2 increment implements TSDoc-based release classification and co
 The subsequent baseline-handling increment adds pure comparison, read-only file checks, and explicit updates, with 48 combined contract tests passing on 2026-09-15.
 An initial function-only review report builder and Markdown renderer use checked-in snapshots for full-report tests.
 The combined contract suite passes 54 tests, including configurable report presentation and snapshots for TS6- and TS7-built declarations, verified on 2026-09-15.
-General declaration reports, reference validation, and the repository pilot are not yet implemented.
+Those counts describe historical increments, not the current Stage 2 implementation.
+Current tests also cover declaration reports, configured reference policies, dependency models, conditional-export parity, and a small repository pilot.
 See the [Stage 0 results and review decisions](../api-analyzer/README.md#stage-0-results) for reproducible evidence.
 The Stage 0 probe recorded 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
 The [Stage 1 results and experimental API](../api-analyzer/README.md#stage-1-results) describe the new tests and limits.
@@ -357,6 +359,20 @@ Direct tests check helper behavior, independent caches, repeated collection, and
 
 ### Stage 2. Deliver a review and validation workflow
 
+Latest implementation progress (2026-09-17):
+
+- Effective method and property comments support original-scope lookup, conservative automatic inheritance, explicit method/property chains, and per-section provenance.
+- Selected reports include single-declaration classes and interfaces, callable properties, declared constructors and statics, enums, type aliases, variables, and namespaces. TS6- and TS7-built fixtures match checked-in report snapshots.
+- Structured references retain source occurrences and compiler-resolved unexported targets. Configured release compatibility, directional custom-tag rules, entrypoint exposure, and explicit-inheritance visibility run independently of report selection.
+- Versioned dependency codecs validate artifact shape, identity integrity, resolved comment syntax, and link occurrence correspondence. Root composition loads every selected direct, transitive, and peer model, including unused dependencies, and rejects missing or changed analyzed input files.
+- Suite resolution consumes stored resolved content while preserving original link and section provenance through qualified references, re-exports, and supported automatic inheritance.
+- Real Node/browser compiler contexts verify conditional-export parity without baseline writes. A core-utils pilot uses built comparison declarations and a configured legacy policy.
+- New compiler fixtures include ordinary inline explanations beside APIs, members, imports, and aliases. Those comments remain separate from the tested TSDoc.
+
+These results do not yet close Stage 2.
+Remaining work includes merged-declaration documentation ownership, recursive namespace aliases, complete reference-form coverage, model freshness and compatibility against installed declarations, and final requirement-by-requirement acceptance.
+Existing unsupported outcomes must not be silently reclassified as completed requirements.
+
 Current progress: The [initial classification contract and results](../api-analyzer/README.md#release-classification-and-selection-contract) cover independent callable-overload release levels, explicit custom modifier configuration, diagnostic opt-outs, and named metadata selections.
 `classifyApiItems` and `selectApiItems` are experimental pure APIs over explicit data. Selection reuses classified metadata without repeating compiler analysis.
 This is metadata selection, not a complete selected declaration graph or report representation.
@@ -465,7 +481,9 @@ Class and interface fixtures verify inherited generic member origins, absent and
 Effective members now have identifiers scoped to their containing declaration and detached callable signatures in compiler order.
 Both input compilers verify generic substitution, optional methods, callable properties, independent overload selection, and frozen signature facts after session closure.
 These member identities do not establish ancestor or override relationships.
-Collected function and method targets retain signature documentation contexts; effective-member view contexts remain pending.
+Collected function and method targets and inspectable effective callable member signatures retain original-scope documentation contexts.
+Effective callable signatures join the shared analysis context for original classification, reference binding, and completion.
+Release-tag validation includes untagged effective methods and single-declaration non-callable properties; enclosing type tags do not supply member metadata.
 Direct class and interface base declaration links are now retained through compiler-resolved symbols, including unexported ancestors without changing export surfaces.
 Both compiler inputs verify generic bases, class inheritance, a diamond hierarchy with a shared root, implements exclusion, and frozen detached links.
 Base targets describe original declarations rather than instantiated generic views. These links do not establish member overrides or overload compatibility.
@@ -479,7 +497,11 @@ The resolver accepts these bindings through `automaticInheritance`, preserves lo
 Pure and native tests cover local suppression, class bases, type aliases, generic substitutions, diamonds, conflicting sources, overloaded receiver/source exclusion, and frozen results after session closure and JSON serialization.
 This does not choose merged-comment precedence or implement broader classification and rendering.
 Individually collected methods now retain original-scope API-link and explicit-reference contexts, including numeric inheritance chains with inherited-link provenance.
-Effective-member context integration, recursive instantiated ancestry, and class/interface report support remain next steps.
+Analysis completion now maps conservative single-signature automatic member bindings to callable identities and resolves them with explicit references and API links.
+Both input compilers verify original namespace lookup after generic substitution, effective numeric method selectors, missing receiver release metadata, eager reference failures, and conservative suppression after JSON serialization.
+Single-declaration non-callable properties now retain original reference contexts, enter classification under member identities, and support API links and conservative automatic inheritance.
+Both input compilers verify property contexts after disposal, captured-parser reuse, empty and tag-only suppression, and diagnostics for missing release tags, missing links, and unsupported explicit property inheritance.
+Explicit property inheritance, callable-property and accessor comments, merged-member precedence, recursive instantiated ancestry, and class/interface report support remain next steps.
 Later work must add suite resolution and source information for each resolved documentation section.
 This implementation does not satisfy the resolution acceptance criteria below.
 
