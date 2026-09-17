@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { TSDocParser, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
+import { TSDocTagSyntaxKind } from "@microsoft/tsdoc";
+import type { DocumentationContext } from "./documentationContext.js";
 import type { ApiItemId } from "./facts.js";
 import {
 	DiagnosticCode,
@@ -8,7 +8,7 @@ import {
 	type AnalyzerDiagnostic,
 	type Result,
 } from "./result.js";
-import { createTsdocConfiguration, type TsdocOptions } from "./tsdocConfiguration.js";
+import type { TsdocOptions } from "./tsdocConfiguration.js";
 
 /**
  * An API release level ordered by increasing permissiveness.
@@ -113,38 +113,29 @@ export interface ClassificationRules {
 	 * @defaultValue `true`
 	 *
 	 * @example
-	 * An unconfigured tag fails classification by default. Disabling syntax validation retains the recognized public release level.
+	 * Disable classification syntax diagnostics when creating the context.
+	 * The recognized public release level remains available even when an unknown tag is present.
+	 * The context still retains syntax diagnostics for later documentation validation.
 	 *
 	 * Note: The closing slash is escaped here to avoid ending this source comment.
 	 *
 	 * ```typescript
 	 * const inputs = [{ id: "example", documentation: "/** @public @unconfigured *\/" }];
-	 * const strict = classifyApiItems(inputs); // Fails with classification-tsdoc.
-	 * const tolerant = classifyApiItems(inputs, { rules: { validateTsdocSyntax: false } });
-	 * // tolerant.ok is true; the item has `ReleaseLevel.Public`.
-	 * ```
-	 *
-	 * @example
-	 * Suppressing parser diagnostics does not suppress release-level checks.
-	 *
-	 * Note: The closing slash is escaped here to avoid ending this source comment.
-	 *
-	 * ```typescript
-	 * const rules = { validateTsdocSyntax: false };
-	 * const missing = classifyApiItems([{ id: "missing", documentation: undefined }], { rules });
-	 * // Fails with classification-release-missing; requireReleaseLevel still defaults to true.
-	 * const conflict = classifyApiItems(
-	 *     [{ id: "conflict", documentation: "/** @public @beta *\/" }],
-	 *     { rules },
-	 * );
-	 * // Fails with classification-release-conflict.
+	 * const context = createDocumentationContext(inputs, {
+	 *     rules: { validateTsdocSyntax: false },
+	 * });
+	 * if (context.ok) {
+	 *     const classified = classifyApiItems(context.value);
+	 *     // Classification succeeds; strict documentation validation would still fail.
+	 *     console.log(classified.ok, context.value.validation.ok); // true, false
+	 * }
 	 * ```
 	 */
 	readonly validateTsdocSyntax?: boolean;
 }
 
 /**
- * Parser configuration and diagnostic policy for one classification request.
+ * Parser configuration and diagnostic policy used when creating a documentation context.
  */
 export interface ClassificationOptions extends TsdocOptions {
 	/**
@@ -238,47 +229,30 @@ export interface SelectedApiItems {
 }
 
 /**
- * Classifies identified documentation inputs.
+ * Classifies original parsed documentation in an invocation-owned context.
  *
  * @remarks
- * Uses TSDoc parsing without compiler queries or filesystem access. Results are deeply frozen;
- * inputs are not mutated or frozen. Item-specific diagnostics include the input identifier.
+ * Reads parsed comments without compiler queries, filesystem access, or repeated parsing.
+ * Run before inheritance resolution changes the context's comment nodes.
+ * Results are deeply frozen; the context is not mutated or frozen.
+ * Item-specific diagnostics include the input identifier.
  * If any item fails validation, the function returns diagnostics instead of classifications for the supplied items.
  * Callers must pass callable overloads separately and omit implementation signatures.
- * Duplicate identifiers fail rather than merge distinct inputs.
+ * Context creation validates identities before this operation.
  *
- * @param items - Documentation inputs with caller-supplied identifiers.
- * @param options - Parser configuration and diagnostic rules.
+ * @param context - Original parsed comments with their shared vocabulary and classification rules.
  * @returns Classified metadata or diagnostics.
- * @throws If an internal assertion or unexpected parser or configuration error occurs.
+ * @throws If processing fails unexpectedly.
  */
 export function classifyApiItems(
-	items: readonly ApiItemDocumentation[],
-	options: ClassificationOptions = {},
+	context: DocumentationContext<ApiItemDocumentation>,
 ): Result<ApiClassification> {
-	const configured = createTsdocConfiguration(
-		options,
-		DiagnosticCode.ClassificationConfiguration,
-	);
-	if (!configured.ok) {
-		return configured;
-	}
-	const configuration = configured.value;
-	const parser = new TSDocParser(configuration);
-	const identifiers = new Set<ApiItemId>();
+	const { configuration, rules } = context;
 	const diagnostics: AnalyzerDiagnostic[] = [];
 	const classified: ApiItemMetadata[] = [];
-	for (const item of items) {
-		assert.ok(
-			!identifiers.has(item.id),
-			"Classification inputs must have distinct identities.",
-		);
-		identifiers.add(item.id);
-
-		// Parse every present comment, including empty comments, even when syntax diagnostics are disabled.
-		const parsed =
-			item.documentation === undefined ? undefined : parser.parseString(item.documentation);
-		if (options.rules?.validateTsdocSyntax !== false) {
+	for (const item of context.items.values()) {
+		const { parsed } = item;
+		if (rules.validateTsdocSyntax !== false) {
 			for (const message of parsed?.log.messages ?? []) {
 				diagnostics.push({
 					code: DiagnosticCode.ClassificationTsdoc,
@@ -308,7 +282,7 @@ export function classifyApiItems(
 				code: DiagnosticCode.ClassificationReleaseConflict,
 				message: `${item.id}: Conflicting release levels ${levels.map((level) => releaseLevelTags[level]).join(", ")}. Specify one release level for this item.`,
 			});
-		} else if (levels.length === 0 && options.rules?.requireReleaseLevel !== false) {
+		} else if (levels.length === 0 && rules.requireReleaseLevel !== false) {
 			diagnostics.push({
 				code: DiagnosticCode.ClassificationReleaseMissing,
 				message: `${item.id}: Missing release level. Add a release tag or disable requireReleaseLevel.`,

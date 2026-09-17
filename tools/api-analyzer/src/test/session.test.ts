@@ -3,17 +3,20 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mock } from "node:test";
+import { TSDocParser } from "@microsoft/tsdoc";
+import { API } from "typescript/unstable/sync";
 import { afterEach, beforeEach, describe, it } from "mocha";
 import { resolveConfiguration, type EffectiveConfiguration } from "../configuration.js";
-import { createAnalysisSession } from "../session.js";
-import { createNativeAdapter } from "../nativeAdapter.js";
-import { DiagnosticCode } from "../result.js";
-import type { DeclarationFact, SignatureFact } from "../facts.js";
+import { analyzeDeclarations, createNativeAdapter } from "../nativeAdapter.js";
+import { DiagnosticCode, failure } from "../result.js";
+import type { AnalysisFacts, DeclarationFact, SignatureFact } from "../facts.js";
+import { analyzeAPIs, ReleaseLevel } from "../index.js";
+import * as publicAPI from "../index.js";
 
-describe("Analysis session", () => {
+describe("One-shot API analysis and adapter facts", () => {
 	let directory: string;
 	let configuration: EffectiveConfiguration;
-	let session: ReturnType<typeof createAnalysisSession>;
 	let adapter: ReturnType<typeof createNativeAdapter>;
 	beforeEach(() => {
 		directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-session-"));
@@ -57,13 +60,183 @@ describe("Analysis session", () => {
 		);
 		assert.ok(result.ok);
 		configuration = result.value;
-		session = createAnalysisSession();
 		adapter = createNativeAdapter();
 	});
 	afterEach(() => {
-		session.close();
 		adapter.close();
 		rmSync(directory, { recursive: true, force: true });
+	});
+
+	it("returns completed analysis without a public compiler lifecycle", async () => {
+		assert.deepEqual(
+			Object.entries(publicAPI)
+				.filter(([, value]) => typeof value === "function")
+				.map(([name]) => name),
+			["analyzeAPIs"],
+		);
+		const entrypoint = path.join(directory, "src/public.ts");
+		writeFileSync(
+			entrypoint,
+			"/** Converts a value. @public */\nexport function convert(value: string): string { return value; }\n",
+		);
+		const result = await analyzeAPIs({
+			...configuration,
+			entrypoints: [{ name: ".", path: entrypoint }],
+		});
+		assert.equal(result.ok, true);
+		assert.equal(Object.isFrozen(result.value), true);
+		for (const method of ["analyze", "invalidate", "close"]) {
+			assert.equal(method in result.value, false);
+		}
+	});
+
+	it("parses each callable comment once across extraction and semantic analysis", async () => {
+		const entrypoint = path.join(directory, "src/once.d.ts");
+		writeFileSync(
+			entrypoint,
+			"/** Base content. @public */\nexport declare function base(): void;\n/** {@inheritDoc base} @public */\nexport declare function derived(): void;\n",
+		);
+		const parse = mock.method(TSDocParser.prototype, "parseString");
+		try {
+			const result = await analyzeAPIs({
+				...configuration,
+				entrypoints: [{ name: ".", path: entrypoint }],
+			});
+			assert.equal(result.ok, true, JSON.stringify(result));
+			assert.equal(parse.mock.callCount(), 2);
+			for (const name of ["public", "another"]) {
+				assert.equal(
+					result.value.generateReport(".", { name, releaseLevels: [ReleaseLevel.Public] }).ok,
+					true,
+				);
+			}
+			assert.equal(parse.mock.callCount(), 2);
+		} finally {
+			parse.mock.restore();
+		}
+	});
+
+	it("applies inherited classification settings during eager analysis", async () => {
+		writeFileSync(
+			path.join(directory, "src/public.d.ts"),
+			"/** A value. @partner */\nexport declare function value(): string;\n",
+		);
+		const settings = {
+			packageName: "example",
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "src/public.d.ts" }],
+			customModifierTags: ["@partner"],
+		};
+		const missing = await analyzeAPIs(settings, directory);
+		assert.equal(missing.ok, false);
+		assert.equal(missing.diagnostics[0]?.code, DiagnosticCode.ClassificationReleaseMissing);
+		const result = await analyzeAPIs(
+			{ extends: [settings], rules: { requireReleaseLevel: false } },
+			directory,
+		);
+		assert.equal(result.ok, true);
+		assert.deepEqual(result.value.configuration.customModifierTags, ["@partner"]);
+		assert.equal(Object.isFrozen(result.value.configuration.rules), true);
+		const report = result.value.generateReport(
+			".",
+			{ name: "untagged", releaseLevels: [], includeUntagged: true },
+			{ additionalTags: ["@partner"] },
+		);
+		assert.equal(report.ok, true);
+		assert.equal(report.value.includes("@partner"), true);
+	});
+
+	it("rejects unexpected configuration errors through the promise", async () => {
+		const error = new Error("Configuration access failed.");
+		await assert.rejects(
+			analyzeAPIs({
+				get extends(): never {
+					throw error;
+				},
+			}),
+			(thrown: unknown) => thrown === error,
+		);
+	});
+
+	it("returns configuration diagnostics before compiler extraction", async () => {
+		const snapshot = mock.method(API.prototype, "updateSnapshot");
+		try {
+			const result = await analyzeAPIs({});
+			assert.equal(result.ok, false);
+			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.ConfigurationRequired);
+			assert.equal("value" in result, false);
+			assert.equal(snapshot.mock.callCount(), 0);
+		} finally {
+			snapshot.mock.restore();
+		}
+	});
+
+	it("disposes owned adapters for success, diagnostics, and exceptions", () => {
+		const facts: AnalysisFacts = {
+			packageName: "example",
+			compilerVersion: "test",
+			surfaces: [],
+			declarations: [],
+		};
+		for (const result of [
+			{ ok: true, value: facts } as const,
+			failure(DiagnosticCode.CompilerDiagnostics, "Invalid compiler input."),
+		]) {
+			let disposed = false;
+			assert.strictEqual(
+				analyzeDeclarations(configuration, {
+					analyze: () => result,
+					close: () => {
+						disposed = true;
+					},
+				}),
+				result,
+			);
+			assert.equal(disposed, true);
+		}
+		const error = new assert.AssertionError({ message: "Extraction invariant failed." });
+		let closed = false;
+		assert.throws(
+			() =>
+				analyzeDeclarations(configuration, {
+					analyze: () => {
+						throw error;
+					},
+					close: () => {
+						closed = true;
+					},
+				}),
+			(thrown: unknown) => thrown === error,
+		);
+		assert.equal(closed, true);
+		const cleanupError = new Error("Compiler cleanup failed.");
+		assert.throws(
+			() =>
+				analyzeDeclarations(configuration, {
+					analyze: () => {
+						throw error;
+					},
+					close: () => {
+						throw cleanupError;
+					},
+				}),
+			{
+				name: "AggregateError",
+				message: "Analysis and compiler cleanup failed.",
+				errors: [error, cleanupError],
+				cause: error,
+			},
+		);
+		assert.throws(
+			() =>
+				analyzeDeclarations(configuration, {
+					analyze: () => ({ ok: true, value: facts }),
+					close: () => {
+						throw cleanupError;
+					},
+				}),
+			(thrown: unknown) => thrown === cleanupError,
+		);
 	});
 
 	// Design feature: F3. Only an absent TSDoc comment permits automatic inheritance.
@@ -94,20 +267,41 @@ describe("Analysis session", () => {
 	});
 
 	// Design requirements: W6, W11.
-	it("keeps cached facts private across task order and policy changes", () => {
-		const first = session.analyze(configuration);
-		assert.ok(first.ok, JSON.stringify(first));
-		assert.deepEqual(first, { ok: true, value: undefined });
-		const second = session.analyze({
+	it("reuses completed analysis for reports after inputs are removed", async () => {
+		const entrypoint = path.join(directory, "src/public.d.ts");
+		writeFileSync(
+			entrypoint,
+			"/** Converts a value. @public */\nexport declare function convert(value: string): string;\n",
+		);
+		const result = await analyzeAPIs({
 			...configuration,
-			rules: { documentation: false },
-			entrypoints: [...configuration.entrypoints].reverse(),
+			entrypoints: [{ name: ".", path: entrypoint }],
 		});
-		assert.ok(second.ok);
-		assert.deepEqual(second, { ok: true, value: undefined });
-		assert.deepEqual(session.getStatistics(), { analyses: 1, cacheHits: 1, generation: 0 });
-		session.close();
-		assert.equal(session.analyze(configuration).ok, false);
+		assert.equal(result.ok, true);
+		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+		const first = result.value.generateReport(".", selection);
+		assert.equal(first.ok, true);
+		assert.equal(first.value.includes("convert(value: string): string;"), true);
+		const statistics = result.value.getStatistics();
+		assert.deepEqual(statistics, { entrypoints: 1, declarations: 1, signatures: 1 });
+		rmSync(entrypoint);
+		const parse = mock.method(TSDocParser.prototype, "parseString");
+		const snapshot = mock.method(API.prototype, "updateSnapshot");
+		try {
+			assert.equal(
+				result.value.generateReport(".", { name: "empty", releaseLevels: [] }).ok,
+				true,
+			);
+			assert.deepEqual(result.value.generateReport(".", selection), first);
+			assert.equal(parse.mock.callCount(), 0);
+			assert.equal(snapshot.mock.callCount(), 0);
+		} finally {
+			parse.mock.restore();
+			snapshot.mock.restore();
+		}
+		assert.deepEqual(result.value.getStatistics(), statistics);
+		assert.equal(result.value.generateReport("missing", selection).ok, false);
+		assert.equal(result.value.generateReport(".", { ...selection, name: " " }).ok, false);
 	});
 
 	// Design regressions: B1, B2.
@@ -180,52 +374,38 @@ describe("Analysis session", () => {
 	});
 
 	// Design requirement: W6.
-	it("invalidates dependency changes and agrees with a fresh session", () => {
-		const first = session.analyze(configuration);
-		assert.ok(first.ok, JSON.stringify(first));
-		cpSync(
-			new URL("../../src/test/fixtures/session/updated/", import.meta.url),
-			path.join(directory, "src"),
-			{ recursive: true },
+	it("observes changed inputs on each invocation without invalidation", async () => {
+		const entrypoint = path.join(directory, "src/public.d.ts");
+		const settings = { ...configuration, entrypoints: [{ name: ".", path: entrypoint }] };
+		writeFileSync(
+			entrypoint,
+			"/** @public */\nexport declare function convert(value: string): string;\n",
 		);
-		session.invalidate();
-		const changed = session.analyze(configuration);
-		assert.ok(changed.ok, JSON.stringify(changed));
-		assert.deepEqual(changed, { ok: true, value: undefined });
-		// TODO (Stage 2 session outputs): Compare generated reports with a fresh session after this
-		// valid dependency edit; completion status alone cannot detect stale successful output.
-		const fresh = createAnalysisSession();
-		try {
-			assert.deepEqual(changed, fresh.analyze(configuration));
-		} finally {
-			fresh.close();
-		}
-		assert.equal(session.getStatistics().analyses, 2);
-		assert.equal(session.getStatistics().generation, 1);
-		const invalidSource = path.join(directory, "src/invalid.ts");
-		writeFileSync(invalidSource, "export const invalid: string = 0;\n");
-		assert.deepEqual(session.analyze(configuration), { ok: true, value: undefined });
-		session.invalidate();
-		const invalid = session.analyze(configuration);
+		const first = await analyzeAPIs(settings);
+		assert.equal(first.ok, true);
+		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+		const original = first.value.generateReport(".", selection);
+		writeFileSync(
+			entrypoint,
+			"/** @public */\nexport declare function convert(value: number): number;\n",
+		);
+		const changed = await analyzeAPIs(settings);
+		assert.equal(changed.ok, true);
+		assert.notDeepEqual(changed.value.generateReport(".", selection), original);
+		assert.deepEqual(first.value.generateReport(".", selection), original);
+		writeFileSync(
+			entrypoint,
+			"/** {@inheritDoc missing} @public */\nexport declare function convert(value: number): number;\n",
+		);
+		const invalid = await analyzeAPIs(settings);
 		assert.equal(invalid.ok, false);
+		assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
 		assert.equal("value" in invalid, false);
-		assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.CompilerDiagnostics);
-		const freshInvalid = createAnalysisSession();
-		try {
-			assert.deepEqual(invalid, freshInvalid.analyze(configuration));
-		} finally {
-			freshInvalid.close();
-		}
-		assert.deepEqual(session.analyze(configuration), invalid);
-		rmSync(invalidSource);
-		session.invalidate();
-		assert.deepEqual(session.analyze(configuration), { ok: true, value: undefined });
-		assert.deepEqual(session.getStatistics(), { analyses: 5, cacheHits: 1, generation: 3 });
 	});
 
 	// Design requirements: W4, W6.
-	it("reports invalid projects without caching partial success", () => {
-		const result = session.analyze({
+	it("reports invalid projects before returning a completed analysis", async () => {
+		const result = await analyzeAPIs({
 			...configuration,
 			project: path.join(directory, "missing.json"),
 		});
@@ -233,7 +413,7 @@ describe("Analysis session", () => {
 		if (!result.ok) {
 			assert.equal(result.diagnostics[0]?.message.includes("missing.json"), true);
 		}
-		assert.ok(session.analyze(configuration).ok);
+		assert.equal("value" in result, false);
 	});
 
 	// Design requirement: W4.

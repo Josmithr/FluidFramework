@@ -85,7 +85,14 @@ async function runWorker(mode: string): Promise<string> {
 }
 
 describe("Native TS7 lifecycle (Linux process checks)", () => {
-	for (const mode of ["sync", "sync-crash", "async", "crash", "session", "session-crash"]) {
+	for (const mode of [
+		"sync",
+		"sync-crash",
+		"async",
+		"crash",
+		"analysis",
+		"analysis-failure",
+	]) {
 		// Design requirement: W6.
 		it(`${mode} worker terminates without a retained child`, async function () {
 			if (process.platform !== "linux") this.skip();

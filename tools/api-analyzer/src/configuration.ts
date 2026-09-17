@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { ObjectSchema, ValidationStrategy } from "@eslint/object-schema";
+import type { ClassificationRules } from "./classification.js";
+import type { TsdocOptions } from "./tsdocConfiguration.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
 
 /**
@@ -31,7 +33,7 @@ export interface Entrypoint {
  * @remarks
  * Later bases and local values override earlier values.
  */
-export interface Configuration {
+export interface Configuration extends TsdocOptions {
 	/**
 	 * Base configurations applied in array order before this configuration.
 	 *
@@ -81,19 +83,19 @@ export interface Configuration {
 	 */
 	readonly entrypoints?: readonly Entrypoint[];
 	/**
-	 * Enabled or disabled rule settings, keyed by rule name.
+	 * Enabled or disabled classification rules.
 	 *
 	 * @remarks
 	 * Settings merge with inherited rules; a local value, including `false`, overrides the same key.
-	 * The analyzer currently exposes these settings but does not execute the rules.
+	 * Documentation reference resolution still requires valid TSDoc, even when classification tolerates syntax errors.
 	 *
 	 * @defaultValue The inherited rule settings, or an empty map if none are supplied.
 	 */
-	readonly rules?: Readonly<Record<string, boolean>>;
+	readonly rules?: ClassificationRules;
 }
 
 /**
- * Complete settings consumed by the analysis session.
+ * Complete settings used by one analysis invocation.
  *
  * @remarks
  * Paths are absolute.
@@ -125,9 +127,13 @@ export interface EffectiveConfiguration {
 	 * The merged rule settings after inheritance and overrides, or an empty map if none were supplied.
 	 *
 	 * @remarks
-	 * The analyzer currently preserves these settings for inspection without executing validation policies.
+	 * Omitted classification rules use their documented defaults.
 	 */
-	readonly rules: Readonly<Record<string, boolean>>;
+	readonly rules: ClassificationRules;
+	/**
+	 * Custom modifier names shared by classification and documentation processing.
+	 */
+	readonly customModifierTags: readonly string[];
 }
 
 /**
@@ -156,6 +162,15 @@ const configurationSchema = new ObjectSchema({
 			}
 		},
 	},
+	customModifierTags: {
+		merge: "replace",
+		validate(value: unknown) {
+			ValidationStrategy.array(value);
+			for (const tag of value as unknown[]) {
+				ValidationStrategy.string(tag);
+			}
+		},
+	},
 	rules: {
 		merge: "assign",
 		validate(value: unknown) {
@@ -163,7 +178,10 @@ const configurationSchema = new ObjectSchema({
 			if (Array.isArray(value)) {
 				throw new TypeError("Expected a rule map, not an array.");
 			}
-			for (const setting of Object.values(value as Record<string, unknown>)) {
+			for (const [name, setting] of Object.entries(value as Record<string, unknown>)) {
+				if (name !== "requireReleaseLevel" && name !== "validateTsdocSyntax") {
+					throw new TypeError(`Unsupported classification rule: ${name}.`);
+				}
 				ValidationStrategy.boolean(setting);
 			}
 		},
@@ -214,8 +232,8 @@ function collectConfigurationLayers(
  * Merges ordered configuration layers with the property schema.
  *
  * @remarks
- * Removes keys not defined in {@link configurationSchema}, including `extends`,
- * and treats `null` and `undefined` values as omitted.
+ * Removes `extends` and treats `null` and `undefined` values as omitted.
+ * Rejects unknown settings rather than silently ignoring unsupported analysis requests.
  * Does not resolve paths, apply final defaults, or change input objects.
  *
  * @param layers - A nonempty list in inheritance order, with later layers taking precedence.
@@ -227,6 +245,16 @@ function mergeConfigurationLayers(
 	layers: readonly Configuration[],
 ): Result<Omit<Configuration, "extends">> {
 	assert.ok(layers.length > 0, "Configuration inheritance must produce at least one layer.");
+	for (const layer of layers) {
+		for (const key of Object.keys(layer)) {
+			if (key !== "extends" && !configurationSchema.hasKey(key)) {
+				return failure(
+					DiagnosticCode.ConfigurationInvalid,
+					`Unsupported configuration setting: ${key}.`,
+				);
+			}
+		}
+	}
 	const normalized = layers.map((layer) =>
 		Object.fromEntries(
 			Object.entries(layer).filter(
@@ -308,6 +336,7 @@ function validateAndNormalizeConfiguration(
 				path: path.resolve(workingDirectory, entrypoint.path),
 			})),
 			rules: { ...merged.rules },
+			customModifierTags: [...(merged.customModifierTags ?? [])],
 		},
 	});
 }

@@ -1,8 +1,13 @@
+import { analysisContext, success } from "./contextUtils.js";
 import assert from "node:assert/strict";
+import { TSDocParser } from "@microsoft/tsdoc";
 import { describe, it } from "mocha";
-import { classifyApiItems, selectApiItems } from "../classification.js";
-import { renderReviewReport, ReleaseLevel, DiagnosticCode } from "../index.js";
-import { createReviewReport } from "../reviewReport.js";
+import { ReleaseLevel, DiagnosticCode } from "../index.js";
+import {
+	createReviewReport,
+	prepareReviewReport,
+	renderReviewReport,
+} from "../reviewReport.js";
 import type { AnalysisFacts } from "../facts.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 
@@ -119,6 +124,99 @@ function inheritanceReportFacts(documentation: string | undefined): AnalysisFact
 }
 
 describe("Review report generation", () => {
+	it("escapes report delimiters and gives unnamed aliased functions distinct local names", () => {
+		const signature = {
+			text: '(): "```";',
+			documented: true,
+			releaseLevel: ReleaseLevel.Public,
+			modifierTags: ["@public"],
+		};
+		const first = {
+			declarationId: "first",
+			declarationName: "default",
+			signatures: [signature],
+		};
+		const output = renderReviewReport({
+			packageName: "example",
+			surface: "`edge`",
+			exports: [
+				{ ...first, name: "apiFunction", typeOnly: false },
+				{
+					declarationId: "second",
+					declarationName: "",
+					signatures: [signature],
+					name: "apiFunction_1",
+					typeOnly: false,
+				},
+				{ ...first, name: "hyphen-name", typeOnly: true },
+			],
+		});
+		assert.equal(output.includes('declare function apiFunction_2(): "```";'), true);
+		assert.equal(output.includes('declare function apiFunction_3(): "```";'), true);
+		assert.equal(output.includes('export type { apiFunction_2 as "hyphen-name" };'), true);
+		assert.equal(output.includes("export { apiFunction_2 as apiFunction };"), true);
+		assert.equal(output.includes("export { apiFunction_3 as apiFunction_1 };"), true);
+		assert.equal(output.includes('Surface: `` "`edge`" ``'), true);
+		assert.equal(output.includes("````ts\n"), true);
+		assert.equal(output.endsWith("\n````\n"), true);
+	});
+
+	it("detaches report records from mutable preparation state", () => {
+		const input = inheritanceReportFacts("/** Base content. @internal */");
+		const context = analysisContext(input);
+		const prepared = success(prepareReviewReport(context));
+		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+		const before = createReviewReport(prepared, ".", selection);
+		assert.equal(before.ok, true);
+		const receiver = context.items.get("derived-signature");
+		assert.ok(receiver);
+		// These fixtures are mutable; production facts are frozen before context creation.
+		Object.assign(receiver.signature, { callSignatureText: "(): never;" });
+		receiver.parsed.docComment.summarySection = new TSDocParser().parseString(
+			"/** */",
+		).docComment.summarySection;
+		assert.deepEqual(createReviewReport(prepared, ".", selection), before);
+		const record = prepared.surfaces.get(".")?.exports[0];
+		assert.ok(record);
+		assert.equal(Object.isFrozen(record), true);
+		assert.equal(Object.isFrozen(record.signatures[0]?.modifierTags), true);
+	});
+
+	it("validates fixed export identities during preparation", () => {
+		const options = { customModifierTags: ["@partner"] };
+		for (const [exports, message] of [
+			[
+				[{ name: "missing", target: "missing", typeOnly: false }],
+				"Every export target must have a declaration fact.",
+			],
+			[
+				[
+					{ name: "alias", target: "convert-id", typeOnly: false },
+					{ name: "alias", target: "convert-id", typeOnly: false },
+				],
+				"Entrypoint exports must have distinct names.",
+			],
+		] as const) {
+			assert.throws(
+				() =>
+					prepareReviewReport(
+						analysisContext({ ...facts, surfaces: [{ name: ".", exports }] }, options),
+					),
+				{ name: "AssertionError", message },
+			);
+		}
+		assert.throws(
+			() =>
+				prepareReviewReport(
+					analysisContext(
+						{ ...facts, surfaces: [...facts.surfaces, ...facts.surfaces] },
+						options,
+					),
+				),
+			{ name: "AssertionError", message: "Entrypoint facts must have distinct names." },
+		);
+	});
+
 	it("reports effective inherited content without inheriting target metadata", () => {
 		for (const [documentation, documented] of [
 			["/** Converts a value. @deprecated Target only. @internal */", true],
@@ -127,25 +225,15 @@ describe("Review report generation", () => {
 			[undefined, false],
 		] as const) {
 			const input = inheritanceReportFacts(documentation);
-			const classification = classifyApiItems(
-				input.declarations.flatMap((entry) => entry.signatures),
-				{ rules: { requireReleaseLevel: false } },
+			const before = JSON.stringify(input);
+			const report = createReviewReport(
+				success(prepareReviewReport(analysisContext(input, {}))),
+				".",
+				{
+					name: "public",
+					releaseLevels: [ReleaseLevel.Public],
+				},
 			);
-			assert.equal(classification.ok, true);
-			const selection = selectApiItems(classification.value, {
-				name: "public",
-				releaseLevels: [ReleaseLevel.Public],
-			});
-			assert.equal(selection.ok, true);
-			// The ancestor is not exported or selected, but still supplies the effective comment.
-			assert.deepEqual(
-				selection.value.items.map((entry) => entry.id),
-				["derived-signature"],
-			);
-			const before = JSON.stringify({ input, classification, selection });
-			const report = createReviewReport(input, ".", selection.value, {
-				classification: classification.value,
-			});
 			assert.equal(report.ok, true);
 			assert.equal(report.value.exports[0]?.signatures[0]?.documented, documented);
 			assert.deepEqual(report.value.exports[0]?.signatures[0]?.modifierTags, ["@public"]);
@@ -153,7 +241,7 @@ describe("Review report generation", () => {
 				renderReviewReport(report.value, { additionalTags: ["@deprecated"] }),
 				documented ? "functions.inherited.md" : "functions.inherited-empty.md",
 			);
-			assert.equal(JSON.stringify({ input, classification, selection }), before);
+			assert.equal(JSON.stringify(input), before);
 		}
 	});
 
@@ -182,20 +270,14 @@ describe("Review report generation", () => {
 			],
 		};
 		const options = { customModifierTags: ["@ancestorOnly"] };
-		const classified = classifyApiItems(
-			linked.declarations.flatMap((entry) => entry.signatures),
-			options,
+		const report = createReviewReport(
+			success(prepareReviewReport(analysisContext(linked, { ...options }))),
+			".",
+			{
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			},
 		);
-		assert.equal(classified.ok, true);
-		const selected = selectApiItems(classified.value, {
-			name: "public",
-			releaseLevels: [ReleaseLevel.Public],
-		});
-		assert.equal(selected.ok, true);
-		const report = createReviewReport(linked, ".", selected.value, {
-			...options,
-			classification: classified.value,
-		});
 		assert.equal(report.ok, true);
 		assert.equal(report.value.exports[0]?.signatures[0]?.documented, true);
 		assert.deepEqual(report.value.exports[0]?.signatures[0]?.modifierTags, ["@public"]);
@@ -203,30 +285,8 @@ describe("Review report generation", () => {
 			renderReviewReport(report.value, { additionalTags: ["@ancestorOnly"] }),
 			"functions.inherited.md",
 		);
-		// Selection excludes the beta target, but both original author and receiver metadata are still required.
-		for (const [id, message] of [
-			["base-signature", "API link sources must have original classification metadata."],
-			[
-				"derived-signature",
-				"Effective API link receivers must have original classification metadata.",
-			],
-		] as const) {
-			assert.throws(
-				() =>
-					createReviewReport(linked, ".", selected.value, {
-						...options,
-						classification: {
-							...classified.value,
-							items: classified.value.items.filter((entry) => entry.id !== id),
-						},
-					}),
-				{ name: "AssertionError", message },
-			);
-		}
 		// A modifier used only by an unselected ancestor still belongs to the parser vocabulary.
-		const unconfigured = createReviewReport(linked, ".", selected.value, {
-			classification: classified.value,
-		});
+		const unconfigured = prepareReviewReport(analysisContext(linked));
 		assert.equal(unconfigured.ok, false);
 		assert.equal(unconfigured.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
 	});
@@ -370,25 +430,9 @@ describe("Review report generation", () => {
 			},
 		];
 		for (const { name, input, code } of cases) {
-			// Classification may tolerate parser diagnostics; report validation must remain strict.
-			const classified = classifyApiItems(
-				input.declarations.flatMap((entry) => entry.signatures),
-				{ rules: { validateTsdocSyntax: false } },
-			);
-			assert.equal(classified.ok, true);
-			const selected = selectApiItems(classified.value, {
-				name: "public",
-				releaseLevels: [ReleaseLevel.Public],
-			});
-			assert.equal(selected.ok, true);
 			const before = JSON.stringify(input);
-			for (const items of [selected.value.items, []]) {
-				const result = createReviewReport(
-					input,
-					".",
-					{ ...selected.value, items },
-					{ classification: classified.value },
-				);
+			{
+				const result = prepareReviewReport(analysisContext(input));
 				assert.equal(result.ok, false, name);
 				assert.equal(result.diagnostics[0]?.code, code, name);
 				assert.equal("value" in result, false);
@@ -401,21 +445,13 @@ describe("Review report generation", () => {
 	// Design requirements: W1, W2, W4. Initial function-only report coverage.
 	it("renders public and complete reports against checked-in snapshots", () => {
 		const before = JSON.stringify(facts);
-		const classification = classifyApiItems(
-			facts.declarations.flatMap((item) => item.signatures),
-			{
-				customModifierTags: ["@partner"],
-			},
-		);
-		assert.ok(classification.ok);
-		const options = { classification: classification.value, customModifierTags: ["@partner"] };
+		const options = { customModifierTags: ["@partner"] };
+		const prepared = success(prepareReviewReport(analysisContext(facts, options)));
 		for (const [name, releaseLevels] of [
 			["public", [ReleaseLevel.Public]],
 			["complete", [ReleaseLevel.Public, ReleaseLevel.Internal]],
 		] as const) {
-			const selection = selectApiItems(classification.value, { name, releaseLevels });
-			assert.ok(selection.ok);
-			const result = createReviewReport(facts, ".", selection.value, options);
+			const result = createReviewReport(prepared, ".", { name, releaseLevels });
 			assert.ok(result.ok);
 			assertSnapshot(renderReviewReport(result.value), `functions.${name}.md`);
 			assert.ok(Object.isFrozen(result.value.exports));
@@ -444,19 +480,32 @@ describe("Review report generation", () => {
 					exports: [...surface.exports].reverse(),
 				})),
 			};
-			assert.deepEqual(createReviewReport(reversed, ".", selection.value, options), result);
+			assert.deepEqual(
+				createReviewReport(
+					success(prepareReviewReport(analysisContext(reversed, options))),
+					".",
+					{ name, releaseLevels },
+				),
+				result,
+			);
 			if (name === "complete") {
 				const reordered = createReviewReport(
-					{
-						...facts,
-						declarations: facts.declarations.map((item) => ({
-							...item,
-							signatures: [...item.signatures].reverse(),
-						})),
-					},
+					success(
+						prepareReviewReport(
+							analysisContext(
+								{
+									...facts,
+									declarations: facts.declarations.map((item) => ({
+										...item,
+										signatures: [...item.signatures].reverse(),
+									})),
+								},
+								options,
+							),
+						),
+					),
 					".",
-					selection.value,
-					options,
+					{ name, releaseLevels },
 				);
 				assert.ok(reordered.ok);
 				assert.notEqual(renderReviewReport(reordered.value), renderReviewReport(result.value));
@@ -466,20 +515,26 @@ describe("Review report generation", () => {
 				);
 			}
 			const changedSignature = createReviewReport(
-				{
-					...facts,
-					declarations: facts.declarations.map((item) => ({
-						...item,
-						signatures: item.signatures.map((signature) => ({
-							...signature,
-							functionTypeText: "(value: boolean) => boolean",
-							callSignatureText: "(value: boolean): boolean;",
-						})),
-					})),
-				},
+				success(
+					prepareReviewReport(
+						analysisContext(
+							{
+								...facts,
+								declarations: facts.declarations.map((item) => ({
+									...item,
+									signatures: item.signatures.map((signature) => ({
+										...signature,
+										functionTypeText: "(value: boolean) => boolean",
+										callSignatureText: "(value: boolean): boolean;",
+									})),
+								})),
+							},
+							options,
+						),
+					),
+				),
 				".",
-				selection.value,
-				options,
+				{ name, releaseLevels },
 			);
 			assert.ok(changedSignature.ok);
 			assert.notEqual(
@@ -487,17 +542,28 @@ describe("Review report generation", () => {
 				renderReviewReport(result.value),
 			);
 			const changedMetadata = createReviewReport(
-				facts,
+				success(
+					prepareReviewReport(
+						analysisContext(
+							{
+								...facts,
+								declarations: facts.declarations.map((declaration) => ({
+									...declaration,
+									signatures: declaration.signatures.map((signature) => ({
+										...signature,
+										documentation: signature.documentation?.replace(
+											/@public|@internal/g,
+											"@beta",
+										),
+									})),
+								})),
+							},
+							options,
+						),
+					),
+				),
 				".",
-				{
-					...selection.value,
-					items: selection.value.items.map((item) => ({
-						...item,
-						releaseLevel: ReleaseLevel.Beta,
-						modifierTags: ["@beta"],
-					})),
-				},
-				options,
+				{ name, releaseLevels: [ReleaseLevel.Beta] },
 			);
 			assert.ok(changedMetadata.ok);
 			assert.notEqual(
@@ -505,20 +571,26 @@ describe("Review report generation", () => {
 				renderReviewReport(result.value),
 			);
 			const changedExport = createReviewReport(
-				{
-					...facts,
-					surfaces: facts.surfaces.map((surface) => ({
-						...surface,
-						exports: surface.exports.map((binding) => ({
-							...binding,
-							name: `${binding.name}Changed`,
-							typeOnly: !binding.typeOnly,
-						})),
-					})),
-				},
+				success(
+					prepareReviewReport(
+						analysisContext(
+							{
+								...facts,
+								surfaces: facts.surfaces.map((surface) => ({
+									...surface,
+									exports: surface.exports.map((binding) => ({
+										...binding,
+										name: `${binding.name}Changed`,
+										typeOnly: !binding.typeOnly,
+									})),
+								})),
+							},
+							options,
+						),
+					),
+				),
 				".",
-				selection.value,
-				options,
+				{ name, releaseLevels },
 			);
 			assert.ok(changedExport.ok);
 			assert.notEqual(
@@ -551,21 +623,19 @@ describe("Review report generation", () => {
 						.map((signature) => ({ ...signature, documentation })),
 				})),
 			};
-			const classified = classifyApiItems(
-				input.declarations.flatMap((item) => item.signatures),
-				{ customModifierTags: ["@input", "@legacy"], rules: { requireReleaseLevel: false } },
+			const report = createReviewReport(
+				success(
+					prepareReviewReport(
+						analysisContext(input, { customModifierTags: ["@input", "@legacy"] }),
+					),
+				),
+				".",
+				{
+					name: "public",
+					releaseLevels: [ReleaseLevel.Public],
+					includeUntagged: true,
+				},
 			);
-			assert.ok(classified.ok, JSON.stringify(classified));
-			const selected = selectApiItems(classified.value, {
-				name: "public",
-				releaseLevels: [ReleaseLevel.Public],
-				includeUntagged: true,
-			});
-			assert.ok(selected.ok);
-			const report = createReviewReport(input, ".", selected.value, {
-				classification: classified.value,
-				customModifierTags: ["@input", "@legacy"],
-			});
 			assert.ok(report.ok);
 			assert.equal(
 				report.value.exports[0]?.signatures[0]?.documented,
@@ -586,16 +656,6 @@ describe("Review report generation", () => {
 	});
 
 	it("does not export the implementation name for alias-only surfaces", () => {
-		const classified = classifyApiItems(
-			facts.declarations.flatMap((item) => item.signatures),
-			{ customModifierTags: ["@partner"] },
-		);
-		assert.ok(classified.ok);
-		const selected = selectApiItems(classified.value, {
-			name: "public",
-			releaseLevels: [ReleaseLevel.Public],
-		});
-		assert.ok(selected.ok);
 		const input = {
 			...facts,
 			surfaces: facts.surfaces.map((surface) => ({
@@ -603,67 +663,65 @@ describe("Review report generation", () => {
 				exports: surface.exports.filter((binding) => binding.name === "alias"),
 			})),
 		};
-		const report = createReviewReport(input, ".", selected.value, {
-			classification: classified.value,
-			customModifierTags: ["@partner"],
-		});
+		const report = createReviewReport(
+			success(
+				prepareReviewReport(analysisContext(input, { customModifierTags: ["@partner"] })),
+			),
+			".",
+			{
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			},
+		);
 		assert.ok(report.ok);
 		assertSnapshot(renderReviewReport(report.value), "functions.alias-only.md");
 	});
 
 	it("distinguishes invalid requests, broken facts, and unsupported declarations", () => {
-		const selection = { name: "public", items: [] };
-		const classified = classifyApiItems(
-			facts.declarations.flatMap((entry) => entry.signatures),
-			{ customModifierTags: ["@partner"] },
-		);
-		assert.equal(classified.ok, true);
-		const options = { classification: classified.value, customModifierTags: ["@partner"] };
-		assert.equal(createReviewReport(facts, "missing", selection, options).ok, false);
-		assert.throws(() => createReviewReport(facts, ".", { ...selection, name: " " }, options), {
-			name: "AssertionError",
-			message: "Validated selections must have non-blank names.",
-		});
+		const selection = { name: "public", releaseLevels: [] };
+		const options = { customModifierTags: ["@partner"] };
+		const prepared = success(prepareReviewReport(analysisContext(facts, options)));
+		assert.equal(createReviewReport(prepared, "missing", selection).ok, false);
+		const invalid = createReviewReport(prepared, ".", { ...selection, name: " " });
+		assert.equal(invalid.ok, false);
+		assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.SelectionConfiguration);
 		assert.throws(
 			() =>
 				createReviewReport(
-					facts,
+					success(
+						prepareReviewReport(analysisContext({ ...facts, declarations: [] }, options)),
+					),
 					".",
-					{
-						...selection,
-						items: [{ id: "unknown", releaseLevel: undefined, modifierTags: [] }],
-					},
-					options,
+					selection,
 				),
-			{
-				name: "AssertionError",
-				message: "Selected identities must belong to the report's analysis facts.",
-			},
-		);
-		assert.throws(
-			() => createReviewReport({ ...facts, declarations: [] }, ".", selection, options),
 			{ name: "AssertionError", message: "Every export target must have a declaration fact." },
 		);
 		assert.throws(
 			() =>
 				createReviewReport(
-					{
-						...facts,
-						declarations: facts.declarations.map((item) => ({
-							...item,
-							declarations: item.declarations.map((source) => ({
-								...source,
-								kind: "InterfaceDeclaration",
-							})),
-						})),
-					},
+					success(
+						prepareReviewReport(
+							analysisContext(
+								{
+									...facts,
+									declarations: facts.declarations.map((item) => ({
+										...item,
+										declarations: item.declarations.map((source) => ({
+											...source,
+											kind: "InterfaceDeclaration",
+										})),
+									})),
+								},
+								options,
+							),
+						),
+					),
 					".",
 					selection,
-					options,
 				),
 			/not supported/,
 		);
-		const empty = createReviewReport(facts, ".", selection, options);
+		const empty = createReviewReport(prepared, ".", selection);
 		assert.ok(empty.ok);
 		assertSnapshot(renderReviewReport(empty.value), "functions.empty.md");
 	});

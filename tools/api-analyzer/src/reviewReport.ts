@@ -4,14 +4,13 @@ import {
 	DocCodeSpan,
 	DocFencedCode,
 	DocLinkTag,
-	DocBlock,
-	TSDocParser,
 	type DocNode,
 } from "@microsoft/tsdoc";
 import {
 	ReleaseLevel,
+	selectApiItems,
 	type ApiClassification,
-	type SelectedApiItems,
+	type ApiItemSelection,
 } from "./classification.js";
 import {
 	bindDocumentationLinks,
@@ -19,9 +18,9 @@ import {
 	resolveDocumentation,
 	type ResolvedDocumentation,
 } from "./documentation.js";
-import type { AnalysisFacts, ApiItemId, DeclarationFact } from "./facts.js";
+import type { ApiItemId } from "./facts.js";
+import type { AnalysisContext } from "./documentationContext.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
-import { createTsdocConfiguration, type TsdocOptions } from "./tsdocConfiguration.js";
 
 /**
  * A selected callable signature and its review metadata.
@@ -32,7 +31,7 @@ export interface ReviewSignature {
 	 */
 	readonly text: string;
 	/**
-	 * Whether effective documentation contains descriptive text, code, or a validated link.
+	 * Whether effective documentation contains descriptive content.
 	 *
 	 * @remarks
 	 * Absent, empty, and metadata-only comments are undocumented, including empty inherited content.
@@ -103,161 +102,180 @@ export interface ReviewReport {
 }
 
 /**
- * Original metadata and parser configuration required for function report resolution.
+ * A fixed export record with signature identifiers used only for selection.
  */
-export interface ReviewReportOptions extends TsdocOptions {
+interface PreparedExport extends Omit<ReviewExport, "signatures"> {
 	/**
-	 * Full original classification for the supplied signature facts, independent of report selection.
-	 *
-	 * @remarks
-	 * Include unselected inheritance ancestors and API link targets. Do not classify inherited comments.
-	 * Use the same custom modifier vocabulary for classification and reporting.
+	 * Complete signature records in compiler order.
 	 */
-	readonly classification: ApiClassification;
+	readonly signatures: readonly (ReviewSignature & { readonly id: ApiItemId })[];
 }
 
 /**
- * Constructs a review report after resolving documentation in detached signature facts.
+ * A prepared surface with an explanation when its declaration forms are unsupported.
+ */
+interface PreparedSurface {
+	/**
+	 * Frozen export records sorted by exported name.
+	 */
+	readonly exports: readonly PreparedExport[];
+	/**
+	 * The first unsupported export in input order, or undefined for a supported surface.
+	 */
+	readonly unsupported: string | undefined;
+}
+
+/**
+ * Report data that no longer depends on compiler facts or mutable parsed comments.
+ *
+ * @remarks
+ * Records and classification are frozen. The internal surface map is constructed once and then read only.
+ */
+export interface PreparedReviewData {
+	/**
+	 * Package identity shared by all reports.
+	 */
+	readonly packageName: string;
+	/**
+	 * Original metadata used to validate each new selection request.
+	 */
+	readonly classification: ApiClassification;
+	/**
+	 * Complete report records, with unsupported output forms recorded once per surface.
+	 */
+	readonly surfaces: ReadonlyMap<string, PreparedSurface>;
+}
+
+/**
+ * Prepares all callable documentation once, independently of entrypoint and report selection.
  *
  * @remarks
  * Binds inheritance and API links and resolves all supplied signature comments before selection.
- * Documentation failures, including failures in unselected signatures, prevent report construction.
- * Reuses original selection metadata and local block tags for annotations without reclassification.
- * Selection must come from the same analysis facts. Selected signatures from other entrypoints are allowed.
- * Preserves exported aliases, type-only export paths, and the order of selected overloads.
- * Does not render implementation bodies, source locations, or provisional identifiers.
- * Does not query the compiler, mutate inputs, or write files.
+ * Measures effective content but retains original block tags for report annotations.
+ * Does not select APIs, query the compiler, or write files.
+ * Consumes the context's parsed comments through one inheritance resolution pass.
+ * Copies report fields so later report generation does not retain mutable TSDoc nodes or source records.
  *
- * @param facts - Detached analysis facts containing all export targets.
- * @param entrypoint - Configured entrypoint name to report.
- * @param selection - Named metadata selection for signature facts in this analysis.
- * @param options - Full original classification and explicit parser configuration.
- * @returns A frozen report, or report-configuration and documentation diagnostics without a partial report.
- * @throws If facts violate internal identity invariants or the entrypoint contains unsupported declarations.
- * The initial implementation supports only standalone function declarations, not merged namespaces or other forms.
+ * @param context - The indexed analysis with original classification and unresolved parsed comments.
+ * @returns Prepared inputs or documentation diagnostics without partial data.
+ * @throws If facts violate internal identity or documentation invariants.
  */
-export function createReviewReport(
-	facts: AnalysisFacts,
-	entrypoint: string,
-	selection: SelectedApiItems,
-	options: ReviewReportOptions,
-): Result<ReviewReport> {
-	const surface = facts.surfaces.find((item) => item.name === entrypoint);
-	if (surface === undefined) {
-		return failure(
-			DiagnosticCode.ReportConfiguration,
-			`Package ${facts.packageName}: entrypoint ${entrypoint} is not configured. Request a configured entrypoint.`,
-		);
-	}
-	assert.ok(
-		selection.name.trim().length > 0,
-		"Validated selections must have non-blank names.",
-	);
-	const declarations = new Map<ApiItemId, DeclarationFact>();
-	const signatureIds = new Set<ApiItemId>();
-	for (const declaration of facts.declarations) {
-		assert.ok(
-			!declarations.has(declaration.id),
-			"Declaration facts must have distinct identifiers.",
-		);
-		declarations.set(declaration.id, declaration);
-		for (const signature of declaration.signatures) {
-			assert.ok(
-				!signatureIds.has(signature.id),
-				"Signature facts must have distinct identifiers for reporting.",
-			);
-			signatureIds.add(signature.id);
-		}
-	}
-	const metadata = new Map(selection.items.map((item) => [item.id, item]));
-	assert.equal(metadata.size, selection.items.length, "Selected identities must be distinct.");
-	assert.ok(
-		selection.items.every((item) => signatureIds.has(item.id)),
-		"Selected identities must belong to the report's analysis facts.",
-	);
-	const documentation = resolveReportDocumentation(facts, options);
+export function prepareReviewReport(context: AnalysisContext): Result<PreparedReviewData> {
+	const { facts, declarations } = context;
+	const documentation = resolveReportDocumentation(context);
 	if (!documentation.ok) {
 		return documentation;
 	}
-	const effective = new Map(documentation.value.map((item) => [item.id, item]));
-	const configured = createTsdocConfiguration(
-		options,
-		DiagnosticCode.DocumentationConfiguration,
-	);
-	if (!configured.ok) {
-		return configured;
+	// Capture effective content after inheritance, but keep the original tags for annotations.
+	const signatures = new Map<ApiItemId, ReviewSignature & { readonly id: ApiItemId }>();
+	for (const item of context.items.values()) {
+		const metadata = context.metadata.get(item.id);
+		assert.ok(metadata, "Prepared signatures must have original classification metadata.");
+		signatures.set(item.id, {
+			id: item.id,
+			text: item.signature.callSignatureText,
+			documented: hasDocumentationContent(item.parsed.docComment),
+			releaseLevel: metadata.releaseLevel,
+			modifierTags: [...new Set([...metadata.modifierTags, ...item.originalBlockTags])].sort(),
+		});
 	}
-	const parser = new TSDocParser(configured.value);
-	const exports: ReviewExport[] = [];
-	const names = new Set<string>();
-	for (const binding of surface.exports) {
-		assert.ok(!names.has(binding.name), "Entrypoint exports must have distinct names.");
-		names.add(binding.name);
-		const declaration = declarations.get(binding.target);
-		assert.ok(declaration, "Every export target must have a declaration fact.");
-		// TODO (Stage 2 report declarations): Add class, interface, and merged-declaration report models
-		// with original classification and effective member documentation before removing this restriction.
-		if (
-			declaration.declarations.length === 0 ||
-			declaration.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
-			declaration.exports.length > 0 ||
-			declaration.members.length > 0
-		) {
-			throw new Error(
-				`Package ${facts.packageName}, entrypoint ${entrypoint}, export ${binding.name}: this declaration form is not supported by the function-only report builder.`,
-			);
-		}
-		assert.ok(
-			declaration.signatures.length > 0,
-			"Function declarations must have callable signatures.",
-		);
-		const signatures: ReviewSignature[] = [];
-		for (const signature of declaration.signatures) {
-			const selected = metadata.get(signature.id);
-			if (selected !== undefined) {
-				const resolved = effective.get(signature.id);
-				assert.ok(resolved, "Selected signatures must have resolved documentation.");
-				// Presence uses inherited content, but annotations retain the local declaration's metadata.
-				const effectiveComment =
-					resolved.documentation === undefined
-						? undefined
-						: parser.parseString(resolved.documentation).docComment;
-				const comment =
-					signature.documentation === undefined
-						? undefined
-						: parser.parseString(signature.documentation).docComment;
-				const blockTags =
-					comment
-						?.getChildNodes()
-						.filter((node): node is DocBlock => node instanceof DocBlock)
-						.map((block) => block.blockTag.tagName) ?? [];
-				signatures.push({
-					text: signature.callSignatureText,
-					documented:
-						effectiveComment !== undefined && hasDocumentationContent(effectiveComment),
-					releaseLevel: selected.releaseLevel,
-					modifierTags: [...new Set([...selected.modifierTags, ...blockTags])].sort(),
-				});
+	// Resolve and validate fixed export data once; report calls only filter these records.
+	const surfaces = new Map<string, PreparedSurface>();
+	for (const surface of facts.surfaces) {
+		const names = new Set<string>();
+		assert.ok(!surfaces.has(surface.name), "Entrypoint facts must have distinct names.");
+		let unsupported: string | undefined;
+		const exports = surface.exports.map((binding) => {
+			assert.ok(!names.has(binding.name), "Entrypoint exports must have distinct names.");
+			names.add(binding.name);
+			const declaration = declarations.get(binding.target);
+			assert.ok(declaration, "Every export target must have a declaration fact.");
+			// TODO (Stage 2 report declarations): Prepare class, interface, and merged-declaration records.
+			if (
+				declaration.declarations.length === 0 ||
+				declaration.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
+				declaration.exports.length > 0 ||
+				declaration.members.length > 0
+			) {
+				unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: this declaration form is not supported by the function-only report builder.`;
+			} else {
+				assert.ok(
+					declaration.signatures.length > 0,
+					"Function declarations must have callable signatures.",
+				);
 			}
-		}
-		if (signatures.length > 0) {
-			exports.push({
+			return {
 				declarationId: declaration.id,
 				declarationName: declaration.name,
 				name: binding.name,
 				typeOnly: binding.typeOnly,
-				signatures,
-			});
+				signatures: declaration.signatures.map((signature) => {
+					const prepared = signatures.get(signature.id);
+					assert.ok(prepared, "Collected signatures must have prepared report data.");
+					return prepared;
+				}),
+			};
+		});
+		exports.sort((left, right) =>
+			left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+		);
+		surfaces.set(surface.name, freezeData({ exports, unsupported }));
+	}
+	return {
+		ok: true,
+		value: {
+			packageName: facts.packageName,
+			surfaces,
+			classification: context.classification,
+		},
+	};
+}
+
+/**
+ * Constructs a selected report without repeating parsing or shared semantic validation.
+ *
+ * @param prepared - Shared inputs produced once by report preparation.
+ * @param entrypoint - Configured entrypoint name to report.
+ * @param selection - Caller-supplied release levels and tag filters, validated for each report.
+ * @returns A frozen report or diagnostics for an invalid selection or unknown entrypoint.
+ * @throws If the entrypoint contains unsupported declaration forms.
+ */
+export function createReviewReport(
+	prepared: PreparedReviewData,
+	entrypoint: string,
+	selection: ApiItemSelection,
+): Result<ReviewReport> {
+	const { packageName, surfaces } = prepared;
+	const surface = surfaces.get(entrypoint);
+	if (surface === undefined) {
+		return failure(
+			DiagnosticCode.ReportConfiguration,
+			`Package ${packageName}: entrypoint ${entrypoint} is not configured. Request a configured entrypoint.`,
+		);
+	}
+	const selected = selectApiItems(prepared.classification, selection);
+	if (!selected.ok) {
+		return selected;
+	}
+	if (surface.unsupported !== undefined) {
+		throw new Error(surface.unsupported);
+	}
+	const selectedIds = new Set(selected.value.items.map((item) => item.id));
+	const exports: ReviewExport[] = [];
+	for (const entry of surface.exports) {
+		const signatures = entry.signatures
+			.filter((signature) => selectedIds.has(signature.id))
+			.map(({ id: _id, ...signature }) => signature);
+		if (signatures.length > 0) {
+			exports.push({ ...entry, signatures });
 		}
 	}
 	return freezeData({
 		ok: true,
 		value: {
-			packageName: facts.packageName,
+			packageName,
 			surface: selection.name,
-			exports: exports.sort((left, right) =>
-				left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
-			),
+			exports,
 		},
 	});
 }
@@ -265,41 +283,23 @@ export function createReviewReport(
 /**
  * Resolves all signature comments before a report applies its metadata selection.
  *
- * @param facts - Detached facts, including unselected documentation targets.
- * @param options - Original classification and the shared custom modifier vocabulary.
+ * @param context - Original parsed comments, fact indexes, and classification from one invocation.
  * @returns Effective comments and link provenance, or unchanged binding and resolution diagnostics.
- * @throws If a signature has no original declaration location.
+ * @throws If lookup data or bindings violate internal invariants.
  */
 function resolveReportDocumentation(
-	facts: AnalysisFacts,
-	options: ReviewReportOptions,
+	context: AnalysisContext,
 ): Result<readonly ResolvedDocumentation[]> {
-	const inheritance = bindDocumentationReferences(facts, options);
+	const inheritance = bindDocumentationReferences(context);
 	if (!inheritance.ok) {
 		return inheritance;
 	}
-	const links = bindDocumentationLinks(facts, options.classification, options);
+	const links = bindDocumentationLinks(context);
 	if (!links.ok) {
 		return links;
 	}
-	const inputs = facts.declarations.flatMap((declaration) =>
-		declaration.signatures.map((signature) => {
-			// Plain comments do not require lookup context. Their declaration still supplies the original package.
-			const origin = signature.documentationContext?.origin ?? declaration.declarations[0];
-			assert.ok(
-				origin,
-				"Report signature facts must retain an original declaration location.",
-			);
-			return {
-				id: signature.id,
-				documentation: signature.documentation,
-				packageName: origin.packageName,
-			};
-		}),
-	);
-	return resolveDocumentation(inputs, inheritance.value, {
-		...options,
-		linkValidation: { bindings: links.value, classification: options.classification },
+	return resolveDocumentation(context, inheritance.value, {
+		linkValidation: { bindings: links.value, metadata: context.metadata },
 	});
 }
 

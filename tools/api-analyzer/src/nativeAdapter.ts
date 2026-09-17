@@ -68,6 +68,8 @@ import type {
 } from "./facts.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
 import { assertDefined } from "./utilities.js";
+import type { ExtractedComments } from "./documentationContext.js";
+import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 
 /**
  * An internal owner of a synchronous native compiler connection.
@@ -75,12 +77,58 @@ import { assertDefined } from "./utilities.js";
 export interface NativeAdapter {
 	/**
 	 * Extracts detached facts from a configuration using the owned connection.
+	 *
+	 * @param configuration - Resolved package inputs and modifier vocabulary.
+	 * @param comments - Optional empty map populated with original parsed comments for this invocation.
+	 * @returns Frozen facts or expected input diagnostics.
+	 * @throws If compiler queries, file access, or extraction fail unexpectedly.
 	 */
-	analyze(configuration: EffectiveConfiguration): Result<AnalysisFacts>;
+	analyze(
+		configuration: EffectiveConfiguration,
+		comments?: ExtractedComments,
+	): Result<AnalysisFacts>;
 	/**
 	 * Closes the owned compiler connection.
 	 */
 	close(): void;
+}
+
+/**
+ * Extracts declaration facts and closes the owned adapter on success or failure.
+ *
+ * @remarks
+ * The optional comment map is invocation-owned working data, not part of the frozen facts.
+ * It can be used after compiler disposal, but only with these facts and the same modifier vocabulary.
+ * Discard it if extraction fails.
+ *
+ * @param configuration - Resolved package inputs.
+ * @param adapter - An adapter whose ownership transfers to this call. Defaults to a new native adapter.
+ * @param comments - Optional empty map to receive parsed original comments for context creation.
+ * @returns Detached facts or compiler input diagnostics.
+ * @throws Propagates operational failures, preserving both extraction and cleanup errors when both fail.
+ */
+export function analyzeDeclarations(
+	configuration: EffectiveConfiguration,
+	adapter: NativeAdapter = createNativeAdapter(),
+	comments?: ExtractedComments,
+): Result<AnalysisFacts> {
+	let result: Result<AnalysisFacts>;
+	try {
+		result = adapter.analyze(configuration, comments);
+	} catch (error) {
+		try {
+			adapter.close();
+		} catch (cleanupError) {
+			throw new AggregateError(
+				[error, cleanupError],
+				"Analysis and compiler cleanup failed.",
+				{ cause: error },
+			);
+		}
+		throw error;
+	}
+	adapter.close();
+	return result;
 }
 
 /**
@@ -90,7 +138,8 @@ export interface NativeAdapter {
  * Keeps unstable compiler objects inside the adapter.
  * Returns detached facts, which contain no compiler objects.
  * The caller owns the connection and must close it when it is no longer needed.
- * Analysis-result caching and invalidation belong to the session, not this adapter.
+ * Public invocations use analyzeDeclarations to close this adapter after extraction.
+ * This internal connection has no analysis-result cache.
  *
  * @returns An adapter with analysis and connection-cleanup operations.
  * @throws If the native compiler connection cannot be created.
@@ -107,12 +156,16 @@ export function createNativeAdapter(): NativeAdapter {
 		 * Does not close the adapter's native connection or cache the returned facts.
 		 *
 		 * @param configuration - Resolved settings with absolute project and entrypoint paths.
+		 * @param comments - Optional empty map populated with original parsed comments; discard it on failure.
 		 * @returns Frozen, detached facts on success, or diagnostics for project,
 		 * compiler, or entrypoint validation failures.
 		 * @throws If compiler communication, file access, or fact extraction fails unexpectedly.
-		 * The owning session clears its state and propagates these exceptions.
+		 * The owning invocation closes the adapter and propagates these exceptions.
 		 */
-		analyze(configuration: EffectiveConfiguration): Result<AnalysisFacts> {
+		analyze(
+			configuration: EffectiveConfiguration,
+			comments?: ExtractedComments,
+		): Result<AnalysisFacts> {
 			if (!existsSync(configuration.project)) {
 				return failure(
 					DiagnosticCode.ProjectMissing,
@@ -143,7 +196,7 @@ export function createNativeAdapter(): NativeAdapter {
 				}
 				// TODO (Stage 2 documentation resolution): Retain general declaration and effective-member
 				// lookup contexts, including recursive instantiated ancestry, before disposing this snapshot.
-				return extractFacts(project, configuration);
+				return extractFacts(project, configuration, comments);
 			} finally {
 				// Returned facts must not depend on handles owned by this snapshot.
 				snapshot.dispose();
@@ -200,6 +253,23 @@ export interface LocationContext {
  */
 export interface CollectionState {
 	/**
+	 * Invocation-owned parser and comments retained for later semantic stages.
+	 *
+	 * @remarks
+	 * Extraction supplies this state so each callable comment is parsed once with the shared vocabulary.
+	 * Low-level callers can omit it when they do not need parsed comments after collection.
+	 */
+	readonly documentation?: {
+		/**
+		 * The parser configured for the invocation's custom modifiers.
+		 */
+		readonly parser: TSDocParser;
+		/**
+		 * Parsed comments indexed by signature identity.
+		 */
+		readonly comments: ExtractedComments;
+	};
+	/**
 	 * Completed declaration facts keyed by provisional identifier.
 	 */
 	readonly declarations: Map<ApiItemId, DeclarationFact>;
@@ -224,16 +294,29 @@ export interface CollectionState {
  *
  * @param project - A compiler project whose diagnostics have already been checked.
  * @param configuration - Effective package, project, and entrypoint settings.
- * @returns Deeply frozen facts, or diagnostics if an entrypoint is missing or is not a module.
+ * @param comments - Invocation-owned output map for parsed comments. Defaults to a new map.
+ * @returns Deeply frozen facts, or diagnostics for invalid modifier settings or entrypoints.
  * @throws If compiler queries or package metadata reads fail, an export target is unresolved,
  * or a required signature or member type cannot be extracted.
  */
 function extractFacts(
 	project: Project,
 	configuration: EffectiveConfiguration,
+	comments: ExtractedComments = new Map(),
 ): Result<AnalysisFacts> {
 	const locations: LocationContext = { configuration, packageCache: new Map() };
-	const state: CollectionState = { declarations: new Map(), visiting: new Set() };
+	const configured = createTsdocConfiguration(
+		configuration,
+		DiagnosticCode.ClassificationConfiguration,
+	);
+	if (!configured.ok) {
+		return configured;
+	}
+	const state: CollectionState = {
+		declarations: new Map(),
+		visiting: new Set(),
+		documentation: { parser: new TSDocParser(configured.value), comments },
+	};
 	// Start at each entrypoint. Export traversal fills the shared declaration map.
 	const surfaces = [];
 	for (const entrypoint of [...configuration.entrypoints].sort((left, right) =>
@@ -1296,9 +1379,11 @@ export function collect(
 					"Callable documentation must have an original source file.",
 				);
 				const location = origin(locations, handle.path, node.pos);
-				const comment = new TSDocParser().parseString(
+				const parsed = (state.documentation?.parser ?? new TSDocParser()).parseString(
 					fact.documentation ?? "/** */",
-				).docComment;
+				);
+				state.documentation?.comments.set(fact.id, parsed);
+				const comment = parsed.docComment;
 				const links = collectLinks(comment, (reference) =>
 					lookupReference(compiler, locations, state, node, source, reference, false),
 				);

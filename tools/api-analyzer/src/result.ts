@@ -11,7 +11,6 @@
  */
 // TODO: split this into separate types for separate conceptual operations:
 // - Configuration validation
-// - Session invariants (e.g. "session-closed")
 // - Documentation parsing (including reference validation)
 // - Model generation
 // - Report generation
@@ -157,13 +156,6 @@ export enum DiagnosticCode {
 	 */
 	MemberExpansionIncomplete = "member-expansion-incomplete",
 	/**
-	 * Analysis was requested through a closed session.
-	 *
-	 * @remarks
-	 * Create a new analysis session before requesting analysis.
-	 */
-	SessionClosed = "session-closed",
-	/**
 	 * A custom modifier tag definition is invalid or duplicates an existing definition.
 	 *
 	 * @remarks
@@ -201,13 +193,6 @@ export enum DiagnosticCode {
 	 * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.
 	 */
 	SelectionConfiguration = "selection-configuration",
-	/**
-	 * A baseline path is not absolute.
-	 *
-	 * @remarks
-	 * Resolve the baseline path against an explicit working directory before checking or updating it.
-	 */
-	BaselineConfiguration = "baseline-configuration",
 	/**
 	 * No accepted review baseline exists.
 	 *

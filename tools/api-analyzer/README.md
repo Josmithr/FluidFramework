@@ -1,6 +1,6 @@
 # api-analyzer
 
-This private ECMAScript module (ESM) package provides an experimental, reusable analysis session.
+This private ECMAScript module (ESM) package provides experimental one-shot package analysis.
 It uses the official native TypeScript 7 API and includes the Stage 0 compiler capability tests.
 Its API is not stable. It does not generate production artifacts or replace API Extractor.
 Publication remains a separate decision.
@@ -37,7 +37,8 @@ Full artifact, cross-package, and migration tests belong to later stages.
 
 ## Stage 1 contract
 
-Stage 1 implements an experimental synchronous analysis session, not a stable public package API.
+The initial reusable session has been replaced by the [one-shot API](#experimental-api).
+The synchronous compiler adapter remains internal; the public entrypoint returns a promise.
 Run the full declaration-input capability suite through the synchronous TS7 client before relying on it.
 Retain the separate async crash reproduction and declaration-emission investigation gates.
 
@@ -47,27 +48,22 @@ Use the last supplied scalar value, replace supplied arrays, and merge rule sett
 Treat `null` and `undefined` property values as omitted.
 Reject inheritance cycles, missing required settings, and duplicate entrypoint names with structured diagnostics.
 Return readonly effective configuration without mutating the supplied configuration objects.
-Resolve relative paths from the working directory supplied by the caller, not from the process working directory.
+Relative paths use the explicit working directory, which defaults to the process working directory.
+Reject unknown settings and unimplemented rule names instead of silently ignoring them.
 
-An analysis session owns its compiler connection and cached API facts.
-`AnalysisSession.analyze` returns `Result<void>`: completion status or diagnostics, not analysis facts.
-The session retains facts privately for reuse by its operations.
-Future report, documentation model, declaration generation, and validation APIs belong on the session, not on a returned analysis object.
-These facts are detached: they contain no compiler objects and remain usable after the compiler snapshot is disposed.
-Repeated requests for unchanged inputs reuse the same facts.
-Task order and changes to rule settings do not affect reuse.
-Explicit invalidation discards cached facts and compiler state before the next request.
-Callers must invalidate after relevant changes to inputs or module resolution settings.
-Automatic file watching and persistent caching are not part of this stage.
-Repeated close calls have no effect. Requests after close fail with a diagnostic that explains how to recover.
-An unexpected adapter failure clears owned state and closes the session.
-The original error is rethrown. If cleanup also fails, an `AggregateError` retains both errors.
-Later requests must not return cached success. Create a new session to recover.
-Synchronous calls run one at a time and block the calling Node.js thread.
-An active call cannot be canceled.
-The session extracts facts and disposes of the corresponding snapshot.
-It retains the compiler connection for other configurations and the facts for repeated tasks.
-Cached requests do not contact the compiler and cannot detect a compiler-process failure.
+Each `analyzeAPIs` invocation resolves configuration, extracts facts, classifies callable signatures, and prepares their documentation and report metadata.
+All currently implemented shared validation completes before a successful result.
+The invocation closes the compiler connection before its promise settles, including on failure.
+The official synchronous close destroys streams and signals child termination but does not wait for operating-system process reaping.
+The completed `APIAnalysis` contains no compiler handles and has no `analyze`, `invalidate`, or `close` method.
+Report generation reuses prepared data without compiler calls, comment parsing, or shared validation.
+Changed inputs require a new invocation; previously completed analyses remain unchanged.
+There is no persistent analysis cache or watch service.
+Unexpected extraction errors are propagated after cleanup; if connection cleanup also fails, an `AggregateError` retains both errors.
+The asynchronous entrypoint still blocks the Node.js event loop during synchronous compiler work.
+An active compiler call cannot be canceled.
+General declaration validation, automatic member report integration, suite model loading, portable models, and declaration rollups remain pending.
+These limitations do not waive the corresponding delivery requirements.
 
 Failure diagnostics describe only user-caused issues, including invalid input, configuration, and caller actions.
 Use the public `DiagnosticCode` definition for code meanings and corrective actions.
@@ -176,22 +172,40 @@ Automatic overload inheritance is excluded from Stage 2 rather than approximated
 The [overload inheritance follow-up](../plans/api-extractor-replacement-follow-ups.md#automatic-overload-documentation-inheritance) tracks better support.
 This limitation does not block explicit numeric inheritance selectors or other Stage 2 work.
 
+## Shared analysis context
+
+Each public invocation creates one internal `AnalysisContext` from immutable compiler facts.
+Context creation validates declaration and signature identities, indexes declarations, and classifies original comments.
+It also creates the metadata index used for link-policy checks.
+The compiler adapter retains parsed callable comments for this invocation; context creation parses only comments not already retained.
+Classification, reference binding, content resolution, and report preparation reuse these parsed nodes.
+The context records original block tags and API link nodes before inheritance changes comment content.
+
+Compiler facts and classification stay immutable.
+The context's maps and TSDoc nodes are private working data, not immutable artifact data.
+Classify and bind original comments before running inheritance resolution once.
+Resolution changes only those working nodes, not original comment strings or compiler facts.
+Discard the context after completion or failure; do not resolve it again or reuse it with different inputs.
+Prepared reports copy the fields they need and do not retain mutable TSDoc nodes or source records.
+Report calls validate new selection criteria without repeating parsing, fixed export validation, or semantic analysis.
+
+For internal unit tests without compiler facts, `createDocumentationContext(inputs, options)` creates the same parsed-comment boundary.
+Its `validation` field retains strict syntax errors even when classification is configured to tolerate them.
+Neither context type is a portable model or a public package export.
+
 ## Explicit documentation inheritance contract
 
-`resolveDocumentation(items, bindings, options)` copies documentation for explicit inheritance requests within the same package.
+`resolveDocumentation(context, bindings, options)` copies documentation for explicit inheritance requests within the same package.
 A binding associates a request with its target declaration or signature.
-The internal `bindDocumentationReferences(facts, options)` operation produces bindings from supported compiler lookup facts.
+The internal `bindDocumentationReferences(context)` operation produces bindings from supported compiler lookup facts.
 It is not exported from the package entrypoint.
 Function report construction runs binding and content resolution before applying report selection.
 
-Both operations accept the optional `customModifierTags` array defined by `TsdocOptions`.
-The content resolver uses `DocumentationResolutionOptions`, which also accepts API link validation inputs and validated automatic inheritance bindings.
-The internal binder requires an options argument; pass `{}` for standard TSDoc tags only.
-The content resolver permits omitted options, which register only standard TSDoc tags.
-Pass the same custom modifier vocabulary to `classifyApiItems`, `bindDocumentationReferences`, and `resolveDocumentation`.
-For example, `{ customModifierTags: ["@partner"] }` registers `@partner` as a modifier for each operation.
+Configure `customModifierTags` once when creating the context.
+For example, `{ customModifierTags: ["@partner"] }` registers `@partner` for all semantic stages.
+The content resolver's `DocumentationResolutionOptions` supplies only API link validation inputs and validated automatic inheritance bindings.
 Register tags used by all supplied comments, including inheritance targets that are not selected for a report.
-Each operation creates its own parser configuration and does not change or freeze the caller's options.
+The operations share the context's parsed comments and do not change the caller's options.
 Invalid names, duplicate names, and redefinitions of standard tags produce configuration diagnostics.
 Unknown tags and malformed comments still fail binding and resolution, even when classification disables its own syntax diagnostics.
 Custom modifiers remain local metadata and are not copied from inheritance targets.
@@ -200,17 +214,18 @@ Each input supplies an item identifier, the original comment's package name, and
 Each binding supplies a source identifier, the declaration reference printed by TSDoc's `emitAsTsdoc()` method, and a target identifier.
 If you construct bindings manually, resolve each target in the original comment's declaration scope.
 Verify that the source and target signatures have compatible parameters and type parameters.
-The content resolver checks that each request matches one binding, that the identified items exist, and that they belong to the same package.
-It also checks for inheritance cycles.
-It does not repeat target lookup or parameter compatibility checks.
+Bindings must contain unique sources, valid target identities, and reference text from the original comments.
+The binder establishes these invariants; the resolver does not repeat them.
+The resolver retains checks for required inputs, unsupported cross-package inheritance, cycles, and receiving link policy.
 
 The following internal example resolves an explicitly bound function comment without compiler access.
 The import is relative to a module in `src`; this operation is not a package export.
 
 ```typescript
 import { resolveDocumentation } from "./documentation.js";
+import { createDocumentationContext } from "./documentationContext.js";
 
-const result = resolveDocumentation(
+const context = createDocumentationContext(
 	[
 		{
 			id: "base-signature",
@@ -223,6 +238,13 @@ const result = resolveDocumentation(
 			documentation: "/** {@inheritDoc base} @public */",
 		},
 	],
+);
+if (!context.ok) {
+	throw new Error(JSON.stringify(context.diagnostics));
+}
+// These bindings must satisfy the same scope and parameter checks as the compiler-backed binder.
+const result = resolveDocumentation(
+	context.value,
 	[
 		{
 			source: "derived-signature",
@@ -253,9 +275,11 @@ This output format can change.
 It does not yet contain structured content or the source information for each section that a complete portable documentation model requires.
 
 Invalid syntax, unresolved references, invalid overload selectors, parameter incompatibilities, and inheritance cycles return typed diagnostics without a partial success value.
-Missing, duplicate, stale, or unused internal bindings throw assertion errors.
+Missing required internal data still throws assertion errors at the point of use.
+The resolver trusts validated binding identities, occurrence indices, reference text, and original scope.
 Unexpected processing errors propagate as exceptions.
-The resolver does not change inputs, and each call owns its caches.
+The resolver updates context-owned parsed comments once, with traversal state local to the call.
+Original input records and comment strings remain unchanged.
 It does not support parameter renaming, custom block or inline tags, or inheritance from other packages.
 Requests for inheritance from other packages and requests without explicit targets produce diagnostics.
 API links require validated original bindings and classification as described below.
@@ -278,7 +302,7 @@ Broader declaration support, automatic inheritance integration in class/interfac
 
 ### Compiler-backed callable bindings
 
-`bindDocumentationReferences(facts, options)` uses analysis facts that contain no compiler objects.
+`bindDocumentationReferences(context)` uses indexed analysis facts and original parsed comments without compiler objects.
 It returns deeply frozen bindings sorted by source signature identifier.
 During analysis, the official compiler resolves unqualified names, such as `base`, in each collected callable declaration's original scope.
 This lookup includes imported aliases.
@@ -293,7 +317,7 @@ It also retains the lookup result for an inheritance request.
 The analyzer supplies this field for collected function declarations and method declarations reached through explicit references.
 Its type is `SignatureDocumentationContext`; effective-member view signatures still omit reference contexts.
 Other declaration forms omit it.
-An inheritance request without the required context produces a diagnostic.
+An inheritance request on a supported declaration without the required lookup context throws an assertion error.
 The binder does not guess a target from its name.
 These facts remain usable after the session closes or after JSON serialization.
 Their format can change, and they do not represent all declaration references.
@@ -314,13 +338,13 @@ These checks protect parameter documentation but do not establish TypeScript ass
 They do not compare parameter types, return types, generic constraints, or generic defaults.
 Package-qualified references, nonnumeric TSDoc selectors, targets in other packages, and other declaration forms produce diagnostics.
 TSDoc selectors identify a specific declaration, such as an overload, within a reference.
-Classification, binding, and content resolution share custom modifier configuration through `TsdocOptions`.
+Classification, binding, and content resolution share parsed comments and custom modifier configuration through the analysis context.
 Custom block and inline tag configuration and configuration-file loading remain pending.
 
 Compiler fixture tests cover direct references, imported and exported aliases, original scope through re-exports, non-exported targets, missing names, ambiguous overloads, incompatible parameter shapes, and unsupported forms.
 Custom modifier fixtures verify binding and resolution after session closure for both compiler inputs.
 They also verify that original release classification and metadata selection do not change.
-Pass bindings to `resolveDocumentation` with the signature comments and their original package names.
+Pass bindings to `resolveDocumentation` with the context that owns the original signature comments and package names.
 Use the original comments for classification.
 Function reports use these bindings and resolved comments to determine documentation presence.
 
@@ -386,11 +410,10 @@ Lookup alone does not establish API-link validity. Function reports also run the
 
 ### Same-package API link binding
 
-The internal `bindDocumentationLinks(facts, classification, options)` operation in [documentation.ts](src/documentation.ts) validates local API links without compiler access.
+The internal `bindDocumentationLinks(context)` operation in [documentation.ts](src/documentation.ts) validates local API links without compiler access.
 It is not exported from the package entrypoint.
-Supply original classification from the same analysis, including targets excluded from report selections.
-The binder does not recompute classification or validate that supplied metadata came from the current comments.
-Use the same custom modifier options for classification and binding.
+The context supplies original classification, including targets excluded from report selections.
+The binder does not recompute classification or rebuild its metadata index.
 
 Sources must have original function or method documentation contexts.
 Targets must be standalone functions with exactly one callable signature and a documentation context.
@@ -416,7 +439,8 @@ The binder checks TSDoc syntax and verifies that lookup reference text and occur
 Missing names produce reference diagnostics; non-internal-to-internal links produce `documentation-link-policy`.
 Missing or stale lookup facts for supported declarations throw assertion errors.
 Failures contain no partial bindings.
-Duplicate fact or metadata identifiers and missing retained target declarations are internal invariant failures and throw exceptions.
+Context creation validates fact identities before constructing classification and its index.
+Missing retained target declarations are internal invariant failures and throw exceptions.
 
 Pure tests cover all release-level combinations, selection independence, stale and missing lookups, unsupported scopes, custom modifiers, and immutable results.
 Compiler tests verify aliases, unexported targets, repeated links, self-links, mutual links, and original scope through re-exports after session closure.
@@ -425,22 +449,22 @@ This operation validates links in original local comments.
 
 ### Inherited API links
 
-Pass its bindings and the original classification through `resolveDocumentation`'s `linkValidation` option to resolve comments that contain API links.
+Pass its bindings and the existing metadata index through `resolveDocumentation`'s `linkValidation` option to resolve comments that contain API links.
 Omit this option only for comments without API links, including inherited content.
 Each binding identifies both the target declaration and its single callable signature for release-policy checks.
-The resolver requires exactly one binding per original API-link occurrence and asserts against missing, duplicate, stale, or unused bindings.
+The binder supplies exactly one validated binding per original API-link occurrence.
+The resolver associates each original node with its binding without repeating count, text, identity, or provenance checks.
 Manual bindings must satisfy the same target and scope checks as the compiler-backed binder.
-The target signature must have an input in the resolver request, even when it is not an inheritance target.
-The resolver does not verify the declaration-to-signature association or recompute the supplied classification.
+The target signature must have original metadata even when it is not an inheritance target.
+The resolver does not verify the declaration-to-signature association or recompute classification.
 
-The following call uses original inputs, inheritance bindings, API link bindings, and classification from the same analysis:
+The following internal call uses parsed comments, validated bindings, and the metadata index from the same analysis:
 
 ```typescript
-const resolved = resolveDocumentation(inputs, inheritanceBindings, {
-	...tsdocOptions,
+const resolved = resolveDocumentation(context, inheritanceBindings, {
 	linkValidation: {
 		bindings: linkBindings,
-		classification,
+		metadata: context.metadata,
 	},
 });
 ```
@@ -455,7 +479,7 @@ Every receiving API requires original release metadata when its effective commen
 Non-internal APIs cannot receive an inherited link to an internal target, even if the original comment belongs to an internal API.
 Inherited content does not change classification or selection.
 Complete-comment snapshots cover inherited links and links in copied sections alongside local examples.
-Pure tests cover chains, identical reference text with different original targets, rejected bindings, and receiving release-policy failures.
+Pure tests cover chains, identical reference text with different original targets, original block-tag preservation, and receiving release-policy failures.
 Both compiler inputs verify resolution through aliases after JSON serialization and session closure, using the same inherited-comment snapshot.
 Function reports validate local and inherited API links before constructing a successful report, including links in unselected signatures.
 Effective content determines `ReviewSignature.documented`; original classification and local tags determine report annotations.
@@ -465,7 +489,8 @@ This function-only integration does not complete Stage 2.
 
 The first Stage 2 increment classifies identified documentation inputs and selects metadata views.
 It does not generate reports, validate semantic references, or trim declaration text.
-`classifyApiItems` accepts items with `id` and `documentation` fields, including callable signature facts.
+`classifyApiItems(context)` reads original parsed comments from a documentation context.
+Context creation accepts inputs with `id` and `documentation` fields, including callable signature facts.
 The required `documentation` property has type `string | undefined`.
 Supply only the associated TSDoc comment, including delimiters, or `undefined` when no comment exists.
 An explicit empty comment such as `/** */` is present documentation. An empty string is invalid comment text, not an absent comment.
@@ -474,7 +499,7 @@ This distinction supports the inheritance rule: absence permits validated automa
 Classification does not implement inheritance and does not preserve raw comments in its metadata output; retain the original facts for that work.
 Each item is classified independently. Callers supply callable overloads, not implementation signatures.
 The result contains each item's identifier, release level, and modifier tags, sorted by identifier.
-Duplicate internal identifiers throw assertion errors; classification does not resolve provisional identity collisions.
+Duplicate internal identifiers throw at context creation; classification does not repeat identity validation.
 
 Use `@microsoft/tsdoc` to parse comments. Do not interpret tags with a custom comment parser.
 `ReleaseLevel` is a numeric enum: `Public = 0`, `Beta = 1`, `Alpha = 2`, and `Internal = 3`.
@@ -488,7 +513,8 @@ TSDoc parser diagnostics fail classification by default. Set `rules.validateTsdo
 For example, an unconfigured tag or malformed inline tag produces a parser diagnostic.
 Disabling this rule does not disable parsing: recognized tags still contribute to classification.
 Missing-release checks remain controlled by `rules.requireReleaseLevel`, and conflicting release levels always fail.
-Absent documentation bypasses comment parsing. An explicit empty TSDoc comment parses successfully.
+Absent documentation uses an empty parsed tree while retaining undefined original text.
+An explicit empty TSDoc comment also parses successfully.
 Both lack release tags and produce the same missing-release diagnostic when that rule is enabled.
 Invalid supplied strings, including empty strings, produce parser diagnostics unless `rules.validateTsdocSyntax` is disabled.
 Missing release levels fail by default. Set `rules.requireReleaseLevel` to `false` to retain untagged items with an `undefined` release level.
@@ -510,7 +536,7 @@ Classification and selection do not mutate or freeze caller-owned inputs. Their 
 They perform no compiler queries, filesystem access, baseline updates, or artifact writes.
 The original analysis facts remain available for later validation, including validation of excluded targets.
 Full declaration selection and reference validation require later contracts and tests.
-Classification options are explicit inputs to this API, not values read from the analysis session's rule map.
+The context captures effective `rules` and `customModifierTags` from configuration.
 Reuse a successful classification for several selections. The classifier does not cache or automatically repeat this work for each selection.
 
 The following internal example classifies two overloads and selects the public partner metadata without including the internal overload.
@@ -518,14 +544,19 @@ The import is relative to a module in `src`; these operations are not package ex
 
 ```typescript
 import { classifyApiItems, ReleaseLevel, selectApiItems } from "./classification.js";
+import { createDocumentationContext } from "./documentationContext.js";
 
-const classified = classifyApiItems(
+const context = createDocumentationContext(
 	[
 		{ id: "convert:text", documentation: "/** @public @partner */" },
 		{ id: "convert:number", documentation: "/** @internal @partner */" },
 	],
 	{ customModifierTags: ["@partner"] },
 );
+if (!context.ok) {
+	throw new Error(JSON.stringify(context.diagnostics));
+}
+const classified = classifyApiItems(context.value);
 if (!classified.ok) {
 	throw new Error(JSON.stringify(classified.diagnostics));
 }
@@ -549,9 +580,10 @@ Separate selections must produce separate artifacts from shared analysis. Baseli
 The initial declaration renderer supports function-only entrypoints. Its report syntax is experimental.
 Raw declaration text is not a substitute for correctly selected declarations, and metadata-only output is not a complete API report.
 
-`createReviewReport(facts, entrypoint, selection, options)` joins a named metadata selection to detached callable signature facts.
-The required `ReviewReportOptions` supplies full original `classification` and the same `customModifierTags` used to classify the inputs.
-Report construction binds inheritance and API links, then resolves all supplied signature comments before applying report selection.
+Internally, `prepareReviewReport(context)` binds inheritance and API links, resolves all callable comments, and creates complete report records once during analysis.
+The context supplies parsed original comments, full classification, and shared indexes.
+Preparation validates fixed export identities and records unsupported declaration forms once per surface.
+`createReviewReport(prepared, entrypoint, selection)` validates new selection criteria and filters prepared records without reparsing or repeating semantic validation.
 Unselected ancestors and link targets remain available, and invalid documentation fails the request even for an empty selection.
 Documentation diagnostics propagate without a partial report.
 The `documented` flag measures descriptive content after resolution; an inheritance request alone does not count.
@@ -562,10 +594,9 @@ Exports are sorted by exported name. Aliases remain separate exports, and type-o
 Selected overloads retain compiler order because overload order can affect resolution.
 An export with no selected overloads is omitted. An empty selected surface is an explicit empty report.
 Unknown entrypoints return `report-configuration` diagnostics.
-Unknown or duplicate selected identifiers and blank names in computed selections throw assertion errors.
-All selected identifiers must refer to signature facts from the supplied analysis, but may belong to other entrypoints in that analysis.
-The caller must use classification and selection from the same facts; the report builder does not reclassify comments.
-Duplicate fact identities and unresolved export targets violate internal invariants and assert.
+Report callers supply release levels and tag filters, not independently assembled classification records or selected identifiers.
+Invalid criteria produce selection diagnostics.
+Duplicate fact identities assert during context creation, and unresolved export targets assert during preparation.
 The initial builder throws for non-function exports or function/namespace merges, even when no overload is selected.
 These are unsupported library capabilities, not user-input diagnostics. No partial report is returned.
 
@@ -620,20 +651,17 @@ Missing files and unequal text fail the test.
 Normal tests never create or update snapshots.
 Review snapshot diffs explicitly when intentionally changing the report format or fixture API.
 
-The initial baseline API accepts generated report text without interpreting its syntax.
+The internal baseline comparison accepts generated report text without interpreting its syntax.
 `compareReviewBaseline(actual, expected)` performs a pure, exact string comparison.
 An `undefined` expected value means that no accepted baseline exists; an empty string is an existing empty baseline.
 Missing and stale baselines return `baseline-missing` and `baseline-stale` diagnostics respectively.
 Neither case contains a partial success value or accepts the generated text.
 Line endings, whitespace, and the final newline are significant. Deterministic report generation must normalize its own output.
 
-`checkReviewBaseline(actual, baselinePath)` reads a UTF-8 baseline and performs the same comparison without writing.
-Only a missing file is converted to a missing-baseline diagnostic. Other filesystem errors propagate as exceptions.
-`updateReviewBaseline(actual, baselinePath)` explicitly writes the supplied text as UTF-8, creating or replacing the file.
-The caller must provide an absolute path and an existing parent directory. Invalid relative paths return a configuration diagnostic.
-Update errors propagate as exceptions. Updates are single-file writes, not transactions across multiple artifacts.
-Call update only after generation and all required validation and parity checks succeed.
-The library does not implicitly create directories or accept a baseline when checking it.
+The caller reads baseline files and writes accepted text through its own file I/O.
+The former library file-check and file-update wrappers have been removed.
+Baseline acceptance must remain an explicit caller action after required validation and parity checks succeed.
+Generating report text never creates directories, writes artifacts, or accepts a baseline.
 
 Compare two generated surface texts directly to check parity without writing either text to an accepted baseline.
 The caller must use the same review identity and rendering options for both surfaces.
@@ -642,70 +670,63 @@ This increment establishes baseline handling only; it does not satisfy the Stage
 ## Experimental API
 
 Package exports are limited to anticipated user-facing workflows.
-Classification and selection operations, documentation processing and bindings, and fact-based report construction are internal.
-Future analysis-dependent operations belong on the session.
-Report rendering and baseline helpers remain available as artifact-level APIs while the session output contract is developed.
+`analyzeAPIs` is the only exported function, alongside `ReleaseLevel`, `DiagnosticCode`, and supporting types.
+Configuration resolution, classification, selection, documentation processing, report rendering, and baseline comparison are internal operations.
+The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, and `generateReport(entrypoint, selection, presentation?)`.
+Model and declaration-rollup methods remain required future work; no placeholder methods are exposed.
 
-The following example resolves configuration and reuses analysis within one session.
+The following example analyzes a package once and generates public report text without writing a file.
 The configured project must include the declaration entrypoint and its dependencies.
 All relative configuration paths use the supplied working directory, including paths inherited from base configurations.
 
 ```typescript
-import { createAnalysisSession, resolveConfiguration } from "api-analyzer";
+import { analyzeAPIs, ReleaseLevel } from "api-analyzer";
 
-const resolved = resolveConfiguration(
+const result = await analyzeAPIs(
 	{
 		packageName: "example-package",
 		project: "tsconfig.api.json",
 		entrypoints: [{ name: ".", path: "lib/index.d.ts" }],
-		rules: { documentation: false },
+		rules: { requireReleaseLevel: true },
 	},
 	process.cwd(),
 );
 
-if (!resolved.ok) {
-	throw new Error(JSON.stringify(resolved.diagnostics));
+if (!result.ok) {
+	throw new Error(JSON.stringify(result.diagnostics));
 }
 
-const session = createAnalysisSession();
-try {
-	const first = session.analyze(resolved.value);
-	if (!first.ok) {
-		throw new Error(JSON.stringify(first.diagnostics));
-	}
-
-	// The session retains facts privately. Repeated analysis uses its cache.
-	const repeated = session.analyze(resolved.value);
-	if (!repeated.ok) {
-		throw new Error(JSON.stringify(repeated.diagnostics));
-	}
-	console.log(session.getStatistics());
-
-	// Call this after a relevant file, dependency, or configuration change.
-	session.invalidate();
-} finally {
-	session.close();
+// Compiler resources are already disposed. Reports reuse private, prepared data.
+const analysis = result.value;
+const report = analysis.generateReport(".", {
+	name: "public",
+	releaseLevels: [ReleaseLevel.Public],
+});
+if (!report.ok) {
+	throw new Error(JSON.stringify(report.diagnostics));
 }
+console.log(report.value);
+console.log(analysis.getStatistics());
 ```
 
-`resolveConfiguration` returns structured diagnostics for missing settings, invalid entrypoints, duplicate names, and inheritance cycles.
+`analyzeAPIs` returns structured diagnostics for missing settings, invalid entrypoints, duplicate names, inheritance cycles, compiler diagnostics, and supported semantic validation failures.
 `packageRoot` defaults to the supplied working directory.
 Supplied arrays replace inherited arrays. Rule maps merge by key.
 An explicit `false` rule value overrides an inherited `true`.
-You can inspect rule settings at this stage, but the analyzer does not execute the rules.
+`rules.requireReleaseLevel` and `rules.validateTsdocSyntax` control classification and default to `true`.
+Documentation binding and resolution still require valid TSDoc even when classification tolerates syntax errors.
+`customModifierTags` registers the same modifier vocabulary for classification and documentation processing.
 Compiler options and module resolution conditions come from the selected TypeScript project.
 Use separate project configurations for different conditions.
 
-`analyze` returns `{ ok: true, value: undefined }` on success, or diagnostics on failure.
-Compiler diagnostic failures do not produce partial success.
-Entrypoint order and changes to rule settings do not invalidate facts.
-Changing the configured set of entrypoints creates a separate cache entry.
-`invalidate` discards all cached facts and closes the current compiler connection.
-The next request creates a new compiler connection.
-Repeated `close` calls have no effect. Later analysis requests return `session-closed`.
-`getStatistics` returns the counts of adapter analysis calls, cache hits, and invalidation calls made while the session was open.
-Analysis calls that fail still contribute to the analysis count.
-The counters do not measure compiler-internal work and are not reset by invalidation or close.
+Success is `{ ok: true, value: analysis }`; expected failures contain diagnostics and no partial analysis.
+Internal assertions and unexpected operational failures reject the promise.
+`getStatistics()` returns immutable `entrypoints`, `declarations`, and `signatures` counts.
+These count collected declarations, including unexported targets, and their callable signatures; effective member-view signatures are not counted again.
+They are API counts, not analysis-performance or cache counters.
+`generateReport` returns `Result<string>` and currently supports function-only entrypoints.
+An invalid selection or unknown entrypoint produces diagnostics; unsupported declaration forms still throw.
+Multiple reports can use different selections and presentation options without reanalysis.
 
 Declaration and signature identities are provisional. Tests cover separate aliases, namespaces, merged declarations, overload reordering, and checkout relocation.
 They do not establish a complete identity scheme for multiple installed versions of the same package or every anonymous and computed declaration.
@@ -735,7 +756,7 @@ TS6 supplies the conventional compiler API required by ESLint and also builds fi
 It is not an analysis fallback.
 Run `pnpm test` to include all Stage 0 investigation gates as well. That command intentionally remains unsuccessful while the three recorded gates fail.
 `test:contracts` runs the analysis and configuration contracts plus release-classification and metadata-selection tests.
-`test:stage1` retains its existing command name and selects the `Effective configuration`, `Analysis session`, and `Adapter fact extraction` suites, plus session-lifecycle worker tests.
+`test:stage1` selects the `Effective configuration`, `One-shot API analysis and adapter facts`, and `Adapter fact extraction` suites, plus one-shot cleanup worker tests.
 Test names describe behavior. Applicable design identifiers appear in comments above tests.
 Temporary investigation tests have comments that explain their purpose and when to remove or replace them.
 The focused command is not a claim that the excluded gates pass.
@@ -823,15 +844,16 @@ The earlier full `pnpm test` run reported 34 passing tests and the same 3 unreso
 That full-suite count predates the additional configuration and extraction-helper tests.
 The full suite was not rerun for the helper extraction refactor or the test-name changes.
 
-The [configuration tests](src/test/configuration.test.ts), [session tests](src/test/session.test.ts), [native capability tests](src/test/nativeCapabilities.test.ts), and [lifecycle tests](src/test/lifecycle.test.ts) cover the initial contracts.
-They verify ordered configuration inheritance, immutable effective settings, shared frozen facts, explicit invalidation, and failure handling.
-The session analyzes declarations built with TS6 6.0.3 and TS7 7.0.2 through TS7 7.0.2.
+The [configuration tests](src/test/configuration.test.ts), [one-shot analysis tests](src/test/session.test.ts), [native capability tests](src/test/nativeCapabilities.test.ts), and [lifecycle tests](src/test/lifecycle.test.ts) now cover the revised contracts.
+They verify ordered configuration inheritance, immutable effective settings, fresh analysis after input changes, and cleanup on success and failure.
+The analyzer processes declarations built with TS6 6.0.3 and TS7 7.0.2 through TS7 7.0.2.
 The full synchronous semantic suite also passes the original semantic and printing checks; the missing emit-method gates still fail.
 
 Additional tests verify chained type-only exports, namespace and merged declaration facts, effective members, separate overload identities, and explicit incomplete expansion.
 Node and browser dependency fixtures retain their distinct types and package origins.
-Tests verify fresh-session agreement after dependency changes and identical facts after checkout relocation.
-Linux worker tests verify session disposal and that the session remains closed after it detects a compiler-process failure.
+Tests verify changed-input results and identical facts after checkout relocation.
+Report tests instrument parser and compiler calls to verify reuse after analysis, including after input files are removed.
+Linux worker tests verify disposal before one-shot completion and retain separate native compiler crash probes.
 
 The adapter's extraction helpers are module-level functions with explicit dependencies.
 They are exported from the internal adapter module for tests, not from the package entrypoint.
@@ -840,7 +862,7 @@ Compiler-dependent helper tests use the existing real-compiler fixtures instead 
 Direct tests cover package locations, aliases, type-only exports, members, signatures, and declaration collection.
 They also check cache separation, repeated collection, and the active-identifier guard.
 
-The Stage 1 implementation uses pure configuration and immutable data, with native communication, filesystem access, and caches isolated in the adapter and session.
+The implementation uses pure configuration and immutable data, with native communication, filesystem access, and local extraction caches isolated inside the analysis invocation and adapter.
 It does not close the full W/F/B requirements or resolve the Stage 0 declaration-generation limitation.
 
 ## Initial Stage 2 results

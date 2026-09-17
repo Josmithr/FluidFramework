@@ -3,8 +3,10 @@
 ## Status and objective
 
 API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](../api-analyzer/API-Proposal.md).
-The reusable session described in the implementation history below remains current code, not the target public API.
-Migrate to `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>` with shared validation complete before success and no live compiler resources in the returned object.
+The reusable public session has been removed in favor of `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
+The initial implementation completes existing callable classification and documentation validation before success and closes the compiler connection before returning.
+The completed analysis exposes effective configuration, API counts, and function report generation from prepared data.
+General declaration validation, suite loading, model generation, and declaration rollups remain incomplete; this migration does not close Stage 2 or later gates.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 
@@ -279,14 +281,20 @@ Do not scaffold the full architecture around an unverified capability.
 Exit: reusable analysis and effective configuration pass focused contract tests for W4, W6, W11, F1, B1, and B2.
 Tests at this stage need not claim final artifact behavior that has not yet been implemented.
 
-Implementation history: the initial session requires callers to invalidate cached facts after input changes.
-Its `analyze` method returns completion status or diagnostics, not analysis facts.
-This lifecycle is superseded by the 2026-09-17 proposal and must be replaced, not retained as a compatibility API.
+Implementation history: the initial session required callers to invalidate cached facts after input changes.
+Its `analyze` method returned completion status or diagnostics, not analysis facts.
+This lifecycle was removed under the 2026-09-17 proposal, with no compatibility API.
 The internal compiler adapter can still return facts to internal consumers and tests.
-The pending public API migration must put shared validation in `analyzeAPIs` and output operations on `APIAnalysis` without exposing facts.
-Internal pipeline exports have been removed from the package entrypoint; remaining configuration, renderer, and baseline exports require reconciliation with the narrow API contract.
+`analyzeAPIs` now runs existing classification and documentation validation eagerly, and `APIAnalysis.generateReport` reuses prepared data without compiler calls or reparsing comments.
+One invocation-owned context indexes facts, retains parsed comments from extraction, and builds original classification and its lookup index once.
+Binding validates reference semantics before the resolver updates private TSDoc nodes in one pass.
+The resolver trusts validated binding identities and occurrence data instead of repeating those checks.
+Report preparation copies complete immutable records and validates fixed export data once; report calls validate only new selection requests.
+Tests verify parse counts, captured-node reuse, original metadata preservation, independent contexts, and prepared-report independence.
+Configuration resolution, rendering, and baseline comparison are no longer package-level functional exports.
+Baseline file-reading and writing wrappers have been removed; callers own I/O and explicit acceptance.
 Facts are frozen and contain no compiler objects before the snapshot is disposed.
-The current session uses separate cache entries for different TypeScript projects; this cache is not required by the new contract.
+Each invocation uses a fresh compiler connection; no cross-invocation analysis cache remains.
 The data format remains provisional. Stable versioned identifiers, complete reference graphs, and the remaining documentation model fields require later contracts and tests.
 See the package's Stage 1 results for the tested subset. Stage 1 does not satisfy all W/F/B requirements.
 
@@ -311,7 +319,7 @@ Numeric comparisons express the linear ordering; configured selections remain ex
 TSDoc tag strings map explicitly to enum values, and classification metadata stores those numeric values.
 
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
-- Replace the reusable public session with the agreed eager analysis entrypoint and detached result. Move shared report-time validation into analysis and test cleanup before return.
+- Extend the implemented eager analysis entrypoint with the remaining shared semantic validation. Preserve detached report reuse and tested cleanup before return.
 - Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
 - Implement release-level selection per callable overload and generic custom-tag selection.
 - Specify and test structured reference facts before implementing reference-validation policies. Preserve reference origins and targets, including non-exported and cross-package targets, independently of selected report surfaces.

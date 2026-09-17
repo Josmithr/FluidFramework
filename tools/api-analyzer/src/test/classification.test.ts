@@ -1,3 +1,5 @@
+import { documentationContext } from "./contextUtils.js";
+import { createDocumentationContext } from "../documentationContext.js";
 import assert from "node:assert/strict";
 import { describe, it } from "mocha";
 import {
@@ -16,10 +18,12 @@ describe("Release classification and metadata selection", () => {
 			[0, 1, 2, 3],
 		);
 		const result = classifyApiItems(
-			["public", "beta", "alpha", "internal"].map((level, index) => ({
-				id: String(index),
-				documentation: `/** @${level} */`,
-			})),
+			documentationContext(
+				["public", "beta", "alpha", "internal"].map((level, index) => ({
+					id: String(index),
+					documentation: `/** @${level} */`,
+				})),
+			),
 		);
 		assert.ok(result.ok, JSON.stringify(result));
 		assert.deepEqual(
@@ -30,11 +34,13 @@ describe("Release classification and metadata selection", () => {
 
 	it("requires every requested tag and lets exclusions reject otherwise matching items", () => {
 		const result = classifyApiItems(
-			[
-				{ id: "both", documentation: "/** @public @partner @preview */" },
-				{ id: "one", documentation: "/** @public @partner */" },
-			],
-			{ customModifierTags: ["@partner", "@preview"] },
+			documentationContext(
+				[
+					{ id: "both", documentation: "/** @public @partner @preview */" },
+					{ id: "one", documentation: "/** @public @partner */" },
+				],
+				{ customModifierTags: ["@partner", "@preview"] },
+			),
 		);
 		assert.ok(result.ok);
 		const selection = {
@@ -55,21 +61,25 @@ describe("Release classification and metadata selection", () => {
 
 	it("accepts absent comments and reports malformed TSDoc", () => {
 		const result = classifyApiItems(
-			[
-				{
-					id: "outer",
-					documentation: "/** @public */",
-				},
-				{ id: "bare", documentation: undefined },
-			],
-			{ rules: { requireReleaseLevel: false } },
+			documentationContext(
+				[
+					{
+						id: "outer",
+						documentation: "/** @public */",
+					},
+					{ id: "bare", documentation: undefined },
+				],
+				{ rules: { requireReleaseLevel: false } },
+			),
 		);
 		assert.ok(result.ok, JSON.stringify(result));
 		assert.deepEqual(
 			result.value.items.map((item) => item.releaseLevel),
 			[undefined, ReleaseLevel.Public],
 		);
-		const malformed = classifyApiItems([{ id: "broken", documentation: "/** @public" }]);
+		const malformed = classifyApiItems(
+			documentationContext([{ id: "broken", documentation: "/** @public" }]),
+		);
 		assert.equal(malformed.ok, false);
 		if (!malformed.ok) {
 			assert.ok(
@@ -85,9 +95,9 @@ describe("Release classification and metadata selection", () => {
 			{ id: "stable", documentation: "/** @public */" },
 			{ id: "experimental", documentation: "/** @alpha */" },
 		];
-		const result = classifyApiItems(inputs);
+		const result = classifyApiItems(documentationContext(inputs));
 		assert.ok(result.ok);
-		assert.deepEqual(result, classifyApiItems([...inputs].reverse()));
+		assert.deepEqual(result, classifyApiItems(documentationContext([...inputs].reverse())));
 		const alpha = selectApiItems(result.value, {
 			name: "alpha-only",
 			releaseLevels: [ReleaseLevel.Alpha],
@@ -127,7 +137,7 @@ describe("Release classification and metadata selection", () => {
 				documentation: "/** Hidden overload. @internal */",
 			},
 		];
-		const result = classifyApiItems(inputs);
+		const result = classifyApiItems(documentationContext(inputs));
 		assert.ok(result.ok, JSON.stringify(result));
 		assert.deepEqual(
 			result.value.items.map((item) => [item.id, item.releaseLevel]),
@@ -145,13 +155,15 @@ describe("Release classification and metadata selection", () => {
 	// Design requirements: W4, W10. Surface rules belong to the caller.
 	it("combines explicit release levels with required and excluded custom tags", () => {
 		const result = classifyApiItems(
-			[
-				{ id: "current", documentation: "/** @public */" },
-				{ id: "supported", documentation: "/** @public @partner */" },
-				{ id: "preview", documentation: "/** @beta @partner */" },
-				{ id: "hidden", documentation: "/** @internal @partner */" },
-			],
-			{ customModifierTags: ["@partner"] },
+			documentationContext(
+				[
+					{ id: "current", documentation: "/** @public */" },
+					{ id: "supported", documentation: "/** @public @partner */" },
+					{ id: "preview", documentation: "/** @beta @partner */" },
+					{ id: "hidden", documentation: "/** @internal @partner */" },
+				],
+				{ customModifierTags: ["@partner"] },
+			),
 		);
 		assert.ok(result.ok, JSON.stringify(result));
 		const before = JSON.stringify(result.value);
@@ -198,7 +210,9 @@ describe("Release classification and metadata selection", () => {
 				"classification-release-conflict",
 			],
 		] as const) {
-			const result = classifyApiItems([{ id: "affected", documentation }]);
+			const result = classifyApiItems(
+				documentationContext([{ id: "affected", documentation }]),
+			);
 			assert.equal(result.ok, false);
 			if (!result.ok) {
 				const restored = JSON.parse(JSON.stringify(result)) as typeof result;
@@ -216,9 +230,11 @@ describe("Release classification and metadata selection", () => {
 
 	// Design requirements: W4, W10.
 	it("retains untagged items only when both policy and selection permit them", () => {
-		const result = classifyApiItems([{ id: "untagged", documentation: undefined }], {
-			rules: { requireReleaseLevel: false },
-		});
+		const result = classifyApiItems(
+			documentationContext([{ id: "untagged", documentation: undefined }], {
+				rules: { requireReleaseLevel: false },
+			}),
+		);
 		assert.ok(result.ok, JSON.stringify(result));
 		assert.ok(result.value.items[0]);
 		assert.equal(result.value.items[0].releaseLevel, undefined);
@@ -268,12 +284,14 @@ describe("Release classification and metadata selection", () => {
 		const options = { rules: { requireReleaseLevel: false } };
 		for (const documentation of [undefined, "/** */"]) {
 			const item = { id: "item", documentation };
-			const result = classifyApiItems([item], options);
+			const result = classifyApiItems(documentationContext([item], options));
 			assert.ok(result.ok, JSON.stringify(result));
 			assert.equal(result.value.items[0]?.releaseLevel, undefined);
 			assert.equal(item.documentation, documentation);
 		}
-		const invalid = classifyApiItems([{ id: "item", documentation: "" }], options);
+		const invalid = classifyApiItems(
+			documentationContext([{ id: "item", documentation: "" }], options),
+		);
 		assert.equal(invalid.ok, false);
 		if (!invalid.ok) {
 			assert.ok(
@@ -287,7 +305,7 @@ describe("Release classification and metadata selection", () => {
 	// Design requirement: W2.
 	it("reports parser diagnostics and permits an independent syntax-rule opt-out", () => {
 		const inputs = [{ id: "invalid-comment", documentation: "/** @public @unconfigured */" }];
-		const failed = classifyApiItems(inputs);
+		const failed = classifyApiItems(documentationContext(inputs));
 		assert.equal(failed.ok, false);
 		if (!failed.ok) {
 			assert.ok(
@@ -298,21 +316,27 @@ describe("Release classification and metadata selection", () => {
 				),
 			);
 		}
-		const tolerant = classifyApiItems(inputs, { rules: { validateTsdocSyntax: false } });
+		const tolerant = classifyApiItems(
+			documentationContext(inputs, { rules: { validateTsdocSyntax: false } }),
+		);
 		assert.ok(tolerant.ok);
 		assert.equal(tolerant.value.items[0]?.releaseLevel, ReleaseLevel.Public);
 		assert.deepEqual(tolerant.value.items[0]?.modifierTags, ["@public"]);
-		const missing = classifyApiItems([{ id: "missing", documentation: undefined }], {
-			rules: { validateTsdocSyntax: false },
-		});
+		const missing = classifyApiItems(
+			documentationContext([{ id: "missing", documentation: undefined }], {
+				rules: { validateTsdocSyntax: false },
+			}),
+		);
 		assert.equal(missing.ok, false);
 		if (!missing.ok) {
 			assert.equal(missing.diagnostics[0]?.code, "classification-release-missing");
 		}
 		assert.equal(
-			classifyApiItems([{ id: "conflict", documentation: "/** @public @beta */" }], {
-				rules: { validateTsdocSyntax: false, requireReleaseLevel: false },
-			}).ok,
+			classifyApiItems(
+				documentationContext([{ id: "conflict", documentation: "/** @public @beta */" }], {
+					rules: { validateTsdocSyntax: false, requireReleaseLevel: false },
+				}),
+			).ok,
 			false,
 		);
 	});
@@ -323,20 +347,26 @@ describe("Release classification and metadata selection", () => {
 		});
 		assert.throws(
 			() =>
-				classifyApiItems([], {
-					get customModifierTags(): readonly string[] {
-						throw internalError;
-					},
-				}),
+				classifyApiItems(
+					documentationContext([], {
+						get customModifierTags(): readonly string[] {
+							throw internalError;
+						},
+					}),
+				),
 			(error: unknown) => error === internalError,
 		);
 		const item = { id: "duplicate", documentation: "/** @public */" };
 		assertAssertionError(
-			() => classifyApiItems([item, item]),
-			"Classification inputs must have distinct identities.",
+			() => classifyApiItems(documentationContext([item, item])),
+			"Documentation inputs must have distinct identities.",
 		);
 		for (const customModifierTags of [["missing-at"], ["@public"], ["@param"]]) {
-			const result = classifyApiItems([item], { customModifierTags });
+			const result = createDocumentationContext(
+				[item],
+				{ customModifierTags },
+				DiagnosticCode.ClassificationConfiguration,
+			);
 			assert.equal(result.ok, false);
 			if (!result.ok) {
 				assert.equal(result.diagnostics[0]?.code, "classification-configuration");
@@ -345,7 +375,9 @@ describe("Release classification and metadata selection", () => {
 	});
 
 	it("rejects unknown selection tags and returns independent frozen results", () => {
-		const result = classifyApiItems([{ id: "item", documentation: "/** @public */" }]);
+		const result = classifyApiItems(
+			documentationContext([{ id: "item", documentation: "/** @public */" }]),
+		);
 		assert.ok(result.ok);
 		const invalid = selectApiItems(result.value, {
 			name: "typo",

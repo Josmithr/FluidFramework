@@ -1,20 +1,15 @@
 import assert from "node:assert/strict";
-import {
-	DocLinkTag,
-	SelectorKind,
-	TSDocParser,
-	type DocComment,
-	type DocNode,
-} from "@microsoft/tsdoc";
-import {
-	ReleaseLevel,
-	type ApiClassification,
-	type ApiItemMetadata,
-} from "./classification.js";
+import { type DocLinkTag, SelectorKind, type DocComment } from "@microsoft/tsdoc";
+import { ReleaseLevel, type ApiItemMetadata } from "./classification.js";
 import type { AnalysisFacts, ApiItemId, MemberFact, Origin } from "./facts.js";
 import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
-import { createTsdocConfiguration, type TsdocOptions } from "./tsdocConfiguration.js";
 import { assertDefined } from "./utilities.js";
+import {
+	apiLinkNodes,
+	type AnalysisContext,
+	type DocumentationContext,
+	type ParsedDocumentationItem,
+} from "./documentationContext.js";
 
 /**
  * A local documentation comment and the name of the package that contains its declaration.
@@ -82,182 +77,147 @@ export interface DocumentationReferenceBinding {
  * These checks do not establish TypeScript assignability.
  * The function does not compare parameter types, return types, generic constraints, or generic defaults.
  *
- * Supply the same custom modifier vocabulary used for classification and content resolution.
+ * Uses the context's parsed original comments, shared indexes, and syntax validation result.
+ * Run this operation before content resolution updates the parsed comments.
  * Unsupported references, ambiguous overloads, and incompatible parameters produce diagnostics.
  * The function does not query the compiler, change the facts, or copy inherited content.
  *
- * @param facts - Analysis facts extracted with documentation lookup support.
- * @param options - Explicit custom modifier configuration. Pass an empty object for standard TSDoc tags only.
+ * @param analysis - The indexed analysis with original parsed comments and compiler lookup results.
  * @returns Deeply frozen bindings sorted by source signature identifier, or diagnostics without partial bindings.
- * @throws If declaration or signature identifiers are not unique, a target fact is missing,
- * or an unexpected processing error occurs.
+ * @throws If required lookup data is missing or inconsistent, or an unexpected processing error occurs.
  */
 export function bindDocumentationReferences(
-	facts: AnalysisFacts,
-	options: TsdocOptions,
+	analysis: AnalysisContext,
 ): Result<readonly DocumentationReferenceBinding[]> {
-	const declarations = new Map(
-		facts.declarations.map((declaration) => [declaration.id, declaration]),
-	);
-	assert.equal(
-		declarations.size,
-		facts.declarations.length,
-		"Declaration facts must have distinct identities.",
-	);
-	const signatureIds = facts.declarations.flatMap((declaration) =>
-		declaration.signatures.map((signature) => signature.id),
-	);
-	assert.equal(
-		new Set(signatureIds).size,
-		signatureIds.length,
-		"Signature facts must have distinct identities.",
-	);
-	const bindings: DocumentationReferenceBinding[] = [];
-	const configured = createTsdocConfiguration(
-		options,
-		DiagnosticCode.DocumentationConfiguration,
-	);
-	if (!configured.ok) {
-		return configured;
+	const { declarations, validation } = analysis;
+	if (!validation.ok) {
+		return validation;
 	}
-	const parser = new TSDocParser(configured.value);
-	for (const declaration of facts.declarations) {
-		for (const signature of declaration.signatures) {
-			const parsed = parser.parseString(signature.documentation ?? "/** */");
-			if (parsed.log.messages.length > 0) {
-				return failure(
-					DiagnosticCode.DocumentationTsdoc,
-					`Item ${signature.id}: correct the TSDoc comment: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
-				);
-			}
-			const request = parsed.docComment.inheritDocTag;
-			if (request === undefined) {
-				continue;
-			}
-			// TODO (Stage 2 documentation references): Support other declaration kinds once
-			// the adapter extracts their original-scope documentation lookup context.
-			if (
-				declaration.declarations.length === 0 ||
-				declaration.declarations.some(
-					(source) =>
-						source.kind !== "FunctionDeclaration" &&
-						source.kind !== "MethodDeclaration" &&
-						source.kind !== "MethodSignature",
-				)
-			) {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: @inheritDoc is supported only on functions and methods. Replace @inheritDoc with local documentation for this declaration.`,
-				);
-			}
-			const context = assertDefined(
-				signature.documentationContext,
-				"Supported inheritance sources must retain documentation context.",
-			);
-			const lookup = assertDefined(
-				context.inheritance,
-				"Inheritance requests must retain compiler lookup facts.",
-			);
-			assert.equal(
-				lookup.reference,
-				request.declarationReference?.emitAsTsdoc() ?? "",
-				"Inheritance lookup facts must match the original comment.",
-			);
-			if (lookup.status === "unsupported") {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a function or instance method in the same package, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select an overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
-				);
-			}
-			if (lookup.status === "not-found") {
-				return failure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${signature.id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the reference.`,
-				);
-			}
-			const target = declarations.get(lookup.target);
-			assert.ok(target, "Documentation lookup targets must be retained in declaration facts.");
-			// TODO (Stage 2 documentation targets): Support non-callable targets with declaration-level
-			// documentation contexts and bindings instead of requiring a callable signature below.
-			if (
-				target.declarations.length === 0 ||
-				target.declarations.some(
-					(source) =>
-						source.kind !== "FunctionDeclaration" &&
-						source.kind !== "MethodDeclaration" &&
-						source.kind !== "MethodSignature",
-				)
-			) {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: target ${lookup.reference} must be a function or method.`,
-				);
-			}
-			const selector = request.declarationReference?.memberReferences.at(-1)?.selector;
-			if (selector !== undefined && selector.selectorKind !== SelectorKind.Index) {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: use a numeric overload selector.`,
-				);
-			}
-			if (selector === undefined && target.signatures.length !== 1) {
-				return failure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${signature.id}: target ${lookup.reference} has ${target.signatures.length} callable signatures. Supply a one-based numeric selector such as (foo:1), or local documentation.`,
-				);
-			}
-			const ordinal = selector === undefined ? 1 : Number(selector.selector);
-			if (
-				!Number.isSafeInteger(ordinal) ||
-				ordinal < 1 ||
-				ordinal > target.signatures.length
-			) {
-				return failure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${signature.id}: overload selector ${selector?.selector} is outside the callable signature range 1..${target.signatures.length} for ${lookup.reference}.`,
-				);
-			}
-			const targetSignature = target.signatures[ordinal - 1];
-			assert.ok(targetSignature, "Validated overload selectors must identify a signature.");
-			const targetContext = assertDefined(
-				targetSignature.documentationContext,
-				"Supported inheritance targets must retain documentation context.",
-			);
-			if (targetContext.origin.packageName !== context.origin.packageName) {
-				return failure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: target ${lookup.reference} requires same-package callable documentation facts. Cross-package targets require future suite resolution.`,
-				);
-			}
-			if (
-				context.parameters.some((parameter) => parameter.name === undefined) ||
-				targetContext.parameters.some((parameter) => parameter.name === undefined) ||
-				context.parameters.length !== targetContext.parameters.length ||
-				context.parameters.some((parameter, index) => {
-					const other = targetContext.parameters[index];
-					return (
-						other === undefined ||
-						parameter.name !== other.name ||
-						parameter.optional !== other.optional ||
-						parameter.rest !== other.rest
-					);
-				}) ||
-				context.typeParameters.length !== targetContext.typeParameters.length ||
-				context.typeParameters.some(
-					(name, index) => name !== targetContext.typeParameters[index],
-				)
-			) {
-				return failure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${signature.id}: parameters or type parameters do not match ${lookup.reference}. Supply local documentation; parameter adaptation is not supported yet.`,
-				);
-			}
-			bindings.push({
-				source: signature.id,
-				reference: lookup.reference,
-				target: targetSignature.id,
-			});
+	const bindings: DocumentationReferenceBinding[] = [];
+	for (const { declaration, signature, parsed } of analysis.items.values()) {
+		const request = parsed.docComment.inheritDocTag;
+		if (request === undefined) {
+			continue;
 		}
+		// TODO (Stage 2 documentation references): Support other declaration kinds once
+		// the adapter extracts their original-scope documentation lookup context.
+		if (
+			declaration.declarations.length === 0 ||
+			declaration.declarations.some(
+				(source) =>
+					source.kind !== "FunctionDeclaration" &&
+					source.kind !== "MethodDeclaration" &&
+					source.kind !== "MethodSignature",
+			)
+		) {
+			return failure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Item ${signature.id}: @inheritDoc is supported only on functions and methods. Replace @inheritDoc with local documentation for this declaration.`,
+			);
+		}
+		const context = assertDefined(
+			signature.documentationContext,
+			"Supported inheritance sources must retain documentation context.",
+		);
+		const lookup = assertDefined(
+			context.inheritance,
+			"Inheritance requests must retain compiler lookup facts.",
+		);
+		assert.equal(
+			lookup.reference,
+			request.declarationReference?.emitAsTsdoc() ?? "",
+			"Inheritance lookup facts must match the original comment.",
+		);
+		if (lookup.status === "unsupported") {
+			return failure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Item ${signature.id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a function or instance method in the same package, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select an overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
+			);
+		}
+		if (lookup.status === "not-found") {
+			return failure(
+				DiagnosticCode.DocumentationReference,
+				`Item ${signature.id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the reference.`,
+			);
+		}
+		const target = declarations.get(lookup.target);
+		assert.ok(target, "Documentation lookup targets must be retained in declaration facts.");
+		// TODO (Stage 2 documentation targets): Support non-callable targets with declaration-level
+		// documentation contexts and bindings instead of requiring a callable signature below.
+		if (
+			target.declarations.length === 0 ||
+			target.declarations.some(
+				(source) =>
+					source.kind !== "FunctionDeclaration" &&
+					source.kind !== "MethodDeclaration" &&
+					source.kind !== "MethodSignature",
+			)
+		) {
+			return failure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Item ${signature.id}: target ${lookup.reference} must be a function or method.`,
+			);
+		}
+		const selector = request.declarationReference?.memberReferences.at(-1)?.selector;
+		if (selector !== undefined && selector.selectorKind !== SelectorKind.Index) {
+			return failure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Item ${signature.id}: use a numeric overload selector.`,
+			);
+		}
+		if (selector === undefined && target.signatures.length !== 1) {
+			return failure(
+				DiagnosticCode.DocumentationReference,
+				`Item ${signature.id}: target ${lookup.reference} has ${target.signatures.length} callable signatures. Supply a one-based numeric selector such as (foo:1), or local documentation.`,
+			);
+		}
+		const ordinal = selector === undefined ? 1 : Number(selector.selector);
+		if (!Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > target.signatures.length) {
+			return failure(
+				DiagnosticCode.DocumentationReference,
+				`Item ${signature.id}: overload selector ${selector?.selector} is outside the callable signature range 1..${target.signatures.length} for ${lookup.reference}.`,
+			);
+		}
+		const targetSignature = target.signatures[ordinal - 1];
+		assert.ok(targetSignature, "Validated overload selectors must identify a signature.");
+		const targetContext = assertDefined(
+			targetSignature.documentationContext,
+			"Supported inheritance targets must retain documentation context.",
+		);
+		if (targetContext.origin.packageName !== context.origin.packageName) {
+			return failure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Item ${signature.id}: target ${lookup.reference} requires same-package callable documentation facts. Cross-package targets require future suite resolution.`,
+			);
+		}
+		if (
+			context.parameters.some((parameter) => parameter.name === undefined) ||
+			targetContext.parameters.some((parameter) => parameter.name === undefined) ||
+			context.parameters.length !== targetContext.parameters.length ||
+			context.parameters.some((parameter, index) => {
+				const other = targetContext.parameters[index];
+				return (
+					other === undefined ||
+					parameter.name !== other.name ||
+					parameter.optional !== other.optional ||
+					parameter.rest !== other.rest
+				);
+			}) ||
+			context.typeParameters.length !== targetContext.typeParameters.length ||
+			context.typeParameters.some(
+				(name, index) => name !== targetContext.typeParameters[index],
+			)
+		) {
+			return failure(
+				DiagnosticCode.DocumentationReference,
+				`Item ${signature.id}: parameters or type parameters do not match ${lookup.reference}. Supply local documentation; parameter adaptation is not supported yet.`,
+			);
+		}
+		bindings.push({
+			source: signature.id,
+			reference: lookup.reference,
+			target: targetSignature.id,
+		});
 	}
 	return freezeData({
 		ok: true,
@@ -421,8 +381,9 @@ export interface DocumentationLinkBinding {
  *
  * @remarks
  * Internal operation. Should not be exported from the package entrypoint.
- * Supply original signature classification from the same analysis, not a selected report view
- * or metadata from inherited comments. This operation does not recompute classification.
+ * Uses the context's original classification, parsed link nodes, and compiler lookup results.
+ * Does not reparse comments or recompute classification.
+ * Run this operation before content resolution updates the parsed comments.
  * Targets must be same-package standalone functions with exactly one callable signature.
  * Parameter compatibility is not required for links.
  * Public, beta, and alpha sources can link to each other, but cannot link to internal targets.
@@ -430,184 +391,125 @@ export interface DocumentationLinkBinding {
  * Repeated links retain separate indices. URL links require no lookup or network access.
  * This operation does not resolve inherited content or change report behavior.
  *
- * @param facts - Detached analysis facts with original-scope API link lookups.
- * @param classification - Original classification, including unselected link targets.
- * @param options - Explicit custom modifier configuration shared with classification.
+ * @param analysis - The indexed analysis, including unselected link targets and their original metadata.
  * @returns Deeply frozen bindings sorted by source identifier and link index, or diagnostics without partial bindings.
- * @throws If declaration, signature, or metadata identifiers are not unique, a resolved target fact is missing,
- * or an unexpected processing error occurs.
+ * @throws If required lookup data or metadata is missing or inconsistent, or an unexpected processing error occurs.
  */
 export function bindDocumentationLinks(
-	facts: AnalysisFacts,
-	classification: ApiClassification,
-	options: TsdocOptions,
+	analysis: AnalysisContext,
 ): Result<readonly DocumentationLinkBinding[]> {
-	const declarations = new Map(
-		facts.declarations.map((declaration) => [declaration.id, declaration]),
-	);
-	assert.equal(
-		declarations.size,
-		facts.declarations.length,
-		"Declaration facts must have distinct identities.",
-	);
-	const signatures = facts.declarations.flatMap((declaration) => declaration.signatures);
-	assert.equal(
-		new Set(signatures.map((signature) => signature.id)).size,
-		signatures.length,
-		"Signature facts must have distinct identities.",
-	);
-	const metadata = new Map(classification.items.map((entry) => [entry.id, entry]));
-	assert.equal(
-		metadata.size,
-		classification.items.length,
-		"Classification metadata must have distinct identities.",
-	);
-	const configured = createTsdocConfiguration(
-		options,
-		DiagnosticCode.DocumentationConfiguration,
-	);
-	if (!configured.ok) {
-		return configured;
+	const { declarations, metadata, validation } = analysis;
+	if (!validation.ok) {
+		return validation;
 	}
-	const parser = new TSDocParser(configured.value);
 	const bindings: DocumentationLinkBinding[] = [];
-	for (const declaration of facts.declarations) {
-		for (const signature of declaration.signatures) {
-			const parsed = parser.parseString(signature.documentation ?? "/** */");
-			if (parsed.log.messages.length > 0) {
+	for (const { declaration, signature, originalLinks } of analysis.items.values()) {
+		const references = originalLinks.map((node) => node.codeDestination?.emitAsTsdoc());
+		const context = signature.documentationContext;
+		if (context === undefined && references.length === 0) {
+			continue;
+		}
+		// TODO (Stage 2 link sources): Bind links on other declaration kinds and effective members
+		// once their original-scope lookup contexts and original classification are available.
+		if (
+			references.length > 0 &&
+			(declaration.declarations.length === 0 ||
+				declaration.declarations.some(
+					(source) =>
+						source.kind !== "FunctionDeclaration" &&
+						source.kind !== "MethodDeclaration" &&
+						source.kind !== "MethodSignature",
+				))
+		) {
+			return failure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Item ${signature.id}: API links are supported only in function and method comments. Use plain text for this declaration.`,
+			);
+		}
+		assert.ok(context, "Supported API link sources must retain documentation context.");
+		assert.equal(
+			references.length,
+			context.links.length,
+			"API link lookup counts must match the original comment.",
+		);
+		assert.ok(
+			references.every(
+				(reference, index) => reference === assertDefined(context.links[index]).reference,
+			),
+			"API link lookup references must match the original comment.",
+		);
+		for (const [linkIndex, lookup] of context.links.entries()) {
+			if (lookup.status === "unsupported") {
 				return failure(
-					DiagnosticCode.DocumentationTsdoc,
-					`Item ${signature.id}: correct the TSDoc comment: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
+					DiagnosticCode.DocumentationUnsupported,
+					`Item ${signature.id}: use an unqualified API link reference. Qualified references and selectors are not supported yet.`,
 				);
 			}
-			const references = apiLinkNodes(parsed.docComment).map((node) =>
-				node.codeDestination?.emitAsTsdoc(),
-			);
-			const context = signature.documentationContext;
-			if (context === undefined && references.length === 0) {
-				continue;
+			if (lookup.status === "not-found") {
+				return failure(
+					DiagnosticCode.DocumentationReference,
+					`Item ${signature.id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the API link.`,
+				);
 			}
-			// TODO (Stage 2 link sources): Bind links on other declaration kinds and effective members
-			// once their original-scope lookup contexts and original classification are available.
+			const target = declarations.get(lookup.target);
+			assert.ok(target, "Documentation lookup targets must be retained in declaration facts.");
+			// TODO (Stage 2 link targets): Add declaration-level classification and overload
+			// target semantics before accepting other target forms or selecting a signature.
 			if (
-				references.length > 0 &&
-				(declaration.declarations.length === 0 ||
-					declaration.declarations.some(
-						(source) =>
-							source.kind !== "FunctionDeclaration" &&
-							source.kind !== "MethodDeclaration" &&
-							source.kind !== "MethodSignature",
-					))
+				target.declarations.length === 0 ||
+				target.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
+				target.signatures.length !== 1
 			) {
 				return failure(
 					DiagnosticCode.DocumentationUnsupported,
-					`Item ${signature.id}: API links are supported only in function and method comments. Use plain text for this declaration.`,
+					`Item ${signature.id}: target ${lookup.reference} requires a standalone function with one callable signature and documentation context. Other declaration forms and overload targets are not supported yet.`,
 				);
 			}
-			assert.ok(context, "Supported API link sources must retain documentation context.");
-			assert.equal(
-				references.length,
-				context.links.length,
-				"API link lookup counts must match the original comment.",
+			const targetSignature = assertDefined(
+				target.signatures[0],
+				"Single-signature targets must have a signature.",
 			);
-			assert.ok(
-				references.every(
-					(reference, index) => reference === assertDefined(context.links[index]).reference,
-				),
-				"API link lookup references must match the original comment.",
+			const targetContext = assertDefined(
+				targetSignature.documentationContext,
+				"Supported API link targets must retain documentation context.",
 			);
-			for (const [linkIndex, lookup] of context.links.entries()) {
-				if (
-					declaration.declarations.length === 0 ||
-					declaration.declarations.some(
-						(source) =>
-							source.kind !== "FunctionDeclaration" &&
-							source.kind !== "MethodDeclaration" &&
-							source.kind !== "MethodSignature",
-					)
-				) {
-					return failure(
-						DiagnosticCode.DocumentationUnsupported,
-						`Item ${signature.id}: API link sources must be functions or methods with original context.`,
-					);
-				}
-				if (lookup.status === "unsupported") {
-					return failure(
-						DiagnosticCode.DocumentationUnsupported,
-						`Item ${signature.id}: use an unqualified API link reference. Qualified references and selectors are not supported yet.`,
-					);
-				}
-				if (lookup.status === "not-found") {
-					return failure(
-						DiagnosticCode.DocumentationReference,
-						`Item ${signature.id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the API link.`,
-					);
-				}
-				const target = declarations.get(lookup.target);
-				assert.ok(
-					target,
-					"Documentation lookup targets must be retained in declaration facts.",
+			if (
+				targetContext.origin.packageName !== context.origin.packageName ||
+				target.declarations.some((source) => source.packageName !== context.origin.packageName)
+			) {
+				return failure(
+					DiagnosticCode.DocumentationUnsupported,
+					`Item ${signature.id}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Cross-package links require future suite resolution.`,
 				);
-				// TODO (Stage 2 link targets): Add declaration-level classification and overload
-				// target semantics before accepting other target forms or selecting a signature.
-				if (
-					target.declarations.length === 0 ||
-					target.declarations.some((source) => source.kind !== "FunctionDeclaration") ||
-					target.signatures.length !== 1
-				) {
-					return failure(
-						DiagnosticCode.DocumentationUnsupported,
-						`Item ${signature.id}: target ${lookup.reference} requires a standalone function with one callable signature and documentation context. Other declaration forms and overload targets are not supported yet.`,
-					);
-				}
-				const targetSignature = assertDefined(
-					target.signatures[0],
-					"Single-signature targets must have a signature.",
-				);
-				const targetContext = assertDefined(
-					targetSignature.documentationContext,
-					"Supported API link targets must retain documentation context.",
-				);
-				if (
-					targetContext.origin.packageName !== context.origin.packageName ||
-					target.declarations.some(
-						(source) => source.packageName !== context.origin.packageName,
-					)
-				) {
-					return failure(
-						DiagnosticCode.DocumentationUnsupported,
-						`Item ${signature.id}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Cross-package links require future suite resolution.`,
-					);
-				}
-				const sourceLevel = assertDefined(
-					metadata.get(signature.id),
-					"API link sources must have original classification metadata.",
-				).releaseLevel;
-				const targetLevel = assertDefined(
-					metadata.get(targetSignature.id),
-					"API link targets must have original classification metadata.",
-				).releaseLevel;
-				if (sourceLevel === undefined || targetLevel === undefined) {
-					return failure(
-						DiagnosticCode.DocumentationConfiguration,
-						`Item ${signature.id}: API links require release tags on both the source and target ${lookup.reference}. Add a release tag to each untagged declaration.`,
-					);
-				}
-				if (sourceLevel !== ReleaseLevel.Internal && targetLevel === ReleaseLevel.Internal) {
-					return failure(
-						DiagnosticCode.DocumentationLinkPolicy,
-						`Item ${signature.id}: non-internal APIs cannot link to internal target ${lookup.reference}. Remove the link or correct the original release tags.`,
-					);
-				}
-				bindings.push({
-					source: signature.id,
-					linkIndex,
-					reference: lookup.reference,
-					target: target.id,
-					targetSignature: targetSignature.id,
-					origin: { ...context.origin },
-				});
 			}
+			const sourceLevel = assertDefined(
+				metadata.get(signature.id),
+				"API link sources must have original classification metadata.",
+			).releaseLevel;
+			const targetLevel = assertDefined(
+				metadata.get(targetSignature.id),
+				"API link targets must have original classification metadata.",
+			).releaseLevel;
+			if (sourceLevel === undefined || targetLevel === undefined) {
+				return failure(
+					DiagnosticCode.DocumentationConfiguration,
+					`Item ${signature.id}: API links require release tags on both the source and target ${lookup.reference}. Add a release tag to each untagged declaration.`,
+				);
+			}
+			if (sourceLevel !== ReleaseLevel.Internal && targetLevel === ReleaseLevel.Internal) {
+				return failure(
+					DiagnosticCode.DocumentationLinkPolicy,
+					`Item ${signature.id}: non-internal APIs cannot link to internal target ${lookup.reference}. Remove the link or correct the original release tags.`,
+				);
+			}
+			bindings.push({
+				source: signature.id,
+				linkIndex,
+				reference: lookup.reference,
+				target: target.id,
+				targetSignature: targetSignature.id,
+				origin: { ...context.origin },
+			});
 		}
 	}
 	return freezeData({
@@ -623,17 +525,6 @@ export function bindDocumentationLinks(
 }
 
 /**
- * Collects API link nodes in TSDoc tree traversal order, omitting links with URL destinations.
- *
- * @param node - The parsed comment or one of its descendants.
- * @returns Original parsed API link nodes, including repeated references.
- */
-function apiLinkNodes(node: DocNode): readonly DocLinkTag[] {
-	const own = node instanceof DocLinkTag && node.codeDestination !== undefined ? [node] : [];
-	return [...own, ...node.getChildNodes().flatMap(apiLinkNodes)];
-}
-
-/**
  * Validated original API links and release metadata for content resolution.
  */
 export interface DocumentationLinkValidation {
@@ -642,19 +533,20 @@ export interface DocumentationLinkValidation {
 	 *
 	 * @remarks
 	 * Use the compiler-backed binder or perform equivalent original-scope and target-form checks.
-	 * The resolver checks occurrence correspondence and same-package scope, but does not repeat compiler lookup.
+	 * The resolver trusts the binder's validated identities, occurrence indices, reference text, and scope.
+	 * Bindings must belong to the same context and must not be modified after binding.
 	 */
 	readonly bindings: readonly DocumentationLinkBinding[];
 	/**
 	 * Original classification for all linked targets and receiving APIs, independent of report selection.
 	 */
-	readonly classification: ApiClassification;
+	readonly metadata: ReadonlyMap<ApiItemId, ApiItemMetadata>;
 }
 
 /**
- * Parser configuration and optional API link validation inputs for documentation resolution.
+ * Validated automatic inheritance and API link inputs for documentation resolution.
  */
-export interface DocumentationResolutionOptions extends TsdocOptions {
+export interface DocumentationResolutionOptions {
 	/**
 	 * Confident non-overloaded member bindings established from compiler relationships.
 	 *
@@ -710,8 +602,10 @@ export interface ResolvedDocumentation extends DocumentationInput {
  * Copies documentation for explicit or validated automatic inheritance within the same package.
  *
  * @remarks
- * Uses the official TSDoc parser and printer.
- * Processes all supplied items, regardless of report selection, without changing the inputs.
+ * Uses the context's TSDoc nodes and the official printer without re-parsing.
+ * Processes all supplied items, regardless of report selection.
+ * Updates the context's parsed comments once, while original text, facts, and classification remain unchanged.
+ * Do not reuse this working context for another resolution attempt, including after failure.
  * An absent or empty target comment supplies no inherited descriptive content.
  * A target comment that contains only metadata tags also supplies no descriptive content.
  * Local modifier tags and blocks that are not inherited remain unchanged.
@@ -721,62 +615,51 @@ export interface ResolvedDocumentation extends DocumentationInput {
  * A binding uses the declaration reference printed by TSDoc and a target from the original comment's package.
  * The internal reference binder looks up targets in supported compiler facts.
  *
- * Custom modifier tags require the same vocabulary used for classification and reference binding.
- * Supply original API link bindings and classification through the link validation options.
+ * The context owns the modifier vocabulary used for classification and reference binding.
+ * Supply original API link bindings and the existing metadata index through the link validation options.
  * Links retain their original context when sections are inherited. Each receiving API is checked
  * against the target's original release level; non-internal APIs cannot link to internal targets.
- * Missing, duplicate, stale, or unused bindings violate internal invariants and throw assertion errors.
+ * Binding owns identity, occurrence, reference-text, and scope validation; the resolver does not repeat it.
+ * Required missing inputs still assert where resolution needs them.
  * Automatic bindings require prior compiler compatibility and unique source selection.
  * Any local comment suppresses automatic inheritance; competing automatic targets are skipped.
  * This function does not support custom block or inline tags or cross-package links.
  * Inheritance requests for other packages produce diagnostics.
  * Links to URLs remain unchanged. The function does not access or validate their destinations.
  *
- * @param items - Local comments with distinct identifiers and original package names.
- * @param bindings - Associations between inheritance requests and their resolved targets.
- * @param options - Custom modifiers and link validation inputs. Defaults to standard tags and no API link bindings.
+ * @param context - Invocation-owned parsed comments before inheritance, with validated original identities.
+ * @param bindings - Validated associations produced from these original comments.
+ * @param options - Optional automatic inheritance bindings, API link bindings, and original metadata.
  * @returns Deeply frozen comments and inheritance paths sorted by item identifier,
  * or diagnostics without a partial value.
  * @throws If an internal invariant fails or an unexpected processing error occurs.
  */
 export function resolveDocumentation(
-	items: readonly DocumentationInput[],
+	context: DocumentationContext,
 	bindings: readonly DocumentationReferenceBinding[],
 	options: DocumentationResolutionOptions = {},
 ): Result<readonly ResolvedDocumentation[]> {
-	// Sort a copy for deterministic diagnostics and output, and index the unchanged inputs for lookup.
-	const ordered = [...items].sort((left, right) =>
+	const inputs = context.items;
+	const ordered = [...inputs.values()].sort((left, right) =>
 		left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
 	);
-	const inputs = new Map(items.map((item) => [item.id, item]));
-	// Validate input identities and original package names before following any references.
-	assert.equal(
-		inputs.size,
-		items.length,
-		"Documentation inputs must have distinct identities.",
-	);
-	assert.ok(
-		items.every((item) => item.packageName.trim().length > 0),
-		"Documentation inputs must retain non-blank originating package names.",
-	);
-	// Index pre-bound inheritance requests and configure the parser with the shared tag vocabulary.
-	const targets = indexInheritanceBindings(inputs, bindings);
-	const configured = createTsdocConfiguration(
-		options,
-		DiagnosticCode.DocumentationConfiguration,
-	);
-	if (!configured.ok) {
-		return configured;
+	if (!context.validation.ok) {
+		return context.validation;
 	}
-	const parser = new TSDocParser(configured.value);
-	// Parse original comments and associate their link nodes with validated bindings before copying content.
-	// These node associations preserve original link scope when sections are inherited.
-	const { metadata, linksBySource } = indexDocumentationLinks(inputs, options.linkValidation);
-	const parsed = parseDocumentationInputs(
+	const targets = new Map(bindings.map((binding) => [binding.source, binding]));
+	// Associate already-parsed link nodes with their original bindings before copying sections.
+	const metadata = options.linkValidation?.metadata ?? new Map<ApiItemId, ApiItemMetadata>();
+	const linksBySource = new Map<ApiItemId, Map<number, DocumentationLinkBinding>>();
+	for (const link of options.linkValidation?.bindings ?? []) {
+		const links =
+			linksBySource.get(link.source) ?? new Map<number, DocumentationLinkBinding>();
+		links.set(link.linkIndex, link);
+		linksBySource.set(link.source, links);
+	}
+	const parsed = associateDocumentationBindings(
 		ordered,
 		inputs,
 		targets,
-		parser,
 		linksBySource,
 		options.linkValidation !== undefined,
 	);
@@ -838,100 +721,19 @@ export function resolveDocumentation(
 }
 
 /**
- * Validates inheritance binding identities and indexes them by source.
- *
- * @param inputs - Documentation inputs indexed by unique identifier.
- * @param bindings - Explicit inheritance bindings for this request.
- * @returns A new binding index.
- * @throws If bindings contain duplicate sources or missing input identities.
- */
-function indexInheritanceBindings(
-	inputs: ReadonlyMap<ApiItemId, DocumentationInput>,
-	bindings: readonly DocumentationReferenceBinding[],
-): ReadonlyMap<ApiItemId, DocumentationReferenceBinding> {
-	const targets = new Map<ApiItemId, DocumentationReferenceBinding>();
-	for (const binding of bindings) {
-		assert.ok(!targets.has(binding.source), "Inheritance sources must have one binding.");
-		assert.ok(inputs.has(binding.source), "Inheritance binding sources must have inputs.");
-		assert.ok(inputs.has(binding.target), "Inheritance binding targets must have inputs.");
-		targets.set(binding.source, binding);
-	}
-	return targets;
-}
-
-/**
- * Validates original link identities and scope before indexing bindings and metadata.
- *
- * @param inputs - Documentation inputs indexed by unique identifier.
- * @param validation - Explicit link validation inputs, or `undefined` for comments without API links.
- * @returns New request-local indexes.
- * @throws If validated link identities, occurrence indices, metadata, or provenance are inconsistent.
- */
-function indexDocumentationLinks(
-	inputs: ReadonlyMap<ApiItemId, DocumentationInput>,
-	validation: DocumentationLinkValidation | undefined,
-): {
-	readonly metadata: ReadonlyMap<ApiItemId, ApiItemMetadata>;
-	readonly linksBySource: ReadonlyMap<
-		ApiItemId,
-		ReadonlyMap<number, DocumentationLinkBinding>
-	>;
-} {
-	const linksBySource = new Map<ApiItemId, Map<number, DocumentationLinkBinding>>();
-	const metadata = new Map(validation?.classification.items.map((entry) => [entry.id, entry]));
-	assert.equal(
-		metadata.size,
-		validation?.classification.items.length ?? 0,
-		"Original classification metadata must have distinct identities.",
-	);
-	for (const link of validation?.bindings ?? []) {
-		const source = assertDefined(
-			inputs.get(link.source),
-			"API link sources must have inputs.",
-		);
-		const target = assertDefined(
-			inputs.get(link.targetSignature),
-			"API link target signatures must have inputs.",
-		);
-		const sourceLinks =
-			linksBySource.get(link.source) ?? new Map<number, DocumentationLinkBinding>();
-		assert.ok(
-			Number.isInteger(link.linkIndex) && link.linkIndex >= 0,
-			"API link occurrence indices must be nonnegative integers.",
-		);
-		assert.ok(!sourceLinks.has(link.linkIndex), "API link occurrences must have one binding.");
-		assert.equal(
-			link.origin.packageName,
-			source.packageName,
-			"API links must retain their original source package.",
-		);
-		assert.equal(
-			target.packageName,
-			source.packageName,
-			"Validated API links must retain same-package targets.",
-		);
-		sourceLinks.set(link.linkIndex, link);
-		linksBySource.set(link.source, sourceLinks);
-	}
-	return { metadata, linksBySource };
-}
-
-/**
- * Parses original comments and validates their link and inheritance bindings.
+ * Associates original comment nodes with bindings before inheritance replaces sections.
  *
  * @param ordered - Inputs in diagnostic evaluation order.
  * @param inputs - All request inputs indexed by identifier.
  * @param targets - Validated inheritance binding identities.
- * @param parser - The parser configured for this request's tag vocabulary.
  * @param linksBySource - Validated original link identities and occurrence indices.
  * @param hasLinkValidation - Whether link validation inputs were supplied.
  * @returns Request-owned mutable comments and original link-node associations, or diagnostics.
  */
-function parseDocumentationInputs(
-	ordered: readonly DocumentationInput[],
+function associateDocumentationBindings(
+	ordered: readonly ParsedDocumentationItem<DocumentationInput>[],
 	inputs: ReadonlyMap<ApiItemId, DocumentationInput>,
 	targets: ReadonlyMap<ApiItemId, DocumentationReferenceBinding>,
-	parser: TSDocParser,
 	linksBySource: ReadonlyMap<ApiItemId, ReadonlyMap<number, DocumentationLinkBinding>>,
 	hasLinkValidation: boolean,
 ): Result<{
@@ -941,42 +743,23 @@ function parseDocumentationInputs(
 	const comments = new Map<ApiItemId, DocComment>();
 	const nodesToBindings = new Map<DocLinkTag, DocumentationLinkBinding>();
 	for (const item of ordered) {
-		const parsed = parser.parseString(item.documentation ?? "/** */");
-		if (parsed.log.messages.length > 0) {
-			return failure(
-				DiagnosticCode.DocumentationTsdoc,
-				`Item ${item.id}: correct the TSDoc comment: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
-			);
-		}
-		const comment = parsed.docComment;
-		const linkNodes = apiLinkNodes(comment);
+		const comment = item.parsed.docComment;
+		const linkNodes = item.originalLinks;
 		assert.ok(
 			linkNodes.length === 0 || hasLinkValidation,
 			"Comments with API links must have original link validation inputs.",
 		);
 		const sourceLinks = linksBySource.get(item.id);
-		assert.equal(
-			linkNodes.length,
-			sourceLinks?.size ?? 0,
-			"API link binding counts must match original occurrences.",
-		);
 		for (const [linkIndex, node] of linkNodes.entries()) {
 			const link = assertDefined(
 				sourceLinks?.get(linkIndex),
 				"Every API link occurrence must have a binding.",
 			);
-			assert.equal(
-				link.reference,
-				node.codeDestination?.emitAsTsdoc(),
-				"API link bindings must match original references.",
-			);
 			nodesToBindings.set(node, link);
 		}
 		const request = comment.inheritDocTag;
 		const binding = targets.get(item.id);
-		if (request === undefined) {
-			assert.equal(binding, undefined, "Comments without inheritance must not have bindings.");
-		} else {
+		if (request !== undefined) {
 			const reference = request.declarationReference;
 			// TODO (Stage 2 suite resolution): Look up targets in the original comment's package suite.
 			// Replace the same-package checks and apply reference policies. When loading models, check
@@ -991,11 +774,6 @@ function parseDocumentationInputs(
 				);
 			}
 			assert.ok(binding, "Explicit inheritance requests must have validated bindings.");
-			assert.equal(
-				binding.reference,
-				reference.emitAsTsdoc(),
-				"Inheritance bindings must match original references.",
-			);
 			const target = inputs.get(binding.target);
 			assert.ok(target, "Validated documentation bindings must have target inputs.");
 			if (target.packageName !== item.packageName) {

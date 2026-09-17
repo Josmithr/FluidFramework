@@ -36,13 +36,13 @@ import {
 	type ResolvedDocumentation,
 } from "../documentation.js";
 import type { AnalysisFacts, DocumentationReferenceLookup } from "../facts.js";
+import { ReleaseLevel, DiagnosticCode, analyzeAPIs } from "../index.js";
 import {
-	ReleaseLevel,
+	createReviewReport,
+	prepareReviewReport,
 	renderReviewReport,
-	compareReviewBaseline,
-	DiagnosticCode,
-} from "../index.js";
-import { createReviewReport } from "../reviewReport.js";
+} from "../reviewReport.js";
+import { compareReviewBaseline } from "../reviewBaseline.js";
 import {
 	aliasTypeOnly,
 	createNativeAdapter,
@@ -59,8 +59,8 @@ import {
 	type CollectionState,
 	type LocationContext,
 } from "../nativeAdapter.js";
-import { createAnalysisSession } from "../session.js";
 import { assertSnapshot } from "./snapshotUtils.js";
+import { documentationContext, analysisContext, success } from "./contextUtils.js";
 
 describe("Adapter fact extraction: documentation links", () => {
 	it("preserves traversal order, repeated references, and lookup outcomes without changing the tree", () => {
@@ -636,9 +636,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								documentation: member.declarations[0]?.documentation,
 							})),
 					);
-					const resolved = resolveDocumentation(inputs, [], {
-						automaticInheritance: automatic,
-					});
+					const resolved = resolveDocumentation(
+						documentationContext(inputs, {
+							automaticInheritance: automatic,
+						}),
+						[],
+						{
+							automaticInheritance: automatic,
+						},
+					);
 					assert.equal(resolved.ok, true);
 					assert.equal(Object.isFrozen(automatic), true);
 					assert.deepEqual(
@@ -972,7 +978,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						parse.signatures.map((signature) => signature.callSignatureText),
 						["(value: string): string;", "(value: number): number;"],
 					);
-					const classified = classifyApiItems(parse.signatures);
+					const classified = classifyApiItems(documentationContext(parse.signatures));
 					assert.equal(classified.ok, true);
 					const selected = selectApiItems(classified.value, {
 						name: "public",
@@ -1286,7 +1292,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			});
 
 			// Design requirement: W4.
-			it("session analyzes built declarations without leaking compiler state", () => {
+			it("analyzes built declarations without exposing compiler state", async () => {
 				const configuration = resolveConfiguration(
 					{
 						packageName: "fixture",
@@ -1296,24 +1302,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.ok(configuration.ok);
-				const publicSession = createAnalysisSession();
-				try {
-					assert.deepEqual(publicSession.analyze(configuration.value), {
-						ok: true,
-						value: undefined,
-					});
-					assert.deepEqual(publicSession.analyze(configuration.value), {
-						ok: true,
-						value: undefined,
-					});
-					assert.deepEqual(publicSession.getStatistics(), {
-						analyses: 1,
-						cacheHits: 1,
-						generation: 0,
-					});
-				} finally {
-					publicSession.close();
-				}
+				const result = await analyzeAPIs(configuration.value);
+				assert.equal(result.ok, true, JSON.stringify(result));
+				assert.equal("close" in result.value, false);
+				assert.equal("facts" in result.value, false);
+				assert.equal(result.value.getStatistics().entrypoints, 1);
 			});
 		});
 
@@ -1348,8 +1341,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(restored[0]?.documentation, undefined);
 					assert.equal(restored[2]?.documentation, "/** */");
 					const metadata = classifyApiItems(
-						comments.map((item) => ({ id: item.name, documentation: item.documentation })),
-						{ rules: { requireReleaseLevel: false } },
+						documentationContext(
+							comments.map((item) => ({ id: item.name, documentation: item.documentation })),
+							{ rules: { requireReleaseLevel: false } },
+						),
 					);
 					assert.ok(metadata.ok, JSON.stringify(metadata));
 					assert.equal(
@@ -1383,7 +1378,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(overloads.length, 2);
 					adapter.close();
 					const before = JSON.stringify(analysis.value);
-					const metadata = classifyApiItems(overloads);
+					const metadata = classifyApiItems(documentationContext(overloads));
 					assert.ok(metadata.ok, JSON.stringify(metadata));
 					const publicView = selectApiItems(metadata.value, {
 						name: "public",
@@ -1447,7 +1442,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const signature = linked.signatures[0];
 					assert.ok(signature?.documentationContext);
 					const classified = classifyApiItems(
-						facts.declarations.flatMap((entry) => entry.signatures),
+						documentationContext(facts.declarations.flatMap((entry) => entry.signatures)),
 					);
 					assert.equal(classified.ok, true);
 					const selected = selectApiItems(classified.value, {
@@ -1460,7 +1455,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						[signature.id],
 					);
 					// Link validation needs the unselected beta targets, so pass full classification rather than selected items.
-					const result = bindDocumentationLinks(facts, classified.value, {});
+					const result = bindDocumentationLinks(analysisContext(facts, {}));
 					assert.equal(result.ok, true);
 					// Five occurrences belong to linked; the sixth is base's back-reference to linked.
 					assert.equal(result.value.length, 6);
@@ -1499,7 +1494,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					);
 					// Rebinding deserialized facts must not depend on compiler handles or object identity.
 					assert.deepEqual(
-						bindDocumentationLinks(JSON.parse(before) as AnalysisFacts, classified.value, {}),
+						bindDocumentationLinks(analysisContext(JSON.parse(before) as AnalysisFacts, {})),
 						result,
 					);
 					assert.equal(JSON.stringify(facts), before);
@@ -1538,17 +1533,29 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							};
 						}),
 					);
-					const classification = classifyApiItems(inputs);
+					const classification = classifyApiItems(documentationContext(inputs));
 					assert.equal(classification.ok, true);
-					const inheritance = bindDocumentationReferences(facts, {});
+					const inheritance = bindDocumentationReferences(analysisContext(facts, {}));
 					assert.equal(inheritance.ok, true, JSON.stringify(inheritance));
-					const links = bindDocumentationLinks(facts, classification.value, {});
+					const links = bindDocumentationLinks(analysisContext(facts, {}));
 					assert.equal(links.ok, true);
 					// Only base contains a local API link; middle and derived receive it through inheritance.
 					assert.equal(links.value.length, 1);
-					const result = resolveDocumentation(inputs, inheritance.value, {
-						linkValidation: { bindings: links.value, classification: classification.value },
-					});
+					const result = resolveDocumentation(
+						documentationContext(inputs, {
+							linkValidation: {
+								bindings: links.value,
+								metadata: new Map(classification.value.items.map((item) => [item.id, item])),
+							},
+						}),
+						inheritance.value,
+						{
+							linkValidation: {
+								bindings: links.value,
+								metadata: new Map(classification.value.items.map((item) => [item.id, item])),
+							},
+						},
+					);
 					assert.equal(result.ok, true);
 					const receiver = facts.declarations.find((entry) => entry.name === "derived");
 					assert.ok(receiver);
@@ -1578,7 +1585,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						selected.value.items.map((entry) => entry.id),
 						[derived.id],
 					);
-					assert.deepEqual(classifyApiItems(inputs), classification);
+					assert.deepEqual(classifyApiItems(documentationContext(inputs)), classification);
 					assert.equal(Object.isFrozen(derived.links[0]?.origin), true);
 					assert.equal(JSON.stringify(facts), before);
 				} finally {
@@ -1658,13 +1665,16 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.throws(
 						() =>
 							resolveDocumentation(
-								[
-									{
-										id: signature.id,
-										packageName: context.origin.packageName,
-										documentation: signature.documentation,
-									},
-								],
+								documentationContext(
+									[
+										{
+											id: signature.id,
+											packageName: context.origin.packageName,
+											documentation: signature.documentation,
+										},
+									],
+									{},
+								),
 								[],
 							),
 						{
@@ -1705,7 +1715,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							};
 						}),
 					);
-					const classified = classifyApiItems(inputs, options);
+					const classified = classifyApiItems(documentationContext(inputs, options));
 					assert.ok(classified.ok);
 					const selection = {
 						name: "public",
@@ -1715,10 +1725,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const selected = selectApiItems(classified.value, selection);
 					assert.ok(selected.ok);
 					assert.equal(selected.value.items.length, 1);
-					const bindings = bindDocumentationReferences(analysis.value, options);
+					const bindings = bindDocumentationReferences(
+						analysisContext(analysis.value, options),
+					);
 					assert.ok(bindings.ok, JSON.stringify(bindings));
 					assert.equal(bindings.value.length, 1);
-					const result = resolveDocumentation(inputs, bindings.value, options);
+					const result = resolveDocumentation(
+						documentationContext(inputs, options),
+						bindings.value,
+					);
 					assert.ok(result.ok);
 					const derived = result.value.find(
 						(entry) => entry.id === selected.value.items[0]?.id,
@@ -1730,12 +1745,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(derived.documentation.includes("@sourceOnly"), false);
 					assert.equal(derived.documentation.includes("@internal"), false);
 					assert.deepEqual(derived.inheritedFrom, [bindings.value[0]?.target]);
-					assert.deepEqual(classifyApiItems(inputs, options), classified);
+					assert.deepEqual(
+						classifyApiItems(documentationContext(inputs, options)),
+						classified,
+					);
 					assert.deepEqual(selectApiItems(classified.value, selection), selected);
 					for (const customModifierTags of [[], ["@localOnly"], ["@sourceOnly"]]) {
-						const unconfigured = bindDocumentationReferences(analysis.value, {
-							customModifierTags,
-						});
+						const unconfigured = bindDocumentationReferences(
+							analysisContext(analysis.value, { customModifierTags }),
+						);
 						assert.ok(!unconfigured.ok);
 						assert.equal(unconfigured.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
 					}
@@ -1781,9 +1799,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							packageName: origin.packageName,
 						}));
 					});
-					const classification = classifyApiItems(inputs);
+					const classification = classifyApiItems(documentationContext(inputs));
 					assert.ok(classification.ok);
-					const bindings = bindDocumentationReferences(analysis.value, {});
+					const bindings = bindDocumentationReferences(analysisContext(analysis.value, {}));
 					assert.ok(bindings.ok, JSON.stringify(bindings));
 					assert.deepEqual(bindings.value, [
 						{
@@ -1792,7 +1810,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							target: base.signatures[0].id,
 						},
 					]);
-					const result = resolveDocumentation(inputs, bindings.value);
+					const result = resolveDocumentation(
+						documentationContext(inputs, {}),
+						bindings.value,
+					);
 					assert.ok(result.ok, JSON.stringify(result));
 					const effective = result.value.find(
 						(entry) => entry.id === derived.signatures[0]?.id,
@@ -1804,7 +1825,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(effective.documentation.includes("@internal"), false);
 					assert.equal(effective.documentation.includes("@inheritDoc"), false);
 					assert.deepEqual(effective.inheritedFrom, [base.signatures[0].id]);
-					assert.deepEqual(classifyApiItems(inputs), classification);
+					assert.deepEqual(classifyApiItems(documentationContext(inputs)), classification);
 					assert.equal(JSON.stringify(analysis.value), before);
 				} finally {
 					adapter.close();
@@ -1829,7 +1850,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const analysis = adapter.analyze(configuration.value);
 						assert.ok(analysis.ok, JSON.stringify(analysis));
 						adapter.close();
-						const result = bindDocumentationReferences(analysis.value, {});
+						const result = bindDocumentationReferences(analysisContext(analysis.value, {}));
 						if (fixture.expected === undefined) {
 							assert.ok(result.ok, JSON.stringify(result));
 							assert.equal(result.value.length, fixture.name === "selector" ? 3 : 1);
@@ -1840,7 +1861,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							assert.ok(Object.isFrozen(result.value));
 							if (fixture.name === "selector") {
 								const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
-								assert.deepEqual(bindDocumentationReferences(detached, {}), result);
+								assert.deepEqual(
+									bindDocumentationReferences(analysisContext(detached, {})),
+									result,
+								);
 								const base = analysis.value.declarations.find(
 									(entry) => entry.name === "base",
 								);
@@ -1855,24 +1879,38 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 									base.signatures[1]?.id,
 								);
 								const classification = classifyApiItems(
-									analysis.value.declarations.flatMap((entry) => entry.signatures),
+									documentationContext(
+										analysis.value.declarations.flatMap((entry) => entry.signatures),
+									),
 								);
 								assert.equal(classification.ok, true);
-								const links = bindDocumentationLinks(analysis.value, classification.value, {});
+								const links = bindDocumentationLinks(analysisContext(analysis.value, {}));
 								assert.equal(links.ok, true);
 								const resolved = resolveDocumentation(
-									analysis.value.declarations.flatMap((entry) =>
-										entry.signatures.map((signature) => ({
-											id: signature.id,
-											packageName: "example",
-											documentation: signature.documentation,
-										})),
+									documentationContext(
+										analysis.value.declarations.flatMap((entry) =>
+											entry.signatures.map((signature) => ({
+												id: signature.id,
+												packageName: "example",
+												documentation: signature.documentation,
+											})),
+										),
+										{
+											linkValidation: {
+												bindings: links.value,
+												metadata: new Map(
+													classification.value.items.map((item) => [item.id, item]),
+												),
+											},
+										},
 									),
 									result.value,
 									{
 										linkValidation: {
 											bindings: links.value,
-											classification: classification.value,
+											metadata: new Map(
+												classification.value.items.map((item) => [item.id, item]),
+											),
 										},
 									},
 								);
@@ -1964,7 +2002,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						assert.ok(analysis.ok, JSON.stringify(analysis));
 						adapter.close();
 						const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
-						const bindings = bindDocumentationReferences(detached, {});
+						const bindings = bindDocumentationReferences(analysisContext(detached, {}));
 						assert.ok(bindings.ok, JSON.stringify(bindings));
 						const expectedName = name === "hidden" ? "hidden" : "base";
 						const expectedFile =
@@ -1986,11 +2024,13 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						);
 						assert.deepEqual(
 							bindDocumentationReferences(
-								{
-									...analysis.value,
-									declarations: [...analysis.value.declarations].reverse(),
-								},
-								{},
+								analysisContext(
+									{
+										...analysis.value,
+										declarations: [...analysis.value.declarations].reverse(),
+									},
+									{},
+								),
 							),
 							bindings,
 						);
@@ -2025,7 +2065,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const before = JSON.stringify(analysis.value);
 						const facts = JSON.parse(before) as AnalysisFacts;
 						const classified = classifyApiItems(
-							facts.declarations.flatMap((entry) => entry.signatures),
+							documentationContext(facts.declarations.flatMap((entry) => entry.signatures)),
 						);
 						assert.equal(classified.ok, true);
 						const selected = selectApiItems(classified.value, {
@@ -2034,9 +2074,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						});
 						assert.equal(selected.ok, true);
 						assert.equal(selected.value.items.length, 1);
-						const report = createReviewReport(facts, ".", selected.value, {
-							classification: classified.value,
-						});
+						const report = createReviewReport(
+							success(prepareReviewReport(analysisContext(facts, {}))),
+							".",
+							{
+								name: "public",
+								releaseLevels: [ReleaseLevel.Public],
+							},
+						);
 						assert.equal(report.ok, true, JSON.stringify(report));
 						assert.equal(report.value.exports[0]?.signatures[0]?.documented, documented);
 						// The pure and compiler-backed paths must agree on complete output, including local-only tags.
@@ -2045,7 +2090,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							snapshotName,
 						);
 						assert.deepEqual(
-							classifyApiItems(facts.declarations.flatMap((entry) => entry.signatures)),
+							classifyApiItems(
+								documentationContext(facts.declarations.flatMap((entry) => entry.signatures)),
+							),
 							classified,
 						);
 						assert.equal(JSON.stringify(facts), before);
@@ -2071,8 +2118,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const analysis = adapter.analyze(configuration.value);
 					assert.ok(analysis.ok, JSON.stringify(analysis));
 					const classification = classifyApiItems(
-						analysis.value.declarations.flatMap((item) => item.signatures),
-						{ customModifierTags: ["@partner"] },
+						documentationContext(
+							analysis.value.declarations.flatMap((item) => item.signatures),
+							{ customModifierTags: ["@partner"] },
+						),
 					);
 					assert.ok(classification.ok, JSON.stringify(classification));
 					adapter.close();
@@ -2083,10 +2132,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					] as const) {
 						const selection = selectApiItems(classification.value, { name, releaseLevels });
 						assert.ok(selection.ok);
-						const report = createReviewReport(analysis.value, "./functions", selection.value, {
-							classification: classification.value,
-							customModifierTags: ["@partner"],
-						});
+						const report = createReviewReport(
+							success(
+								prepareReviewReport(
+									analysisContext(analysis.value, { customModifierTags: ["@partner"] }),
+								),
+							),
+							"./functions",
+							{ name, releaseLevels },
+						);
 						assert.ok(report.ok, JSON.stringify(report));
 						const text = renderReviewReport(report.value);
 						const expected = assertSnapshot(text, `functions.${name}.md`);

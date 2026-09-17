@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { mock } from "node:test";
 
 import { API as AsyncAPI } from "typescript/unstable/async";
 import { API as SyncAPI } from "typescript/unstable/sync";
-import { resolveConfiguration } from "../configuration.js";
-import { createAnalysisSession } from "../session.js";
+import { analyzeAPIs, ReleaseLevel } from "../index.js";
 
 const mode = process.argv[2];
 const directory = process.argv[3];
@@ -20,42 +20,36 @@ function childPids(): readonly number[] {
 		.map(Number);
 }
 
-if (mode === "session" || mode === "session-crash") {
-	const before = childPids();
-	const session = createAnalysisSession();
-	try {
-		const configuration = resolveConfiguration(
-			{
-				packageName: "example",
-				project: "tsconfig.json",
-				entrypoints: [{ name: ".", path: "src/api.ts" }],
-			},
-			directory,
+if (mode === "analysis" || mode === "analysis-failure") {
+	const close = mock.method(SyncAPI.prototype, "close");
+	const documentation =
+		mode === "analysis" ? "/** @public */" : "/** {@inheritDoc missing} @public */";
+	writeFileSync(
+		path.join(directory, "src/public.d.ts"),
+		`${documentation}\nexport declare function example(): void;\n`,
+	);
+	const result = await analyzeAPIs(
+		{
+			packageName: "example",
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "src/public.d.ts" }],
+		},
+		directory,
+	);
+	assert.equal(result.ok, mode === "analysis");
+	// The official close destroys streams and signals termination but does not await OS process reaping.
+	assert.equal(close.mock.callCount(), 1);
+	close.mock.restore();
+	if (result.ok) {
+		assert.equal(
+			result.value.generateReport(".", {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			}).ok,
+			true,
 		);
-		assert.ok(configuration.ok);
-		assert.ok(session.analyze(configuration.value).ok);
-		const owned = childPids().filter((pid) => !before.includes(pid));
-		assert.equal(owned.length, 1);
-		const nativePid = owned[0];
-		assert(nativePid !== undefined);
-		assert.equal(nativePid > 0, true);
-		if (mode === "session-crash") {
-			process.kill(nativePid, "SIGKILL");
-			// Use an uncached configuration so the next request contacts the failed compiler process.
-			assert.throws(() =>
-				session.analyze({
-					...configuration.value,
-					entrypoints: [{ name: "./different", path: path.join(directory, "src/api.ts") }],
-				}),
-			);
-			assert.equal(session.analyze(configuration.value).ok, false);
-			console.log("native termination rejected the next request");
-		}
-	} finally {
-		session.close();
-		session.close();
 	}
-	console.log("session client disposed");
+	console.log("analysis client disposed before return");
 } else if (mode === "sync" || mode === "sync-crash") {
 	const before = childPids();
 	const api = new SyncAPI({ cwd: directory, collectTiming: true });

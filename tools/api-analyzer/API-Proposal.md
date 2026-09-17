@@ -1,6 +1,7 @@
 # `api-analyzer` API Proposal
 
-Status: API direction agreed on 2026-09-17; not yet implemented.
+Status: API direction agreed on 2026-09-17; an initial callable-analysis implementation is available.
+The [README](README.md#experimental-api) describes the implemented subset and remaining limitations.
 This proposal supersedes the reusable session API direction in the implementation plan.
 Keep the functional API as narrow as reasonably possible.
 Supporting types can also be exported.
@@ -33,7 +34,8 @@ It should offer the following capabilities:
 - Expose API statistics, such as declaration counts and documentation coverage.
 
 Declaration rollup generation remains required functionality.
-The exact method signatures, artifact schemas, and statistics remain to be specified.
+The initial report method and API counts are documented in the README.
+Model and rollup method signatures, artifact schemas, and broader statistics remain to be specified.
 API statistics are distinct from analysis timing and cache counters.
 
 ## Completion and outputs

@@ -12,11 +12,12 @@ describe("Effective configuration", () => {
 			packageName: "example",
 			project: "tsconfig.json",
 			entrypoints: Object.freeze([{ name: ".", path: "index.d.ts" }]),
-			rules: Object.freeze({ release: true, documentation: true }),
+			rules: Object.freeze({ requireReleaseLevel: true, validateTsdocSyntax: true }),
+			customModifierTags: ["@partner"],
 		});
 		const result = resolveConfiguration(
 			{
-				extends: [base, { rules: { documentation: false } }],
+				extends: [base, { rules: { validateTsdocSyntax: false } }],
 				entrypoints: [{ name: "./other", path: "other.d.ts" }],
 			},
 			"/workspace",
@@ -26,11 +27,15 @@ describe("Effective configuration", () => {
 			return;
 		}
 		assert.equal(result.value.project, path.resolve("/workspace/tsconfig.json"));
-		assert.deepEqual(result.value.rules, { release: true, documentation: false });
+		assert.deepEqual(result.value.rules, {
+			requireReleaseLevel: true,
+			validateTsdocSyntax: false,
+		});
+		assert.deepEqual(result.value.customModifierTags, ["@partner"]);
 		assert.deepEqual(result.value.entrypoints, [
 			{ name: "./other", path: path.resolve("/workspace/other.d.ts") },
 		]);
-		assert.equal(base.rules?.documentation, true);
+		assert.equal(base.rules?.validateTsdocSyntax, true);
 		assert.ok(Object.isFrozen(result.value.entrypoints[0]));
 		assert.ok(Object.isFrozen(result.value.rules));
 	});
@@ -85,7 +90,7 @@ describe("Effective configuration", () => {
 			packageName: "example",
 			project: "tsconfig.json",
 			entrypoints: [{ name: ".", path: "index.d.ts" }],
-			rules: { release: false },
+			rules: { requireReleaseLevel: false },
 		};
 		const configuration = {
 			extends: [base],
@@ -134,7 +139,10 @@ describe("Effective configuration", () => {
 			{ entrypoints: [{ name: "." }] },
 			{ entrypoints: [{ name: 42, path: "index.d.ts" }] },
 			{ rules: [] },
-			{ rules: { release: "false" } },
+			{ rules: { requireReleaseLevel: "false" } },
+			{ rules: { unknown: true } },
+			{ customModifierTags: [42] },
+			{ suite: ["dependency"] },
 		]) {
 			const configuration = {
 				packageName: "example",

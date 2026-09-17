@@ -2,7 +2,7 @@
  * Supplies shared compiler inputs for generic inheritance, effective members, and callable overloads.
  * Intersections and utility types exercise property selection, optionality, and readonly state.
  * Overload comments distinguish release levels; Identity exercises aliases and private class state.
- * Session tests also use this source for cache reuse, invalidation, relocation, and overload reordering.
+ * Analysis tests also use this source for relocation and overload reordering.
  */
 
 /** Generic member documentation. */

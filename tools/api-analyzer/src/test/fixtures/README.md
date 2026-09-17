@@ -9,7 +9,7 @@ Do not compile this directory as one project: some files require shared inputs o
 | [Shared inputs](shared/README.md) | Common API shapes for compiler, session, report, and lifecycle tests. |
 | [Native compiler inputs](native/README.md) | Documentation lookup, inheritance boundaries, and comment retention through declaration emit. |
 | [Declaration consumer](consumer/README.md) | Type-check printed declarations with both consumer compilers. |
-| [Session inputs](session/README.md) | Export chains, cache invalidation, and conditional dependency resolution. |
+| [Analysis inputs](session/README.md) | Export chains, changed inputs, and conditional dependency resolution. |
 
 Preserve each test's temporary project paths when moving fixtures.
 Those paths affect declaration locations and provisional identifiers.
