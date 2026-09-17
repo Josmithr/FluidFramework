@@ -214,12 +214,14 @@ They must be able to request review, validation, declaration generation, or docu
 Selecting several outcomes must not require separate copies of the same package policy.
 The tool must complete configured shared semantic validation once and reuse the completed analysis for requested API reports, declaration rollups, and documentation model artifacts.
 The [API direction agreed on 2026-09-17](../api-analyzer/API-Proposal.md) uses `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
+The [agreed architecture](../api-analyzer/Architecture-Proposal.md) makes report, model, and declaration generators independent consumers of one completed immutable graph.
+Shared classification, documentation resolution, and validation belong to analysis, not to a generator.
 The returned analysis exposes output operations and API statistics, but no source invalidation, reanalysis, or disposal methods.
 Output operations may run separately and must not repeat full analysis or shared validation.
 Different content variants, API surfaces, or validation policies must not require independent configurations or a complete rerun of the same API analysis for each operation.
 A wrapper that reruns the entire API analysis independently for each output is not acceptable, regardless of process count.
 The design must reuse applicable setup and analysis across outcomes for unchanged inputs.
-Task-specific work, distinct analysis contexts, and recomputation after relevant input changes are permitted; the internal analysis strategy remains open.
+Task-specific output work, distinct internal analysis contexts, and new invocations after relevant input changes are permitted within the agreed architecture.
 Numerical performance targets are deferred.
 Fresh analysis on each invocation is acceptable, even for unchanged inputs.
 Persistent analysis caching and restoration across builds are deferred; watch mode and live source invalidation are not initial requirements.
@@ -445,10 +447,13 @@ Compare both positive and negative cases, including accepted exceptions and inte
 3. **Review granularity:** Consumers must be able to configure separate review artifacts for each selected API surface. Separate artifacts are not required to be the only supported output form; consolidated or other output forms remain optional. W1 and its acceptance scenario capture this requirement without prescribing artifact syntax.
 4. **Deprecated publishing-time type selection:** The new tool does not need to support or replace `flub release setPackageTypesField`. Retiring that command and its remaining pipeline caller is a prerequisite for adopting the new tooling, outside this tool's requirements. This exclusion does not remove the declaration-generation requirements in W5.
 5. **Release-level entrypoint generation:** Consumers must be able to implement this workflow through the tool's configuration and APIs. W5 and its acceptance scenario capture the capability requirement. The API design and migration of the existing generator remain separate implementation and integration decisions.
+6. **Architecture and model ownership:** The 2026-09-17 architecture decision defines independent generators over a completed semantic graph, with mutable compiler and parser state private to analysis. The model layer owns versioned encoding, decoding, and validation; root composition reads artifacts and passes validated dependencies to analysis. Full analysis restoration remains deferred and is not guaranteed by initial model serialization.
 
 ## Decisions deferred from this document
 
-The implementation design must determine the input representation, analysis architecture, caching mechanism, and output formats.
+The API and architecture proposals record the agreed public workflow and layer boundaries.
+Detailed graph schemas, artifact formats, and generation strategies still require documented designs and capability evidence.
+The persistent-reuse follow-up must determine whether full restoration can use the portable model or needs a separate cache artifact.
 It must also determine whether to retain or replace existing supporting libraries.
 No requirement in this document mandates compatibility with an API Extractor class, configuration file, diagnostic identifier, or serialized model schema.
 

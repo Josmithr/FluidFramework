@@ -14,10 +14,12 @@ Status: open; explicitly deferred from initial delivery by the [2026-09-17 API d
 Investigate avoiding repeated package analysis when inputs have not changed since a previous build.
 The initial version may perform fresh analysis on every invocation.
 This follow-up does not introduce watch mode or source invalidation on `APIAnalysis`.
+Follow the [agreed model contract](../api-analyzer/Architecture-Proposal.md#model-contract): serialized artifacts have an explicit versioned format, not the internal working-context layout.
+Dependency-model decoding and validation remain required for suite resolution and are not deferred by this item.
 
 - Identify all relevant inputs, including analyzed declarations, effective configuration, resolution settings, selected dependency models, and analyzer and compiler versions.
 - Define input fingerprints and validation rules for restoring completed analysis.
-- Determine whether the portable API model contains sufficient data for restoration or a separate cache artifact is required.
+- Determine whether the portable API model contains sufficient data for full analysis restoration or a separate cache artifact is required. Model round-trip fidelity alone does not prove restoration equivalence.
 - Compare restored and fresh analysis for reports, declaration rollups, models, API statistics, and configured validation.
 - Reject stale, incomplete, or incompatible cache entries and recompute analysis rather than return stale success.
 - Keep baseline checks and missing-output regeneration independent of analysis cache hits.

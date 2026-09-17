@@ -9,6 +9,9 @@ The completed analysis exposes effective configuration, API counts, and function
 General declaration validation, suite loading, model generation, and declaration rollups remain incomplete; this migration does not close Stage 2 or later gates.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
+Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](../api-analyzer/Architecture-Proposal.md).
+The source-directory migration and complete output-independent graph remain pending.
+Current report preparation still invokes documentation resolution; move that semantic work into analysis before treating report generation as an independent layer.
 
 Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 29 focused contract tests, verified on 2026-09-15.
 The adapter returns facts that contain no compiler objects.
@@ -43,6 +46,9 @@ An implementation blocker must produce a documented decision request, not an una
 - Accept ordinary configuration through `analyzeAPIs`; keep configuration resolution, raw facts, and pipeline operations internal. Supporting types can be exported.
 - Release compiler resources before returning success or failure. The returned analysis has no `analyze`, `invalidate`, or `close` method.
 - Generate reports, portable models, and declaration rollups as artifact content. Callers control file writes and explicit baseline acceptance.
+- Organize implementations into `utilities`, `analysis-types`, `analysis`, `rollup-generation`, `model-generation`, and `report-generation`, with the public composition API at the source root. Introduce directories only when needed.
+- Make generators independent consumers of one completed immutable graph. Keep compiler objects and mutable parsing and traversal state private to analysis.
+- Let the model layer own encoding, decoding, and artifact validation. The root reads selected models, invokes validation, and passes dependency data to analysis without an analysis-to-model implementation dependency.
 - Expose API statistics separately from internal performance instrumentation. Exact output signatures and statistics remain to be specified.
 - Expected validation failures return diagnostics; internal and unexpected operational failures reject the promise. An asynchronous entrypoint does not require the native asynchronous compiler client.
 - Provide a Node.js-compatible TypeScript API. A CLI is optional, not part of the initial required delivery.
@@ -148,7 +154,7 @@ Keep focused semantic assertions alongside snapshots for selection, identity, or
 
 ### Functional architecture
 
-Use a functional core with an effectful boundary:
+Use a functional core with explicit I/O boundaries:
 
 - Represent API facts, references, policy inputs, selections, and diagnostics as explicit data.
 - Prefer pure functions and immutable inputs for transformations. Return new results rather than mutate shared package models.
@@ -160,6 +166,11 @@ Use a functional core with an effectful boundary:
 - Use focused functions and composition. Do not add a functional programming framework or a large compiler abstraction without a demonstrated need.
 
 Tests must verify that changing task order cannot mutate or corrupt shared analysis.
+The dependency rules in the architecture proposal apply to source imports, not only directory names.
+Use the existing ESLint tooling to enforce those rules as implementations move into layers.
+Keep generic utilities free of release policy and graph-specific traversal.
+Compute shared semantics in analysis, or place narrowly scoped shared operations beside the graph contract when multiple generators require them.
+Do not add a general graph framework, duplicate selection logic, or allow generators to import one another.
 
 ### Diagnostics and internal validation
 
@@ -173,30 +184,34 @@ Document each supported diagnostic code and its corrective action in the public 
 - Keep capability limitations on successful facts distinct from failure diagnostics. A limitation does not imply invalid user input or complete analysis.
 - Test both paths: invalid user inputs return diagnostics, while internal assertions and unexpected operational failures remain exceptions.
 
-## Proposed architecture
+## Agreed architecture
 
-The following components are logical ownership boundaries, not a commitment to separate packages or a fixed directory layout.
+The [architecture proposal](../api-analyzer/Architecture-Proposal.md#source-organization) specifies the agreed source directories and allowed dependencies within this package.
+The following components refine those ownership boundaries; they do not require separate packages or one directory per row.
+Do not create empty directories for unimplemented generators.
 
 | Component | Responsibility | Boundary |
 | --- | --- | --- |
 | Configuration resolution | Resolve defaults, inheritance, overrides, suite selection, and required surface coverage. Expose the effective configuration. | Load files at the boundary; merge and validate explicit data in pure functions. |
-| Analysis entrypoint | Resolve ordinary configuration, load suite models, own compiler resources, and complete shared analysis and validation. | Effectful; release resources before returning success or failure. |
-| Completed analysis | Own private immutable results and provide report, model, declaration rollup, and API-statistics operations. | No compiler handles, source invalidation, or caller disposal. |
+| Root composition API | Resolve ordinary configuration, read selected suite artifacts, invoke model decoding and validation, run analysis, and expose output operations. | Explicit I/O boundary; release resources before returning success or failure. |
+| Analysis | Extract compiler facts, classify original metadata, resolve documentation and references, and complete shared validation. | Own compiler access and mutable working state; return the completed graph. |
+| Completed analysis graph | Represent original metadata, resolved documentation and links, declarations, relationships, export identities, and provenance. | Immutable, output-independent data; no compiler handles or mutable TSDoc nodes. |
 | TS7 adapter | Query official compiler semantics, exports, aliases, effective types, signatures, and declaration origins. | Only this component depends directly on unstable TS7 interfaces. |
-| API facts | Represent declarations, export paths, references, signatures, effective members, and provenance. | Readonly data consumed without compiler handles. |
-| Documentation processing | Parse TSDoc; resolve suite references and inherited content against API facts and dependency models. | Use the TSDoc parser; keep resolution policy separate from I/O. |
-| Policy and selection | Apply generic release-level rules, custom directional rules, per-rule opt-outs, and configured surface selections. | Pure transformations over complete facts and effective configuration. |
-| Artifact construction | Construct review artifacts, portable models, declaration output plans, and entrypoint output plans. | Reuse detached results; complete required compiler work behind the adapter before returning the analysis. |
+| Documentation processing | Parse TSDoc; resolve suite references and inherited content against facts and validated dependency data. | Internal to analysis; retain resolved results for all generators. |
+| Policy and selection | Apply release-level rules, custom directional rules, per-rule opt-outs, and surface selections. | Shared validation belongs in analysis; reusable graph operations belong beside the graph contract. |
+| Rollup generation | Construct complete and trimmed entrypoint declarations from the completed graph. | No live compiler access, full reanalysis, or imports from another generator. |
+| Model generation | Encode the explicit versioned artifact format; decode and validate models for dependency consumers. | No file I/O, compiler access, or dependency on another generator. |
+| Report generation | Prepare report-specific records and render Markdown from the completed graph. | No classification or documentation resolution; no dependency on analysis implementation. |
 | Output and build integration | Compare baselines, write requested artifacts, report diagnostics, track dependencies, and publish completion metadata. | Effectful; does not reconstruct API semantics. |
 
 The initial processing flow is:
 
 1. Resolve configuration and discover package entrypoints, resolution contexts, dependencies, and selected suite models.
-2. Validate every selected suite model and analyze the required declarations in the applicable compiler contexts.
-3. Extract reusable API facts while preserving complete validation scope, including excluded targets.
-4. Parse documentation and resolve references and inheritance in the correct originating context.
+2. Read every selected suite model at the root boundary, decode and validate it through the model layer, and pass validated data to analysis.
+3. Analyze declarations in the applicable compiler contexts and extract facts while preserving complete validation scope, including excluded targets.
+4. Classify original metadata, then resolve documentation and references in the correct originating context without changing original classification.
 5. Apply enabled policies and derive selected surface views without discarding the complete facts.
-6. Retain all data needed for requested output capabilities, release compiler resources, and return the completed analysis or failure diagnostics.
+6. Complete the output-independent graph, release compiler resources and mutable working state, and return the public analysis object or failure diagnostics.
 7. Construct requested artifact content from the completed analysis without repeating shared validation.
 8. Let build integration write artifacts and perform explicit baseline checks or acceptance.
 
@@ -231,6 +246,12 @@ Task-specific queries and different semantic contexts are legitimate work and mu
 
 ### Semantic and artifact representation
 
+The graph consumed by generators represents completed semantic analysis, not the current raw extraction schema.
+Define its data and ownership contract before moving implementation files.
+Keep mutable TSDoc nodes, compiler handles, traversal sets, and construction indexes private to analysis.
+The graph and its shared operations must not depend on analysis or generator implementation types.
+Do not introduce multiple large model hierarchies solely to represent the completion boundary.
+
 Reuse TypeScript terminology and AST structure wherever practical when naming and organizing facts, APIs, and documentation.
 Preserve distinctions that TypeScript makes, such as call-signature declarations versus function types, rather than naming semantic data after one renderer's use of it.
 For example, `SignatureFact.callSignatureText` contains a printed call-signature declaration; `SignatureFact.functionTypeText` contains a printed function type.
@@ -254,6 +275,10 @@ The exact identity scheme and serialization format require documented examples a
 Portable documentation models must contain resolved API-link targets, inherited content, custom metadata, and sufficient type/member data for downstream rendering without compiler access.
 Dependency documentation models do not replace dependency type declarations.
 Add explicit format-version and compatibility checks; reject incompatible or incomplete selected inputs.
+The model layer owns an explicit JSON encoding, decoding, and validation contract, not generic serialization of internal objects.
+Use stable identifiers for graph references and validate reference integrity when decoding.
+Model round-trip tests establish portable-model fidelity; they do not establish complete analysis restoration or cache validity.
+Full restoration remains in the persistent-reuse follow-up, while dependency-model decoding is required for Stage 2 suite resolution.
 
 ### Input and declaration generation
 
@@ -264,6 +289,8 @@ Keep source input as an option if declaration inputs cannot preserve required in
 Declaration generation is an early feasibility gate, not a final formatting task.
 The inspected TS7 release exposes printing and semantic queries but does not establish all required emit capabilities.
 Test complete and trimmed outputs, import closure, namespace exports, nominal identity, and consumer compilation early.
+Prove these outputs can be generated from the completed graph after compiler disposal.
+Printed type strings alone are insufficient evidence; missing data must not cause a generator to reopen compiler analysis.
 Evaluate supported compiler capabilities and compatible existing generation tools before owning custom declaration transformations.
 Any new dependency needs maintenance and license review. Do not silently introduce TS6 analysis as a fallback.
 
@@ -335,6 +362,8 @@ TSDoc tag strings map explicitly to enum values, and classification metadata sto
 
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
 - Extend the implemented eager analysis entrypoint with the remaining shared semantic validation. Preserve detached report reuse and tested cleanup before return.
+- Define the completed graph contract and model-reader responsibilities, then migrate existing code into the agreed layers. Move documentation resolution out of report preparation and into analysis.
+- Make report generation consume completed graph data and new output criteria only. Enforce directory dependencies with existing ESLint tooling and avoid empty generator scaffolding.
 - Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
 - Implement release-level selection per callable overload and generic custom-tag selection.
 - Specify and test structured reference facts before implementing reference-validation policies. Preserve reference origins and targets, including non-exported and cross-package targets, independently of selected report surfaces.
@@ -503,7 +532,9 @@ Stage 2 takes on these semantic prerequisites; Stage 3 retains the complete port
 
 - Reuse Stage 2 parsing, reference validation, effective documentation, and provenance; add no separate resolver for model output.
 - Extend the dependency-model identity, loading, and compatibility contracts introduced in Stage 2 into the complete portable documentation-model contract.
+- Keep model encoding, decoding, and artifact validation together in `model-generation`; root composition owns file reads and supplies validated dependency data to analysis.
 - Serialize resolved links, inherited content, effective members, and metadata with versioned identities. Complete round-trip and downstream-consumer verification without repeating semantic resolution.
+- Verify explicit reference integrity and malformed, incomplete, or incompatible artifact rejection. Do not equate model round-trip support with the deferred ability to restore all analysis outputs.
 
 Exit: W3, W7, W8, F1-F3, and B3 pass, including missing unused suite models, outside-suite links, public-to-beta links, and non-internal-to-internal rejection.
 Load and consume models without a source checkout or live compiler connection.
@@ -512,6 +543,7 @@ Load and consume models without a source checkout or live compiler connection.
 
 - Productize the generation path proven in Stage 0 using the shared facts and selected surfaces.
 - Generate entrypoint declaration rollups from completed `APIAnalysis` data without live compiler resources or full reanalysis. This capability remains required by the revised API scope.
+- Keep `rollup-generation` independent of analysis implementation and the other generators, using only the shared graph contract and generic utilities.
 - Preserve required imports, remove excluded-only imports, and retain namespace and alias semantics.
 - Expose sufficient APIs for release-level entrypoint generation without consumer reimplementation of analysis or selection.
 - Test included-dependency and external-reference variants and compile consumers with TS6 and TS7.
@@ -553,9 +585,11 @@ Historical documentation remains renderable and generated declarations remain co
 | --- | --- |
 | Pure unit tests | Configuration merging, graph transformations, selections, policy rules, documentation precedence, deterministic identities, and diagnostics. |
 | Real TS7 adapter tests | Verify actual public compiler queries, handles, effective types, process lifecycle, and reusable analysis. Mocks alone cannot establish compiler support. |
+| Generator unit tests | Use small completed-graph fixtures to verify each generator independently of compiler and filesystem access. |
 | Fixture integration tests | Connect analysis, documentation, policy, and requested outputs. Include positive and negative cases for each W/F/B obligation. |
 | Consumer compilation | Build inputs and compile generated declarations with supported TS6 and TS7 versions; analyze through the pinned TS7 engine. |
-| Artifact tests | Review meaningful differences, resolve references after round-trip serialization, reject incompatible models, and render without source access. |
+| Artifact tests | Verify encoding/decoding round trips and reference integrity, reject malformed or incompatible models, and render without source access or repeated semantic resolution. |
+| Composition tests | Verify original metadata preservation, immutable shared data and outputs, output-order independence, cleanup, and no compiler queries or full reanalysis during generation. |
 | Build and migration tests | Invalidation, missing outputs, restored baselines, concurrency, coverage changes, repository exceptions, and maintained documentation versions. |
 
 Reuse existing test helpers and frameworks where appropriate.

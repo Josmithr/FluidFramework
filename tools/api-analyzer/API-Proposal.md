@@ -2,6 +2,7 @@
 
 Status: API direction agreed on 2026-09-17; an initial callable-analysis implementation is available.
 The [README](README.md#experimental-api) describes the implemented subset and remaining limitations.
+The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
 Keep the functional API as narrow as reasonably possible.
 Supporting types can also be exported.
@@ -41,7 +42,11 @@ API statistics are distinct from analysis timing and cache counters.
 ## Completion and outputs
 
 Successful analysis includes configuration resolution, suite loading, fact extraction, classification, documentation resolution, and configured semantic validation.
+These steps produce a completed, output-independent analysis graph with original metadata, resolved documentation and links, declaration relationships, export identities, and provenance.
+Mutable compiler and parser state remains private to analysis and is not part of that graph.
 Output methods reuse these results without repeating full analysis or shared validation.
+Report, model, and rollup generation are independent consumers of the graph, composed by the package-root API.
+Shared semantic selection rules must not be duplicated between generators or placed in generic utilities.
 Output-specific option errors can still produce diagnostics during generation.
 Raw facts and intermediate pipeline operations remain internal.
 
@@ -51,6 +56,8 @@ Verify that declaration rollups can be generated under this resource contract.
 If the compiler cannot support this contract, record a blocker rather than silently retain a live session or remove rollup support.
 
 Initially, output methods return artifact content, such as report text and serializable model data, rather than write files.
+Model generation uses an explicit versioned format rather than exposing the current internal object layout through JSON serialization.
+Stable identities, graph references, and format compatibility require documented contracts and tests.
 The caller controls file writes.
 Baseline acceptance remains an explicit action and must not occur as a side effect of generation.
 
@@ -67,6 +74,8 @@ Do not adopt the native asynchronous client until its unresolved process-termina
 ## Dependency models
 
 Dependency packages must generate their API models before this package is analyzed.
+The package-root composition reads the artifacts and invokes decoding and validation owned by the model layer.
+It passes validated dependency data to analysis, which does not depend on the model implementation.
 Validate the identity, format compatibility, and completeness of every selected suite model, including models not referenced by documentation links.
 Dependency models do not replace the type declarations used for compiler analysis.
 
@@ -81,4 +90,5 @@ Persistent reuse across builds is deferred to a future follow-up.
 Investigate hashing relevant declarations, configurations, dependency models, and tool versions to detect unchanged inputs.
 Do not assume a portable API model contains enough data to restore a complete analysis.
 Determine whether restoration can use that model or needs a separate cache artifact, and verify equivalence with fresh analysis for all supported outputs and validation.
+This deferral does not defer model decoding and validation required by suite resolution.
 Re-running analysis when nothing has changed is acceptable for the initial version.

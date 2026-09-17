@@ -98,6 +98,11 @@ Any missing or incompatible documentation model for a selected suite dependency 
 The failure must identify the affected dependency and the model availability or compatibility problem.
 Consumers must not need to repeat that semantic resolution when rendering documentation.
 
+The [agreed architecture](../api-analyzer/Architecture-Proposal.md) assigns documentation resolution to analysis and artifact decoding and validation to the model layer.
+Root composition reads selected dependency artifacts and passes validated data to analysis.
+All generators consume the completed graph, which preserves resolved content and original metadata without mutable compiler or parser state.
+Dependency-model decoding is required here; full analysis restoration for incremental builds remains a separate deferred capability.
+
 The tool must resolve and validate API references in `{@link}` and `{@inheritDoc}` during package processing.
 Invalid or nonexistent targets must produce diagnostics at this stage, not only when a downstream documentation tool consumes the model.
 Resolved API links must use structured target identities that downstream renderers can map to URLs.
