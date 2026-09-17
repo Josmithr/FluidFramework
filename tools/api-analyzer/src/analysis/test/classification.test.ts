@@ -1,5 +1,5 @@
 import { documentationContext } from "../../test/contextUtils.js";
-import { createDocumentationContext } from "../documentationContext.js";
+import { createAnalysisContext, createDocumentationContext } from "../documentationContext.js";
 import assert from "node:assert/strict";
 import { describe, it } from "mocha";
 import { classifyApiItems } from "../classification.js";
@@ -12,6 +12,131 @@ import {
 } from "../../analysis-types/classification.js";
 import { DiagnosticCode } from "../../analysis-types/result.js";
 import { assertAssertionError } from "../../test/assertionUtils.js";
+import type { AnalysisFacts, SourceDeclarationFact } from "../../analysis-types/facts.js";
+
+/**
+ * Creates detached facts for a merged interface or an overloaded callable without compiler access.
+ * @param kind - Source declaration form; method and function groups exercise overload exclusions.
+ * @param comments - Separate original comments, including undefined for an untagged part.
+ * @param member - Whether the merged source records belong to a property instead of the declaration.
+ * @returns Facts whose only potential release conflict is in the requested source group.
+ */
+function mergedReleaseFacts(
+	kind: string,
+	comments: readonly (string | undefined)[],
+	member: boolean,
+): AnalysisFacts {
+	const sources: SourceDeclarationFact[] = comments.map((documentation, index) => ({
+		packageName: "example",
+		file: `part-${index}.d.ts`,
+		start: index * 100,
+		kind,
+		text: "",
+		documentation,
+	}));
+	return {
+		packageName: "example",
+		compilerVersion: "test",
+		surfaces: [],
+		declarations: [
+			{
+				id: "merged",
+				name: "Settings",
+				declarations: member ? [] : sources,
+				baseDeclarations: [],
+				implementedDeclarations: [],
+				heritage: [],
+				type: "",
+				memberView: "complete",
+				limitations: [],
+				exports: [],
+				signatures: [],
+				members: member
+					? [
+							{
+								id: "merged.value",
+								name: "value",
+								type: "string",
+								optional: false,
+								readonly: false,
+								signatures: [],
+								declarations: sources,
+							},
+						]
+					: [],
+			},
+		],
+	};
+}
+
+describe("Merged release metadata", () => {
+	it("requires every explicit release level to agree regardless of source order", () => {
+		for (const first of ["public", "beta", "alpha", "internal"]) {
+			for (const second of ["public", "beta", "alpha", "internal"]) {
+				const facts = mergedReleaseFacts(
+					"InterfaceDeclaration",
+					[`/** @${first} */`, undefined, `/** @${second} */`],
+					false,
+				);
+				const result = createAnalysisContext(facts, { rules: { requireReleaseLevel: false } });
+				assert.equal(result.ok, first === second, `${first}, ${second}`);
+			}
+		}
+	});
+
+	it("rejects conflicting explicit tags with source locations and no partial result", () => {
+		for (const member of [false, true]) {
+			const facts = mergedReleaseFacts(
+				member ? "PropertySignature" : "InterfaceDeclaration",
+				["/** First part. @public */", "/** Second part. @internal */"],
+				member,
+			);
+			const before = JSON.stringify(facts);
+			for (const rules of [{}, { requireReleaseLevel: false, validateTsdocSyntax: false }]) {
+				const result = createAnalysisContext(facts, { rules });
+				assert.equal(result.ok, false);
+				assert.equal(
+					result.diagnostics[0]?.code,
+					DiagnosticCode.ClassificationReleaseConflict,
+				);
+				assert.match(result.diagnostics[0]?.message ?? "", /Settings/);
+				assert.match(result.diagnostics[0]?.message ?? "", /@public/);
+				assert.match(result.diagnostics[0]?.message ?? "", /@internal/);
+				assert.match(result.diagnostics[0]?.message ?? "", /part-0\.d\.ts/);
+				assert.match(result.diagnostics[0]?.message ?? "", /part-1\.d\.ts/);
+				assert.match(result.diagnostics[0]?.message ?? "", /tags.*agree/);
+				assert.equal("value" in result, false);
+			}
+			assert.equal(JSON.stringify(facts), before);
+		}
+	});
+
+	it("does not choose missing tags, descriptive precedence, or overload release levels", () => {
+		for (const comments of [
+			["/** First part. @public */", "/** Different text. @public */"],
+			[undefined, "/** @public */"],
+			["/** Literal `@internal` is not metadata. @public */", "/** @public */"],
+		]) {
+			const result = createAnalysisContext(
+				mergedReleaseFacts("InterfaceDeclaration", comments, false),
+			);
+			assert.equal(result.ok, true, JSON.stringify(result));
+			assert.deepEqual(result.value.classification.items, []);
+		}
+
+		// Callable overloads are classified per signature, never as one merged release level.
+		for (const kind of ["FunctionDeclaration", "MethodDeclaration", "MethodSignature"]) {
+			const result = createAnalysisContext(
+				mergedReleaseFacts(
+					kind,
+					["/** @public */", "/** @internal */"],
+					kind !== "FunctionDeclaration",
+				),
+			);
+			assert.equal(result.ok, true, kind);
+		}
+	});
+});
 
 describe("Release classification and metadata selection", () => {
 	it("assigns increasing numeric permissiveness from public through internal", () => {

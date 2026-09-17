@@ -203,10 +203,11 @@ export enum DiagnosticCode {
 	ClassificationTsdoc = "classification-tsdoc",
 
 	/**
-	 * A documentation input declares more than one release level.
+	 * A documentation input or merged non-overloaded API declares conflicting release levels.
 	 *
 	 * @remarks
-	 * Keep exactly one release tag for the input. This check cannot be disabled.
+	 * Keep exactly one release tag per input and make explicit tags on merged parts agree.
+	 * Callable overloads may have independent release levels. This conflict check cannot be disabled.
 	 */
 	ClassificationReleaseConflict = "classification-release-conflict",
 

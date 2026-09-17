@@ -104,6 +104,17 @@ Compiler tests cover classes, interfaces, inherited generic members, local overr
 This is a prerequisite for broader classification and reporting. It does not define merged-comment precedence or implement automatic inheritance.
 Single-declaration class and interface reports now consume the completed member documentation.
 
+### Merged release tags
+
+Explicit release tags on parts of the same merged non-overloaded API must agree.
+Conflicts fail analysis with `classification-release-conflict`, even when missing-tag or syntax checks are disabled.
+The diagnostic identifies the API, conflicting tags, and original package-relative source locations.
+Update the tags to agree; no declaration wins by file or declaration order.
+This check also applies to repeated property declarations, independently of their containing type's tags.
+Callable function and method overloads remain independently classified and may use different release levels.
+Untagged parts do not supply an implicit release tag or receive one from this check.
+Agreement does not yet choose descriptive documentation precedence or enable merged-declaration reports and models.
+
 ### Effective member identities and signatures
 
 `MemberFact.id` identifies a member on its containing declaration. It combines the declaration identifier with the compiler-printed member name.

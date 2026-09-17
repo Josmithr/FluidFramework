@@ -5,14 +5,118 @@ import {
 	type ApiItemMetadata,
 	type ApiItemDocumentation,
 } from "../analysis-types/classification.js";
-import { TSDocTagSyntaxKind } from "@microsoft/tsdoc";
+import { TSDocParser, TSDocTagSyntaxKind, type TSDocConfiguration } from "@microsoft/tsdoc";
 import type { DocumentationContext } from "./documentationContext.js";
+import type { AnalysisFacts, SourceDeclarationFact } from "../analysis-types/facts.js";
 import {
 	DiagnosticCode,
+	failure,
 	type AnalyzerDiagnostic,
 	type Result,
 } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
+
+/**
+ * Rejects distinct explicit release tags on parts of the same merged non-overloaded API.
+ *
+ * @remarks
+ * This check does not combine descriptive comments, assign missing tags, or classify merged APIs.
+ * Pure function and method declaration groups are overload sets and remain independently classified.
+ * Missing-release and syntax rule opt-outs do not permit conflicting explicit release metadata.
+ *
+ * @param facts - Detached original declarations and effective member source records.
+ * @param configuration - The validated TSDoc vocabulary for this invocation.
+ * @returns Success or the first merged-release conflict with original source locations.
+ */
+export function validateMergedReleaseLevels(
+	facts: AnalysisFacts,
+	configuration: TSDocConfiguration,
+): Result<void> {
+	const parser = new TSDocParser(configuration);
+	for (const declaration of facts.declarations) {
+		const own = validateMergedReleaseGroup(
+			declaration.name,
+			declaration.declarations,
+			parser,
+			configuration,
+		);
+		if (!own.ok) {
+			return own;
+		}
+		for (const member of declaration.members) {
+			const result = validateMergedReleaseGroup(
+				`${declaration.name}.${member.name}`,
+				member.declarations,
+				parser,
+				configuration,
+			);
+			if (!result.ok) {
+				return result;
+			}
+		}
+	}
+	return { ok: true, value: undefined };
+}
+
+/**
+ * Checks one compiler-identified source group without choosing a preferred declaration.
+ * @param name - Declaration or member name for the diagnostic.
+ * @param sources - Original source records contributing to the same API.
+ * @param parser - Parser configured with this invocation's modifier vocabulary.
+ * @param configuration - Vocabulary used to recognize canonical modifier spellings.
+ * @returns Success for consistent explicit tags or an actionable conflict diagnostic.
+ */
+function validateMergedReleaseGroup(
+	name: string,
+	sources: readonly SourceDeclarationFact[],
+	parser: TSDocParser,
+	configuration: TSDocConfiguration,
+): Result<void> {
+	// Signature-level classification owns overload metadata, even when a callable has no parameters.
+	if (
+		sources.length < 2 ||
+		sources.every(
+			(source) =>
+				source.kind === "FunctionDeclaration" ||
+				source.kind === "MethodDeclaration" ||
+				source.kind === "MethodSignature",
+		)
+	) {
+		return { ok: true, value: undefined };
+	}
+	const levels = new Set<string>();
+	const locations: string[] = [];
+	for (const source of sources) {
+		if (source.documentation === undefined) {
+			// Absence is not an implicit release tag and does not resolve a conflict in another part.
+			continue;
+		}
+		const comment = parser.parseString(source.documentation).docComment;
+		const modifiers = new Set(
+			comment.modifierTagSet.nodes.map(
+				(tag) => configuration.tryGetTagDefinition(tag.tagName)?.tagName,
+			),
+		);
+		const tags = releaseLevels
+			.map((level) => releaseLevelTags[level])
+			.filter((tag) => modifiers.has(tag));
+		for (const tag of tags) {
+			levels.add(tag);
+		}
+		if (tags.length > 0) {
+			locations.push(
+				`${source.packageName}/${source.file}:${source.start} (${tags.join(", ")})`,
+			);
+		}
+	}
+	if (levels.size > 1) {
+		return failure(
+			DiagnosticCode.ClassificationReleaseConflict,
+			`Merged API ${name}: conflicting release tags ${[...levels].sort().join(", ")} across ${locations.join("; ")}. Update the explicit release tags on the merged declarations so they agree.`,
+		);
+	}
+	return { ok: true, value: undefined };
+}
 
 /**
  * Classifies original parsed documentation in an invocation-owned context.

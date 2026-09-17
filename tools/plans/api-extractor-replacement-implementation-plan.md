@@ -361,6 +361,7 @@ Direct tests check helper behavior, independent caches, repeated collection, and
 
 Latest implementation progress (2026-09-17):
 
+- Agreed merged-release policy: distinct explicit release tags on parts of the same merged non-overloaded API produce `classification-release-conflict`; developers must make the tags agree. Validation now checks original declaration and repeated-property comments before successful analysis. Untagged parts do not imply a tag, descriptive comment precedence remains open, and callable overloads retain independent release levels.
 - Effective method and property comments support original-scope lookup, conservative automatic inheritance, explicit method/property chains, and per-section provenance.
 - Selected reports include single-declaration classes and interfaces, callable properties, declared constructors and statics, enums, type aliases, variables, and namespaces. TS6- and TS7-built fixtures match checked-in report snapshots.
 - Structured references retain source occurrences and compiler-resolved unexported targets. Configured release compatibility, directional custom-tag rules, entrypoint exposure, and explicit-inheritance visibility run independently of report selection.

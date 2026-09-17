@@ -970,7 +970,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
-			it("completes effective member documentation in its original scope", () => {
+			it("completes effective member documentation in its original scope", async () => {
 				const configuration = resolveConfiguration(
 					{
 						packageName: "example",
@@ -983,13 +983,73 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					directory,
 				);
 				assert.equal(configuration.ok, true);
+
+				// Conflicts must fail the public invocation, even when missing tags and syntax checks are disabled.
+				const rejected = await analyzeAPIs({
+					...configuration.value,
+					rules: { requireReleaseLevel: false, validateTsdocSyntax: false },
+				});
+				assert.equal(rejected.ok, false);
+				assert.equal(
+					rejected.diagnostics[0]?.code,
+					DiagnosticCode.ClassificationReleaseConflict,
+				);
+				assert.match(rejected.diagnostics[0]?.message ?? "", /DocumentedMerged/);
+				assert.equal("value" in rejected, false);
 				const adapter = createNativeAdapter();
 				try {
 					const comments: ExtractedComments = new Map();
 					const extracted = adapter.analyze(configuration.value, comments);
 					assert.equal(extracted.ok, true);
 					adapter.close();
-					const facts = JSON.parse(JSON.stringify(extracted.value)) as AnalysisFacts;
+					const detached = JSON.parse(JSON.stringify(extracted.value)) as AnalysisFacts;
+
+					// Correct the containing interface first; its merged property still has its own conflict.
+					const correctedInterface = {
+						...detached,
+						declarations: detached.declarations.map((declaration) =>
+							declaration.name === "DocumentedMerged"
+								? {
+										...declaration,
+										declarations: declaration.declarations.map((source) => ({
+											...source,
+											documentation: source.documentation?.replace("@beta", "@public"),
+										})),
+									}
+								: declaration,
+						),
+					};
+					const conflictingProperty = createAnalysisContext(correctedInterface, {
+						rules: { requireReleaseLevel: false },
+					});
+					assert.equal(conflictingProperty.ok, false);
+					assert.equal(
+						conflictingProperty.diagnostics[0]?.code,
+						DiagnosticCode.ClassificationReleaseConflict,
+					);
+					assert.match(
+						conflictingProperty.diagnostics[0]?.message ?? "",
+						/DocumentedMerged\.shared/,
+					);
+
+					// Align only the conflicting tags. Different descriptive comments remain separate source records.
+					const facts = {
+						...correctedInterface,
+						declarations: correctedInterface.declarations.map((declaration) =>
+							declaration.name === "DocumentedMerged"
+								? {
+										...declaration,
+										members: declaration.members.map((member) => ({
+											...member,
+											declarations: member.declarations.map((source) => ({
+												...source,
+												documentation: source.documentation?.replace("@beta", "@public"),
+											})),
+										})),
+									}
+								: declaration,
+						),
+					};
 
 					// The untagged automatic link receiver is checked separately for missing release metadata.
 					const supported = {
@@ -1011,7 +1071,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const capturedProperty = comments.get(property.id);
 					assert(capturedProperty !== undefined);
 					const retained = createAnalysisContext(
-						extracted.value,
+						facts,
 						{ rules: { requireReleaseLevel: false } },
 						comments,
 					);

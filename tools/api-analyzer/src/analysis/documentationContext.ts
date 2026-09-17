@@ -6,7 +6,7 @@ import {
 	type DocNode,
 	type TSDocConfiguration,
 } from "@microsoft/tsdoc";
-import { classifyApiItems } from "./classification.js";
+import { classifyApiItems, validateMergedReleaseLevels } from "./classification.js";
 import type {
 	ApiClassification,
 	ApiItemDocumentation,
@@ -262,13 +262,15 @@ export function apiLinkNodes(node: DocNode): readonly DocLinkTag[] {
  * Uses signature lookup context for package ownership, or the original declaration when no lookup is needed.
  * Includes effective callable signatures, single-declaration properties, and separately documented declaration members.
  * Does not merge property and signature comments or choose precedence for merged declarations.
+ * Rejects conflicting explicit release tags on merged non-overloaded declarations and members.
+ * Untagged parts do not supply an implicit release level; callable overloads remain separate inputs.
  * Heritage comparison views are not separate receiving APIs and are not classified again.
  *
  * @param facts - One extracted fact set.
  * @param options - Shared classification and reference settings. Omit for standard tags, enabled classification rules, and no optional reference checks.
  * @param extractedComments - Parsed comments reused without copying nodes. Omit to parse all inputs during context creation.
  * @param dependencies - Validated dependency models whose metadata is retained for reference checks. Omit for an empty dependency list.
- * @returns The indexed analysis or configuration and classification diagnostics.
+ * @returns The indexed analysis or configuration, merged-release consistency, and classification diagnostics.
  * @throws If declaration or documentation input identities are duplicated or an original location is missing.
  */
 export function createAnalysisContext(
@@ -355,6 +357,13 @@ export function createAnalysisContext(
 	);
 	if (!parsed.ok) {
 		return parsed;
+	}
+
+	// Merged declarations may not have a selectable documentation input yet, but their
+	// explicit release metadata must agree before any analysis can report success.
+	const merged = validateMergedReleaseLevels(facts, parsed.value.configuration);
+	if (!merged.ok) {
+		return merged;
 	}
 	const classification = classifyApiItems(parsed.value);
 	return classification.ok
