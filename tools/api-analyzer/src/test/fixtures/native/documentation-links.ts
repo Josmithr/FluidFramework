@@ -7,13 +7,20 @@
  */
 
 import { base as imported } from "./inheritance.js";
+// Re-export the imported alias so declaration emission retains it for documentation lookup.
 export { imported };
 /** Back reference: {@link linked}. @beta */
+// This local base and the imported base have the same original name but different identities.
+// Its back reference also forms a collection cycle with linked.
 export declare function base(other: number): number;
+// This export-only name exercises lookup after lexical name resolution finds no local alias.
 export { base as alias };
 /** Hidden target. @internal */
+// Lookup must retain a resolved non-callable target even though later link validation rejects it.
 declare const hidden: string;
+// Documentation links alone do not make the compiler retain an unexported declaration.
 export type KeepHidden = typeof hidden;
+// Lookup identifies the overloaded declaration without choosing an individual signature.
 export declare function overloaded(value: string): string;
 export declare function overloaded(value: number): number;
 /** {@link base} {@link imported} {@link alias} {@link hidden} {@link overloaded}
@@ -23,4 +30,5 @@ export declare function overloaded(value: number): number;
  * @param value - See {@link base}.
  * @public
  */
+// Link order includes nested blocks and repeats; missing names, unsupported syntax, and URLs stay distinct.
 export declare function linked(value: string): string;

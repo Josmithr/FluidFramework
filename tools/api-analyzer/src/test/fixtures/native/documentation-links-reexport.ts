@@ -4,4 +4,5 @@
  */
 
 export { linked } from "./documentation-links.js";
+// This unrelated variable makes an incorrect lookup in the entrypoint observably different.
 export declare const base: boolean;

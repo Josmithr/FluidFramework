@@ -5,4 +5,5 @@
 
 export declare function base(value?: string): string;
 /** {@inheritDoc base} @public */
+// This required parameter must not receive documentation for an optional argument.
 export declare function derived(value: string): string;

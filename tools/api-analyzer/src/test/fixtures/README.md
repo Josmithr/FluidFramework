@@ -20,5 +20,21 @@ Runtime writes remain appropriate for compiler output, project configuration, pa
 The overload-reordering test changes the order of declarations in a copied input instead of maintaining a duplicate of the entire API fixture.
 Small TSDoc strings used directly by parser or resolver unit tests are not compiler source files and remain next to their assertions.
 
+## Fixture comments
+
+Apply these rules when adding or changing any TypeScript fixture, including `.d.ts` inputs.
+
+- Start each module with an ordinary `/* ... */` overview that states what it validates and identifies required companion inputs or intentional limitations.
+- Add ordinary `//` comments beside APIs whose validation role is not obvious, including members, aliases, re-exports, and consumer statements.
+- Explain the expected distinction or constraint, such as hidden-target retention, original lookup scope, overload selection, or local-comment suppression.
+- Use short, direct sentences in Simplified Technical English. Do not repeat the module overview beside an API whose role is already clear.
+- Keep explanatory comments separate from tested TSDoc. Do not add descriptive TSDoc to an API whose absent, empty, malformed, or tag-only comment is the test input.
+- Place explanatory comments after the complete tested TSDoc block or group and before its declaration. The pinned TS7 API includes preceding line comments in extracted TSDoc text, even across blank lines.
+- Keep adjacent TSDoc comments and compiler directives attached to the same declarations or statements. If a test replaces an exact source block, put explanations outside that block.
+- Verify that comment-only edits preserve code tokens, attached TSDoc, and expected fixture outcomes. Check tests that depend on source offsets or exact source replacements, and never update snapshots just to accept the edits.
+
+Review the overview and API-level explanations as part of each fixture change.
+Required explanatory comments describe the test, not additional product documentation to inherit or classify.
+
 Run the contract tests from the package directory with `pnpm test:contracts`.
 The native fixture guide also lists the separate declaration-consumer check.

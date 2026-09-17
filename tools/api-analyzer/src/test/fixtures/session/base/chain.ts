@@ -3,5 +3,7 @@
  * Renamed and star-exported types must retain the export restrictions established in extra.ts.
  */
 
+// This statement has no type keyword, but its target is already restricted to type-only use.
 export { OnlyIdentity as Renamed } from "./extra.js";
+// Preserve upstream type-only APIs while retaining the merged namespace's value export.
 export * from "./extra.js";

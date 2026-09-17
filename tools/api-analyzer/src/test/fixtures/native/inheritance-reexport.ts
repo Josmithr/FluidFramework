@@ -4,4 +4,5 @@
  */
 
 export { derived } from "./inheritance.js";
+// This incompatible same-named function exposes an incorrect switch to the re-exporting module's scope.
 export declare function base(wrong: number): number;

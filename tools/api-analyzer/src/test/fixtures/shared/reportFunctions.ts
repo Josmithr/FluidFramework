@@ -5,11 +5,15 @@
  */
 
 /** @public @partner */
+// Public reports include only this overload and can display its configured partner modifier.
 export function convert(value: string): string;
 /** @internal */
+// Complete reports also include this independently classified internal overload.
 export function convert(value: number): number;
+// The implementation must not add an extra callable signature to the report.
 export function convert(value: string | number): string | number {
 	return value;
 }
 
+// The type-only alias shares the declaration without exposing a second function implementation.
 export type { convert as alias };

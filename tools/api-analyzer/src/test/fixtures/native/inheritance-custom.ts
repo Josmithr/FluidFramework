@@ -5,6 +5,8 @@
  */
 
 /** Summary. @internal @sourceOnly */
+// The parser must recognize sourceOnly even when the ancestor is excluded from public selections.
 export declare function base(value: string): string;
 /** {@inheritDoc base} @public @localOnly */
+// Only descriptive content is inherited; localOnly and public remain the receiver's own metadata.
 export declare function derived(value: string): string;

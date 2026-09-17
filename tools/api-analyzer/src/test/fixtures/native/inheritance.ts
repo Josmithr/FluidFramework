@@ -9,6 +9,8 @@
  * @returns The input.
  * @internal
  */
+// This internal function supplies inherited content but must not make the public receiver internal.
 export declare function base(value: string): string;
 /** {@inheritDoc base} @public */
+// Matching parameter names and flags allow copying the param and returns sections unchanged.
 export declare function derived(value: string): string;

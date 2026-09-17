@@ -5,4 +5,5 @@
 
 export declare function base(...value: string[]): string;
 /** {@inheritDoc base} @public */
+// A single array argument differs from several rest arguments even when the parameter types match.
 export declare function derived(value: string[]): string;

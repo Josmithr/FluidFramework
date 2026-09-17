@@ -122,6 +122,15 @@ For a compiler capability investigation, write the expected fixture and assertio
 An investigation may report a failed capability rather than produce production code.
 Do not accept snapshots solely because they match current output. Review the semantic assertions that justify them.
 
+Every TypeScript test fixture, including `.d.ts` inputs, must start with an ordinary module comment that explains what it validates.
+Add ordinary `//` comments beside individual APIs whose validation role is not obvious, including members, aliases, and re-exports.
+Explain the expected distinction or constraint in Simplified Technical English, without repeating an already clear module overview.
+Keep these explanations separate from tested TSDoc and preserve absent, empty, malformed, and tag-only documentation inputs.
+Place explanatory comments after the complete tested TSDoc block or group and before its declaration; the pinned TS7 API includes preceding line comments in extracted TSDoc text even across blank lines.
+Keep adjacent TSDoc comments and compiler directives attached to their original declarations or statements, and keep explanations outside exact source blocks replaced by tests.
+Review module overviews and API-level comments whenever fixtures are added or changed, following the [fixture comment guide](../api-analyzer/src/test/fixtures/README.md#fixture-comments).
+For comment-only edits, verify unchanged code tokens and attached TSDoc, then run the affected fixture tests without updating snapshots.
+
 Use semantic test and suite names that describe the behavior under test.
 Keep design requirement identifiers in comments above the applicable tests, not in test names.
 For a temporary investigation test, add a comment that states its purpose and when to remove or replace it.
