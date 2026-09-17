@@ -167,7 +167,10 @@ Use a functional core with explicit I/O boundaries:
 
 Tests must verify that changing task order cannot mutate or corrupt shared analysis.
 The dependency rules in the architecture proposal apply to source imports, not only directory names.
-Use the existing ESLint tooling to enforce those rules as implementations move into layers.
+Use `good-fences` to enforce those rules as implementations move into layers, following the per-directory fence conventions in `api-markdown-documenter`.
+Define layer tags, allowed imports, and exported entrypoints, with explicit root-composition and test boundaries.
+Add the development dependency and package validation check during migration; verify allowed and forbidden imports under the package's TypeScript and ESM conventions.
+Keep ESLint for coding conventions rather than duplicating directory dependency rules.
 Keep generic utilities free of release policy and graph-specific traversal.
 Compute shared semantics in analysis, or place narrowly scoped shared operations beside the graph contract when multiple generators require them.
 Do not add a general graph framework, duplicate selection logic, or allow generators to import one another.
@@ -363,7 +366,7 @@ TSDoc tag strings map explicitly to enum values, and classification metadata sto
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
 - Extend the implemented eager analysis entrypoint with the remaining shared semantic validation. Preserve detached report reuse and tested cleanup before return.
 - Define the completed graph contract and model-reader responsibilities, then migrate existing code into the agreed layers. Move documentation resolution out of report preparation and into analysis.
-- Make report generation consume completed graph data and new output criteria only. Enforce directory dependencies with existing ESLint tooling and avoid empty generator scaffolding.
+- Make report generation consume completed graph data and new output criteria only. Enforce directory dependencies with `good-fences`, wire its check into package validation, and avoid empty generator scaffolding.
 - Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
 - Implement release-level selection per callable overload and generic custom-tag selection.
 - Specify and test structured reference facts before implementing reference-validation policies. Preserve reference origins and targets, including non-exported and cross-package targets, independently of selected report surfaces.

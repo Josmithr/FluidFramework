@@ -71,8 +71,13 @@ Establish shared semantic results during analysis where possible.
 If generators need a common selection or graph operation, place it beside the graph contract instead of duplicating it or making generators import one another.
 Add such operations only when shared use requires them; do not add a general graph framework.
 
-Enforce directory dependency rules with the existing ESLint tooling as layers are introduced.
-Do not add separate dependency-checking infrastructure unless existing tooling is insufficient.
+Enforce directory dependency rules with `good-fences` as layers are introduced.
+Follow the per-directory `fence.json` conventions in `api-markdown-documenter`, including its [renderer boundary](../api-markdown-documenter/src/renderers/fence.json) and [utility boundary](../api-markdown-documenter/src/utilities/fence.json).
+Use tags, allowed imports, and exported entrypoints to express the dependencies in the table above.
+Configure root composition and test boundaries explicitly; production layers must not depend on test helpers or bypass layer boundaries through root exports.
+During migration, add `good-fences` as a development dependency and wire its check into package validation.
+Verify that the check accepts allowed imports and rejects forbidden imports with this package's TypeScript and ESM import conventions.
+Keep ESLint for coding conventions; do not duplicate the layer dependency rules in ESLint or a custom checker.
 Create directories when their implementations are needed, not as empty scaffolding.
 
 ## Model contract
