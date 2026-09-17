@@ -37,8 +37,8 @@ describe("Effective configuration", () => {
 			{ name: "./other", path: path.resolve("/workspace/other.d.ts") },
 		]);
 		assert.equal(base.rules?.validateTsdocSyntax, true);
-		assert.ok(Object.isFrozen(result.value.entrypoints[0]));
-		assert.ok(Object.isFrozen(result.value.rules));
+		assert(Object.isFrozen(result.value.entrypoints[0]));
+		assert(Object.isFrozen(result.value.rules));
 	});
 
 	// Design requirement: W11.
@@ -123,6 +123,7 @@ describe("Effective configuration", () => {
 				),
 			(error: unknown) => error === internalError,
 		);
+
 		// Bypass static types to check invalid values supplied at runtime.
 		const configuration = { packageName: 42 } as unknown as Configuration;
 		const result = resolveConfiguration(configuration, "/workspace");

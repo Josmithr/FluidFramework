@@ -17,6 +17,10 @@ Those paths affect declaration locations and provisional identifiers.
 Keep expected outcomes in test assertions and complete generated outputs in the existing snapshot directory.
 Normal tests must not update checked-in fixtures or snapshots.
 
+Compiler fixture inputs are exempt from ESLint and from Biome formatting, linting, and assists.
+Preserve intentional syntax and whitespace, including forms that would violate product-code conventions.
+Exemption does not remove the need for readable explanations or compiler-backed behavior checks.
+
 Runtime writes remain appropriate for compiler output, project configuration, package metadata changes, and intentional transformations of existing source.
 The overload-reordering test changes the order of declarations in a copied input instead of maintaining a duplicate of the entire API fixture.
 Small TSDoc strings used directly by parser or resolver unit tests are not compiler source files and remain next to their assertions.

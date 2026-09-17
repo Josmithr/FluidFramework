@@ -1,4 +1,13 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-	"extends": "//"
+	"extends": "//",
+	"overrides": [
+		{
+			// Compiler fixtures intentionally test syntax and formatting outside product-code conventions.
+			"includes": ["**/src/test/fixtures/**"],
+			"formatter": { "enabled": false },
+			"linter": { "enabled": false },
+			"assist": { "enabled": false }
+		}
+	]
 }

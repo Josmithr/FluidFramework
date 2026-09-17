@@ -908,11 +908,21 @@ Use `pnpm lint:fix` to apply automatic fixes, then rerun the build and contract 
 Some fixes require manual review, especially changes to imports or test assertions.
 Biome remains the formatter; run `pnpm check:format` after lint fixes.
 
+The package enables ESLint's `curly` rule with `all` and ESLint Stylistic's `lines-around-comment` rule.
+Use braces for control-flow bodies and a blank line before standalone comments that follow code.
+Opening block and type boundaries need no extra blank line, and consecutive comment lines remain grouped.
+Put explanations before multiline expressions instead of between boolean operands so both tools preserve the same layout.
+No custom lint rules are used for these checks.
+
+Use `assert(value !== undefined)` or `assertDefined` for presence checks, and `assert(condition)` for boolean invariants.
+Use `assert.ok` only when truthiness itself is the intended condition.
+
 The ESLint configuration documents shared allowances for Node.js built-ins and official TypeScript subpath imports.
 A test-wide rule exception permits JSON round-trip tests instead of in-memory cloning.
 File-local ESLint directives explain exceptions for compiler symbol bit masks and intentional `null` states.
 Generated output and [compiler fixture inputs](src/test/fixtures/README.md) are excluded from ESLint.
-Fixtures are formatted and validated in their temporary compiler projects instead.
+Biome formatting, linting, and assists are disabled for compiler fixtures so tests can retain intentional syntax and layout.
+The compiler tests validate those inputs in temporary projects; normal tests never reformat the checked-in fixtures.
 
 [pnpm-workspace.yaml](pnpm-workspace.yaml) gives the shared lint configuration its own TypeScript 6 dependency.
 This keeps the lint plugins compatible without replacing the analyzer's native TypeScript 7 dependency.

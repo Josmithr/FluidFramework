@@ -28,6 +28,7 @@ interface SelectedDependency {
 	 * Canonical package directory used to detect multiple installations with the same name.
 	 */
 	readonly root: string;
+
 	/**
 	 * Decoded model whose recorded inputs match the installed files.
 	 */
@@ -45,34 +46,48 @@ export function loadDependencyModels(
 	configuration: EffectiveConfiguration,
 ): Result<readonly DependencyModel[]> {
 	const suite = configuration.suite;
-	if (suite === undefined) return { ok: true, value: [] };
+	if (suite === undefined) {
+		return { ok: true, value: [] };
+	}
 	const pending = [configuration.packageRoot];
 	const visited = new Set<string>();
 	const selected = new Map<string, SelectedDependency>();
 	const matched = new Set<string>();
 	while (pending.length > 0) {
 		const root = pending.pop();
-		if (root === undefined) break;
+		if (root === undefined) {
+			break;
+		}
 		const canonical = realpathSync(root);
-		if (visited.has(canonical)) continue;
+		if (visited.has(canonical)) {
+			continue;
+		}
 		visited.add(canonical);
 		const manifest = readDependencyManifest(root);
-		if (!manifest.ok) return manifest;
+		if (!manifest.ok) {
+			return manifest;
+		}
 		const name = manifest.value.name;
 		if (
 			root !== configuration.packageRoot &&
 			suite.packages.some((pattern) => path.posix.matchesGlob(name, pattern))
 		) {
-			for (const pattern of suite.packages)
-				if (path.posix.matchesGlob(name, pattern)) matched.add(pattern);
+			for (const pattern of suite.packages) {
+				if (path.posix.matchesGlob(name, pattern)) {
+					matched.add(pattern);
+				}
+			}
 			const previous = selected.get(name);
-			if (previous && previous.root !== canonical)
+			if (previous && previous.root !== canonical) {
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${name}: multiple installed package roots match the suite. Use one unambiguous dependency version before analysis.`,
 				);
+			}
 			const decoded = loadSelectedModel(root, name, suite.modelFile);
-			if (!decoded.ok) return decoded;
+			if (!decoded.ok) {
+				return decoded;
+			}
 			selected.set(name, { root: canonical, model: decoded.value });
 		}
 		for (const dependency of Object.keys({
@@ -85,29 +100,37 @@ export function loadDependencyModels(
 				!/^(?:@[\w.-]+\/)?[\w.-]+$/.test(dependency) ||
 				dependency === "." ||
 				dependency === ".."
-			)
+			) {
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Package ${name}: invalid dependency package name ${dependency}.`,
 				);
+			}
 			const dependencyRoot = findDependencyRoot(root, dependency);
-			if (dependencyRoot !== undefined) pending.push(dependencyRoot);
-			else if (suite.packages.some((pattern) => path.posix.matchesGlob(dependency, pattern)))
+			if (dependencyRoot !== undefined) {
+				pending.push(dependencyRoot);
+			} else if (
+				suite.packages.some((pattern) => path.posix.matchesGlob(dependency, pattern))
+			) {
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${dependency}: selected package is not installed. Install and build it before analysis.`,
 				);
+			}
 		}
 	}
 	const unmatched = suite.packages.find((pattern) => !matched.has(pattern));
-	if (unmatched !== undefined)
+	if (unmatched !== undefined) {
 		return failure(
 			DiagnosticCode.DependencyModel,
 			`Suite selector ${unmatched} matches no installed direct, transitive, or peer dependency.`,
 		);
+	}
 	const models = [...selected.values()].map((entry) => entry.model);
 	const references = validateSuiteReferences(models);
-	if (!references.ok) return references;
+	if (!references.ok) {
+		return references;
+	}
 	return freezeData({
 		ok: true,
 		value: models.sort((left, right) =>
@@ -130,11 +153,12 @@ function readDependencyManifest(root: string): Result<DependencyManifest> {
 		if (
 			error instanceof SyntaxError ||
 			(error instanceof Error && "code" in error && error.code === "ENOENT")
-		)
+		) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Package ${root}: a valid package.json is required to discover the configured suite.`,
 			);
+		}
 		throw error;
 	}
 	const manifest = manifestSchema.safeParse(input);
@@ -164,15 +188,18 @@ function loadSelectedModel(
 	try {
 		text = readFileSync(file, "utf8");
 	} catch (error) {
-		if (error instanceof Error && "code" in error && error.code === "ENOENT")
+		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${name}: model is missing at ${file}. Build the dependency and generate its model before analysis, even when unused.`,
 			);
+		}
 		throw error;
 	}
 	const decoded = decodeDependencyModel(text, name);
-	if (!decoded.ok) return decoded;
+	if (!decoded.ok) {
+		return decoded;
+	}
 	const fresh = validateInstalledInputs(root, decoded.value);
 	return fresh.ok ? decoded : fresh;
 }
@@ -190,19 +217,22 @@ function validateInstalledInputs(root: string, model: DependencyModel): Result<v
 		try {
 			declaration = readFileSync(path.join(root, fingerprint.file), "utf8");
 		} catch (error) {
-			if (error instanceof Error && "code" in error && error.code === "ENOENT")
+			if (error instanceof Error && "code" in error && error.code === "ENOENT") {
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${model.packageName}: analyzed input ${fingerprint.file} is missing. Rebuild and regenerate its model.`,
 				);
+			}
 			throw error;
 		}
+
 		// Hash the same UTF-8 text as extraction. This checks staleness, not semantic equivalence or authenticity.
-		if (createHash("sha256").update(declaration).digest("hex") !== fingerprint.sha256)
+		if (createHash("sha256").update(declaration).digest("hex") !== fingerprint.sha256) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${model.packageName}: model is stale for ${fingerprint.file}. Regenerate it from the installed declarations before analysis.`,
 			);
+		}
 	}
 	return { ok: true, value: undefined };
 }
@@ -218,11 +248,12 @@ function validateSuiteReferences(models: readonly DependencyModel[]): Result<voi
 	);
 	for (const model of models) {
 		for (const external of model.external) {
-			if (targets.get(external.id) !== external.packageName)
+			if (targets.get(external.id) !== external.packageName) {
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${model.packageName}: external target ${external.id} requires a compatible selected model for ${external.packageName}. Include and rebuild the transitive suite dependency.`,
 				);
+			}
 		}
 	}
 	return { ok: true, value: undefined };
@@ -239,9 +270,13 @@ function findDependencyRoot(from: string, name: string): string | undefined {
 	let current = from;
 	while (true) {
 		const candidate = path.join(current, "node_modules", name);
-		if (existsSync(path.join(candidate, "package.json"))) return candidate;
+		if (existsSync(path.join(candidate, "package.json"))) {
+			return candidate;
+		}
 		const parent = path.dirname(current);
-		if (parent === current) return undefined;
+		if (parent === current) {
+			return undefined;
+		}
 		current = parent;
 	}
 }

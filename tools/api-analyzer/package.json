@@ -23,6 +23,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.4.5",
 		"@fluidframework/eslint-config-fluid": "file:../../common/build/eslint-config-fluid",
+		"@stylistic/eslint-plugin": "5.10.0",
 		"@types/mocha": "10.0.10",
 		"@types/node": "22.19.17",
 		"eslint": "~9.39.1",

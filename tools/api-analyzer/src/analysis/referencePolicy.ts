@@ -13,10 +13,12 @@ interface ResolvedDirectionalRule {
 	 * Diagnostic name of the configured rule.
 	 */
 	readonly name: string;
+
 	/**
 	 * APIs whose outgoing references are restricted.
 	 */
 	readonly source: ReadonlySet<ApiItemId>;
+
 	/**
 	 * Targets forbidden for the matching sources.
 	 */
@@ -31,6 +33,7 @@ interface EntrypointExposure {
 	 * Configured entrypoint name used in diagnostics.
 	 */
 	readonly name: string;
+
 	/**
 	 * Declaration identities exposed by this entrypoint's export graph.
 	 */
@@ -50,7 +53,9 @@ export function validateReferencePolicies(
 ): Result<void> {
 	const policies = context.referencePolicies;
 	const directional = resolveDirectionalRules(context);
-	if (!directional.ok) return directional;
+	if (!directional.ok) {
+		return directional;
+	}
 	const inspectTypes =
 		policies.releaseCompatibility === true ||
 		policies.entrypointExposure === true ||
@@ -59,7 +64,9 @@ export function validateReferencePolicies(
 		// Export reachability is invariant across references, so compute it only once per entrypoint.
 		const exposure = policies.entrypointExposure === true ? entrypointExposure(context) : [];
 		const references = validateTypeReferences(context, directional.value, exposure);
-		if (!references.ok) return references;
+		if (!references.ok) {
+			return references;
+		}
 	}
 	return policies.inheritanceVisibility === true
 		? validateInheritanceVisibility(context, inheritance)
@@ -86,11 +93,17 @@ function resolveDirectionalRules(
 	};
 	const directional: ResolvedDirectionalRule[] = [];
 	for (const rule of context.referencePolicies.directional ?? []) {
-		if (rule.enabled === false) continue;
+		if (rule.enabled === false) {
+			continue;
+		}
 		const source = selectApiItems(classification, { ...rule.source, name: rule.name });
-		if (!source.ok) return source;
+		if (!source.ok) {
+			return source;
+		}
 		const target = selectApiItems(classification, { ...rule.target, name: rule.name });
-		if (!target.ok) return target;
+		if (!target.ok) {
+			return target;
+		}
 		directional.push({
 			name: rule.name,
 			source: new Set(source.value.items.map((item) => item.id)),
@@ -116,7 +129,10 @@ function validateTypeReferences(
 		const original = item.signature ?? item.declaredMember ?? item.member ?? item.declaration;
 		for (const reference of original.documentationContext?.typeReferences ?? []) {
 			const target = context.declarations.get(reference.target);
-			assert.ok(target, "Declaration reference targets must be retained in the analysis.");
+			assert(
+				target !== undefined,
+				"Declaration reference targets must be retained in the analysis.",
+			);
 			const description = `Package ${context.facts.packageName}, ${reference.origin.file}:${reference.origin.start}, API ${item.id}, target ${reference.text} (${target.id})`;
 			const metadata = validateReferenceMetadata(
 				context,
@@ -125,9 +141,13 @@ function validateTypeReferences(
 				directional,
 				description,
 			);
-			if (!metadata.ok) return metadata;
+			if (!metadata.ok) {
+				return metadata;
+			}
 			const visible = validateEntrypointExposure(context, item, target, exposure, description);
-			if (!visible.ok) return visible;
+			if (!visible.ok) {
+				return visible;
+			}
 		}
 	}
 	return { ok: true, value: undefined };
@@ -149,40 +169,46 @@ function validateReferenceMetadata(
 	directional: readonly ResolvedDirectionalRule[],
 	description: string,
 ): Result<void> {
-	if (context.referencePolicies.releaseCompatibility !== true && directional.length === 0)
+	if (context.referencePolicies.releaseCompatibility !== true && directional.length === 0) {
 		return { ok: true, value: undefined };
+	}
+
 	// Declaration-level metadata takes precedence; otherwise inspect each callable overload independently.
 	const targets = context.metadata.has(target.id)
 		? [target.id]
 		: target.signatures.map((signature) => signature.id);
-	if (targets.length === 0)
+	if (targets.length === 0) {
 		return failure(
 			DiagnosticCode.ReferencePolicy,
 			`${description}: reference target classification is unavailable for this declaration form.`,
 		);
+	}
 	const sourceLevel = context.metadata.get(source)?.releaseLevel;
 	for (const targetId of targets) {
 		const targetLevel = context.metadata.get(targetId)?.releaseLevel;
 		if (context.referencePolicies.releaseCompatibility === true) {
-			if (sourceLevel === undefined || targetLevel === undefined)
+			if (sourceLevel === undefined || targetLevel === undefined) {
 				return failure(
 					DiagnosticCode.ReferencePolicy,
 					`${description}: release compatibility requires original release tags on both APIs.`,
 				);
-			if (sourceLevel < targetLevel)
+			}
+			if (sourceLevel < targetLevel) {
 				return failure(
 					DiagnosticCode.ReferencePolicy,
 					`${description}: releaseCompatibility forbids a reference to a less stable API. Correct the API relationship or disable this rule.`,
 				);
+			}
 		}
 		const violated = directional.find(
 			(rule) => rule.source.has(source) && rule.target.has(targetId),
 		);
-		if (violated)
+		if (violated) {
 			return failure(
 				DiagnosticCode.ReferencePolicy,
 				`${description}: directional rule ${violated.name} forbids this reference. Correct the relationship or disable this rule.`,
 			);
+		}
 	}
 	return { ok: true, value: undefined };
 }
@@ -195,10 +221,12 @@ function validateReferenceMetadata(
 function entrypointExposure(context: AnalysisContext): EntrypointExposure[] {
 	return context.facts.surfaces.map((surface) => {
 		const declarations = new Set(surface.exports.map((binding) => binding.target));
+
 		// Set iteration also visits newly added exports; repeated identities terminate namespace cycles.
 		for (const id of declarations) {
-			for (const binding of context.declarations.get(id)?.exports ?? [])
+			for (const binding of context.declarations.get(id)?.exports ?? []) {
 				declarations.add(binding.target);
+			}
 		}
 		return { name: surface.name, declarations };
 	});
@@ -226,11 +254,12 @@ function validateEntrypointExposure(
 			if (
 				surface.declarations.has(item.declaration.id) &&
 				!surface.declarations.has(target.id)
-			)
+			) {
 				return failure(
 					DiagnosticCode.ReferencePolicy,
 					`${description}: entrypointExposure requires the same-package target in entrypoint ${surface.name}. Export the target or change the reference. Dependency types do not require consumer re-exports.`,
 				);
+			}
 		}
 	}
 	return { ok: true, value: undefined };
@@ -249,16 +278,18 @@ function validateInheritanceVisibility(
 	for (const binding of inheritance) {
 		const source = context.metadata.get(binding.source)?.releaseLevel;
 		const target = context.metadata.get(binding.target)?.releaseLevel;
-		if (source === undefined || target === undefined)
+		if (source === undefined || target === undefined) {
 			return failure(
 				DiagnosticCode.ReferencePolicy,
 				`Package ${context.facts.packageName}, API ${binding.source}, target ${binding.reference}: inheritanceVisibility requires original release tags.`,
 			);
-		if (source !== ReleaseLevel.Internal && target === ReleaseLevel.Internal)
+		}
+		if (source !== ReleaseLevel.Internal && target === ReleaseLevel.Internal) {
 			return failure(
 				DiagnosticCode.ReferencePolicy,
 				`Package ${context.facts.packageName}, API ${binding.source}, target ${binding.reference}: inheritanceVisibility forbids explicit inheritance from internal APIs.`,
 			);
+		}
 	}
 	return { ok: true, value: undefined };
 }

@@ -9,6 +9,7 @@ export interface DocumentationInput {
 	 * The identifier of the declaration or individual signature.
 	 */
 	readonly id: ApiItemId;
+
 	/**
 	 * The name of the package that contains the original comment.
 	 *
@@ -16,6 +17,7 @@ export interface DocumentationInput {
 	 * Do not replace this name with the name of a package that re-exports the declaration.
 	 */
 	readonly packageName: string;
+
 	/**
 	 * The local TSDoc comment, or `undefined` when no local comment exists.
 	 */
@@ -37,10 +39,12 @@ export interface DocumentationReferenceBinding {
 	 * The identifier of the item that contains the inheritance request.
 	 */
 	readonly source: ApiItemId;
+
 	/**
 	 * The declaration reference in the format produced by TSDoc's `emitAsTsdoc()` method.
 	 */
 	readonly reference: string;
+
 	/**
 	 * The identifier of the target declaration or individual signature.
 	 */
@@ -59,6 +63,7 @@ export interface AutomaticDocumentationBinding {
 	 * The receiving member identifier, or its single callable signature identifier during completion.
 	 */
 	readonly source: ApiItemId;
+
 	/**
 	 * The original source member identifier, or its single callable signature identifier during completion.
 	 * Does not identify a heritage comparison view.
@@ -79,22 +84,27 @@ export interface DocumentationLinkBinding {
 	 * The identifier of the signature that contains the original comment.
 	 */
 	readonly source: ApiItemId;
+
 	/**
 	 * The zero-based API link index in TSDoc tree traversal order, excluding URL links.
 	 */
 	readonly linkIndex: number;
+
 	/**
 	 * The declaration reference printed by TSDoc, without the display label.
 	 */
 	readonly reference: string;
+
 	/**
 	 * The resolved declaration identifier, not its signature identifier.
 	 */
 	readonly target: ApiItemId;
+
 	/**
 	 * The target's single callable signature identifier used for original release classification.
 	 */
 	readonly targetSignature: ApiItemId;
+
 	/**
 	 * The original comment's location, independent of re-exporting entrypoints.
 	 */
@@ -114,6 +124,7 @@ export interface DocumentationLinkValidation {
 	 * Bindings must belong to the same context and must not be modified after binding.
 	 */
 	readonly bindings: readonly DocumentationLinkBinding[];
+
 	/**
 	 * Original classification for all linked targets and receiving APIs, independent of report selection.
 	 */
@@ -129,11 +140,13 @@ export interface DocumentationResolutionOptions {
 	 * @defaultValue Omitted; resolution starts with no cached dependency results.
 	 */
 	readonly dependencies?: ReadonlyMap<ApiItemId, ResolvedDocumentation>;
+
 	/**
 	 * Packages authorized for cross-package inheritance by suite loading.
 	 * @defaultValue Omitted; only same-package inheritance is permitted.
 	 */
 	readonly packages?: ReadonlySet<string>;
+
 	/**
 	 * Confident non-overloaded member bindings established from compiler relationships.
 	 *
@@ -145,6 +158,7 @@ export interface DocumentationResolutionOptions {
 	 * @defaultValue Omitted. No automatic inheritance is requested.
 	 */
 	readonly automaticInheritance?: readonly AutomaticDocumentationBinding[];
+
 	/**
 	 * Original link bindings and classification required when comments contain API links.
 	 *
@@ -163,6 +177,7 @@ export interface ResolvedDocumentation extends DocumentationInput {
 	 * Resolver outputs populate this field; model decoding requires explicit section records.
 	 */
 	readonly sections?: readonly DocumentationSectionSource[];
+
 	/**
 	 * Validated links in effective comment traversal order, excluding links with URL destinations.
 	 *
@@ -171,6 +186,7 @@ export interface ResolvedDocumentation extends DocumentationInput {
 	 * The containing result's identifier identifies the receiving API. Repeated references remain separate.
 	 */
 	readonly links: readonly DocumentationLinkBinding[];
+
 	/**
 	 * The comment printed by TSDoc after inheritance, or `undefined` when no local comment or target exists.
 	 *
@@ -182,6 +198,7 @@ export interface ResolvedDocumentation extends DocumentationInput {
 	 * This text format can change. It is not a complete portable documentation model.
 	 */
 	readonly documentation: string | undefined;
+
 	/**
 	 * Target identifiers in traversal order, from the immediate target to the last target.
 	 *
@@ -199,10 +216,12 @@ export interface DocumentationSectionSource {
 	 * Section identity, such as summary, remarks, or a named parameter block.
 	 */
 	readonly section: string;
+
 	/**
 	 * Source documentation input identity.
 	 */
 	readonly source: ApiItemId;
+
 	/**
 	 * Package where the source comment originated.
 	 */

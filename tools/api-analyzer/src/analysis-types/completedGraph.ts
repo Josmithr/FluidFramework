@@ -11,6 +11,7 @@ export interface CompletedDocumentation extends ResolvedDocumentation {
 	 * Whether the resolved comment contains descriptive content, not merely metadata tags.
 	 */
 	readonly documented: boolean;
+
 	/**
 	 * Local block tags captured before inheritance, for output annotations.
 	 */
@@ -31,14 +32,17 @@ export interface CompletedAnalysis {
 	 * @defaultValue Omitted for internal graphs without selected dependencies; generators treat it as an empty list.
 	 */
 	readonly dependencies?: readonly DependencyModel[];
+
 	/**
 	 * Original declaration, relationship, and export facts from compiler extraction.
 	 */
 	readonly facts: AnalysisFacts;
+
 	/**
 	 * Original release and custom metadata, unaffected by inheritance.
 	 */
 	readonly classification: ApiClassification;
+
 	/**
 	 * Resolved callable and single-declaration non-callable property comments, links, and inheritance paths in identifier order.
 	 */

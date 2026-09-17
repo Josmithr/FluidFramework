@@ -20,9 +20,9 @@ describe("Review baseline handling", () => {
 			if (!result.ok) {
 				assert.equal(result.diagnostics[0]?.code, code);
 				assert.equal("value" in result, false);
-				assert.ok(Object.isFrozen(result.diagnostics[0]));
+				assert(Object.isFrozen(result.diagnostics[0]));
 			}
-			assert.ok(Object.isFrozen(result));
+			assert(Object.isFrozen(result));
 		}
 	});
 });

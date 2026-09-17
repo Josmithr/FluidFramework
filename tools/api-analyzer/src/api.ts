@@ -29,10 +29,12 @@ export interface APIStatistics {
 	 * The number of configured entrypoints.
 	 */
 	readonly entrypoints: number;
+
 	/**
 	 * The number of distinct collected declaration symbols.
 	 */
 	readonly declarations: number;
+
 	/**
 	 * The number of callable signatures on collected declarations, excluding effective member views.
 	 */
@@ -48,10 +50,12 @@ export interface APIAnalysis {
 	 * @returns JSON artifact content. The caller owns its destination and writes.
 	 */
 	generateModel(): string;
+
 	/**
 	 * The immutable effective configuration used for this invocation.
 	 */
 	readonly configuration: EffectiveConfiguration;
+
 	/**
 	 * Returns immutable API counts, not cache or compiler performance counters.
 	 *
@@ -59,6 +63,7 @@ export interface APIAnalysis {
 	 */
 	// TODO: just make this a readonly property? It's currently a method but could be a simple getter.
 	getStatistics(): APIStatistics;
+
 	/**
 	 * Generates report text from prepared data without compiler or filesystem access.
 	 *
@@ -124,6 +129,7 @@ export async function analyzeAPIs(
 			return completed;
 		}
 		const prepared = prepareReviewReport(completed.value);
+
 		// TODO (Stage 2 completion): Complete merged-declaration and remaining reference validation.
 		// TODO (Stages 3 and 4 outputs): Extend the dependency format to a complete portable model
 		// and retain rollup data without requiring a live compiler or repeating analysis.

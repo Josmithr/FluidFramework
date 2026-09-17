@@ -126,7 +126,7 @@ describe("Documentation link binding", () => {
 			assert.equal(result.value.validation.ok, true);
 			assert.equal(parse.mock.callCount(), 1);
 			const item = result.value.items.get("captured");
-			assert.ok(item);
+			assert(item !== undefined);
 			assert.strictEqual(item.parsed, captured);
 			assert.equal(item.originalLinks.length, 1);
 			assert.equal(item.originalLinks[0]?.codeDestination?.emitAsTsdoc(), "target");
@@ -148,9 +148,9 @@ describe("Documentation link binding", () => {
 		}
 		const fact = functionFact("source", "/** @public */", []);
 		const signature = fact.signatures[0];
-		assert.ok(signature);
+		assert(signature !== undefined);
 		const { documentationContext: originalContext, ...withoutContext } = signature;
-		assert.ok(originalContext);
+		assert(originalContext !== undefined);
 		assertAssertionError(
 			() =>
 				createAnalysisContext(
@@ -360,11 +360,11 @@ describe("Documentation link binding", () => {
 		]);
 		const target = functionFact("target", "/** Target. @beta */", []);
 		const targetSignature = target.signatures[0];
-		assert.ok(targetSignature?.documentationContext);
+		assert(targetSignature?.documentationContext !== undefined);
 		const sourceSignature = source.signatures[0];
-		assert.ok(sourceSignature);
+		assert(sourceSignature !== undefined);
 		const { documentationContext: sourceContext, ...noSourceContext } = sourceSignature;
-		assert.ok(sourceContext);
+		assert(sourceContext !== undefined);
 		const { documentationContext: targetContext, ...noTargetContext } = targetSignature;
 		for (const [declarations, message] of [
 			[
@@ -572,7 +572,7 @@ describe("Explicit documentation inheritance", () => {
 		const original = classifyApiItems(context);
 		assert.equal(original.ok, true);
 		const receiver = context.items.get("derived");
-		assert.ok(receiver);
+		assert(receiver !== undefined);
 		assert.deepEqual(receiver.originalBlockTags, ["@example"]);
 		const result = resolveDocumentation(context, [binding("derived", "base")]);
 		assert.equal(result.ok, true);
@@ -651,7 +651,7 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived);
+		assert(derived !== undefined);
 		assert.equal(derived.documentation?.includes("Base content."), true);
 		assert.equal(derived.documentation?.includes("@internal"), false);
 		assert.deepEqual(derived.inheritedFrom, ["middle", "base"]);
@@ -659,7 +659,7 @@ describe("Explicit documentation inheritance", () => {
 			const output: ResolvedDocumentation | undefined = result.value.find(
 				(entry) => entry.id === id,
 			);
-			assert.ok(output);
+			assert(output !== undefined);
 			assert.deepEqual(output.inheritedFrom, []);
 			assert.equal(output.documentation?.includes("Base content.") ?? false, false);
 		}
@@ -769,7 +769,7 @@ describe("Explicit documentation inheritance", () => {
 			assert.equal(result.ok, targetTag === "beta");
 			if (result.ok) {
 				const derived = result.value.find((entry) => entry.id === "derived-signature");
-				assert.ok(derived);
+				assert(derived !== undefined);
 				assert.deepEqual(derived.links, links.value);
 				assert.equal(derived.links[0]?.source, "base-signature");
 				assert.equal(derived.links[0]?.origin.file, "original.d.ts");
@@ -785,9 +785,9 @@ describe("Explicit documentation inheritance", () => {
 	it("asserts missing or stale inheritance facts but diagnoses unsupported sources and references", () => {
 		const receiver = functionFact("receiver", "/** {@inheritDoc base} @public */", []);
 		const signature = receiver.signatures[0];
-		assert.ok(signature);
+		assert(signature !== undefined);
 		const { documentationContext: sourceContext, ...withoutContext } = signature;
-		assert.ok(sourceContext);
+		assert(sourceContext !== undefined);
 		for (const [source, expectedMessage] of [
 			[withoutContext, "Supported inheritance sources must retain documentation context."],
 			[signature, "Inheritance requests must retain compiler lookup facts."],
@@ -876,7 +876,7 @@ describe("Explicit documentation inheritance", () => {
 	it("selects numeric overload targets and validates the selected parameter shape", () => {
 		const template = functionFact("target", "/** First. @public */", []);
 		const first = template.signatures[0];
-		assert.ok(first?.documentationContext);
+		assert(first?.documentationContext !== undefined);
 		const second = { ...first, id: "second", documentation: "/** Second. @public */" };
 		const target = { ...template, signatures: [first, second] };
 		for (const [reference, expected] of [
@@ -892,7 +892,7 @@ describe("Explicit documentation inheritance", () => {
 				[],
 			);
 			const signature = receiver.signatures[0];
-			assert.ok(signature?.documentationContext);
+			assert(signature?.documentationContext !== undefined);
 			const facts = linkFacts([
 				target,
 				{
@@ -985,7 +985,7 @@ describe("Explicit documentation inheritance", () => {
 				[],
 			);
 			const signature = receiver.signatures[0];
-			assert.ok(signature?.documentationContext);
+			assert(signature?.documentationContext !== undefined);
 			const result = bindDocumentationReferences(
 				analysisContext(
 					linkFacts([
@@ -1030,6 +1030,7 @@ describe("Explicit documentation inheritance", () => {
 			functionFact(
 				"derived",
 				"/** {@inheritDoc middle}\n * @example Local {@link target}.\n * @public\n */",
+
 				// Identical reference text resolves differently in the local example and inherited sections.
 				[{ reference: "target", status: "resolved", target: "local" }],
 			),
@@ -1063,10 +1064,11 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived-signature");
-		assert.ok(derived?.documentation !== undefined);
+		assert(derived?.documentation !== undefined);
 		assert.notEqual(derived.documentation, "");
 		assertSnapshot(derived.documentation, "documentation.inherited-sections.txt");
 		assert.deepEqual(derived.inheritedFrom, ["middle-signature", "base-signature"]);
+
 		// Effective traversal contains copied base links followed by the retained local example's link.
 		assert.deepEqual(derived.links, [
 			...links.value.filter(
@@ -1080,6 +1082,7 @@ describe("Explicit documentation inheritance", () => {
 			false,
 		);
 		assert.equal(derived.links[5]?.target, "local");
+
 		// The index belongs to the original comment, even though this link is sixth in the effective comment.
 		assert.equal(derived.links[5]?.linkIndex, 0);
 		assert.equal(
@@ -1087,6 +1090,7 @@ describe("Explicit documentation inheritance", () => {
 			true,
 		);
 		assert.equal(JSON.stringify({ inputs, bindings, options }), before);
+
 		// Input order must not affect chain traversal or the order of links in resolved comments.
 		assert.deepEqual(
 			resolveDocumentation(
@@ -1101,6 +1105,7 @@ describe("Explicit documentation inheritance", () => {
 			bindings: typeof bindings;
 			options: typeof options;
 		};
+
 		// Only plain inputs and bindings are portable; the metadata index belongs to the owning analysis.
 		const restoredOptions = {
 			linkValidation: {
@@ -1116,6 +1121,7 @@ describe("Explicit documentation inheritance", () => {
 			),
 			result,
 		);
+
 		// JSON creates mutable inputs; freezing resolver output must not freeze caller-owned binding origins.
 		assert.equal(Object.isFrozen(restored.options.linkValidation.bindings[0]?.origin), false);
 		assert.deepEqual(classifyApiItems(documentationContext(signatures)), classification);
@@ -1164,12 +1170,12 @@ describe("Explicit documentation inheritance", () => {
 			assert.equal(result.ok, targetTag === "beta");
 			if (result.ok) {
 				const derived = result.value.find((entry) => entry.id === "derived-signature");
-				assert.ok(derived);
+				assert(derived !== undefined);
 				assert.deepEqual(derived.links, links.value);
 				assert.equal(derived.links[0]?.source, "base-signature");
 				assert.equal(derived.links[0]?.origin.file, "original.d.ts");
 				assert.equal(Object.isFrozen(derived.links), true);
-				assert.ok(derived.documentation !== undefined);
+				assert(derived.documentation !== undefined);
 				assert.notEqual(derived.documentation, "");
 				assertSnapshot(derived.documentation, "documentation.inherited-link.txt");
 			} else {
@@ -1277,7 +1283,7 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation !== undefined);
+		assert(derived?.documentation !== undefined);
 		assert.notEqual(derived.documentation, "");
 		assertSnapshot(derived.documentation, "documentation.direct.txt");
 		assert.deepEqual(derived.inheritedFrom, ["base"]);
@@ -1301,7 +1307,7 @@ describe("Explicit documentation inheritance", () => {
 			["base", "derived", "middle"],
 		);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation !== undefined);
+		assert(derived?.documentation !== undefined);
 		assert.notEqual(derived.documentation, "");
 		assert.deepEqual(derived.inheritedFrom, ["middle", "base"]);
 		assertSnapshot(derived.documentation, "documentation.chain.txt");
@@ -1343,7 +1349,7 @@ describe("Explicit documentation inheritance", () => {
 			const base = result.value.find((entry) => entry.id === "base");
 			assert.equal(base?.documentation === undefined, documentation === undefined);
 			const derived = result.value.find((entry) => entry.id === "derived");
-			assert.ok(derived?.documentation !== undefined);
+			assert(derived?.documentation !== undefined);
 			assert.notEqual(derived.documentation, "");
 			assert.deepEqual(derived.inheritedFrom, ["base"]);
 			assert.equal(derived.documentation.includes("@inheritDoc"), false);
@@ -1391,7 +1397,7 @@ describe("Explicit documentation inheritance", () => {
 		);
 		assert.equal(result.ok, true);
 		const derived = result.value.find((entry) => entry.id === "derived");
-		assert.ok(derived?.documentation !== undefined);
+		assert(derived?.documentation !== undefined);
 		assert.notEqual(derived.documentation, "");
 		assert.equal(derived.documentation.includes("Summary."), true);
 		assert.equal(derived.documentation.includes("Local example."), true);

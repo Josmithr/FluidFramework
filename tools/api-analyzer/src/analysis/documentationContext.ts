@@ -38,10 +38,12 @@ export type ParsedDocumentationItem<Input extends ApiItemDocumentation> = Input 
 	 * Parser output whose comment nodes may be updated once during resolution.
 	 */
 	readonly parsed: ReturnType<TSDocParser["parseString"]>;
+
 	/**
 	 * Block tag names from the local comment, independent of inherited blocks.
 	 */
 	readonly originalBlockTags: readonly string[];
+
 	/**
 	 * Original API link nodes in traversal order, excluding URL links.
 	 */
@@ -76,14 +78,17 @@ export interface DocumentationContext<
 	 * Shared modifier vocabulary. Do not modify it after parsing begins.
 	 */
 	readonly configuration: TSDocConfiguration;
+
 	/**
 	 * A frozen copy of the classification policy for this invocation.
 	 */
 	readonly rules: ClassificationRules;
+
 	/**
 	 * Distinct original inputs and their parsed comments, in input order.
 	 */
 	readonly items: ReadonlyMap<ApiItemId, ParsedDocumentationItem<Input>>;
+
 	/**
 	 * The first syntax failure in input order, or success when all comments parse without errors.
 	 * Classification rule opt-outs do not suppress this result for binding and resolution.
@@ -99,16 +104,19 @@ export interface AnalysisDocumentationInput extends DocumentationInput {
 	 * The immutable declaration that contains this documentation input.
 	 */
 	readonly declaration: DeclarationFact;
+
 	/**
 	 * The effective member that owns this comment or signature.
 	 * @defaultValue Omitted for declaration-level inputs and independently retained declared members.
 	 */
 	readonly member?: MemberFact;
+
 	/**
 	 * The original callable signature.
 	 * @defaultValue Omitted when the comment belongs to a property, declaration, or independently retained declared member.
 	 */
 	readonly signature?: SignatureFact;
+
 	/**
 	 * An independently documented declaration member outside the effective instance-property view.
 	 * @defaultValue Omitted for ordinary effective members and declaration-level inputs.
@@ -124,22 +132,27 @@ export interface AnalysisContext extends DocumentationContext<AnalysisDocumentat
 	 * Validated dependency models selected before compiler extraction; empty when no suite is configured.
 	 */
 	readonly dependencies: readonly DependencyModel[];
+
 	/**
 	 * Configured semantic reference policies, independent of output selection.
 	 */
 	readonly referencePolicies: ReferencePolicies;
+
 	/**
 	 * Immutable compiler facts from this invocation.
 	 */
 	readonly facts: AnalysisFacts;
+
 	/**
 	 * Declaration lookup shared by reference binding and report preparation.
 	 */
 	readonly declarations: ReadonlyMap<ApiItemId, DeclarationFact>;
+
 	/**
 	 * Frozen classification derived from the original comments before inheritance.
 	 */
 	readonly classification: ApiClassification;
+
 	/**
 	 * The same classification records indexed for link-policy checks.
 	 */
@@ -191,15 +204,16 @@ export function createDocumentationContext<Input extends ApiItemDocumentation>(
 	const items = new Map<ApiItemId, ParsedDocumentationItem<Input>>();
 	let validation: Result<void> = { ok: true, value: undefined };
 	for (const input of inputs) {
-		assert.ok(!items.has(input.id), "Documentation inputs must have distinct identities.");
+		assert(!items.has(input.id), "Documentation inputs must have distinct identities.");
 		if ("packageName" in input) {
-			assert.ok(
+			assert(
 				typeof input.packageName === "string" && input.packageName.trim().length > 0,
 				"Documentation inputs must retain non-blank originating package names.",
 			);
 		}
 		const parsed =
 			extractedComments?.get(input.id) ?? parser.parseString(input.documentation ?? "/** */");
+
 		// Preserve strict syntax failures even when classification is configured to tolerate them.
 		if (validation.ok && parsed.log.messages.length > 0) {
 			validation = failure(
@@ -266,7 +280,7 @@ export function createAnalysisContext(
 	const declarations = new Map<ApiItemId, DeclarationFact>();
 	const inputs: AnalysisDocumentationInput[] = [];
 	for (const declaration of facts.declarations) {
-		assert.ok(
+		assert(
 			!declarations.has(declaration.id),
 			"Declaration facts must have distinct identities.",
 		);
@@ -288,6 +302,7 @@ export function createAnalysisContext(
 				declaration,
 			});
 		}
+
 		// Effective signatures have view-specific identities but retain their original comment scope.
 		const callables = [
 			...(declaration.documentationContext === undefined
@@ -302,7 +317,10 @@ export function createAnalysisContext(
 		for (const { signature, member } of callables) {
 			const origin =
 				signature.documentationContext?.origin ?? (member ?? declaration).declarations[0];
-			assert.ok(origin, "Signature facts must retain an original declaration location.");
+			assert(
+				origin !== undefined,
+				"Signature facts must retain an original declaration location.",
+			);
 			inputs.push({
 				id: signature.id,
 				documentation: signature.documentation,

@@ -63,7 +63,7 @@ describe("One-shot API analysis and adapter facts", () => {
 			},
 			directory,
 		);
-		assert.ok(result.ok);
+		assert(result.ok);
 		configuration = result.value;
 		adapter = createNativeAdapter();
 	});
@@ -254,7 +254,7 @@ describe("One-shot API analysis and adapter facts", () => {
 			...configuration,
 			entrypoints: [{ name: ".", path: path.join(directory, "src/comments.ts") }],
 		});
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		for (const [name, expected] of [
 			["absent", undefined],
 			["empty", "/** */"],
@@ -265,7 +265,7 @@ describe("One-shot API analysis and adapter facts", () => {
 				(item) => item.name === name,
 			);
 			const signature: SignatureFact | undefined = declaration?.signatures[0];
-			assert.ok(signature);
+			assert(signature !== undefined);
 			assert.equal(signature.documentation, expected, name);
 			assert.equal(declaration?.declarations[0]?.text.includes(`function ${name}`), true);
 		}
@@ -312,25 +312,25 @@ describe("One-shot API analysis and adapter facts", () => {
 	// Design regressions: B1, B2.
 	it("preserves alias identity and transitive type-only export paths", () => {
 		const result = adapter.analyze(configuration);
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		assert.equal(Object.isFrozen(result.value.declarations), true);
 		assert.equal(Object.isFrozen(result.value.surfaces[0]?.exports), true);
 		const serialized = JSON.stringify(result.value);
 		assert.equal(JSON.stringify(JSON.parse(serialized)), serialized);
 		const root = result.value.surfaces.find((surface) => surface.name === ".");
 		const chain = result.value.surfaces.find((surface) => surface.name === "./chain");
-		assert.ok(root && chain);
+		assert(root !== undefined && chain !== undefined);
 		const publicAlias = root.exports.find((item) => item.name === "PublicIdentity");
 		const typeAlias = root.exports.find((item) => item.name === "TypeIdentity");
-		assert.ok(publicAlias && typeAlias);
+		assert(publicAlias !== undefined && typeAlias !== undefined);
 		assert.equal(publicAlias.target, typeAlias.target);
 		assert.equal(publicAlias.typeOnly, false);
 		assert.equal(typeAlias.typeOnly, true);
 		assert.equal(chain.exports.find((item) => item.name === "Renamed")?.typeOnly, true);
 		assert.equal(chain.exports.find((item) => item.name === "Identity")?.typeOnly, true);
 		assert.equal(chain.exports.find((item) => item.name === "Merged")?.typeOnly, false);
-		assert.ok(root.exports.some((item) => item.name === "ApiNamespace"));
-		assert.ok(
+		assert(root.exports.some((item) => item.name === "ApiNamespace"));
+		assert(
 			result.value.declarations.some(
 				(item) =>
 					item.name === "Merged" &&
@@ -343,7 +343,7 @@ describe("One-shot API analysis and adapter facts", () => {
 	// Design features: F1, F4.
 	it("retains effective members and individual callable signatures", () => {
 		const result = adapter.analyze(configuration);
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		const derived = result.value.declarations.find((item) => item.name === "Derived");
 		assert.equal(derived?.members.find((member) => member.name === "value")?.type, "string");
 		const frozen = result.value.declarations.find((item) => item.name === "Frozen");
@@ -371,7 +371,7 @@ describe("One-shot API analysis and adapter facts", () => {
 	// Design feature: F1.
 	it("marks deferred expansion with an actionable limitation", () => {
 		const result = adapter.analyze(configuration);
-		assert.ok(result.ok);
+		assert(result.ok);
 		const deferred = result.value.declarations.find((item) => item.name === "Deferred");
 		assert.equal(deferred?.memberView, "partial");
 		assert.match(deferred?.limitations[0]?.message ?? "", /original declaration/);
@@ -456,7 +456,7 @@ describe("One-shot API analysis and adapter facts", () => {
 		};
 		const node = adapter.analyze(settings);
 		const browser = adapter.analyze({ ...settings, project: browserProject });
-		assert.ok(node.ok && browser.ok, JSON.stringify({ node, browser }));
+		assert(node.ok && browser.ok, JSON.stringify({ node, browser }));
 		assert.equal(node.value.declarations[0]?.members[0]?.type, '"node"');
 		assert.equal(browser.value.declarations[0]?.members[0]?.type, '"browser"');
 		assert.equal(browser.value.declarations[0]?.declarations[0]?.packageName, "dependency");
@@ -467,15 +467,16 @@ describe("One-shot API analysis and adapter facts", () => {
 		adapter.close();
 		adapter = createNativeAdapter();
 		const updated = adapter.analyze({ ...settings, project: browserProject });
-		assert.ok(updated.ok);
+		assert(updated.ok);
 		assert.equal(updated.value.declarations[0]?.members[0]?.type, '"updated"');
 	});
 
 	// Design requirement: W4.
 	it("preserves identities across checkout relocation and overload reordering", () => {
 		const first = adapter.analyze(configuration);
-		assert.ok(first.ok);
+		assert(first.ok);
 		const original = readFileSync(path.join(directory, "src/api.ts"), "utf8");
+
 		// Move each overload with its comment. Only declaration order should change.
 		writeFileSync(
 			path.join(directory, "src/api.ts"),
@@ -487,7 +488,7 @@ describe("One-shot API analysis and adapter facts", () => {
 		adapter.close();
 		adapter = createNativeAdapter();
 		const reordered = adapter.analyze(configuration);
-		assert.ok(reordered.ok);
+		assert(reordered.ok);
 		const initialSignatures = first.value.declarations.find(
 			(item) => item.name === "convert",
 		)?.signatures;

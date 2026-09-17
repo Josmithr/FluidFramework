@@ -12,6 +12,6 @@ export function assertDefined<T>(
 	value: T | undefined,
 	message = "Expected a defined value.",
 ): T {
-	assert.ok(value !== undefined, message);
+	assert(value !== undefined, message);
 	return value;
 }

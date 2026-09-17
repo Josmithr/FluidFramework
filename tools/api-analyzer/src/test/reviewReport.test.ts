@@ -73,9 +73,9 @@ const facts: AnalysisFacts = {
  */
 function inheritanceReportFacts(documentation: string | undefined): AnalysisFacts {
 	const template = facts.declarations[0];
-	assert.ok(template);
+	assert(template !== undefined);
 	const signature = template.signatures[0];
-	assert.ok(signature);
+	assert(signature !== undefined);
 	const origin = { packageName: "example", file: "api.d.ts", start: 0 };
 	const context = {
 		origin,
@@ -132,6 +132,7 @@ describe("Review report generation", () => {
 		assert.equal(Object.isFrozen(graph), true);
 		assert.equal(Object.isFrozen(graph.documentation), true);
 		assert.equal(Object.isFrozen(graph.facts.declarations), true);
+
 		// Copying completed data requires no compiler or parser objects and preserves report behavior.
 		const detached = structuredClone(graph);
 		assert.deepEqual(detached, graph);
@@ -202,14 +203,15 @@ describe("Review report generation", () => {
 		const before = createReviewReport(prepared, ".", selection);
 		assert.equal(before.ok, true);
 		const receiver = context.items.get("derived-signature");
-		assert.ok(receiver);
+		assert(receiver !== undefined);
+
 		// Completed facts are frozen; later changes to private parser nodes cannot affect reports.
 		receiver.parsed.docComment.summarySection = new TSDocParser().parseString(
 			"/** */",
 		).docComment.summarySection;
 		assert.deepEqual(createReviewReport(prepared, ".", selection), before);
 		const record = prepared.surfaces.get(".")?.exports[0];
-		assert.ok(record);
+		assert(record !== undefined);
 		assert.equal(Object.isFrozen(record), true);
 		assert.equal(Object.isFrozen(record.signatures[0]?.modifierTags), true);
 	});
@@ -288,9 +290,9 @@ describe("Review report generation", () => {
 	it("validates inherited API links using full original classification", () => {
 		const input = inheritanceReportFacts("/** See {@link base}. @beta @ancestorOnly */");
 		const base = input.declarations[0];
-		assert.ok(base);
+		assert(base !== undefined);
 		const signature = base.signatures[0];
-		assert.ok(signature?.documentationContext);
+		assert(signature?.documentationContext !== undefined);
 		const linked: AnalysisFacts = {
 			...input,
 			declarations: [
@@ -325,6 +327,7 @@ describe("Review report generation", () => {
 			renderReviewReport(report.value, { additionalTags: ["@ancestorOnly"] }),
 			"functions.inherited.md",
 		);
+
 		// A modifier used only by an unselected ancestor still belongs to the parser vocabulary.
 		const unconfigured = completeAnalysis(analysisContext(linked));
 		assert.equal(unconfigured.ok, false);
@@ -335,12 +338,12 @@ describe("Review report generation", () => {
 		const valid = inheritanceReportFacts("/** Base. @internal */");
 		const base = valid.declarations[0];
 		const derived = valid.declarations[1];
-		assert.ok(base);
-		assert.ok(derived);
+		assert(base !== undefined);
+		assert(derived !== undefined);
 		const baseSignature = base.signatures[0];
 		const derivedSignature = derived.signatures[0];
-		assert.ok(baseSignature?.documentationContext);
-		assert.ok(derivedSignature?.documentationContext);
+		assert(baseSignature?.documentationContext !== undefined);
+		assert(derivedSignature?.documentationContext !== undefined);
 		const baseContext = baseSignature.documentationContext;
 		const derivedContext = derivedSignature.documentationContext;
 		const cases: readonly { name: string; input: AnalysisFacts; code: DiagnosticCode }[] = [
@@ -430,6 +433,7 @@ describe("Review report generation", () => {
 				},
 				code: DiagnosticCode.DocumentationReference,
 			},
+
 			// The internal author's self-link is valid locally, but becomes invalid in the public receiver.
 			{
 				name: "inherited internal link",
@@ -494,9 +498,9 @@ describe("Review report generation", () => {
 			["complete", [ReleaseLevel.Public, ReleaseLevel.Internal]],
 		] as const) {
 			const result = createReviewReport(prepared, ".", { name, releaseLevels });
-			assert.ok(result.ok);
+			assert(result.ok);
 			assertSnapshot(renderReviewReport(result.value), `functions.${name}.md`);
-			assert.ok(Object.isFrozen(result.value.exports));
+			assert(Object.isFrozen(result.value.exports));
 			if (name === "public") {
 				assertSnapshot(
 					renderReviewReport(result.value, {
@@ -551,7 +555,7 @@ describe("Review report generation", () => {
 					".",
 					{ name, releaseLevels },
 				);
-				assert.ok(reordered.ok);
+				assert(reordered.ok);
 				assert.notEqual(renderReviewReport(reordered.value), renderReviewReport(result.value));
 				assert.deepEqual(
 					reordered.value.exports[0]?.signatures.map((item) => item.releaseLevel),
@@ -582,7 +586,7 @@ describe("Review report generation", () => {
 				".",
 				{ name, releaseLevels },
 			);
-			assert.ok(changedSignature.ok);
+			assert(changedSignature.ok);
 			assert.notEqual(
 				renderReviewReport(changedSignature.value),
 				renderReviewReport(result.value),
@@ -613,7 +617,7 @@ describe("Review report generation", () => {
 				".",
 				{ name, releaseLevels: [ReleaseLevel.Beta] },
 			);
-			assert.ok(changedMetadata.ok);
+			assert(changedMetadata.ok);
 			assert.notEqual(
 				renderReviewReport(changedMetadata.value),
 				renderReviewReport(result.value),
@@ -642,7 +646,7 @@ describe("Review report generation", () => {
 				".",
 				{ name, releaseLevels },
 			);
-			assert.ok(changedExport.ok);
+			assert(changedExport.ok);
 			assert.notEqual(
 				renderReviewReport(changedExport.value),
 				renderReviewReport(result.value),
@@ -688,7 +692,7 @@ describe("Review report generation", () => {
 					includeUntagged: true,
 				},
 			);
-			assert.ok(report.ok);
+			assert(report.ok);
 			assert.equal(
 				report.value.exports[0]?.signatures[0]?.documented,
 				documented,
@@ -727,7 +731,7 @@ describe("Review report generation", () => {
 				releaseLevels: [ReleaseLevel.Public],
 			},
 		);
-		assert.ok(report.ok);
+		assert(report.ok);
 		assertSnapshot(renderReviewReport(report.value), "functions.alias-only.md");
 	});
 
@@ -782,7 +786,7 @@ describe("Review report generation", () => {
 			/not supported/,
 		);
 		const empty = createReviewReport(prepared, ".", selection);
-		assert.ok(empty.ok);
+		assert(empty.ok);
 		assertSnapshot(renderReviewReport(empty.value), "functions.empty.md");
 	});
 });

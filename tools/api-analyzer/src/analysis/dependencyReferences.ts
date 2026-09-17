@@ -21,15 +21,19 @@ export function dependencyReference(
 	const declaration =
 		lookup.status === "resolved" ? analysis.declarations.get(lookup.target) : undefined;
 	const packageName = reference?.packageName ?? declaration?.declarations[0]?.packageName;
-	if (packageName === undefined || packageName === analysis.facts.packageName)
+	if (packageName === undefined || packageName === analysis.facts.packageName) {
 		return { ok: true, value: undefined };
+	}
 	const model = analysis.dependencies.find((entry) => entry.packageName === packageName);
-	if (!model && packageName === originalPackage) return { ok: true, value: undefined };
-	if (!model)
+	if (!model && packageName === originalPackage) {
+		return { ok: true, value: undefined };
+	}
+	if (!model) {
 		return failure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Reference ${lookup.reference}: package ${packageName} is outside the configured suite. Select and build its dependency model.`,
 		);
+	}
 	let candidates: readonly DependencyApi[];
 	if (reference?.packageName === undefined) {
 		candidates = model.apis.filter(
@@ -47,11 +51,12 @@ export function dependencyReference(
 						(index !== reference.memberReferences.length - 1 ||
 							part.selector.selectorKind !== SelectorKind.Index)),
 			)
-		)
+		) {
 			return failure(
 				DiagnosticCode.DocumentationUnsupported,
 				`Reference ${lookup.reference}: use named exported paths with a terminal numeric callable selector.`,
 			);
+		}
 		const names = reference.memberReferences.map((part) => part.memberIdentifier?.identifier);
 		const entrypoint =
 			reference.importPath === undefined || reference.importPath === ""
@@ -62,11 +67,12 @@ export function dependencyReference(
 				entry.entrypoint === entrypoint &&
 				JSON.stringify(entry.path) === JSON.stringify(names),
 		);
-		if (!exported)
+		if (!exported) {
 			return failure(
 				DiagnosticCode.DocumentationReference,
 				`Dependency ${packageName}: exported target ${lookup.reference} does not exist in the model.`,
 			);
+		}
 		const all = new Map(
 			analysis.dependencies.flatMap((dependency) =>
 				dependency.apis.map((api) => [api.id, api] as const),
@@ -84,21 +90,24 @@ export function dependencyReference(
 		!Number.isSafeInteger(ordinal) ||
 		ordinal < 1 ||
 		ordinal > candidates.length
-	)
+	) {
 		return failure(
 			DiagnosticCode.DocumentationReference,
 			`Dependency ${packageName}: ${lookup.reference} has ${candidates.length} candidates. Supply a valid one-based numeric callable selector.`,
 		);
+	}
 	const selected = candidates[ordinal - 1];
-	if (selected === undefined)
+	if (selected === undefined) {
 		return failure(
 			DiagnosticCode.DocumentationReference,
 			`Dependency ${packageName}: target ${lookup.reference} is missing from selected models.`,
 		);
-	if (selector !== undefined && selected.parameters === undefined)
+	}
+	if (selector !== undefined && selected.parameters === undefined) {
 		return failure(
 			DiagnosticCode.DocumentationReference,
 			`Dependency ${packageName}: non-callable targets do not accept overload selectors.`,
 		);
+	}
 	return { ok: true, value: selected };
 }

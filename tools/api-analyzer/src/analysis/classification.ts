@@ -76,6 +76,7 @@ export function classifyApiItems(
 		}
 		classified.push({ id: item.id, releaseLevel: levels[0], modifierTags });
 	}
+
 	// Report collected item errors without returning classifications for any item in the batch.
 	if (diagnostics.length > 0) {
 		return freezeData({ ok: false, diagnostics });
@@ -86,6 +87,7 @@ export function classifyApiItems(
 			items: classified.sort((left, right) =>
 				left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
 			),
+
 			// Include all configured modifier names so selection can validate tags absent from these items.
 			modifierTags: configuration.tagDefinitions
 				.filter((tag) => tag.syntaxKind === TSDocTagSyntaxKind.ModifierTag)

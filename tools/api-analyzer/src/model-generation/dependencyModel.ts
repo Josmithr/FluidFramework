@@ -136,8 +136,8 @@ const modelSchema = z.strictObject({
  * @returns Deterministic versioned JSON with one final newline.
  */
 export function encodeDependencyModel(graph: CompletedAnalysis): string {
-	assert.ok(
-		graph.facts.inputFiles,
+	assert(
+		graph.facts.inputFiles !== undefined,
 		"Model generation requires analyzed input file fingerprints.",
 	);
 	const { apis, owners } = collectModelApis(graph);
@@ -166,6 +166,7 @@ interface CollectedModelApis {
 	 * Independently classified local APIs, sorted by identity.
 	 */
 	readonly apis: DependencyApi[];
+
 	/**
 	 * Package owners of both local and dependency identities encountered in the graph.
 	 */
@@ -182,8 +183,12 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 	const documentation = new Map(graph.documentation.map((item) => [item.id, item]));
 	const apis: DependencyApi[] = [];
 	const owners = new Map<ApiItemId, string>();
-	for (const dependency of graph.dependencies ?? [])
-		for (const api of dependency.apis) owners.set(api.id, dependency.packageName);
+	for (const dependency of graph.dependencies ?? []) {
+		for (const api of dependency.apis) {
+			owners.set(api.id, dependency.packageName);
+		}
+	}
+
 	/**
 	 * Adds a classified API without copying foreign declarations into this package's model.
 	 * @param id - Documentation input identity.
@@ -202,14 +207,16 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 		signature?: SignatureDocumentationContext,
 	): void {
 		const owner = declaration.declarations[0]?.packageName;
-		assert.ok(
+		assert(
 			owner !== undefined && owner.length > 0,
 			"Model API declarations must retain their owning package.",
 		);
 		owners.set(id, owner);
 		const original = metadata.get(id);
 		const resolved = documentation.get(id);
-		if (owner !== graph.facts.packageName || !original || !resolved) return;
+		if (owner !== graph.facts.packageName || !original || !resolved) {
+			return;
+		}
 		apis.push({
 			id,
 			declarationId: declaration.id,
@@ -225,7 +232,9 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 	}
 	for (const declaration of graph.facts.declarations) {
 		const source = declaration.declarations[0];
-		if (!source) continue;
+		if (!source) {
+			continue;
+		}
 		owners.set(declaration.id, source.packageName);
 		add(
 			declaration.id,
@@ -234,7 +243,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 			source.kind,
 			declaration.documentationContext?.origin ?? source,
 		);
-		for (const signature of declaration.signatures)
+		for (const signature of declaration.signatures) {
 			add(
 				signature.id,
 				declaration,
@@ -243,9 +252,12 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 				signature.documentationContext?.origin ?? source,
 				signature.documentationContext,
 			);
+		}
 		for (const member of declaration.members) {
 			const memberSource = member.declarations[0];
-			if (!memberSource) continue;
+			if (!memberSource) {
+				continue;
+			}
 			add(
 				member.id,
 				declaration,
@@ -253,7 +265,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 				memberSource.kind,
 				member.documentationContext?.origin ?? memberSource,
 			);
-			for (const signature of member.signatures)
+			for (const signature of member.signatures) {
 				add(
 					signature.id,
 					declaration,
@@ -262,8 +274,9 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 					signature.documentationContext?.origin ?? memberSource,
 					signature.documentationContext,
 				);
+			}
 		}
-		for (const member of declaration.container?.declaredMembers ?? [])
+		for (const member of declaration.container?.declaredMembers ?? []) {
 			add(
 				member.id,
 				declaration,
@@ -271,6 +284,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 				member.kind,
 				member.documentationContext.origin,
 			);
+		}
 	}
 	apis.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
 	return { apis, owners };
@@ -285,6 +299,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 	const metadata = new Map(graph.classification.items.map((item) => [item.id, item]));
 	const declarations = new Map(graph.facts.declarations.map((item) => [item.id, item]));
 	const exports: DependencyExport[] = [];
+
 	/**
 	 * Expands one exported path and its nested members without revisiting an active namespace.
 	 * @param entrypoint - Configured entrypoint name.
@@ -300,31 +315,39 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 		typeOnly: boolean,
 		active: ReadonlySet<ApiItemId>,
 	): void {
-		if (active.has(id)) return;
+		if (active.has(id)) {
+			return;
+		}
 		const declaration = declarations.get(id);
-		assert.ok(declaration, "Model export targets must have retained declaration facts.");
+		assert(
+			declaration !== undefined,
+			"Model export targets must have retained declaration facts.",
+		);
 		const items = metadata.has(id)
 			? [id]
 			: declaration.signatures
 					.filter((signature) => metadata.has(signature.id))
 					.map((signature) => signature.id);
-		if (items.length > 0) exports.push({ entrypoint, path, items, typeOnly });
+		if (items.length > 0) {
+			exports.push({ entrypoint, path, items, typeOnly });
+		}
 		for (const member of declaration.members) {
 			const memberItems = metadata.has(member.id)
 				? [member.id]
 				: member.signatures
 						.filter((signature) => metadata.has(signature.id))
 						.map((signature) => signature.id);
-			if (memberItems.length > 0)
+			if (memberItems.length > 0) {
 				exports.push({
 					entrypoint,
 					path: [...path, member.name],
 					items: memberItems,
 					typeOnly,
 				});
+			}
 		}
 		const visited = new Set([...active, id]);
-		for (const binding of declaration.exports)
+		for (const binding of declaration.exports) {
 			exportTarget(
 				entrypoint,
 				[...path, binding.name],
@@ -332,10 +355,13 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 				typeOnly || binding.typeOnly,
 				visited,
 			);
+		}
 	}
-	for (const surface of graph.facts.surfaces)
-		for (const binding of surface.exports)
+	for (const surface of graph.facts.surfaces) {
+		for (const binding of surface.exports) {
 			exportTarget(surface.name, [binding.name], binding.target, binding.typeOnly, new Set());
+		}
+	}
 	return exports;
 }
 
@@ -377,9 +403,11 @@ function collectExternalReferences(
 	const known = new Set(apis.map((api) => api.id));
 	const external = new Map<ApiItemId, string>();
 	for (const id of referencedApiIds(apis, exports)) {
-		if (known.has(id)) continue;
+		if (known.has(id)) {
+			continue;
+		}
 		const owner = owners.get(id);
-		assert.ok(
+		assert(
 			owner !== undefined && owner.length > 0 && owner !== packageName,
 			"Model references must identify retained local or external APIs.",
 		);
@@ -405,22 +433,28 @@ export function decodeDependencyModel(
 	try {
 		input = JSON.parse(text);
 	} catch (error) {
-		if (!(error instanceof SyntaxError)) throw error;
+		if (!(error instanceof SyntaxError)) {
+			throw error;
+		}
 		return failure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: model is not valid JSON. Regenerate its model.`,
 		);
 	}
 	const parsed = modelSchema.safeParse(input);
-	if (!parsed.success)
+	if (!parsed.success) {
 		return failure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: incompatible or incomplete model: ${parsed.error.message}`,
 		);
+	}
 	const model: DependencyModel = parsed.data;
+
 	// Shape validation cannot prove cross-record identity or resolved-comment consistency.
 	const identities = validateModelIdentities(model, packageName);
-	if (!identities.ok) return identities;
+	if (!identities.ok) {
+		return identities;
+	}
 	const documentation = validateModelDocumentation(model);
 	return documentation.ok ? freezeData({ ok: true, value: model }) : documentation;
 }
@@ -432,52 +466,58 @@ export function decodeDependencyModel(
  * @returns Success or the first identity-integrity diagnostic.
  */
 function validateModelIdentities(model: DependencyModel, packageName: string): Result<void> {
-	if (model.packageName !== packageName)
+	if (model.packageName !== packageName) {
 		return failure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: model belongs to ${model.packageName}. Correct the artifact path.`,
 		);
+	}
 	const ids = new Set<ApiItemId>();
 	if (
 		new Set(model.inputFiles.map((fingerprint) => fingerprint.file)).size !==
 		model.inputFiles.length
-	)
+	) {
 		return failure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: duplicate analyzed input files.`,
 		);
+	}
 	for (const api of model.apis) {
-		if (ids.has(api.id) || api.metadata.id !== api.id || api.documentation.id !== api.id)
+		if (ids.has(api.id) || api.metadata.id !== api.id || api.documentation.id !== api.id) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: duplicate or inconsistent API identity ${api.id}. Regenerate its model.`,
 			);
+		}
 		ids.add(api.id);
 	}
 	for (const external of model.external) {
-		if (ids.has(external.id) || external.packageName === packageName)
+		if (ids.has(external.id) || external.packageName === packageName) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: invalid external identity ${external.id}.`,
 			);
+		}
 		ids.add(external.id);
 	}
 	const paths = new Set<string>();
 	for (const entry of model.exports) {
 		const key = JSON.stringify([entry.entrypoint, entry.path]);
-		if (paths.has(key))
+		if (paths.has(key)) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: duplicate exported target path ${key}.`,
 			);
+		}
 		paths.add(key);
 	}
 	const missing = referencedApiIds(model.apis, model.exports).find((id) => !ids.has(id));
-	if (missing !== undefined)
+	if (missing !== undefined) {
 		return failure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: dangling API reference ${missing}. Regenerate its model.`,
 		);
+	}
 	return { ok: true, value: undefined };
 }
 
@@ -490,50 +530,56 @@ function validateModelDocumentation(model: DependencyModel): Result<void> {
 	const { packageName } = model;
 	const configuration = new TSDocConfiguration();
 	for (const tagName of model.modifierTags) {
-		if (!/^@[A-Za-z][\dA-Za-z]*$/.test(tagName))
+		if (!/^@[A-Za-z][\dA-Za-z]*$/.test(tagName)) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: invalid modifier vocabulary ${tagName}.`,
 			);
-		if (configuration.tryGetTagDefinition(tagName) === undefined)
+		}
+		if (configuration.tryGetTagDefinition(tagName) === undefined) {
 			configuration.addTagDefinition(
 				new TSDocTagDefinition({ tagName, syntaxKind: TSDocTagSyntaxKind.ModifierTag }),
 			);
+		}
 	}
 	const parser = new TSDocParser(configuration);
 	const apis = new Map(model.apis.map((api) => [api.id, api]));
 	for (const api of model.apis) {
 		// Decoding checks stored structure only. Source lookup and inheritance remain analysis responsibilities.
 		const comment = parser.parseString(api.documentation.documentation ?? "/** */");
-		if (comment.log.messages.length > 0 || comment.docComment.inheritDocTag !== undefined)
+		if (comment.log.messages.length > 0 || comment.docComment.inheritDocTag !== undefined) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}, API ${api.id}: model documentation must be valid, fully resolved TSDoc.`,
 			);
+		}
 		const linkReferences = commentReferences(comment.docComment);
 		if (
 			linkReferences.length !== api.documentation.links.length ||
 			linkReferences.some(
 				(reference, index) => reference !== api.documentation.links[index]?.reference,
 			)
-		)
+		) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}, API ${api.id}: stored link occurrences do not match resolved documentation.`,
 			);
+		}
 		for (const link of api.documentation.links) {
 			const target = apis.get(link.targetSignature);
-			if (target !== undefined && target.declarationId !== link.target)
+			if (target !== undefined && target.declarationId !== link.target) {
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${packageName}, API ${api.id}: link target declaration and API identities disagree.`,
 				);
+			}
 		}
-		if ((api.parameters === undefined) !== (api.typeParameters === undefined))
+		if ((api.parameters === undefined) !== (api.typeParameters === undefined)) {
 			return failure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}, API ${api.id}: callable parameter facts are incomplete.`,
 			);
+		}
 	}
 	return { ok: true, value: undefined };
 }

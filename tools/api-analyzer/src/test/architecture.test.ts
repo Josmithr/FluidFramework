@@ -6,6 +6,56 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "mocha";
+import { ESLint } from "eslint";
+
+describe("Package coding conventions", () => {
+	it("enforces braces and spacing before standalone comments", async () => {
+		const root = fileURLToPath(new URL("../../", import.meta.url));
+		const eslint = new ESLint({ cwd: root });
+
+		// These in-memory probes test the actual configuration without adding compiler fixtures.
+		const invalid = await eslint.lintText(
+			"const enabled = true;\n// Standalone explanation.\nif (enabled) console.log(enabled);\n/** A declaration comment. */\nexport const value = enabled;\n",
+			{ filePath: path.join(root, "src/api.ts") },
+		);
+		const rules = invalid.flatMap((result) =>
+			result.messages.map((message) => message.ruleId),
+		);
+		assert.equal(rules.includes("curly"), true);
+		assert.equal(rules.filter((rule) => rule === "@stylistic/lines-around-comment").length, 2);
+		const valid = await eslint.lintText(
+			"export function run(enabled: boolean): void {\n\t// An opening block needs no extra blank line.\n\tif (enabled) {\n\t\tconsole.log(enabled); // Trailing comments stay attached.\n\t}\n\n\t// A grouped explanation stays together.\n\t// Its second line needs no separator.\n\tconsole.log(enabled);\n}\n",
+			{ filePath: path.join(root, "src/api.ts") },
+		);
+		assert.equal(
+			valid
+				.flatMap((result) => result.messages)
+				.some(
+					(message) =>
+						message.ruleId === "curly" || message.ruleId === "@stylistic/lines-around-comment",
+				),
+			false,
+		);
+	});
+
+	it("excludes compiler fixtures from linting and formatting", async () => {
+		const root = fileURLToPath(new URL("../../", import.meta.url));
+		const fixture = "src/test/fixtures/native/report-members.ts";
+		assert.equal(
+			await new ESLint({ cwd: root }).isPathIgnored(path.join(root, fixture)),
+			true,
+		);
+
+		// No-match mode verifies real-file exclusion without writing to a checked-in fixture.
+		const biome = spawnSync(
+			path.join(root, "node_modules/.bin/biome"),
+			["check", fixture, "--no-errors-on-unmatched", "--verbose"],
+			{ cwd: root, encoding: "utf8" },
+		);
+		assert.equal(biome.status, 0, `${biome.stdout}${biome.stderr}`);
+		assert.match(biome.stdout, /Checked 0 files/);
+	});
+});
 
 describe("Directory dependency boundaries", () => {
 	it("accepts permitted imports and rejects cross-layer and test-helper access", () => {

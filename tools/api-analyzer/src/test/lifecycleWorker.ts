@@ -37,6 +37,7 @@ if (mode === "analysis" || mode === "analysis-failure") {
 		directory,
 	);
 	assert.equal(result.ok, mode === "analysis");
+
 	// The official close destroys streams and signals termination but does not await OS process reaping.
 	assert.equal(close.mock.callCount(), 1);
 	close.mock.restore();
@@ -57,19 +58,19 @@ if (mode === "analysis" || mode === "analysis-failure") {
 		const configFileName = path.join(directory, "tsconfig.json");
 		const snapshot = api.updateSnapshot({ openProjects: [configFileName] });
 		const project = snapshot.getProject(configFileName);
-		assert.ok(project);
+		assert(project !== undefined);
 		const source = project.program.getSourceFile(path.join(directory, "src/api.ts"));
-		assert.ok(source);
+		assert(source !== undefined);
 		const moduleSymbol = project.checker.getSymbolAtLocation(source);
-		assert.ok(moduleSymbol);
+		assert(moduleSymbol !== undefined);
 		const exports = moduleSymbol.getExports();
 		const derived = [...exports.values()].find((symbol) => symbol.name === "Derived");
-		assert.ok(derived);
+		assert(derived !== undefined);
 		const type = project.checker.getDeclaredTypeOfSymbol(derived);
 		const value = project.checker.getPropertyOfType(type, "value");
-		assert.ok(value);
+		assert(value !== undefined);
 		const valueType = project.checker.getTypeOfSymbol(value);
-		assert.ok(valueType);
+		assert(valueType !== undefined);
 		assert.equal(project.checker.typeToString(valueType), "string");
 		api.resetTimingInfo();
 		assert.strictEqual(moduleSymbol.getExports(), exports);
@@ -85,7 +86,7 @@ if (mode === "analysis" || mode === "analysis-failure") {
 			assert.equal(nativePid > 0, true);
 			const command = readFileSync(`/proc/${nativePid}/cmdline`, "utf8").split("\0");
 			assert.equal(path.basename(command[0] ?? ""), "tsc");
-			assert.ok(command.includes("--api"));
+			assert(command.includes("--api"));
 			process.kill(nativePid, "SIGKILL");
 			assert.throws(() => api.getTimingInfo());
 			console.log("native termination rejected the next request");
@@ -107,7 +108,7 @@ if (mode === "analysis" || mode === "analysis-failure") {
 		assert.equal(nativePid > 0, true);
 		const command = readFileSync(`/proc/${nativePid}/cmdline`, "utf8").split("\0");
 		assert.equal(path.basename(command[0] ?? ""), "tsc");
-		assert.ok(command.includes("--api") && command.includes("--async"));
+		assert(command.includes("--api") && command.includes("--async"));
 		if (mode === "crash") {
 			process.kill(nativePid, "SIGKILL");
 			await assert.rejects(api.getTimingInfo());

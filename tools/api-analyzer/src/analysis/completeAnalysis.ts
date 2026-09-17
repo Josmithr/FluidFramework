@@ -78,8 +78,12 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 				.map((tag) => tag.tagName),
 		},
 	);
-	if (!dependencyContext.ok) return dependencyContext;
-	if (!dependencyContext.value.validation.ok) return dependencyContext.value.validation;
+	if (!dependencyContext.ok) {
+		return dependencyContext;
+	}
+	if (!dependencyContext.value.validation.ok) {
+		return dependencyContext.value.validation;
+	}
 	const resolutionContext = {
 		...context,
 		items: new Map<string, ParsedDocumentationItem<DocumentationInput>>([
@@ -99,6 +103,7 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 	if (!documentation.ok) {
 		return documentation;
 	}
+
 	// Keep the completed data independent of the context's mutable TSDoc nodes and maps.
 	return freezeData({
 		ok: true,
@@ -108,9 +113,11 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 			classification: context.classification,
 			documentation: documentation.value.map((resolved) => {
 				const dependency = dependencies.get(resolved.id);
-				if (dependency !== undefined) return dependency;
+				if (dependency !== undefined) {
+					return dependency;
+				}
 				const original = context.items.get(resolved.id);
-				assert.ok(original, "Resolved documentation must have an original input.");
+				assert(original !== undefined, "Resolved documentation must have an original input.");
 				return {
 					...resolved,
 					documented: hasDocumentationContent(original.parsed.docComment),
@@ -137,6 +144,7 @@ function automaticMemberBindings(context: AnalysisContext): AutomaticDocumentati
 				: [],
 		),
 	);
+
 	// Source selection already excludes overloads, local comments, and uncertain compatibility.
 	return bindAutomaticDocumentationReferences(
 		context.facts,

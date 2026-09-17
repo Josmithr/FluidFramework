@@ -23,6 +23,7 @@ export interface ReviewSignature {
 	 * The compiler-printed call-signature declaration, without a function name or body.
 	 */
 	readonly text: string;
+
 	/**
 	 * Whether effective documentation contains descriptive content.
 	 *
@@ -32,10 +33,12 @@ export interface ReviewSignature {
 	 * Measures content presence, not documentation quality or completeness.
 	 */
 	readonly documented: boolean;
+
 	/**
 	 * The classified release level, or `undefined` for a permitted untagged signature.
 	 */
 	readonly releaseLevel: ReleaseLevel | undefined;
+
 	/**
 	 * Recognized tags available for presentation, including release tags and block tags such as `@deprecated`.
 	 * Sorted and deduplicated. Block tags come from the local comment, not inherited content.
@@ -77,32 +80,39 @@ export interface ReviewExport {
 	 * @defaultValue Omitted for non-namespace declarations.
 	 */
 	readonly namespace?: ReviewNamespace;
+
 	/**
 	 * Selected atomic declaration syntax and metadata.
 	 * @defaultValue Omitted for functions, namespaces, and containers.
 	 */
 	readonly statement?: ReviewStatement;
+
 	/**
 	 * Selected container declaration and its effective members.
 	 * @defaultValue Omitted for declarations other than classes, interfaces, and enums.
 	 */
 	readonly container?: ReviewContainer;
+
 	/**
 	 * The original declaration identity, used to emit shared alias targets once. Not rendered.
 	 */
 	readonly declarationId: ApiItemId;
+
 	/**
 	 * The compiler's declaration name, used as a local name when it is not directly exported.
 	 */
 	readonly declarationName: string;
+
 	/**
 	 * The exported name, not the implementation symbol's name.
 	 */
 	readonly name: string;
+
 	/**
 	 * Whether this binding is exposed only through type-only export paths.
 	 */
 	readonly typeOnly: boolean;
+
 	/**
 	 * Selected callable signatures in compiler order.
 	 *
@@ -124,10 +134,12 @@ export interface ReviewReport {
 	 * The name of the package that exposes this surface.
 	 */
 	readonly packageName: string;
+
 	/**
 	 * The selection name used as the review identity, independent of physical entrypoint paths.
 	 */
 	readonly surface: string;
+
 	/**
 	 * Selected bindings sorted by exported name. Empty when no overloads are selected.
 	 */
@@ -179,16 +191,19 @@ interface PreparedExport
 	 * @defaultValue Omitted for non-namespace or unsupported namespace records.
 	 */
 	readonly namespace?: PreparedNamespace;
+
 	/**
 	 * Atomic declaration identity retained for selection.
 	 * @defaultValue Omitted when no atomic statement representation exists.
 	 */
 	readonly statement?: PreparedStatement;
+
 	/**
 	 * Container and member identities retained for independent selection.
 	 * @defaultValue Omitted for non-container or unsupported container records.
 	 */
 	readonly container?: PreparedContainer;
+
 	/**
 	 * Complete signature records in compiler order.
 	 */
@@ -203,6 +218,7 @@ interface PreparedSurface {
 	 * Frozen export records sorted by exported name.
 	 */
 	readonly exports: readonly PreparedExport[];
+
 	/**
 	 * The first unsupported export in input order, or undefined for a supported surface.
 	 */
@@ -220,10 +236,12 @@ export interface PreparedReviewData {
 	 * Package identity shared by all reports.
 	 */
 	readonly packageName: string;
+
 	/**
 	 * Original metadata used to validate each new selection request.
 	 */
 	readonly classification: ApiClassification;
+
 	/**
 	 * Complete report records, with unsupported output forms recorded once per surface.
 	 */
@@ -249,6 +267,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 	);
 	const metadataById = new Map(graph.classification.items.map((item) => [item.id, item]));
 	const documentationById = new Map(graph.documentation.map((item) => [item.id, item]));
+
 	// Capture effective content after inheritance, but keep the original tags for annotations.
 	const signatures = new Map<ApiItemId, PreparedSignature>();
 	for (const item of facts.declarations.flatMap((declaration) => [
@@ -258,9 +277,15 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 		),
 	])) {
 		const metadata = metadataById.get(item.id);
-		assert.ok(metadata, "Prepared signatures must have original classification metadata.");
+		assert(
+			metadata !== undefined,
+			"Prepared signatures must have original classification metadata.",
+		);
 		const documentation = documentationById.get(item.id);
-		assert.ok(documentation, "Prepared signatures must have completed documentation.");
+		assert(
+			documentation !== undefined,
+			"Prepared signatures must have completed documentation.",
+		);
 		signatures.set(item.id, {
 			id: item.id,
 			text: item.callSignatureText,
@@ -271,6 +296,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 			].sort(),
 		});
 	}
+
 	/**
 	 * Joins rendered syntax to completed content status without reclassifying inherited tags.
 	 * @param id - Original documentation input identity.
@@ -280,8 +306,8 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 	function prepareItem(id: ApiItemId, text: string): PreparedSignature {
 		const metadata = metadataById.get(id);
 		const documentation = documentationById.get(id);
-		assert.ok(
-			metadata && documentation,
+		assert(
+			metadata !== undefined && documentation !== undefined,
 			"Prepared items must have original metadata and completed documentation.",
 		);
 		return {
@@ -294,11 +320,13 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 			].sort(),
 		};
 	}
+
 	// Resolve and validate fixed export data once; report calls only filter these records.
 	const surfaces = new Map<string, PreparedSurface>();
 	for (const surface of facts.surfaces) {
-		assert.ok(!surfaces.has(surface.name), "Entrypoint facts must have distinct names.");
+		assert(!surfaces.has(surface.name), "Entrypoint facts must have distinct names.");
 		let unsupported: string | undefined;
+
 		/**
 		 * Prepares one namespace level and retains the first unsupported-form explanation.
 		 * @param bindings - Exported bindings at this level.
@@ -311,10 +339,10 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 		): PreparedExport[] {
 			const names = new Set<string>();
 			const exports = bindings.map((binding): PreparedExport => {
-				assert.ok(!names.has(binding.name), "Entrypoint exports must have distinct names.");
+				assert(!names.has(binding.name), "Entrypoint exports must have distinct names.");
 				names.add(binding.name);
 				const declaration = declarations.get(binding.target);
-				assert.ok(declaration, "Every export target must have a declaration fact.");
+				assert(declaration !== undefined, "Every export target must have a declaration fact.");
 				let namespace: PreparedExport["namespace"];
 				if (
 					declaration.documentationContext !== undefined &&
@@ -352,7 +380,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 				) {
 					unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: this declaration form is not supported by the function-only report builder.`;
 				} else if (statement === undefined && namespace === undefined) {
-					assert.ok(
+					assert(
 						declaration.signatures.length > 0,
 						"Function declarations must have callable signatures.",
 					);
@@ -370,7 +398,10 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 						: []
 					).map((signature) => {
 						const prepared = signatures.get(signature.id);
-						assert.ok(prepared, "Collected signatures must have prepared report data.");
+						assert(
+							prepared !== undefined,
+							"Collected signatures must have prepared report data.",
+						);
 						return prepared;
 					}),
 				};
@@ -399,7 +430,8 @@ function prepareContainer(
 	prepareItem: (id: ApiItemId, text: string) => PreparedSignature,
 ): PreparedContainer | undefined {
 	const syntax = declaration.container;
-	assert.ok(syntax, "Container preparation requires detached container syntax.");
+	assert(syntax !== undefined, "Container preparation requires detached container syntax.");
+
 	// Accessors and visibility-specific declarations can also appear in the effective member view.
 	// Keep their declared syntax once, rather than rendering a second property representation.
 	const effectiveMembers = declaration.members.filter(
@@ -416,8 +448,9 @@ function prepareContainer(
 		effectiveMembers.some(
 			(member) => member.signatures.length === 0 && !documentation.has(member.id),
 		)
-	)
+	) {
 		return undefined;
+	}
 	const members = [
 		...syntax.declaredMembers.map((member) => prepareItem(member.id, member.printed)),
 		...effectiveMembers.flatMap((member) =>
@@ -474,6 +507,7 @@ export function createReviewReport(
 		throw new Error(surface.unsupported);
 	}
 	const selectedIds = new Set(selected.value.items.map((item) => item.id));
+
 	/**
 	 * Selects a namespace tree without changing the shared prepared records.
 	 * @param entries - Complete bindings at one namespace level.
@@ -544,6 +578,7 @@ export interface ReviewPresentationOptions {
 	 * @defaultValue `true`
 	 */
 	readonly includeReleaseTags?: boolean;
+
 	/**
 	 * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.
 	 *
@@ -553,6 +588,7 @@ export interface ReviewPresentationOptions {
 	 * @defaultValue No additional tags.
 	 */
 	readonly additionalTags?: readonly string[];
+
 	/**
 	 * Whether items without descriptive documentation receive an `(undocumented)` annotation.
 	 * @defaultValue `true`
@@ -640,21 +676,24 @@ function renderDeclarationText(
 		const tags: string[] = [];
 		if (signature.releaseLevel !== undefined) {
 			const level = levels[signature.releaseLevel];
-			assert.ok(level !== undefined, "Review signatures must have supported release levels.");
-			if (options.includeReleaseTags !== false) tags.push(`@${level}`);
+			assert(level !== undefined, "Review signatures must have supported release levels.");
+			if (options.includeReleaseTags !== false) {
+				tags.push(`@${level}`);
+			}
 		}
 		tags.push(
 			...signature.modifierTags.filter(
 				(tag) => !releaseTags.has(tag) && options.additionalTags?.includes(tag) === true,
 			),
 		);
-		if (options.includeUndocumentedNotice !== false && !signature.documented)
+		if (options.includeUndocumentedNotice !== false && !signature.documented) {
 			tags.push("(undocumented)");
+		}
 		return tags.length > 0 ? `// ${tags.join(" ")}\n` : "";
 	}
 	for (const group of groups.values()) {
 		const binding = group[0];
-		assert.ok(binding, "Report export groups must not be empty.");
+		assert(binding !== undefined, "Report export groups must not be empty.");
 		const direct = group.find(
 			(item) =>
 				!item.typeOnly && item.name === item.declarationName && item.name !== "default",

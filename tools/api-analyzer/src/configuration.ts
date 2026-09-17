@@ -19,6 +19,7 @@ const selectionShape = z.strictObject({
 	requireTags: z.array(z.string()).optional(),
 	excludeTags: z.array(z.string()).optional(),
 });
+
 /**
  * Validates nested reference policy configuration without merging settings or evaluating API relationships.
  */
@@ -55,8 +56,9 @@ const configurationSchema = new ObjectSchema({
 		validate(value: unknown) {
 			ValidationStrategy.object(value);
 			const suite = value as { packages: string[]; modelFile: string };
-			if (Object.keys(suite).some((key) => key !== "packages" && key !== "modelFile"))
+			if (Object.keys(suite).some((key) => key !== "packages" && key !== "modelFile")) {
 				throw new TypeError("Unknown suite setting.");
+			}
 			ValidationStrategy.array(suite.packages);
 			ValidationStrategy.string(suite.modelFile);
 			if (
@@ -64,14 +66,16 @@ const configurationSchema = new ObjectSchema({
 				suite.modelFile.trim().length === 0 ||
 				path.isAbsolute(suite.modelFile) ||
 				suite.modelFile.split(/[/\\]/).includes("..")
-			)
+			) {
 				throw new TypeError(
 					"Supply suite package selectors and a package-relative modelFile without parent traversal.",
 				);
+			}
 			for (const pattern of suite.packages) {
 				ValidationStrategy.string(pattern);
-				if (pattern.trim().length === 0)
+				if (pattern.trim().length === 0) {
 					throw new TypeError("Suite package selectors must not be blank.");
+				}
 			}
 		},
 	},
@@ -79,8 +83,10 @@ const configurationSchema = new ObjectSchema({
 		merge: "replace",
 		validate(value: unknown) {
 			const shape = policyShape.safeParse(value);
-			if (!shape.success)
+			if (!shape.success) {
 				throw new TypeError(`Invalid reference policy: ${shape.error.message}`);
+			}
+
 			// Zod owns the nested shape; ObjectSchema still owns ordered configuration merging.
 		},
 	},
@@ -141,6 +147,7 @@ function collectConfigurationLayers(
 ): Configuration[] | undefined {
 	const layers: Configuration[] = [];
 	const active = new Set<Configuration>();
+
 	/**
 	 * Adds a configuration after its base configurations.
 	 *
@@ -180,7 +187,7 @@ function collectConfigurationLayers(
 function mergeConfigurationLayers(
 	layers: readonly Configuration[],
 ): Result<Omit<Configuration, "extends">> {
-	assert.ok(layers.length > 0, "Configuration inheritance must produce at least one layer.");
+	assert(layers.length > 0, "Configuration inheritance must produce at least one layer.");
 	for (const layer of layers) {
 		for (const key of Object.keys(layer)) {
 			if (key !== "extends" && !configurationSchema.hasKey(key)) {

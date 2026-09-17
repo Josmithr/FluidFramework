@@ -30,10 +30,12 @@ export interface Origin {
 	 * Can identify a dependency rather than the package being analyzed.
 	 */
 	readonly packageName: string;
+
 	/**
 	 * The file path relative to the owning package root, with `/` separators.
 	 */
 	readonly file: string;
+
 	/**
 	 * The compiler node's starting source position.
 	 *
@@ -53,6 +55,7 @@ export interface ExportFact {
 	 * The exported name, which can differ from the target declaration's name.
 	 */
 	readonly name: string;
+
 	/**
 	 * The {@link DeclarationFact.id} of the resolved export target.
 	 *
@@ -60,6 +63,7 @@ export interface ExportFact {
 	 * Aliases that expose the same declaration share this target identifier.
 	 */
 	readonly target: ApiItemId;
+
 	/**
 	 * Whether the binding is exposed only through type-only imports or exports.
 	 *
@@ -86,6 +90,7 @@ export interface SignatureFact {
 	 * @defaultValue Omitted for unsupported declaration forms.
 	 */
 	readonly documentationContext?: SignatureDocumentationContext;
+
 	/**
 	 * The compiler-printed call-signature declaration, including generic parameters and its trailing semicolon.
 	 *
@@ -114,6 +119,7 @@ export interface SignatureFact {
 	 * ```
 	 */
 	readonly callSignatureText: string;
+
 	/**
 	 * An opaque, provisional identifier derived from the owner and printed signature.
 	 *
@@ -123,6 +129,7 @@ export interface SignatureFact {
 	 * Stability across compiler or analyzer versions is not guaranteed.
 	 */
 	readonly id: ApiItemId;
+
 	/**
 	 * The compiler-printed function type for this call signature.
 	 *
@@ -157,6 +164,7 @@ export interface SignatureFact {
 	 * ```
 	 */
 	readonly functionTypeText: string;
+
 	/**
 	 * The associated TSDoc comment, including delimiters, or `undefined` if absent.
 	 *
@@ -181,6 +189,7 @@ export interface MemberFact {
 	 * Methods retain lookup facts on their signatures instead.
 	 */
 	readonly documentationContext?: DocumentationReferenceContext;
+
 	/**
 	 * A provisional identifier for the member as observed on its containing declaration or heritage view.
 	 *
@@ -190,6 +199,7 @@ export interface MemberFact {
 	 * even when they share source declarations. The format is not a stable public contract.
 	 */
 	readonly id: ApiItemId;
+
 	/**
 	 * Effective call signatures in compiler order, including optional methods and callable properties.
 	 *
@@ -202,10 +212,12 @@ export interface MemberFact {
 	 * Construct signatures and contexts on heritage comparison views are not extracted.
 	 */
 	readonly signatures: readonly SignatureFact[];
+
 	/**
 	 * The compiler-printed declaration name, or the symbol name when no name node is available.
 	 */
 	readonly name: string;
+
 	/**
 	 * The effective member type rendered by the compiler in its declaration context.
 	 *
@@ -213,10 +225,12 @@ export interface MemberFact {
 	 * This is display text, not a structured type model or a standalone declaration.
 	 */
 	readonly type: string;
+
 	/**
 	 * Whether the compiler marks the effective member as optional.
 	 */
 	readonly optional: boolean;
+
 	/**
 	 * The resolved readonly modifier state.
 	 *
@@ -226,6 +240,7 @@ export interface MemberFact {
 	 */
 	// eslint-disable-next-line @rushstack/no-new-null -- The detached fact contract uses null to distinguish unresolved from false.
 	readonly readonly: boolean | null;
+
 	/**
 	 * The source declarations associated with the effective member, in compiler order.
 	 *
@@ -252,10 +267,12 @@ export interface FunctionParameterFact {
 	 * @defaultValue Omitted for destructured parameters.
 	 */
 	readonly name?: string;
+
 	/**
 	 * Whether the declaration has a question token or an initializer for this parameter.
 	 */
 	readonly optional: boolean;
+
 	/**
 	 * Whether this is a rest parameter.
 	 */
@@ -334,6 +351,7 @@ export interface ResolvedDocumentationReference extends DocumentationReferenceLo
 	 * Identifies a lookup that found a declaration.
 	 */
 	readonly status: "resolved";
+
 	/**
 	 * The resolved declaration identifier.
 	 *
@@ -381,10 +399,12 @@ export interface DocumentationReferenceContext {
 	 * An empty array means extraction supplied no supported reference occurrences.
 	 */
 	readonly typeReferences?: readonly DeclarationReferenceFact[];
+
 	/**
 	 * The original declaration location, independent of the receiving type or re-exporting entrypoint.
 	 */
 	readonly origin: Origin;
+
 	/**
 	 * API link lookup results in TSDoc tree traversal order, including repeated references.
 	 *
@@ -394,6 +414,7 @@ export interface DocumentationReferenceContext {
 	 * Lookup uses the original declaration scope, including for links inside documentation blocks.
 	 */
 	readonly links: readonly DocumentationReferenceLookup[];
+
 	/**
 	 * The lookup result for an explicit documentation inheritance request.
 	 *
@@ -413,10 +434,12 @@ export interface DeclarationReferenceFact {
 	 * The original referenced type or value name, including aliases.
 	 */
 	readonly text: string;
+
 	/**
 	 * The target declaration identity, independent of its exported alias.
 	 */
 	readonly target: ApiItemId;
+
 	/**
 	 * The location of the reference in the original declaration input.
 	 */
@@ -431,6 +454,7 @@ export interface SignatureDocumentationContext extends DocumentationReferenceCon
 	 * Parameter names and optional and rest parameter flags, in declaration order.
 	 */
 	readonly parameters: readonly FunctionParameterFact[];
+
 	/**
 	 * Type-parameter names in declaration order, without constraints or defaults.
 	 */
@@ -455,10 +479,12 @@ export interface SourceDeclarationFact extends Origin {
 	 * An unavailable declaration node supplies no comment. JSON serialization omits absent documentation.
 	 */
 	readonly documentation: string | undefined;
+
 	/**
 	 * The compiler syntax-kind name for this declaration.
 	 */
 	readonly kind: string;
+
 	/**
 	 * The full declaration source text, including leading whitespace and comments.
 	 *
@@ -484,14 +510,17 @@ export interface HeritageFact {
 		readonly source: ApiItemId;
 		readonly target: ApiItemId;
 	}[];
+
 	/**
 	 * Whether the declaration extends a base or implements a contract.
 	 */
 	readonly kind: "extends" | "implements";
+
 	/**
 	 * The original target declaration identifier, retained in the analysis result.
 	 */
 	readonly target: ApiItemId;
+
 	/**
 	 * Effective target members after applying the receiving declaration's type arguments.
 	 *
@@ -515,19 +544,23 @@ export interface DeclarationContainerFact {
 	 * The declaration form represented by this container.
 	 */
 	readonly kind: "class" | "interface" | "enum";
+
 	/**
 	 * Keywords and modifiers before the declaration name, including trailing whitespace.
 	 */
 	readonly prefix: string;
+
 	/**
 	 * Type parameters and heritage clauses after the name, excluding the member body.
 	 */
 	readonly suffix: string;
+
 	/**
 	 * Whether the container has no implementation bodies or static blocks that prevent review rendering.
 	 * This flag does not establish support for every member's documentation or reference semantics.
 	 */
 	readonly supported: boolean;
+
 	/**
 	 * Independently documented constructors, static members, accessors, or enum members in source order.
 	 * These records supplement rather than replace effective instance members.
@@ -543,6 +576,7 @@ export interface DeclarationStatementFact {
 	 * Declaration keyword and trailing whitespace before the name.
 	 */
 	readonly prefix: string;
+
 	/**
 	 * Type parameters, type or initializer, and terminating semicolon after the name.
 	 */
@@ -566,18 +600,21 @@ export interface DeclarationFact {
 	 * @defaultValue Omitted for other declaration forms or when the source node is unavailable.
 	 */
 	readonly statement?: DeclarationStatementFact;
+
 	/**
 	 * Detached container syntax assembled from compiler nodes, without source comments or member bodies.
 	 *
 	 * @defaultValue Omitted for unsupported or merged container forms, other declarations, or unavailable source nodes.
 	 */
 	readonly container?: DeclarationContainerFact;
+
 	/**
 	 * Original lookup context for a non-callable declaration comment.
 	 * @defaultValue Omitted for merged, unavailable, or unsupported declaration-level comments.
 	 * Callable function and method contexts are retained on signatures instead.
 	 */
 	readonly documentationContext?: DocumentationReferenceContext;
+
 	/**
 	 * Direct instantiated heritage views in source declaration and clause order.
 	 *
@@ -587,6 +624,7 @@ export interface DeclarationFact {
 	// TODO (Stage 2 documentation resolution): Retain recursive instantiated ancestry where direct
 	// matches and original-member source chains are insufficient. Never infer overload compatibility.
 	readonly heritage: readonly HeritageFact[];
+
 	/**
 	 * Identifiers of direct base declarations for a class or interface, in compiler order.
 	 *
@@ -598,6 +636,7 @@ export interface DeclarationFact {
 	 * These links do not establish member overrides or compatible overload matches.
 	 */
 	readonly baseDeclarations: readonly ApiItemId[];
+
 	/**
 	 * Declaration identifiers named by local class implements clauses, in source declaration and clause order.
 	 *
@@ -609,6 +648,7 @@ export interface DeclarationFact {
 	 * These links neither add members nor copy documentation to the implementing class.
 	 */
 	readonly implementedDeclarations: readonly ApiItemId[];
+
 	/**
 	 * An opaque identifier used by export targets within the analysis result.
 	 *
@@ -617,14 +657,17 @@ export interface DeclarationFact {
 	 * It does not include package versions and is not a globally unique or version-stable identifier.
 	 */
 	readonly id: ApiItemId;
+
 	/**
 	 * The symbol name, or the package-relative file path for a source-file module.
 	 */
 	readonly name: string;
+
 	/**
 	 * The source declarations associated with the symbol, including their locations and text.
 	 */
 	readonly declarations: readonly SourceDeclarationFact[];
+
 	/**
 	 * The declaration's type rendered by the compiler.
 	 *
@@ -633,6 +676,7 @@ export interface DeclarationFact {
 	 * This text is not a structured type model or a standalone declaration.
 	 */
 	readonly type: string;
+
 	/**
 	 * Whether the analyzer detected incomplete member expansion.
 	 *
@@ -643,6 +687,7 @@ export interface DeclarationFact {
 	 * It does not guarantee a complete representation of every TypeScript type feature.
 	 */
 	readonly memberView: "complete" | "partial";
+
 	/**
 	 * Diagnostics that describe incomplete member expansion and how consumers should handle it.
 	 *
@@ -650,6 +695,7 @@ export interface DeclarationFact {
 	 * Empty when no member-expansion limitation was detected.
 	 */
 	readonly limitations: readonly AnalyzerDiagnostic[];
+
 	/**
 	 * Effective properties and methods, sorted by member name.
 	 *
@@ -658,6 +704,7 @@ export interface DeclarationFact {
 	 * An empty array does not prove that the original type has no members.
 	 */
 	readonly members: readonly MemberFact[];
+
 	/**
 	 * The compiler's callable signatures, with a separate fact for each overload.
 	 *
@@ -666,6 +713,7 @@ export interface DeclarationFact {
 	 * Empty when no call signatures were extracted.
 	 */
 	readonly signatures: readonly SignatureFact[];
+
 	/**
 	 * Bindings exported by this module or namespace symbol, sorted by exported name.
 	 *
@@ -683,10 +731,12 @@ export interface DeclaredMemberFact extends SourceDeclarationFact {
 	 * Identity scoped to the owner and compiler-printed declaration.
 	 */
 	readonly id: ApiItemId;
+
 	/**
 	 * Compiler-printed declaration without source trivia.
 	 */
 	readonly printed: string;
+
 	/**
 	 * Reference lookup in the original member declaration scope.
 	 */
@@ -704,6 +754,7 @@ export interface SurfaceFact {
 	 * The configured entrypoint name, such as `.` or `./browser`.
 	 */
 	readonly name: string;
+
 	/**
 	 * The entrypoint's exported bindings, sorted by exported name.
 	 */
@@ -723,18 +774,22 @@ export interface AnalysisFacts {
 	 * @defaultValue Omitted on synthetic internal facts without captured inputs; those facts cannot generate dependency models.
 	 */
 	readonly inputFiles?: readonly InputFileFact[];
+
 	/**
 	 * The configured name of the package being analyzed.
 	 */
 	readonly packageName: string;
+
 	/**
 	 * The version of the compiler used for analysis, not necessarily the package's build compiler.
 	 */
 	readonly compilerVersion: string;
+
 	/**
 	 * The configured entrypoint surfaces, sorted by entrypoint name.
 	 */
 	readonly surfaces: readonly SurfaceFact[];
+
 	/**
 	 * Declaration facts referenced by exports, supported documentation lookups, or heritage links, sorted by identifier.
 	 *
@@ -755,6 +810,7 @@ export interface InputFileFact {
 	 * Package-relative file path with forward slash separators.
 	 */
 	readonly file: string;
+
 	/**
 	 * Hexadecimal SHA-256 digest of the analyzed file's UTF-8 text, retained before compiler disposal.
 	 *

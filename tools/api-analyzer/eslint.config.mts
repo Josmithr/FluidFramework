@@ -1,6 +1,7 @@
 /* eslint import-x/no-default-export: "off", import-x/no-internal-modules: ["error", { allow: ["@fluidframework/eslint-config-fluid/flat.mts"] }] -- ESLint requires a default export and the shared preset's documented subpath. */
 
 import { strict } from "@fluidframework/eslint-config-fluid/flat.mts";
+import stylistic from "@stylistic/eslint-plugin";
 import type { Linter } from "eslint";
 
 const config: Linter.Config[] = [
@@ -19,7 +20,29 @@ const config: Linter.Config[] = [
 	},
 	{
 		// This package runs in Node.js and owns file-system and compiler-process operations.
-		rules: { "import-x/no-nodejs-modules": "off" },
+		plugins: { "@stylistic": stylistic },
+		rules: {
+			"import-x/no-nodejs-modules": "off",
+			"curly": ["error", "all"],
+			"@stylistic/lines-around-comment": [
+				"error",
+				{
+					beforeBlockComment: true,
+					beforeLineComment: true,
+					applyDefaultIgnorePatterns: false,
+
+					// Opening delimiters already separate a comment from preceding code.
+					allowBlockStart: true,
+					allowClassStart: true,
+					allowObjectStart: true,
+					allowArrayStart: true,
+					allowInterfaceStart: true,
+					allowTypeStart: true,
+					allowEnumStart: true,
+					allowModuleStart: true,
+				},
+			],
+		},
 	},
 	{
 		files: ["src/**/*.ts"],
@@ -40,6 +63,7 @@ const config: Linter.Config[] = [
 	},
 	{
 		files: ["src/**/test/**/*.ts"],
+
 		// Tests may intentionally verify JSON serialization, not in-memory cloning.
 		rules: { "unicorn/prefer-structured-clone": "off" },
 	},

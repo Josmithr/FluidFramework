@@ -197,6 +197,7 @@ const documentationBindingCases = [
 		reference: "imported",
 		expected: undefined,
 	},
+
 	// An export alias is not a local declaration name. Lookup must use the module's exports
 	// when it finds no symbol with this name in the original declaration scope.
 	{
@@ -204,6 +205,7 @@ const documentationBindingCases = [
 		reference: "alias",
 		expected: undefined,
 	},
+
 	// The reference syntax is supported, but no target exists. Report a reference error,
 	// not an unsupported-feature diagnostic or a successful binding with no target.
 	{
@@ -211,6 +213,7 @@ const documentationBindingCases = [
 		reference: "missing",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// The target has two overloads, although one matches the derived function's parameter type.
 	// The current binder must reject the ambiguity rather than select the first or closest overload.
 	// Explicit overloaded targets require a numeric selector; no overload is inferred.
@@ -219,6 +222,7 @@ const documentationBindingCases = [
 		reference: "base",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// Parameter types match, but their names differ. Copying parameter documentation would
 	// require renaming its references, which the current binder does not support.
 	// TODO (Stage 2 parameter compatibility): Extend the renamed, optional, rest, and generic cases
@@ -229,6 +233,7 @@ const documentationBindingCases = [
 		reference: "base",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// The target parameter is optional and the derived parameter is required.
 	// Matching names are not sufficient: the optional parameter flags must also match.
 	{
@@ -236,6 +241,7 @@ const documentationBindingCases = [
 		reference: "base",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// Both parameters have the same name and array type, but only the target uses a rest parameter.
 	// The binder must retain and compare rest parameter flags rather than compare only names or types.
 	{
@@ -243,6 +249,7 @@ const documentationBindingCases = [
 		reference: "base",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// The target declares a type parameter, but the derived function declares none.
 	// Reject the mismatch because inherited type-parameter documentation would have no matching parameter.
 	{
@@ -250,6 +257,7 @@ const documentationBindingCases = [
 		reference: "base",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// The target destructures an object instead of declaring a parameter identifier.
 	// Its property name must not be treated as a parameter name that matches the derived function.
 	// TODO (Stage 2 parameter compatibility): Add object and array binding patterns with documentation
@@ -259,6 +267,7 @@ const documentationBindingCases = [
 		reference: "base",
 		expected: DiagnosticCode.DocumentationReference,
 	},
+
 	// Package-qualified syntax is unsupported even when it names the package under analysis.
 	// Reject the syntax before lookup; the absent target must not turn this into a missing-name error.
 	// TODO (Stage 2 qualified references): Once this syntax is supported, expect a missing-target
@@ -268,12 +277,14 @@ const documentationBindingCases = [
 		reference: "example#base",
 		expected: DiagnosticCode.DocumentationUnsupported,
 	},
+
 	// A one-based numeric selector chooses the second callable signature in declaration order.
 	{
 		name: "selector",
 		reference: "(base:2)",
 		expected: undefined,
 	},
+
 	// Lookup succeeds, but the target is a variable rather than a standalone function.
 	// Finding a symbol does not establish that its declaration form supports documentation binding.
 	// TODO (Stage 2 declaration support): Revisit this diagnostic under the cross-declaration inheritance
@@ -349,14 +360,17 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			api = new API({ cwd: directory, collectTiming: true });
 			snapshot = api.updateSnapshot({ openProjects: [configFileName] });
 			const openedProject = snapshot.getProject(configFileName);
-			assert.ok(openedProject, "The configured declaration project must be available");
+			assert(
+				openedProject !== undefined,
+				"The configured declaration project must be available",
+			);
 			project = openedProject;
 			const source = project.program.getSourceFile(
 				path.join(directory, "declarations/index.d.ts"),
 			);
-			assert.ok(source);
+			assert(source !== undefined);
 			const moduleSymbol = project.checker.getSymbolAtLocation(source);
-			assert.ok(moduleSymbol);
+			assert(moduleSymbol !== undefined);
 			exports = project.checker.getExportsOfModule(moduleSymbol);
 		});
 
@@ -364,13 +378,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			try {
 				api?.close();
 			} finally {
-				if (directory !== undefined) rmSync(directory, { recursive: true, force: true });
+				if (directory !== undefined) {
+					rmSync(directory, { recursive: true, force: true });
+				}
 			}
 		});
 
 		function target(name: string): CompilerSymbol {
 			const exported = exports.find((symbol) => symbol.name === name);
-			assert.ok(exported, `Missing export: ${name}`);
+			assert(exported !== undefined, `Missing export: ${name}`);
 			return (exported.flags & SymbolFlags.Alias) === 0
 				? exported
 				: project.checker.getAliasedSymbol(exported);
@@ -381,7 +397,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			const properties = project.checker.getPropertiesOfType(declared);
 			const entries = properties.map((property) => {
 				const type = project.checker.getTypeOfSymbol(property);
-				assert.ok(type);
+				assert(type !== undefined);
 				return [property.name, project.checker.typeToString(type)] as const;
 			});
 			return Object.fromEntries(entries);
@@ -401,11 +417,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			const source = project.program.getSourceFile(
 				path.join(directory, "declarations/index.d.ts"),
 			);
-			assert.ok(source);
+			assert(source !== undefined);
 			const declarations = source.statements.filter(isExportDeclaration);
 			assert.equal(declarations[0]?.isTypeOnly, false);
 			assert.equal(declarations[1]?.isTypeOnly, true);
-			assert.ok(exports.some((symbol) => symbol.name === "ApiNamespace"));
+			assert(exports.some((symbol) => symbol.name === "ApiNamespace"));
 		});
 
 		// Design feature: F1.
@@ -437,7 +453,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			});
 			const frozen = project.checker.getDeclaredTypeOfSymbol(target("Frozen"));
 			const optional = project.checker.getPropertyOfType(frozen, "optional");
-			assert.ok(optional);
+			assert(optional !== undefined);
 			assert.notEqual(optional.flags & SymbolFlags.Optional, 0);
 		});
 
@@ -445,7 +461,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		it("exposes callable overloads and preserves declaration comments", () => {
 			const symbol = target("convert");
 			const type = project.checker.getTypeOfSymbol(symbol);
-			assert.ok(type);
+			assert(type !== undefined);
 			const signatures = project.checker.getSignaturesOfType(type, SignatureKind.Call);
 			assert.equal(signatures.length, 2);
 			const comments = project.checker.getDocumentationCommentOfSymbol(symbol);
@@ -454,11 +470,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.match(declarations, /@public/);
 			assert.match(declarations, /@internal/);
 			for (const signature of signatures) {
-				assert.ok(signature.declaration?.resolve());
+				assert(signature.declaration?.resolve() !== undefined);
 			}
 			const firstDeclaration = signatures[0]?.declaration?.resolve();
 			const secondDeclaration = signatures[1]?.declaration?.resolve();
-			assert.ok(firstDeclaration && secondDeclaration);
+			assert(firstDeclaration !== undefined && secondDeclaration !== undefined);
 			assert.match(firstDeclaration.getFullText(), /Public overload documentation.*@public/);
 			assert.match(
 				secondDeclaration.getFullText(),
@@ -474,13 +490,13 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				undefined,
 				NodeBuilderFlags.InTypeAlias,
 			);
-			assert.ok(
-				node && isTypeLiteralNode(node),
+			assert(
+				(node && isTypeLiteralNode(node)) === true,
 				"A structural type node must expose effective modifiers",
 			);
 			assert.equal(node.members.length, 2);
 			for (const member of node.members) {
-				assert.ok(isPropertySignatureDeclaration(member));
+				assert(isPropertySignatureDeclaration(member));
 				assert.equal(
 					member.modifiers?.some((modifier) => modifier.kind === SyntaxKind.ReadonlyKeyword),
 					true,
@@ -505,7 +521,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const source = project.program.getSourceFile(
 					path.join(directory, `declarations/${name}.d.ts`),
 				);
-				assert.ok(source);
+				assert(source !== undefined);
 				writeFileSync(path.join(directory, `${name}.d.ts`), project.emitter.printNode(source));
 			}
 			cpSync(
@@ -549,14 +565,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			const second = namespace.getExports();
 			const timing = api.getTimingInfo();
 			assert.strictEqual(first, second);
-			assert.ok(timing.enabled);
+			assert(timing.enabled);
 			assert.equal(
 				timing.totals.requestCount,
 				0,
 				"A cached export lookup must not query the compiler again",
 			);
-			assert.ok(!timing.recentRequests.some((request) => request.method === "updateSnapshot"));
-			assert.ok(
+			assert(!timing.recentRequests.some((request) => request.method === "updateSnapshot"));
+			assert(
 				!timing.recentRequests.some((request) => request.method === "getExportsOfModule"),
 			);
 			assert.strictEqual(snapshot.getProject(project.configFileName), project);
@@ -571,29 +587,29 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const source = project.program.getSourceFile(
 					path.join(directory, "declarations/member-documentation.d.ts"),
 				);
-				assert.ok(source);
+				assert(source !== undefined);
 				const moduleSymbol = project.checker.getSymbolAtLocation(source);
-				assert.ok(moduleSymbol);
+				assert(moduleSymbol !== undefined);
 				const symbols = project.checker.getExportsOfModule(moduleSymbol);
 				const contract = symbols.find((entry) => entry.name === "GenericOverloadContract");
 				const implementation = symbols.find(
 					(entry) => entry.name === "GenericOverloadImplementation",
 				);
-				assert.ok(contract);
-				assert.ok(implementation);
+				assert(contract !== undefined);
+				assert(implementation !== undefined);
 				const groups = [contract, implementation].map((symbol) => {
 					const declared = project.checker.getDeclaredTypeOfSymbol(symbol);
 					const member = project.checker.getPropertyOfType(declared, "map");
-					assert.ok(member);
+					assert(member !== undefined);
 					const type = project.checker.getTypeOfSymbol(member);
-					assert.ok(type);
+					assert(type !== undefined);
 					const signatures = project.checker.getSignaturesOfType(type, SignatureKind.Call);
 					for (const signature of signatures) {
 						const node = project.checker.signatureToSignatureDeclaration(
 							signature,
 							SyntaxKind.FunctionType,
 						);
-						assert.ok(node && isFunctionTypeNode(node));
+						assert((node && isFunctionTypeNode(node)) === true);
 						assert.throws(
 							() => project.checker.getTypeFromTypeNode(node),
 							/node handle .* could not be resolved/,
@@ -603,15 +619,16 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				});
 				const contractArray = groups[0]?.[0];
 				const implementationArray = groups[1]?.[1];
-				assert.ok(contractArray);
-				assert.ok(implementationArray);
+				assert(contractArray !== undefined);
+				assert(implementationArray !== undefined);
 				const contractParameter = project.checker.getParameterType(contractArray, 0);
 				const implementationParameter = project.checker.getParameterType(
 					implementationArray,
 					0,
 				);
-				assert.ok(contractParameter);
-				assert.ok(implementationParameter);
+				assert(contractParameter !== undefined);
+				assert(implementationParameter !== undefined);
+
 				// Equivalent generic signatures declare independent type parameters. Parameter assignability
 				// alone must not be used to reject the corresponding overloads as incompatible.
 				assert.equal(
@@ -685,11 +702,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const member = facts.declarations
 							.find((entry) => entry.name === name)
 							?.members.find((entry) => entry.name === memberName);
-						assert.ok(member, name);
+						assert(member !== undefined, name);
 						const effective: ResolvedDocumentation | undefined = resolved.value.find(
 							(entry) => entry.id === member.id,
 						);
-						assert.ok(effective, name);
+						assert(effective !== undefined, name);
 						assert.equal(effective.inheritedFrom.length, inheritedCount, name);
 						if (text === undefined) {
 							assert.equal(
@@ -712,7 +729,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						["UnconstrainedReceiver", []],
 					] as const) {
 						const declaration = facts.declarations.find((entry) => entry.name === name);
-						assert.ok(declaration, name);
+						assert(declaration !== undefined, name);
 						assert.deepEqual(
 							declaration.heritage
 								.flatMap((view) =>
@@ -723,8 +740,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 										const targetMember = view.members.find(
 											(entry) => entry.id === match.target,
 										);
-										assert.ok(receivingMember);
-										assert.ok(targetMember);
+										assert(receivingMember !== undefined);
+										assert(targetMember !== undefined);
 										assert.equal(receivingMember.name, targetMember.name);
 										return receivingMember.name;
 									}),
@@ -740,8 +757,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const implementation = facts.declarations.find(
 						(entry) => entry.name === "DocumentedImplementation",
 					);
-					assert.ok(derived);
-					assert.ok(implementation);
+					assert(derived !== undefined);
+					assert(implementation !== undefined);
 					assert.equal(derived.heritage.length, 1);
 					assert.equal(derived.heritage[0]?.kind, "extends");
 					assert.equal(derived.heritage[0]?.target, derived.baseDeclarations[0]);
@@ -757,8 +774,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const alias = facts.declarations.find(
 						(entry) => entry.name === "DocumentedAliasImplementation",
 					);
-					assert.ok(classFact);
-					assert.ok(alias);
+					assert(classFact !== undefined);
+					assert(alias !== undefined);
 					assert.equal(
 						classFact.heritage[0]?.members.find((entry) => entry.name === "value")?.type,
 						"string",
@@ -827,10 +844,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const derived = facts.declarations.find(
 						(entry) => entry.name === "DocumentedImplementationDerived",
 					);
-					assert.ok(implementation);
-					assert.ok(contract);
-					assert.ok(alias);
-					assert.ok(derived);
+					assert(implementation !== undefined);
+					assert(contract !== undefined);
+					assert(alias !== undefined);
+					assert(derived !== undefined);
 					assert.deepEqual(
 						implementation.implementedDeclarations.map((id) => byId.get(id)?.name),
 						["HiddenRoot", "HiddenImplementationOnly"],
@@ -844,6 +861,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						byId.get(alias.implementedDeclarations[0] ?? "")?.declarations[0]?.kind,
 						"TypeAliasDeclaration",
 					);
+
 					// Direct clauses are not copied from a base class; callers can follow the separate base link.
 					assert.deepEqual(derived.implementedDeclarations, []);
 					assert.deepEqual(derived.baseDeclarations, [implementation.id]);
@@ -858,7 +876,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						"(value: Value) => Value",
 					);
 					const root = implementation.members.find((entry) => entry.name === "root");
-					assert.ok(root);
+					assert(root !== undefined);
+
 					// Documentation resolution must copy compatible interface content separately from these raw facts.
 					// Automatic resolution is tested separately; these raw comments must remain unchanged.
 					assert.equal(root.declarations[0]?.documentation, undefined);
@@ -913,19 +932,20 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						["HiddenLeft", ["HiddenRoot"]],
 						["HiddenRight", ["HiddenRoot"]],
 						["HiddenRoot", []],
+
 						// Implements targets are separate contract links, not inherited members or class base types.
 						["DocumentedImplementation", []],
 					]);
 					for (const [name, bases] of expected) {
 						const declaration = facts.declarations.find((entry) => entry.name === name);
-						assert.ok(declaration);
+						assert(declaration !== undefined);
 						assert.deepEqual(
 							declaration.baseDeclarations.map((id) => byId.get(id)?.name),
 							bases,
 						);
 					}
 					const hidden = facts.declarations.find((entry) => entry.name === "HiddenRoot");
-					assert.ok(hidden);
+					assert(hidden !== undefined);
 					assert.equal(
 						hidden.declarations[0]?.documentation,
 						"/** Hidden root contract. @internal */",
@@ -970,6 +990,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(extracted.ok, true);
 					adapter.close();
 					const facts = JSON.parse(JSON.stringify(extracted.value)) as AnalysisFacts;
+
 					// The untagged automatic link receiver is checked separately for missing release metadata.
 					const supported = {
 						...facts,
@@ -983,12 +1004,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const scoped = facts.declarations.find(
 						(declaration) => declaration.name === "ScopedMemberReceiver",
 					);
-					assert.ok(scoped);
+					assert(scoped !== undefined);
 					const property = scoped.members.find((member) => member.name === "linkedProperty");
-					assert.ok(property);
+					assert(property !== undefined);
 					assert.equal(property.signatures.length, 0);
 					const capturedProperty = comments.get(property.id);
-					assert.ok(capturedProperty);
+					assert(capturedProperty !== undefined);
 					const retained = createAnalysisContext(
 						extracted.value,
 						{ rules: { requireReleaseLevel: false } },
@@ -999,12 +1020,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const originalProperty = extracted.value.declarations
 						.find((item) => item.id === scoped.id)
 						?.members.find((item) => item.id === property.id);
-					assert.ok(originalProperty?.documentationContext);
+					assert(originalProperty?.documentationContext !== undefined);
 					assert.equal(Object.isFrozen(originalProperty.documentationContext.links), true);
 					const resolvedProperty = completed.value.documentation.find(
 						(item) => item.id === property.id,
 					);
-					assert.ok(resolvedProperty);
+					assert(resolvedProperty !== undefined);
 					assert.equal(resolvedProperty.documented, true);
 					assert.equal(resolvedProperty.links.length, 1);
 					assert.equal(
@@ -1015,11 +1036,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(context.metadata.get(property.id)?.releaseLevel, ReleaseLevel.Public);
 					const redirect = facts.declarations.find((item) => item.name === "PropertyRedirect")
 						?.members[0];
-					assert.ok(redirect);
+					assert(redirect !== undefined);
 					const redirected = completed.value.documentation.find(
 						(item) => item.id === redirect.id,
 					);
-					assert.ok(redirected);
+					assert(redirected !== undefined);
 					assert.equal(redirected.documented, true);
 					assert.equal(redirected.inheritedFrom.length, 2);
 					assert.equal(
@@ -1034,27 +1055,27 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const inheritedProperty = facts.declarations
 						.find((item) => item.name === "PropertyImplementation")
 						?.members.find((item) => item.name === "value");
-					assert.ok(inheritedProperty);
+					assert(inheritedProperty !== undefined);
 					const resolvedInheritedProperty = completed.value.documentation.find(
 						(item) => item.id === inheritedProperty.id,
 					);
-					assert.ok(resolvedInheritedProperty);
+					assert(resolvedInheritedProperty !== undefined);
 					assert.equal(resolvedInheritedProperty.documented, true);
 					assert.equal(resolvedInheritedProperty.inheritedFrom.length, 1);
 					for (const name of ["empty", "tagOnly"]) {
 						const suppressed = facts.declarations
 							.find((item) => item.name === "PropertyImplementation")
 							?.members.find((item) => item.name === name);
-						assert.ok(suppressed);
+						assert(suppressed !== undefined);
 						const resolved: CompletedDocumentation | undefined =
 							completed.value.documentation.find((item) => item.id === suppressed.id);
-						assert.ok(resolved);
+						assert(resolved !== undefined);
 						assert.equal(resolved.documented, false, name);
 						assert.equal(resolved.inheritedFrom.length, 0, name);
 					}
 					const propertySource = property.declarations[0];
-					assert.ok(propertySource);
-					assert.ok(property.documentationContext);
+					assert(propertySource !== undefined);
+					assert(property.documentationContext !== undefined);
 					for (const [documentation, expected] of [
 						[
 							"/** Property without release metadata. */",
@@ -1094,15 +1115,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const signature: SignatureFact | undefined = scoped.members.find(
 							(member) => member.name === name,
 						)?.signatures[0];
-						assert.ok(signature);
+						assert(signature !== undefined);
 						const resolved: CompletedDocumentation | undefined =
 							completed.value.documentation.find((item) => item.id === signature.id);
-						assert.ok(resolved, name);
+						assert(resolved !== undefined, name);
 						assert.equal(resolved.documented, true);
 						assert.equal(resolved.links.length, 1);
 						const link: CompletedDocumentation["links"][number] | undefined =
 							resolved.links[0];
-						assert.ok(link);
+						assert(link !== undefined);
 						assert.equal(
 							context.metadata.get(link.targetSignature)?.releaseLevel,
 							ReleaseLevel.Beta,
@@ -1126,10 +1147,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const signature: SignatureFact | undefined = facts.declarations
 							.find((item) => item.name === owner)
 							?.members.find((item) => item.name === method)?.signatures[0];
-						assert.ok(signature);
+						assert(signature !== undefined);
 						const resolved: CompletedDocumentation | undefined =
 							completed.value.documentation.find((item) => item.id === signature.id);
-						assert.ok(resolved, owner);
+						assert(resolved !== undefined, owner);
 						assert.equal(resolved.documented, expected, owner);
 						assert.equal(resolved.inheritedFrom.length > 0, expected, owner);
 					}
@@ -1168,7 +1189,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 										: "root(",
 							),
 						);
-						assert.ok(method, entry.name);
+						assert(method !== undefined, entry.name);
 						assert.equal(method.documented, entry.name === "DocumentedClass", entry.name);
 					}
 					const missingLevel = completeAnalysis(analysisContext(facts));
@@ -1188,7 +1209,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 												? {
 														...member,
 														signatures: member.signatures.map((signature) => {
-															assert.ok(signature.documentationContext);
+															assert(signature.documentationContext !== undefined);
 															return {
 																...signature,
 																documentation: "/** See {@link missing}. @public */",
@@ -1237,7 +1258,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					adapter.close();
 					const facts = JSON.parse(JSON.stringify(extracted)) as AnalysisFacts;
 					const source = facts.declarations.find((item) => item.name === "useHidden");
-					assert.ok(source);
+					assert(source !== undefined);
 					const references = source.signatures[0]?.documentationContext?.typeReferences;
 					assert.equal(references?.length, 2);
 					for (const reference of references ?? []) {
@@ -1290,11 +1311,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							}),
 						);
 						assert.equal(result.ok, expected);
-						if (!result.ok)
+						if (!result.ok) {
 							assert.match(result.diagnostics[0]?.message ?? "", /no-current-to-legacy/);
+						}
 					}
 					const hidden = facts.declarations.find((item) => item.name === "HiddenContract");
-					assert.ok(hidden);
+					assert(hidden !== undefined);
 					const exposed = {
 						...facts,
 						surfaces: facts.surfaces.map((surface) => ({
@@ -1452,12 +1474,13 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const derived = facts.declarations.find(
 						(entry) => entry.name === "DocumentedDerived",
 					);
-					assert.ok(base);
-					assert.ok(derived);
+					assert(base !== undefined);
+					assert(derived !== undefined);
 					const baseForward = base.members.find((entry) => entry.name === "forward");
 					const forward = derived.members.find((entry) => entry.name === "forward");
-					assert.ok(baseForward);
-					assert.ok(forward);
+					assert(baseForward !== undefined);
+					assert(forward !== undefined);
+
 					// Shared source records do not imply the same effective API item or signature.
 					assert.deepEqual(forward.declarations, baseForward.declarations);
 					assert.notEqual(forward.id, baseForward.id);
@@ -1465,7 +1488,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(forward.signatures[0]?.functionTypeText, "(value: string) => string");
 					assert.equal(baseForward.signatures[0]?.functionTypeText, "(value: Value) => Value");
 					const forwardContext = forward.signatures[0]?.documentationContext;
-					assert.ok(forwardContext);
+					assert(forwardContext !== undefined);
 					assert.deepEqual(forwardContext, baseForward.signatures[0]?.documentationContext);
 					assert.equal(forwardContext.origin.file, "declarations/member-documentation.d.ts");
 					assert.deepEqual(forwardContext.parameters, [
@@ -1476,7 +1499,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						"/** Inherited generic operation. @public */",
 					);
 					const parse = derived.members.find((entry) => entry.name === "parse");
-					assert.ok(parse);
+					assert(parse !== undefined);
 					assert.deepEqual(
 						parse.signatures.map((signature) => signature.callSignatureText),
 						["(value: string): string;", "(value: number): number;"],
@@ -1493,17 +1516,18 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						[parse.signatures[0]?.id],
 					);
 					const optional = derived.members.find((entry) => entry.name === "optionalOperation");
-					assert.ok(optional);
+					assert(optional !== undefined);
 					assert.equal(optional.optional, true);
 					assert.equal(optional.signatures.length, 1);
-					assert.ok(optional.signatures[0]?.documentationContext);
+					assert(optional.signatures[0]?.documentationContext !== undefined);
 					assert.equal(
 						optional.signatures[0]?.documentation,
 						"/** Optional operation. @public */",
 					);
 					const callback = derived.members.find((entry) => entry.name === "callback");
-					assert.ok(callback);
+					assert(callback !== undefined);
 					assert.equal(callback.signatures.length, 1);
+
 					// Property documentation must not be synthesized as documentation on its function-type node.
 					assert.equal(callback.signatures[0]?.documentation, undefined);
 					assert.equal(
@@ -1549,6 +1573,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
 					adapter.close();
+
 					// Source comments must remain available without live compiler handles or inherited-comment synthesis.
 					for (const declaration of analysis.value.declarations) {
 						assert.equal(Object.isFrozen(declaration.declarations), true);
@@ -1565,25 +1590,27 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const derived = facts.declarations.find(
 						(entry) => entry.name === "DocumentedDerived",
 					);
-					assert.ok(derived);
+					assert(derived !== undefined);
 					assert.equal(
 						derived.declarations[0]?.documentation,
 						"/** Derived contract. @beta */",
 					);
 					const value = derived.members.find((entry) => entry.name === "value");
-					assert.ok(value);
+					assert(value !== undefined);
 					assert.equal(value.type, "string");
 					assert.equal(
 						value.declarations[0]?.documentation,
 						"/** Inherited value. @public */",
 					);
 					const base = facts.declarations.find((entry) => entry.name === "DocumentedBase");
-					assert.ok(base);
+					assert(base !== undefined);
+
 					// Generic substitution changes the effective type, not the source location or original declaration text.
 					assert.deepEqual(
 						value.declarations,
 						base.members.find((entry) => entry.name === "value")?.declarations,
 					);
+
 					// Unlike an absent comment, this explicitly empty local comment must suppress future
 					// automatic inheritance. Extraction preserves it without resolving ancestor documentation.
 					assert.equal(
@@ -1600,7 +1627,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const member: (typeof derived.members)[number] | undefined = derived.members.find(
 							(entry) => entry.name === name,
 						);
-						assert.ok(member);
+						assert(member !== undefined);
 						assert.equal(member.declarations[0]?.documentation, undefined);
 					}
 					assert.deepEqual(
@@ -1610,7 +1637,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						["/** String overload. @public */", "/** Number overload. @internal */"],
 					);
 					const merged = facts.declarations.find((entry) => entry.name === "DocumentedMerged");
-					assert.ok(merged);
+					assert(merged !== undefined);
 					assert.deepEqual(
 						merged.declarations.map((entry) => entry.documentation),
 						["/** First declaration. @public */", "/** Second declaration. @beta */"],
@@ -1627,7 +1654,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const classFact = facts.declarations.find(
 						(entry) => entry.name === "DocumentedClass",
 					);
-					assert.ok(classFact);
+					assert(classFact !== undefined);
 					assert.equal(
 						classFact.declarations[0]?.documentation,
 						"/** Derived class. @public */",
@@ -1638,8 +1665,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						"/** Inherited class value. @public */",
 					);
 					const override = classFact.members.find((entry) => entry.name === "convert");
-					assert.ok(override);
+					assert(override !== undefined);
 					assert.equal(override.declarations.length, 1);
+
 					// Raw facts preserve the absent local comment. Future automatic resolution should inherit
 					// the compatible base method's documentation separately, without changing these source facts.
 					assert.equal(override.declarations[0]?.documentation, undefined);
@@ -1667,6 +1695,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						start: 17,
 					});
 					writeFileSync(manifest, JSON.stringify({ name: "updated" }));
+
 					// A new extraction must supply a new cache after package metadata changes.
 					assert.equal(resolveOrigin(locations, fileName, 0).packageName, "dependency");
 					const fresh: LocationContext = { ...locations, packageCache: new Map() };
@@ -1690,7 +1719,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				};
 				const publicAlias = exports.find((symbol) => symbol.name === "PublicIdentity");
 				const typeAlias = exports.find((symbol) => symbol.name === "TypeIdentity");
-				assert.ok(publicAlias && typeAlias);
+				assert(publicAlias !== undefined && typeAlias !== undefined);
 				const resolved = resolveTarget(project.checker, publicAlias);
 				assert.strictEqual(resolveTarget(project.checker, resolved), resolved);
 				assert.equal(
@@ -1703,9 +1732,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const source = project.program.getSourceFile(
 					path.join(directory, "declarations/index.d.ts"),
 				);
-				assert.ok(source);
+				assert(source !== undefined);
 				const moduleSymbol = project.checker.getSymbolAtLocation(source);
-				assert.ok(moduleSymbol);
+				assert(moduleSymbol !== undefined);
 				const seen = new Set<string>();
 				assert.equal(
 					exportTypeOnly(project.checker, locations, moduleSymbol, "TypeIdentity", seen),
@@ -1745,11 +1774,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				);
 				const callable = target("convert");
 				const callableType = project.checker.getTypeOfSymbol(callable);
-				assert.ok(callableType);
+				assert(callableType !== undefined);
 				const result = extractSignatures(project, callableType, "owner");
 				assert.equal(result.length, 2);
 				assert.equal(new Set(result.map((signature) => signature.id)).size, 2);
-				assert.ok(result.every((signature) => signature.id.startsWith("owner:")));
+				assert(result.every((signature) => signature.id.startsWith("owner:")));
 				assert.equal(
 					result.some((signature) => signature.documentation?.includes("@public") === true),
 					true,
@@ -1768,18 +1797,19 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const source = project.program.getSourceFile(
 					path.join(directory, "declarations/index.d.ts"),
 				);
-				assert.ok(source);
+				assert(source !== undefined);
 				const moduleSymbol = project.checker.getSymbolAtLocation(source);
-				assert.ok(moduleSymbol);
+				assert(moduleSymbol !== undefined);
 				const state: CollectionState = { declarations: new Map(), visiting: new Set() };
 				const bindings = exportsOf(project, locations, state, moduleSymbol);
-				assert.ok(bindings.every((binding) => state.declarations.has(binding.target)));
+				assert(bindings.every((binding) => state.declarations.has(binding.target)));
 				assert.equal(state.visiting.size, 0);
 				const id = collect(project, locations, state, moduleSymbol);
 				const completed = state.declarations.get(id);
-				assert.ok(completed);
+				assert(completed !== undefined);
 				assert.equal(collect(project, locations, state, moduleSymbol), id);
 				assert.strictEqual(state.declarations.get(id), completed);
+
 				// An active identifier stops a recursive visit before another fact is collected.
 				const active: CollectionState = { declarations: new Map(), visiting: new Set([id]) };
 				assert.equal(collect(project, locations, active, moduleSymbol), id);
@@ -1804,10 +1834,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					},
 					directory,
 				);
-				assert.ok(configuration.ok);
+				assert(configuration.ok);
 				const strict = await analyzeAPIs(configuration.value);
 				assert.equal(strict.ok, false);
 				assert.equal(strict.diagnostics[0]?.code, DiagnosticCode.ClassificationReleaseMissing);
+
 				// This broad compiler fixture intentionally contains untagged members.
 				const result = await analyzeAPIs({
 					...configuration.value,
@@ -1831,11 +1862,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					},
 					directory,
 				);
-				assert.ok(configuration.ok);
+				assert(configuration.ok);
 				const adapter = createNativeAdapter();
 				try {
 					const analysis = adapter.analyze(configuration.value);
-					assert.ok(analysis.ok, JSON.stringify(analysis));
+					assert(analysis.ok, JSON.stringify(analysis));
 					adapter.close();
 					const comments = analysis.value.declarations.map((item) => ({
 						name: item.name,
@@ -1856,7 +1887,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							{ rules: { requireReleaseLevel: false } },
 						),
 					);
-					assert.ok(metadata.ok, JSON.stringify(metadata));
+					assert(metadata.ok, JSON.stringify(metadata));
 					assert.equal(
 						metadata.value.items.find((item) => item.id === "documented")?.releaseLevel,
 						ReleaseLevel.Public,
@@ -1876,25 +1907,25 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					},
 					directory,
 				);
-				assert.ok(configuration.ok);
+				assert(configuration.ok);
 				const adapter = createNativeAdapter();
 				try {
 					const analysis = adapter.analyze(configuration.value);
-					assert.ok(analysis.ok, JSON.stringify(analysis));
+					assert(analysis.ok, JSON.stringify(analysis));
 					const overloads = analysis.value.declarations.find(
 						(item) => item.name === "convert",
 					)?.signatures;
-					assert.ok(overloads);
+					assert(overloads !== undefined);
 					assert.equal(overloads.length, 2);
 					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const metadata = classifyApiItems(documentationContext(overloads));
-					assert.ok(metadata.ok, JSON.stringify(metadata));
+					assert(metadata.ok, JSON.stringify(metadata));
 					const publicView = selectApiItems(metadata.value, {
 						name: "public",
 						releaseLevels: [ReleaseLevel.Public],
 					});
-					assert.ok(publicView.ok);
+					assert(publicView.ok);
 					assert.equal(publicView.value.items.length, 1);
 					assert.equal(
 						publicView.value.items[0]?.id,
@@ -1909,7 +1940,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							ReleaseLevel.Internal,
 						],
 					});
-					assert.ok(complete.ok);
+					assert(complete.ok);
 					assert.equal(complete.value.items.length, 2);
 					assert.equal(JSON.stringify(analysis.value), before);
 				} finally {
@@ -1939,6 +1970,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const facts = analysis.value;
 					const before = JSON.stringify(facts);
 					const linked = facts.declarations.find((entry) => entry.name === "linked");
+
 					// The entrypoint also exports an internal base; links must use the original module's beta base.
 					const base = facts.declarations.find(
 						(entry) =>
@@ -1946,11 +1978,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							entry.declarations[0]?.file === "declarations/documentation-link-policy.d.ts",
 					);
 					const hidden = facts.declarations.find((entry) => entry.name === "hidden");
-					assert.ok(linked);
-					assert.ok(base);
-					assert.ok(hidden);
+					assert(linked !== undefined);
+					assert(base !== undefined);
+					assert(hidden !== undefined);
 					const signature = linked.signatures[0];
-					assert.ok(signature?.documentationContext);
+					assert(signature?.documentationContext !== undefined);
 					const classified = classifyApiItems(
 						documentationContext(facts.declarations.flatMap((entry) => entry.signatures)),
 					);
@@ -1964,9 +1996,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						selected.value.items.map((entry) => entry.id),
 						[signature.id],
 					);
+
 					// Link validation needs the unselected beta targets, so pass full classification rather than selected items.
 					const result = bindDocumentationLinks(analysisContext(facts, {}));
 					assert.equal(result.ok, true);
+
 					// Five occurrences belong to linked; the sixth is base's back-reference to linked.
 					assert.equal(result.value.length, 6);
 					assert.deepEqual(
@@ -2002,6 +2036,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						),
 						true,
 					);
+
 					// Rebinding deserialized facts must not depend on compiler handles or object identity.
 					assert.deepEqual(
 						bindDocumentationLinks(analysisContext(JSON.parse(before) as AnalysisFacts, {})),
@@ -2029,13 +2064,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				try {
 					const analysis = adapter.analyze(configuration.value);
 					assert.equal(analysis.ok, true);
+
 					// Close before serialization so every subsequent operation uses detached data only.
 					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const facts = JSON.parse(before) as AnalysisFacts;
 					const inputs = facts.declarations.flatMap((entry) =>
 						entry.signatures.map((signature) => {
-							assert.ok(signature.documentationContext);
+							assert(signature.documentationContext !== undefined);
 							return {
 								id: signature.id,
 								documentation: signature.documentation,
@@ -2049,6 +2085,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(inheritance.ok, true, JSON.stringify(inheritance));
 					const links = bindDocumentationLinks(analysisContext(facts, {}));
 					assert.equal(links.ok, true);
+
 					// Only base contains a local API link; middle and derived receive it through inheritance.
 					assert.equal(links.value.length, 1);
 					const result = resolveDocumentation(
@@ -2068,25 +2105,29 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					);
 					assert.equal(result.ok, true);
 					const receiver = facts.declarations.find((entry) => entry.name === "derived");
-					assert.ok(receiver);
+					assert(receiver !== undefined);
 					const derived = result.value.find(
 						(entry) => entry.id === receiver.signatures[0]?.id,
 					);
-					assert.ok(derived?.documentation !== undefined);
+					assert(derived?.documentation !== undefined);
+
 					// Share the pure resolver's expected comment to check compiler-backed and synthetic inputs agree.
 					assertSnapshot(derived.documentation, "documentation.inherited-link.txt");
 					assert.equal(derived.inheritedFrom.length, 2);
+
 					// Inheritance preserves the original occurrence, not a new binding in derived's scope.
 					assert.deepEqual(derived.links, links.value);
 					assert.equal(derived.links[0]?.origin.file, "declarations/inheritance-links.d.ts");
+
 					// A same-named internal target exists in the receiving module and must not replace this beta target.
 					const originalTarget = facts.declarations.find(
 						(entry) =>
 							entry.name === "target" &&
 							entry.declarations[0]?.file === "declarations/inheritance-links.d.ts",
 					);
-					assert.ok(originalTarget);
+					assert(originalTarget !== undefined);
 					assert.equal(derived.links[0]?.target, originalTarget.id);
+
 					// The public view excludes both ancestors and the link target, but they still supply resolution data.
 					const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
 					const selected = selectApiItems(classification.value, selection);
@@ -2122,9 +2163,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const linked = analysis.value.declarations.find((entry) => entry.name === "linked");
-					assert.ok(linked);
+					assert(linked !== undefined);
 					const signature = linked.signatures[0];
-					assert.ok(signature?.documentationContext);
+					assert(signature?.documentationContext !== undefined);
 					const context = signature.documentationContext;
 					assert.equal(context.origin.file, "declarations/documentation-links.d.ts");
 					assert.equal(context.origin.packageName, "example");
@@ -2142,10 +2183,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const overloaded = analysis.value.declarations.find(
 						(entry) => entry.name === "overloaded",
 					);
-					assert.ok(localBase);
-					assert.ok(importedBase);
-					assert.ok(hidden);
-					assert.ok(overloaded);
+					assert(localBase !== undefined);
+					assert(importedBase !== undefined);
+					assert(hidden !== undefined);
+					assert(overloaded !== undefined);
 					assert.deepEqual(context.links, [
 						{ reference: "base", status: "resolved", target: localBase.id },
 						{ reference: "imported", status: "resolved", target: importedBase.id },
@@ -2207,17 +2248,17 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					},
 					directory,
 				);
-				assert.ok(configuration.ok);
+				assert(configuration.ok);
 				const adapter = createNativeAdapter();
 				try {
 					const analysis = adapter.analyze(configuration.value);
-					assert.ok(analysis.ok, JSON.stringify(analysis));
+					assert(analysis.ok, JSON.stringify(analysis));
 					adapter.close();
 					const options = { customModifierTags: ["@sourceOnly", "@localOnly"] };
 					const before = JSON.stringify({ facts: analysis.value, options });
 					const inputs = analysis.value.declarations.flatMap((declaration) =>
 						declaration.signatures.map((signature) => {
-							assert.ok(signature.documentationContext);
+							assert(signature.documentationContext !== undefined);
 							return {
 								id: signature.id,
 								documentation: signature.documentation,
@@ -2226,32 +2267,32 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						}),
 					);
 					const classified = classifyApiItems(documentationContext(inputs, options));
-					assert.ok(classified.ok);
+					assert(classified.ok);
 					const selection = {
 						name: "public",
 						releaseLevels: [ReleaseLevel.Public],
 						requireTags: ["@localOnly"],
 					};
 					const selected = selectApiItems(classified.value, selection);
-					assert.ok(selected.ok);
+					assert(selected.ok);
 					assert.equal(selected.value.items.length, 1);
 					const bindings = bindDocumentationReferences(
 						analysisContext(analysis.value, options),
 					);
-					assert.ok(bindings.ok, JSON.stringify(bindings));
+					assert(bindings.ok, JSON.stringify(bindings));
 					assert.equal(bindings.value.length, 1);
 					const result = resolveDocumentation(
 						documentationContext(inputs, options),
 						bindings.value,
 					);
-					assert.ok(result.ok);
+					assert(result.ok);
 					const derived = result.value.find(
 						(entry) => entry.id === selected.value.items[0]?.id,
 					);
-					assert.ok(derived?.documentation !== undefined);
+					assert(derived?.documentation !== undefined);
 					assert.notEqual(derived.documentation, "");
-					assert.ok(derived.documentation.includes("Summary."));
-					assert.ok(derived.documentation.includes("@localOnly"));
+					assert(derived.documentation.includes("Summary."));
+					assert(derived.documentation.includes("@localOnly"));
 					assert.equal(derived.documentation.includes("@sourceOnly"), false);
 					assert.equal(derived.documentation.includes("@internal"), false);
 					assert.deepEqual(derived.inheritedFrom, [bindings.value[0]?.target]);
@@ -2264,13 +2305,13 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const unconfigured = bindDocumentationReferences(
 							analysisContext(analysis.value, { customModifierTags }),
 						);
-						assert.ok(!unconfigured.ok);
+						assert(!unconfigured.ok);
 						assert.equal(unconfigured.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
 					}
 					assert.equal(JSON.stringify({ facts: analysis.value, options }), before);
 					assert.equal(Object.isFrozen(options.customModifierTags), false);
-					assert.ok(Object.isFrozen(result.value));
-					assert.ok(Object.isFrozen(bindings.value));
+					assert(Object.isFrozen(result.value));
+					assert(Object.isFrozen(bindings.value));
 				} finally {
 					adapter.close();
 				}
@@ -2285,11 +2326,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					},
 					directory,
 				);
-				assert.ok(configuration.ok);
+				assert(configuration.ok);
 				const adapter = createNativeAdapter();
 				try {
 					const analysis = adapter.analyze(configuration.value);
-					assert.ok(analysis.ok, JSON.stringify(analysis));
+					assert(analysis.ok, JSON.stringify(analysis));
 					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					const base = analysis.value.declarations.find(
@@ -2298,11 +2339,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const derived = analysis.value.declarations.find(
 						(declaration) => declaration.name === "derived",
 					);
-					assert.ok(base?.signatures[0]);
-					assert.ok(derived?.signatures[0]);
+					assert(base?.signatures[0] !== undefined);
+					assert(derived?.signatures[0] !== undefined);
 					const inputs = [base, derived].flatMap((declaration) => {
 						const origin = declaration.declarations[0];
-						assert.ok(origin);
+						assert(origin !== undefined);
 						return declaration.signatures.map((signature) => ({
 							id: signature.id,
 							documentation: signature.documentation,
@@ -2310,9 +2351,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						}));
 					});
 					const classification = classifyApiItems(documentationContext(inputs));
-					assert.ok(classification.ok);
+					assert(classification.ok);
 					const bindings = bindDocumentationReferences(analysisContext(analysis.value, {}));
-					assert.ok(bindings.ok, JSON.stringify(bindings));
+					assert(bindings.ok, JSON.stringify(bindings));
 					assert.deepEqual(bindings.value, [
 						{
 							source: derived.signatures[0].id,
@@ -2324,14 +2365,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						documentationContext(inputs, {}),
 						bindings.value,
 					);
-					assert.ok(result.ok, JSON.stringify(result));
+					assert(result.ok, JSON.stringify(result));
 					const effective = result.value.find(
 						(entry) => entry.id === derived.signatures[0]?.id,
 					);
-					assert.ok(effective?.documentation !== undefined);
+					assert(effective?.documentation !== undefined);
 					assert.notEqual(effective.documentation, "");
 					assertSnapshot(effective.documentation, "documentation.direct.txt");
-					assert.ok(effective.documentation.includes("Converts a value."));
+					assert(effective.documentation.includes("Converts a value."));
 					assert.equal(effective.documentation.includes("@internal"), false);
 					assert.equal(effective.documentation.includes("@inheritDoc"), false);
 					assert.deepEqual(effective.inheritedFrom, [base.signatures[0].id]);
@@ -2354,22 +2395,22 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						},
 						directory,
 					);
-					assert.ok(configuration.ok);
+					assert(configuration.ok);
 					const adapter = createNativeAdapter();
 					try {
 						const analysis = adapter.analyze(configuration.value);
-						assert.ok(analysis.ok, JSON.stringify(analysis));
+						assert(analysis.ok, JSON.stringify(analysis));
 						adapter.close();
 						const context = analysisContext(analysis.value, {});
 						const result = bindDocumentationReferences(context);
 						if (fixture.expected === undefined) {
-							assert.ok(result.ok, JSON.stringify(result));
+							assert(result.ok, JSON.stringify(result));
 							assert.equal(result.value.length, fixture.name === "selector" ? 4 : 1);
 							assert.equal(
 								result.value.some((binding) => binding.reference === fixture.reference),
 								true,
 							);
-							assert.ok(Object.isFrozen(result.value));
+							assert(Object.isFrozen(result.value));
 							if (fixture.name === "selector") {
 								const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
 								assert.deepEqual(
@@ -2382,8 +2423,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								const derived = analysis.value.declarations.find(
 									(entry) => entry.name === "derived",
 								);
-								assert.ok(base);
-								assert.ok(derived);
+								assert(base !== undefined);
+								assert(derived !== undefined);
 								assert.equal(
 									result.value.find((binding) => binding.reference === fixture.reference)
 										?.target,
@@ -2395,8 +2436,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								const effectiveRedirect = analysis.value.declarations
 									.find((entry) => entry.name === "MethodRedirect")
 									?.members.find((member) => member.name === "operation")?.signatures[0];
-								assert.ok(methodTarget?.signatures[1]);
-								assert.ok(effectiveRedirect);
+								assert(methodTarget?.signatures[1] !== undefined);
+								assert(effectiveRedirect !== undefined);
 								assert.equal(
 									result.value.find((binding) => binding.source === effectiveRedirect.id)
 										?.target,
@@ -2414,11 +2455,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								const fromMethod = analysis.value.declarations.find(
 									(entry) => entry.name === "fromMethod",
 								);
-								assert.ok(fromMethod);
+								assert(fromMethod !== undefined);
 								const inheritedMethod = resolved.value.find(
 									(entry) => entry.id === fromMethod.signatures[0]?.id,
 								);
-								assert.ok(inheritedMethod);
+								assert(inheritedMethod !== undefined);
 								assert.equal(inheritedMethod.documentation?.includes("String method."), true);
 								assert.equal(inheritedMethod.inheritedFrom.length, 2);
 								assert.equal(inheritedMethod.links.length, 1);
@@ -2429,7 +2470,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								const effectiveMethod = resolved.value.find(
 									(entry) => entry.id === effectiveRedirect.id,
 								);
-								assert.ok(effectiveMethod);
+								assert(effectiveMethod !== undefined);
 								assert.equal(effectiveMethod.documentation?.includes("String method."), true);
 								assert.deepEqual(effectiveMethod.inheritedFrom, [
 									methodTarget.signatures[1].id,
@@ -2442,7 +2483,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								);
 							}
 						} else {
-							assert.ok(!result.ok, fixture.name);
+							assert(!result.ok, fixture.name);
 							assert.equal(result.diagnostics[0]?.code, fixture.expected, fixture.name);
 							assert.equal("value" in result, false);
 						}
@@ -2465,7 +2506,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const source = project.program.getSourceFile(
 					path.join(directory, "declarations/binding-selector.d.ts"),
 				);
-				assert.ok(source);
+				assert(source !== undefined);
 				for (const [reference, status] of [
 					["MethodSource.(operation:2)", "resolved"],
 					["MethodSource.missing", "not-found"],
@@ -2504,15 +2545,15 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						},
 						directory,
 					);
-					assert.ok(configuration.ok);
+					assert(configuration.ok);
 					const adapter = createNativeAdapter();
 					try {
 						const analysis = adapter.analyze(configuration.value);
-						assert.ok(analysis.ok, JSON.stringify(analysis));
+						assert(analysis.ok, JSON.stringify(analysis));
 						adapter.close();
 						const detached = JSON.parse(JSON.stringify(analysis.value)) as AnalysisFacts;
 						const bindings = bindDocumentationReferences(analysisContext(detached, {}));
-						assert.ok(bindings.ok, JSON.stringify(bindings));
+						assert(bindings.ok, JSON.stringify(bindings));
 						const expectedName = name === "hidden" ? "hidden" : "base";
 						const expectedFile =
 							name === "hidden"
@@ -2523,7 +2564,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								declaration.name === expectedName &&
 								declaration.declarations[0]?.file === expectedFile,
 						);
-						assert.ok(targetDeclaration?.signatures[0]);
+						assert(targetDeclaration?.signatures[0] !== undefined);
 						assert.equal(bindings.value[0]?.target, targetDeclaration.signatures[0].id);
 						assert.equal(
 							analysis.value.surfaces[0]?.exports.some(
@@ -2570,6 +2611,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const analysis = adapter.analyze(configuration.value);
 						assert.equal(analysis.ok, true);
 						adapter.close();
+
 						// Report resolution must work from plain serialized facts without a live compiler or caches.
 						const before = JSON.stringify(analysis.value);
 						const facts = JSON.parse(before) as AnalysisFacts;
@@ -2593,6 +2635,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						);
 						assert.equal(report.ok, true, JSON.stringify(report));
 						assert.equal(report.value.exports[0]?.signatures[0]?.documented, documented);
+
 						// The pure and compiler-backed paths must agree on complete output, including local-only tags.
 						assertSnapshot(
 							renderReviewReport(report.value, { additionalTags: ["@deprecated"] }),
@@ -2621,18 +2664,18 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					},
 					directory,
 				);
-				assert.ok(configuration.ok);
+				assert(configuration.ok);
 				const adapter = createNativeAdapter();
 				try {
 					const analysis = adapter.analyze(configuration.value);
-					assert.ok(analysis.ok, JSON.stringify(analysis));
+					assert(analysis.ok, JSON.stringify(analysis));
 					const classification = classifyApiItems(
 						documentationContext(
 							analysis.value.declarations.flatMap((item) => item.signatures),
 							{ customModifierTags: ["@partner"] },
 						),
 					);
-					assert.ok(classification.ok, JSON.stringify(classification));
+					assert(classification.ok, JSON.stringify(classification));
 					adapter.close();
 					const before = JSON.stringify(analysis.value);
 					for (const [name, releaseLevels] of [
@@ -2640,7 +2683,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						["complete", [ReleaseLevel.Public, ReleaseLevel.Internal]],
 					] as const) {
 						const selection = selectApiItems(classification.value, { name, releaseLevels });
-						assert.ok(selection.ok);
+						assert(selection.ok);
 						const report = createReviewReport(
 							prepareReviewReport(
 								success(
@@ -2652,10 +2695,10 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							"./functions",
 							{ name, releaseLevels },
 						);
-						assert.ok(report.ok, JSON.stringify(report));
+						assert(report.ok, JSON.stringify(report));
 						const text = renderReviewReport(report.value);
 						const expected = assertSnapshot(text, `functions.${name}.md`);
-						assert.ok(compareReviewBaseline(text, expected).ok);
+						assert(compareReviewBaseline(text, expected).ok);
 					}
 					assert.equal(JSON.stringify(analysis.value), before);
 				} finally {
@@ -2668,7 +2711,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		// compiler API supports retained-program emit, or replace with tests of the approved generation path.
 		// TS7 7.0.2 exposes neither method. Skipping this probe does not remove the rollup requirement.
 		it.skip("retained Program exposes declaration emission", () => {
-			assert.ok(
+			assert(
 				"emit" in project.program || "getDeclarationEmit" in project.program,
 				"TS7 7.0.2 has no public Program declaration emit method; a generation strategy needs review",
 			);

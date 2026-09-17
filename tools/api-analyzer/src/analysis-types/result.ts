@@ -20,10 +20,12 @@ export enum DiagnosticCode {
 	 * A selected dependency model is missing, incompatible, or structurally invalid.
 	 */
 	DependencyModel = "dependency-model",
+
 	/**
 	 * A configured declaration or documentation reference policy rejected an API relationship.
 	 */
 	ReferencePolicy = "reference-policy",
+
 	/**
 	 * Required release tags are absent, or custom modifier definitions are invalid.
 	 *
@@ -33,6 +35,7 @@ export enum DiagnosticCode {
 	 * Missing internal classification records are assertion failures, not configuration diagnostics.
 	 */
 	DocumentationConfiguration = "documentation-configuration",
+
 	/**
 	 * A documentation comment failed TSDoc parsing.
 	 *
@@ -41,6 +44,7 @@ export enum DiagnosticCode {
 	 * Register custom modifier tags with the same options used for classification, binding, and resolution.
 	 */
 	DocumentationTsdoc = "documentation-tsdoc",
+
 	/**
 	 * A documentation inheritance reference or API link target failed validation.
 	 *
@@ -51,6 +55,7 @@ export enum DiagnosticCode {
 	 * Missing or inconsistent internal lookup facts and bindings are assertion failures.
 	 */
 	DocumentationReference = "documentation-reference",
+
 	/**
 	 * A non-internal API links to an internal API.
 	 *
@@ -60,6 +65,7 @@ export enum DiagnosticCode {
 	 * Inherited links are checked against each receiving API's original release level.
 	 */
 	DocumentationLinkPolicy = "documentation-link-policy",
+
 	/**
 	 * A comment requests a documentation feature that is not supported.
 	 *
@@ -69,6 +75,7 @@ export enum DiagnosticCode {
 	 * See the diagnostic message for the specific limitation.
 	 */
 	DocumentationUnsupported = "documentation-unsupported",
+
 	/**
 	 * Explicit documentation inheritance contains a cycle.
 	 *
@@ -76,6 +83,7 @@ export enum DiagnosticCode {
 	 * Remove a cyclic request or replace it with local descriptive documentation.
 	 */
 	DocumentationCycle = "documentation-cycle",
+
 	/**
 	 * A report request has an unknown entrypoint.
 	 *
@@ -84,6 +92,7 @@ export enum DiagnosticCode {
 	 * Invalid internal selections are assertion failures.
 	 */
 	ReportConfiguration = "report-configuration",
+
 	/**
 	 * Required analysis settings are missing or blank.
 	 *
@@ -91,6 +100,7 @@ export enum DiagnosticCode {
 	 * Supply a non-blank package name and project path, and at least one entrypoint.
 	 */
 	ConfigurationRequired = "configuration-required",
+
 	/**
 	 * An entrypoint name or path is blank.
 	 *
@@ -98,6 +108,7 @@ export enum DiagnosticCode {
 	 * Supply a non-blank name and path for each entrypoint.
 	 */
 	ConfigurationEntrypoint = "configuration-entrypoint",
+
 	/**
 	 * More than one configured entrypoint has the same name.
 	 *
@@ -105,6 +116,7 @@ export enum DiagnosticCode {
 	 * Give each entrypoint a distinct name or remove duplicate entries.
 	 */
 	DuplicateEntrypoint = "duplicate-entrypoint",
+
 	/**
 	 * The working directory is not an absolute path.
 	 *
@@ -112,6 +124,7 @@ export enum DiagnosticCode {
 	 * Pass an absolute working directory when resolving configuration.
 	 */
 	ConfigurationDirectory = "configuration-directory",
+
 	/**
 	 * Configuration inheritance contains a cycle.
 	 *
@@ -119,6 +132,7 @@ export enum DiagnosticCode {
 	 * Remove the cyclic inheritance reference from the configuration's `extends` values.
 	 */
 	ConfigurationCycle = "configuration-cycle",
+
 	/**
 	 * A configuration property has an invalid value type.
 	 *
@@ -126,6 +140,7 @@ export enum DiagnosticCode {
 	 * Use the diagnostic message to correct invalid settings or inherited configuration.
 	 */
 	ConfigurationInvalid = "configuration-invalid",
+
 	/**
 	 * The project configuration does not exist or the compiler cannot open the project.
 	 *
@@ -133,6 +148,7 @@ export enum DiagnosticCode {
 	 * Check the configured project path and make sure the project configuration is available.
 	 */
 	ProjectMissing = "project-missing",
+
 	/**
 	 * The compiler reported diagnostics before fact extraction.
 	 *
@@ -140,6 +156,7 @@ export enum DiagnosticCode {
 	 * Correct the compiler diagnostics included in the message, then analyze the project again.
 	 */
 	CompilerDiagnostics = "compiler-diagnostics",
+
 	/**
 	 * A configured entrypoint is not a source file in the compiler project.
 	 *
@@ -148,6 +165,7 @@ export enum DiagnosticCode {
 	 * Build the declaration inputs first if the project requires them.
 	 */
 	EntrypointMissing = "entrypoint-missing",
+
 	/**
 	 * The compiler cannot identify a module symbol for an entrypoint.
 	 *
@@ -155,6 +173,7 @@ export enum DiagnosticCode {
 	 * Use an entrypoint that the compiler recognizes as a module, with imports or exports.
 	 */
 	EntrypointModule = "entrypoint-module",
+
 	/**
 	 * A declaration's effective member list is incomplete.
 	 *
@@ -163,6 +182,7 @@ export enum DiagnosticCode {
 	 * Do not present the extracted member list as complete.
 	 */
 	MemberExpansionIncomplete = "member-expansion-incomplete",
+
 	/**
 	 * A custom modifier tag definition is invalid or duplicates an existing definition.
 	 *
@@ -171,6 +191,7 @@ export enum DiagnosticCode {
 	 * Do not redefine standard tags or repeat custom tag names.
 	 */
 	ClassificationConfiguration = "classification-configuration",
+
 	/**
 	 * The TSDoc parser reported a diagnostic for an input comment.
 	 *
@@ -180,6 +201,7 @@ export enum DiagnosticCode {
 	 * This setting does not suppress release-level checks.
 	 */
 	ClassificationTsdoc = "classification-tsdoc",
+
 	/**
 	 * A documentation input declares more than one release level.
 	 *
@@ -187,6 +209,7 @@ export enum DiagnosticCode {
 	 * Keep exactly one release tag for the input. This check cannot be disabled.
 	 */
 	ClassificationReleaseConflict = "classification-release-conflict",
+
 	/**
 	 * A documentation input has no release level and the classification policy requires one.
 	 *
@@ -194,6 +217,7 @@ export enum DiagnosticCode {
 	 * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.
 	 */
 	ClassificationReleaseMissing = "classification-release-missing",
+
 	/**
 	 * A selection has a blank name, an unsupported release level, or an unknown modifier filter.
 	 *
@@ -201,6 +225,7 @@ export enum DiagnosticCode {
 	 * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.
 	 */
 	SelectionConfiguration = "selection-configuration",
+
 	/**
 	 * No accepted review baseline exists.
 	 *
@@ -209,6 +234,7 @@ export enum DiagnosticCode {
 	 * Checking alone never accepts generated text.
 	 */
 	BaselineMissing = "baseline-missing",
+
 	/**
 	 * Generated review text differs from the expected baseline.
 	 *
@@ -230,6 +256,7 @@ export interface AnalyzerDiagnostic {
 	 * The diagnostic category used for programmatic checks. See {@link DiagnosticCode} for corrective actions.
 	 */
 	readonly code: DiagnosticCode;
+
 	/**
 	 * A human-readable description of the problem and, when available, a corrective action.
 	 */
@@ -252,6 +279,7 @@ export type Result<Value> =
 			 * Indicates that the operation succeeded.
 			 */
 			readonly ok: true;
+
 			/**
 			 * The successful operation's value.
 			 */
@@ -262,6 +290,7 @@ export type Result<Value> =
 			 * Indicates that the operation failed.
 			 */
 			readonly ok: false;
+
 			/**
 			 * Diagnostics that explain the operation's failure.
 			 */

@@ -13,6 +13,7 @@ export interface Entrypoint {
 	 * Must be nonempty and unique within the effective configuration.
 	 */
 	readonly name: string;
+
 	/**
 	 * The path to the entrypoint file.
 	 *
@@ -37,11 +38,13 @@ export interface Configuration extends TsdocOptions {
 	 * @defaultValue The inherited suite. If none is supplied, no dependency models are loaded.
 	 */
 	readonly suite?: SuiteConfiguration;
+
 	/**
 	 * Configured declaration-reference policies. Local values replace the inherited policy object.
 	 * @defaultValue Inherited policies. If none are supplied, optional reference checks are disabled.
 	 */
 	readonly referencePolicies?: ReferencePolicies;
+
 	/**
 	 * Base configurations applied in array order before this configuration.
 	 *
@@ -52,6 +55,7 @@ export interface Configuration extends TsdocOptions {
 	 * @defaultValue No base configurations.
 	 */
 	readonly extends?: readonly Configuration[];
+
 	/**
 	 * The package name used to identify the analyzed package in API facts.
 	 *
@@ -61,6 +65,7 @@ export interface Configuration extends TsdocOptions {
 	 * @defaultValue The inherited package name. If none is supplied, configuration resolution fails.
 	 */
 	readonly packageName?: string;
+
 	/**
 	 * The package root directory used to determine declaration origins.
 	 *
@@ -70,6 +75,7 @@ export interface Configuration extends TsdocOptions {
 	 * @defaultValue The inherited package root, or the caller's working directory if none is supplied.
 	 */
 	readonly packageRoot?: string;
+
 	/**
 	 * The path to the TypeScript project configuration that controls analysis and module resolution.
 	 *
@@ -80,6 +86,7 @@ export interface Configuration extends TsdocOptions {
 	 * @defaultValue The inherited project path. If none is supplied, configuration resolution fails.
 	 */
 	readonly project?: string;
+
 	/**
 	 * The entrypoints to analyze in the selected TypeScript project.
 	 *
@@ -90,6 +97,7 @@ export interface Configuration extends TsdocOptions {
 	 * @defaultValue The inherited entrypoint list. If none is supplied, configuration resolution fails.
 	 */
 	readonly entrypoints?: readonly Entrypoint[];
+
 	/**
 	 * Enabled or disabled classification rules.
 	 *
@@ -114,19 +122,23 @@ export interface EffectiveConfiguration {
 	 * @defaultValue Omitted when no suite is configured; no dependency discovery or model loading runs.
 	 */
 	readonly suite?: SuiteConfiguration;
+
 	/**
 	 * Declaration-reference policies after configuration inheritance.
 	 * @defaultValue Omitted when no policies are configured; analysis uses an empty policy object.
 	 */
 	readonly referencePolicies?: ReferencePolicies;
+
 	/**
 	 * The resolved, nonempty package name used in API facts.
 	 */
 	readonly packageName: string;
+
 	/**
 	 * The absolute package root directory, including the working-directory default when applicable.
 	 */
 	readonly packageRoot: string;
+
 	/**
 	 * The absolute path to the TypeScript project configuration used for analysis.
 	 *
@@ -134,6 +146,7 @@ export interface EffectiveConfiguration {
 	 * Configuration resolution does not check whether the file exists.
 	 */
 	readonly project: string;
+
 	/**
 	 * The resolved, nonempty entrypoint list with unique names and absolute file paths.
 	 *
@@ -141,6 +154,7 @@ export interface EffectiveConfiguration {
 	 * The analyzer checks that the files belong to the selected TypeScript project.
 	 */
 	readonly entrypoints: readonly Entrypoint[];
+
 	/**
 	 * The merged rule settings after inheritance and overrides, or an empty map if none were supplied.
 	 *
@@ -148,6 +162,7 @@ export interface EffectiveConfiguration {
 	 * Omitted classification rules use their documented defaults.
 	 */
 	readonly rules: ClassificationRules;
+
 	/**
 	 * Custom modifier names shared by classification and documentation processing.
 	 */
@@ -163,6 +178,7 @@ export interface SuiteConfiguration {
 	 * Every selector must match at least one dependency.
 	 */
 	readonly packages: readonly string[];
+
 	/**
 	 * Artifact path relative to each selected package root, without absolute paths or parent traversal.
 	 * Each selected artifact is required even when no documentation reference uses it.

@@ -27,7 +27,7 @@ describe("Release classification and metadata selection", () => {
 				})),
 			),
 		);
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		assert.deepEqual(
 			result.value.items.map((item) => item.releaseLevel),
 			[0, 1, 2, 3],
@@ -44,20 +44,20 @@ describe("Release classification and metadata selection", () => {
 				{ customModifierTags: ["@partner", "@preview"] },
 			),
 		);
-		assert.ok(result.ok);
+		assert(result.ok);
 		const selection = {
 			name: "both",
 			releaseLevels: [ReleaseLevel.Public] as const,
 			requireTags: ["@partner", "@preview"],
 		};
 		const selected = selectApiItems(result.value, selection);
-		assert.ok(selected.ok);
+		assert(selected.ok);
 		assert.deepEqual(
 			selected.value.items.map((item) => item.id),
 			["both"],
 		);
 		const excluded = selectApiItems(result.value, { ...selection, excludeTags: ["@partner"] });
-		assert.ok(excluded.ok);
+		assert(excluded.ok);
 		assert.deepEqual(excluded.value.items, []);
 	});
 
@@ -74,7 +74,7 @@ describe("Release classification and metadata selection", () => {
 				{ rules: { requireReleaseLevel: false } },
 			),
 		);
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		assert.deepEqual(
 			result.value.items.map((item) => item.releaseLevel),
 			[undefined, ReleaseLevel.Public],
@@ -84,7 +84,7 @@ describe("Release classification and metadata selection", () => {
 		);
 		assert.equal(malformed.ok, false);
 		if (!malformed.ok) {
-			assert.ok(
+			assert(
 				malformed.diagnostics.some(
 					(diagnostic) => diagnostic.code === DiagnosticCode.ClassificationTsdoc,
 				),
@@ -98,13 +98,13 @@ describe("Release classification and metadata selection", () => {
 			{ id: "experimental", documentation: "/** @alpha */" },
 		];
 		const result = classifyApiItems(documentationContext(inputs));
-		assert.ok(result.ok);
+		assert(result.ok);
 		assert.deepEqual(result, classifyApiItems(documentationContext([...inputs].reverse())));
 		const alpha = selectApiItems(result.value, {
 			name: "alpha-only",
 			releaseLevels: [ReleaseLevel.Alpha],
 		});
-		assert.ok(alpha.ok);
+		assert(alpha.ok);
 		assert.deepEqual(
 			alpha.value.items.map((item) => item.id),
 			["experimental"],
@@ -140,7 +140,7 @@ describe("Release classification and metadata selection", () => {
 			},
 		];
 		const result = classifyApiItems(documentationContext(inputs));
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		assert.deepEqual(
 			result.value.items.map((item) => [item.id, item.releaseLevel]),
 			[
@@ -149,8 +149,8 @@ describe("Release classification and metadata selection", () => {
 				["text", ReleaseLevel.Public],
 			],
 		);
-		assert.ok(result.value.items[0]);
-		assert.ok(Object.isFrozen(result.value.items[0].modifierTags));
+		assert(result.value.items[0] !== undefined);
+		assert(Object.isFrozen(result.value.items[0].modifierTags));
 		assert.equal(Object.isFrozen(inputs[0]), false);
 	});
 
@@ -167,14 +167,14 @@ describe("Release classification and metadata selection", () => {
 				{ customModifierTags: ["@partner"] },
 			),
 		);
-		assert.ok(result.ok, JSON.stringify(result));
+		assert(result.ok, JSON.stringify(result));
 		const before = JSON.stringify(result.value);
 		const selected = selectApiItems(result.value, {
 			name: "partner",
 			releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
 			requireTags: ["@partner"],
 		});
-		assert.ok(selected.ok, JSON.stringify(selected));
+		assert(selected.ok, JSON.stringify(selected));
 		assert.deepEqual(
 			selected.value.items.map((item) => item.id),
 			["preview", "supported"],
@@ -184,13 +184,13 @@ describe("Release classification and metadata selection", () => {
 			releaseLevels: [ReleaseLevel.Public],
 			excludeTags: ["@partner"],
 		});
-		assert.ok(current.ok);
+		assert(current.ok);
 		assert.deepEqual(
 			current.value.items.map((item) => item.id),
 			["current"],
 		);
 		assert.equal(JSON.stringify(result.value), before);
-		assert.ok(Object.isFrozen(selected.value.items));
+		assert(Object.isFrozen(selected.value.items));
 	});
 
 	// Design requirement: W2.
@@ -219,7 +219,7 @@ describe("Release classification and metadata selection", () => {
 			if (!result.ok) {
 				const restored = JSON.parse(JSON.stringify(result)) as typeof result;
 				assert.equal(restored.diagnostics[0]?.code, serializedCode);
-				assert.ok(
+				assert(
 					result.diagnostics.some(
 						(diagnostic) =>
 							diagnostic.code === code && diagnostic.message.includes("affected"),
@@ -237,26 +237,26 @@ describe("Release classification and metadata selection", () => {
 				rules: { requireReleaseLevel: false },
 			}),
 		);
-		assert.ok(result.ok, JSON.stringify(result));
-		assert.ok(result.value.items[0]);
+		assert(result.ok, JSON.stringify(result));
+		assert(result.value.items[0] !== undefined);
 		assert.equal(result.value.items[0].releaseLevel, undefined);
 		const excluded = selectApiItems(result.value, {
 			name: "tagged",
 			releaseLevels: [ReleaseLevel.Public],
 		});
-		assert.ok(excluded.ok);
+		assert(excluded.ok);
 		assert.deepEqual(excluded.value.items, []);
 		const included = selectApiItems(result.value, {
 			name: "all",
 			releaseLevels: [],
 			includeUntagged: true,
 		});
-		assert.ok(included.ok);
+		assert(included.ok);
 		assert.equal(included.value.items.length, 1);
 		const restored = JSON.parse(JSON.stringify(result.value)) as ApiClassification & {
 			items: ApiItemMetadata[];
 		};
-		assert.ok(restored.items[0]);
+		assert(restored.items[0] !== undefined);
 		assert.equal(Object.hasOwn(restored.items[0], "releaseLevel"), false);
 		assert.equal(restored.items[0].releaseLevel, undefined);
 		restored.items.push({
@@ -268,7 +268,7 @@ describe("Release classification and metadata selection", () => {
 			name: "public",
 			releaseLevels: [ReleaseLevel.Public],
 		});
-		assert.ok(publicOnly.ok);
+		assert(publicOnly.ok);
 		assert.deepEqual(
 			publicOnly.value.items.map((item) => item.id),
 			["public"],
@@ -278,7 +278,7 @@ describe("Release classification and metadata selection", () => {
 			releaseLevels: [],
 			includeUntagged: true,
 		});
-		assert.ok(untaggedOnly.ok);
+		assert(untaggedOnly.ok);
 		assert.deepEqual(untaggedOnly.value, { ...included.value, name: "untagged" });
 	});
 
@@ -287,7 +287,7 @@ describe("Release classification and metadata selection", () => {
 		for (const documentation of [undefined, "/** */"]) {
 			const item = { id: "item", documentation };
 			const result = classifyApiItems(documentationContext([item], options));
-			assert.ok(result.ok, JSON.stringify(result));
+			assert(result.ok, JSON.stringify(result));
 			assert.equal(result.value.items[0]?.releaseLevel, undefined);
 			assert.equal(item.documentation, documentation);
 		}
@@ -296,7 +296,7 @@ describe("Release classification and metadata selection", () => {
 		);
 		assert.equal(invalid.ok, false);
 		if (!invalid.ok) {
-			assert.ok(
+			assert(
 				invalid.diagnostics.some(
 					(diagnostic) => diagnostic.code === DiagnosticCode.ClassificationTsdoc,
 				),
@@ -310,7 +310,7 @@ describe("Release classification and metadata selection", () => {
 		const failed = classifyApiItems(documentationContext(inputs));
 		assert.equal(failed.ok, false);
 		if (!failed.ok) {
-			assert.ok(
+			assert(
 				failed.diagnostics.some(
 					(diagnostic) =>
 						diagnostic.code === DiagnosticCode.ClassificationTsdoc &&
@@ -321,7 +321,7 @@ describe("Release classification and metadata selection", () => {
 		const tolerant = classifyApiItems(
 			documentationContext(inputs, { rules: { validateTsdocSyntax: false } }),
 		);
-		assert.ok(tolerant.ok);
+		assert(tolerant.ok);
 		assert.equal(tolerant.value.items[0]?.releaseLevel, ReleaseLevel.Public);
 		assert.deepEqual(tolerant.value.items[0]?.modifierTags, ["@public"]);
 		const missing = classifyApiItems(
@@ -380,7 +380,7 @@ describe("Release classification and metadata selection", () => {
 		const result = classifyApiItems(
 			documentationContext([{ id: "item", documentation: "/** @public */" }]),
 		);
-		assert.ok(result.ok);
+		assert(result.ok);
 		const invalid = selectApiItems(result.value, {
 			name: "typo",
 			releaseLevels: [ReleaseLevel.Public],
@@ -397,6 +397,6 @@ describe("Release classification and metadata selection", () => {
 		assert.deepEqual(first, second);
 		assert.equal(Object.isFrozen(mutable.items[0]), false);
 		assert.equal(Object.isFrozen(selection), false);
-		assert.ok(Object.isFrozen(first));
+		assert(Object.isFrozen(first));
 	});
 });

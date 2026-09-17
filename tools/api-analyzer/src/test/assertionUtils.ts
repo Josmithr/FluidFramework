@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
  */
 export function assertAssertionError(action: () => unknown, message: string): void {
 	assert.throws(action, (error: unknown) => {
-		assert.ok(error instanceof assert.AssertionError);
+		assert(error instanceof assert.AssertionError);
 		assert.equal(error.message.split("\n", 1)[0], message);
 		return true;
 	});

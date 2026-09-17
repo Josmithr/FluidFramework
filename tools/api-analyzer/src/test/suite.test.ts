@@ -65,6 +65,7 @@ describe("Dependency suite models", () => {
 		const accepted = await analyzeAPIs(configuration, directory);
 		assert.equal(accepted.ok, true, JSON.stringify(accepted));
 		assert.equal(readFileSync(file, "utf8"), model);
+
 		// Even unused models must correspond to the declarations installed beside them.
 		const declarationFile = path.join(dependencyRoot, "index.d.ts");
 		const declarationText = readFileSync(declarationFile, "utf8");
@@ -82,7 +83,8 @@ describe("Dependency suite models", () => {
 		const decoded = decodeDependencyModel(model, "dependency");
 		assert.equal(decoded.ok, true);
 		const linked = decoded.value.apis.find((item) => item.name === "source");
-		assert.ok(linked);
+		assert(linked !== undefined);
+
 		// Corrupted resolved data must fail decoding before it can reach resolver invariants.
 		for (const documentation of [
 			{ ...linked.documentation, links: [] },
@@ -145,7 +147,7 @@ describe("Dependency suite models", () => {
 		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
 		assert.equal(model.ok, true, JSON.stringify(model));
 		const consumer = model.value.apis.find((api) => api.name === "consumer");
-		assert.ok(consumer);
+		assert(consumer !== undefined);
 		assert.equal(consumer.documentation.documented, true);
 		assert.equal(consumer.documentation.links[0]?.origin.packageName, "dependency");
 		assert.equal(

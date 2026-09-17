@@ -36,7 +36,7 @@ export function documentationContext<Input extends ApiItemDocumentation>(
 		options,
 		DiagnosticCode.ClassificationConfiguration,
 	);
-	assert.ok(context.ok, JSON.stringify(context));
+	assert(context.ok, JSON.stringify(context));
 	return context.value;
 }
 
@@ -61,7 +61,7 @@ export function analysisContext(
 		...options,
 		rules: { requireReleaseLevel: false, validateTsdocSyntax: false, ...options.rules },
 	});
-	assert.ok(context.ok, JSON.stringify(context));
+	assert(context.ok, JSON.stringify(context));
 	return context.value;
 }
 
@@ -73,6 +73,6 @@ export function analysisContext(
  * @throws If the supplied result contains diagnostics.
  */
 export function success<Value>(result: Result<Value>): Value {
-	assert.ok(result.ok, JSON.stringify(result));
+	assert(result.ok, JSON.stringify(result));
 	return result.value;
 }

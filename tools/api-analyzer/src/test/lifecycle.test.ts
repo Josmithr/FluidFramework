@@ -56,8 +56,11 @@ async function runWorker(mode: string): Promise<string> {
 			});
 			worker.once("close", (code, signal) => {
 				clearTimeout(deadline);
-				if (code === 0) resolve();
-				else reject(new Error(`Lifecycle worker failed (${code}, ${signal}): ${output}`));
+				if (code === 0) {
+					resolve();
+				} else {
+					reject(new Error(`Lifecycle worker failed (${code}, ${signal}): ${output}`));
+				}
 			});
 		});
 	} catch (error) {
@@ -88,11 +91,14 @@ describe("Native TS7 lifecycle (Linux process checks)", () => {
 	for (const mode of ["sync", "sync-crash", "async", "analysis", "analysis-failure"]) {
 		// Design requirement: W6.
 		it(`${mode} worker terminates without a retained child`, async function () {
-			if (process.platform !== "linux") this.skip();
+			if (process.platform !== "linux") {
+				this.skip();
+			}
 			const output = await runWorker(mode);
 			assert.match(output, /client disposed/);
-			if (mode.includes("crash"))
+			if (mode.includes("crash")) {
 				assert.match(output, /termination rejected the next request/);
+			}
 		});
 	}
 

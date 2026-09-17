@@ -16,14 +16,17 @@ export enum ReleaseLevel {
 	 * Public APIs, the least permissive release level.
 	 */
 	Public = 0,
+
 	/**
 	 * Beta APIs, more permissive than public APIs.
 	 */
 	Beta = 1,
+
 	/**
 	 * Alpha APIs, more permissive than beta APIs.
 	 */
 	Alpha = 2,
+
 	/**
 	 * Internal APIs, the most permissive release level.
 	 */
@@ -101,6 +104,7 @@ export interface ClassificationRules {
 	 * @defaultValue `true`
 	 */
 	readonly requireReleaseLevel?: boolean;
+
 	/**
 	 * Whether TSDoc parser diagnostics cause classification to fail.
 	 *
@@ -153,6 +157,7 @@ export interface ApiItemMetadata {
 	 * The input identifier. See {@link ApiItemId} for identity and preservation rules.
 	 */
 	readonly id: ApiItemId;
+
 	/**
 	 * The declared release level, or `undefined` when missing and permitted by policy.
 	 *
@@ -161,6 +166,7 @@ export interface ApiItemMetadata {
 	 * Check absence explicitly; {@link ReleaseLevel.Public} has the numeric value zero.
 	 */
 	readonly releaseLevel: ReleaseLevel | undefined;
+
 	/**
 	 * Recognized modifier names, including release tags, deduplicated and sorted.
 	 */
@@ -175,6 +181,7 @@ export interface ApiClassification {
 	 * Independently classified items, sorted by identifier.
 	 */
 	readonly items: readonly ApiItemMetadata[];
+
 	/**
 	 * Standard and configured modifier names, sorted for deterministic output.
 	 */
@@ -189,22 +196,26 @@ export interface ApiItemSelection {
 	 * A nonempty caller-defined name for this metadata view.
 	 */
 	readonly name: string;
+
 	/**
 	 * Release levels to include. No less-stable levels are added implicitly.
 	 */
 	readonly releaseLevels: readonly ReleaseLevel[];
+
 	/**
 	 * Whether untagged items may pass the release-level filter.
 	 *
 	 * @defaultValue `false`
 	 */
 	readonly includeUntagged?: boolean;
+
 	/**
 	 * Modifier names that must all be present, using their configured spelling.
 	 *
 	 * @defaultValue No required tags.
 	 */
 	readonly requireTags?: readonly string[];
+
 	/**
 	 * Modifier names that must all be absent, using their configured spelling.
 	 *
@@ -221,6 +232,7 @@ export interface SelectedApiItems {
 	 * The caller-supplied selection name.
 	 */
 	readonly name: string;
+
 	/**
 	 * Matching metadata, copied and sorted by identifier.
 	 */
@@ -255,6 +267,7 @@ export function selectApiItems(
 	}
 	const requireTags = selection.requireTags ?? [];
 	const excludeTags = selection.excludeTags ?? [];
+
 	// Reject unknown filters instead of silently producing misleading matches or exclusions.
 	for (const tag of [...requireTags, ...excludeTags]) {
 		if (!classification.modifierTags.includes(tag)) {
@@ -264,6 +277,7 @@ export function selectApiItems(
 			);
 		}
 	}
+
 	// Match exact release levels, not a threshold. Explicit absence checks preserve Public (zero).
 	const items = classification.items
 		.filter(
@@ -274,6 +288,7 @@ export function selectApiItems(
 				requireTags.every((tag) => item.modifierTags.includes(tag)) &&
 				excludeTags.every((tag) => !item.modifierTags.includes(tag)),
 		)
+
 		// Copy both records and tag arrays so freezing the result does not freeze caller-owned data.
 		.map((item) => ({
 			id: item.id,
