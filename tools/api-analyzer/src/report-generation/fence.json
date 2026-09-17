@@ -1,0 +1,6 @@
+{
+	"tags": ["report-generation"],
+	"exports": ["reviewReport", { "modules": "reviewBaseline", "accessibleTo": "test" }],
+	"imports": ["analysis-types", "utilities", "test"],
+	"dependencies": ["node:assert/strict", { "dependency": "mocha", "accessibleTo": "test" }]
+}

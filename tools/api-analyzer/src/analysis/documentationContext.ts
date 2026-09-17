@@ -6,17 +6,22 @@ import {
 	type DocNode,
 	type TSDocConfiguration,
 } from "@microsoft/tsdoc";
-import {
-	classifyApiItems,
-	type ApiClassification,
-	type ApiItemDocumentation,
-	type ApiItemMetadata,
-	type ClassificationOptions,
-	type ClassificationRules,
-} from "./classification.js";
-import type { DocumentationInput } from "./documentation.js";
-import type { AnalysisFacts, ApiItemId, DeclarationFact, SignatureFact } from "./facts.js";
-import { DiagnosticCode, failure, type Result } from "./result.js";
+import { classifyApiItems } from "./classification.js";
+import type {
+	ApiClassification,
+	ApiItemDocumentation,
+	ApiItemMetadata,
+	ClassificationOptions,
+	ClassificationRules,
+} from "../analysis-types/classification.js";
+import type { DocumentationInput } from "../analysis-types/documentation.js";
+import type {
+	AnalysisFacts,
+	ApiItemId,
+	DeclarationFact,
+	SignatureFact,
+} from "../analysis-types/facts.js";
+import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 
 /**

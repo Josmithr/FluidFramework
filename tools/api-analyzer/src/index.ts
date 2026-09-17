@@ -5,16 +5,20 @@
  * Tests and internal consumers must import those APIs directly from their modules.
  * Analysis-dependent operations belong on the completed APIAnalysis object.
  */
-export { analyzeAPIs } from "./analysis.js";
-export type { APIAnalysis, APIStatistics } from "./analysis.js";
-export { ReleaseLevel } from "./classification.js";
+export { analyzeAPIs } from "./api.js";
+export type { APIAnalysis, APIStatistics } from "./api.js";
+export { ReleaseLevel } from "./analysis-types/classification.js";
 export type {
 	ApiItemSelection,
 	ClassificationOptions,
 	ClassificationRules,
-} from "./classification.js";
-export type { Configuration, EffectiveConfiguration, Entrypoint } from "./configuration.js";
-export { DiagnosticCode } from "./result.js";
-export type { AnalyzerDiagnostic, Result } from "./result.js";
-export type { ReviewPresentationOptions } from "./reviewReport.js";
-export type { TsdocOptions } from "./tsdocConfiguration.js";
+} from "./analysis-types/classification.js";
+export type {
+	Configuration,
+	EffectiveConfiguration,
+	Entrypoint,
+} from "./analysis-types/configuration.js";
+export { DiagnosticCode } from "./analysis-types/result.js";
+export type { AnalyzerDiagnostic, Result } from "./analysis-types/result.js";
+export type { ReviewPresentationOptions } from "./report-generation/reviewReport.js";
+export type { TsdocOptions } from "./analysis-types/tsdocOptions.js";

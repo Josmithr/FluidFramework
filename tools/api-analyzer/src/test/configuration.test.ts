@@ -3,7 +3,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "mocha";
-import { type Configuration, resolveConfiguration } from "../configuration.js";
+import type { Configuration } from "../analysis-types/configuration.js";
+import { resolveConfiguration } from "../configuration.js";
 
 describe("Effective configuration", () => {
 	// Design requirement: W11.

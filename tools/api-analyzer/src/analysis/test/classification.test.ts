@@ -1,15 +1,17 @@
-import { documentationContext } from "./contextUtils.js";
+import { documentationContext } from "../../test/contextUtils.js";
 import { createDocumentationContext } from "../documentationContext.js";
 import assert from "node:assert/strict";
 import { describe, it } from "mocha";
+import { classifyApiItems } from "../classification.js";
 import {
-	classifyApiItems,
 	selectApiItems,
 	type ApiClassification,
 	type ApiItemMetadata,
-} from "../classification.js";
-import { DiagnosticCode, ReleaseLevel, type ApiItemSelection } from "../index.js";
-import { assertAssertionError } from "./assertionUtils.js";
+	ReleaseLevel,
+	type ApiItemSelection,
+} from "../../analysis-types/classification.js";
+import { DiagnosticCode } from "../../analysis-types/result.js";
+import { assertAssertionError } from "../../test/assertionUtils.js";
 
 describe("Release classification and metadata selection", () => {
 	it("assigns increasing numeric permissiveness from public through internal", () => {

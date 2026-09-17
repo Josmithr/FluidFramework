@@ -10,8 +10,10 @@ General declaration validation, suite loading, model generation, and declaration
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](../api-analyzer/Architecture-Proposal.md).
-The source-directory migration and complete output-independent graph remain pending.
-Current report preparation still invokes documentation resolution; move that semantic work into analysis before treating report generation as an independent layer.
+The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
+Analysis completion now owns documentation resolution and returns a frozen graph for the currently supported callable scope.
+Reporting consumes that graph without compiler or parser access; model and rollup layers and broader graph completeness remain pending.
+`good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
 
 Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 29 focused contract tests, verified on 2026-09-15.
 The adapter returns facts that contain no compiler objects.
@@ -169,7 +171,8 @@ Tests must verify that changing task order cannot mutate or corrupt shared analy
 The dependency rules in the architecture proposal apply to source imports, not only directory names.
 Use `good-fences` to enforce those rules as implementations move into layers, following the per-directory fence conventions in `api-markdown-documenter`.
 Define layer tags, allowed imports, and exported entrypoints, with explicit root-composition and test boundaries.
-Add the development dependency and package validation check during migration; verify allowed and forbidden imports under the package's TypeScript and ESM conventions.
+The initial migration pins `good-fences` 0.10.0 and integrates `check:fences` into lint; the boundary regression verifies allowed and forbidden imports under the package's TypeScript and ESM conventions.
+See the [tooling notes](../api-analyzer/README.md#dependency-boundaries) for upstream maintenance and native-dependency limitations.
 Keep ESLint for coding conventions rather than duplicating directory dependency rules.
 Keep generic utilities free of release policy and graph-specific traversal.
 Compute shared semantics in analysis, or place narrowly scoped shared operations beside the graph contract when multiple generators require them.
@@ -365,7 +368,7 @@ TSDoc tag strings map explicitly to enum values, and classification metadata sto
 
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
 - Extend the implemented eager analysis entrypoint with the remaining shared semantic validation. Preserve detached report reuse and tested cleanup before return.
-- Define the completed graph contract and model-reader responsibilities, then migrate existing code into the agreed layers. Move documentation resolution out of report preparation and into analysis.
+- Extend the initial completed graph contract and implemented layer boundaries as remaining semantic capabilities are added. Model-reader responsibilities remain assigned to the future model layer; root composition owns reads.
 - Make report generation consume completed graph data and new output criteria only. Enforce directory dependencies with `good-fences`, wire its check into package validation, and avoid empty generator scaffolding.
 - Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
 - Implement release-level selection per callable overload and generic custom-tag selection.

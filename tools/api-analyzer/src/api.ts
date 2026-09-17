@@ -1,18 +1,20 @@
-import type { ApiItemSelection } from "./classification.js";
+import type { ApiItemSelection } from "./analysis-types/classification.js";
+import { resolveConfiguration } from "./configuration.js";
+import type { Configuration, EffectiveConfiguration } from "./analysis-types/configuration.js";
+import { analyzeDeclarations } from "./analysis/nativeAdapter.js";
 import {
-	resolveConfiguration,
-	type Configuration,
-	type EffectiveConfiguration,
-} from "./configuration.js";
-import { analyzeDeclarations } from "./nativeAdapter.js";
-import { createAnalysisContext, type ExtractedComments } from "./documentationContext.js";
+	createAnalysisContext,
+	type ExtractedComments,
+} from "./analysis/documentationContext.js";
+import { completeAnalysis } from "./analysis/completeAnalysis.js";
 import {
 	createReviewReport,
 	prepareReviewReport,
 	renderReviewReport,
 	type ReviewPresentationOptions,
-} from "./reviewReport.js";
-import { freezeData, type Result } from "./result.js";
+} from "./report-generation/reviewReport.js";
+import { freezeData } from "./utilities/freezeData.js";
+import type { Result } from "./analysis-types/result.js";
 
 /**
  * Counts of declarations and callable signatures retained by this analysis.
@@ -99,10 +101,11 @@ export async function analyzeAPIs(
 		if (!context.ok) {
 			return context;
 		}
-		const prepared = prepareReviewReport(context.value);
-		if (!prepared.ok) {
-			return prepared;
+		const completed = completeAnalysis(context.value);
+		if (!completed.ok) {
+			return completed;
 		}
+		const prepared = prepareReviewReport(completed.value);
 		// TODO (Stage 2 completion): Add general declaration validation and suite model loading.
 		// TODO (Stages 3 and 4 outputs): Retain portable-model and declaration-rollup data before
 		// exposing those methods. They must not require a live compiler or repeat full analysis.
@@ -121,7 +124,7 @@ export async function analyzeAPIs(
 					selection: ApiItemSelection,
 					presentation: ReviewPresentationOptions = {},
 				): Result<string> {
-					const report = createReviewReport(prepared.value, entrypoint, selection);
+					const report = createReviewReport(prepared, entrypoint, selection);
 					return report.ok
 						? freezeData({ ok: true, value: renderReviewReport(report.value, presentation) })
 						: report;

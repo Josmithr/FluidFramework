@@ -1,0 +1,5 @@
+{
+	"tags": ["utilities"],
+	"imports": ["test"],
+	"dependencies": ["node:assert/strict", { "dependency": "mocha", "accessibleTo": "test" }]
+}

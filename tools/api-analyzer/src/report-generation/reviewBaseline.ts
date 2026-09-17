@@ -1,4 +1,4 @@
-import { DiagnosticCode, failure, type Result } from "./result.js";
+import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
 
 /**
  * Compares generated review text with an accepted baseline or another generated surface.

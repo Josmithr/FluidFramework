@@ -29,7 +29,7 @@ The focused analysis and configuration suite passes 29 tests, verified on 2026-0
 Test names describe behavior; comments above tests retain applicable design identifiers.
 This evidence does not close F1-F4 or B1-B6. Artifact-level and full cross-package acceptance tests remain required.
 
-The [classification and selection tests](../api-analyzer/src/test/classification.test.ts) provide initial Stage 2 evidence for independent overload classification and configurable release and modifier-tag filters.
+The [classification and selection tests](../api-analyzer/src/analysis/test/classification.test.ts) provide initial Stage 2 evidence for independent overload classification and configurable release and modifier-tag filters.
 The native capability fixtures also verify selection from detached callable facts after session closure for both input-build compilers.
 The combined contract suite passes 45 tests on 2026-09-15, including numeric release-level ordering and explicit-set selection checks.
 Extraction tests distinguish absent and explicit empty TSDoc comments in source and TS6/TS7-built declarations, including after JSON serialization.

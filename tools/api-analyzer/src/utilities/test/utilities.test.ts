@@ -2,8 +2,8 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "mocha";
-import { assertDefined } from "../utilities.js";
-import { assertAssertionError } from "./assertionUtils.js";
+import { assertDefined } from "../assertDefined.js";
+import { assertAssertionError } from "../../test/assertionUtils.js";
 
 describe("Utilities", () => {
 	it("matches exact authored assertion messages independently of generated diffs", () => {

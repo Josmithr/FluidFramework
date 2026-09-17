@@ -7,10 +7,15 @@ import { mock } from "node:test";
 import { TSDocParser } from "@microsoft/tsdoc";
 import { API } from "typescript/unstable/sync";
 import { afterEach, beforeEach, describe, it } from "mocha";
-import { resolveConfiguration, type EffectiveConfiguration } from "../configuration.js";
-import { analyzeDeclarations, createNativeAdapter } from "../nativeAdapter.js";
-import { DiagnosticCode, failure } from "../result.js";
-import type { AnalysisFacts, DeclarationFact, SignatureFact } from "../facts.js";
+import { resolveConfiguration } from "../configuration.js";
+import type { EffectiveConfiguration } from "../analysis-types/configuration.js";
+import { analyzeDeclarations, createNativeAdapter } from "../analysis/nativeAdapter.js";
+import { DiagnosticCode, failure } from "../analysis-types/result.js";
+import type {
+	AnalysisFacts,
+	DeclarationFact,
+	SignatureFact,
+} from "../analysis-types/facts.js";
 import { analyzeAPIs, ReleaseLevel } from "../index.js";
 import * as publicAPI from "../index.js";
 

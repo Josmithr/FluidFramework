@@ -174,11 +174,19 @@ This limitation does not block explicit numeric inheritance selectors or other S
 
 ## Shared analysis context
 
+The [architecture proposal](Architecture-Proposal.md) defines the layer dependencies.
+`src/api.ts` composes configuration resolution, analysis, and output generation without exposing internal types.
+`analysis-types` contains shared graph and input contracts and generic release-selection operations.
+`analysis` owns compiler queries, original classification, documentation resolution, and mutable working state.
+`report-generation` consumes the completed graph without importing analysis implementation or TSDoc.
+`utilities` contains only generic assertions and freezing helpers.
+Model and rollup layers will be introduced when implemented; their required capabilities remain pending.
+
 Each public invocation creates one internal `AnalysisContext` from immutable compiler facts.
 Context creation validates declaration and signature identities, indexes declarations, and classifies original comments.
 It also creates the metadata index used for link-policy checks.
 The compiler adapter retains parsed callable comments for this invocation; context creation parses only comments not already retained.
-Classification, reference binding, content resolution, and report preparation reuse these parsed nodes.
+Classification, reference binding, and content resolution reuse these parsed nodes inside analysis.
 The context records original block tags and API link nodes before inheritance changes comment content.
 
 Compiler facts and classification stay immutable.
@@ -186,7 +194,10 @@ The context's maps and TSDoc nodes are private working data, not immutable artif
 Classify and bind original comments before running inheritance resolution once.
 Resolution changes only those working nodes, not original comment strings or compiler facts.
 Discard the context after completion or failure; do not resolve it again or reuse it with different inputs.
-Prepared reports copy the fields they need and do not retain mutable TSDoc nodes or source records.
+`completeAnalysis(context)` resolves and validates documentation, then returns a frozen `CompletedAnalysis` graph.
+The graph retains original facts and classification plus resolved comments, content status, original block tags, link targets, and inheritance paths.
+It contains no TSDoc nodes or mutable construction indexes and is not a versioned model artifact.
+`prepareReviewReport(graph)` copies report fields from this completed graph without performing semantic analysis.
 Report calls validate new selection criteria without repeating parsing, fixed export validation, or semantic analysis.
 
 For internal unit tests without compiler facts, `createDocumentationContext(inputs, options)` creates the same parsed-comment boundary.
@@ -199,7 +210,7 @@ Neither context type is a portable model or a public package export.
 A binding associates a request with its target declaration or signature.
 The internal `bindDocumentationReferences(context)` operation produces bindings from supported compiler lookup facts.
 It is not exported from the package entrypoint.
-Function report construction runs binding and content resolution before applying report selection.
+Analysis completion runs binding and content resolution before any generator receives its input.
 
 Configure `customModifierTags` once when creating the context.
 For example, `{ customModifierTags: ["@partner"] }` registers `@partner` for all semantic stages.
@@ -222,8 +233,8 @@ The following internal example resolves an explicitly bound function comment wit
 The import is relative to a module in `src`; this operation is not a package export.
 
 ```typescript
-import { resolveDocumentation } from "./documentation.js";
-import { createDocumentationContext } from "./documentationContext.js";
+import { resolveDocumentation } from "./analysis/documentation.js";
+import { createDocumentationContext } from "./analysis/documentationContext.js";
 
 const context = createDocumentationContext(
 	[
@@ -410,7 +421,7 @@ Lookup alone does not establish API-link validity. Function reports also run the
 
 ### Same-package API link binding
 
-The internal `bindDocumentationLinks(context)` operation in [documentation.ts](src/documentation.ts) validates local API links without compiler access.
+The internal `bindDocumentationLinks(context)` operation in [documentation.ts](src/analysis/documentation.ts) validates local API links without compiler access.
 It is not exported from the package entrypoint.
 The context supplies original classification, including targets excluded from report selections.
 The binder does not recompute classification or rebuild its metadata index.
@@ -543,8 +554,9 @@ The following internal example classifies two overloads and selects the public p
 The import is relative to a module in `src`; these operations are not package exports.
 
 ```typescript
-import { classifyApiItems, ReleaseLevel, selectApiItems } from "./classification.js";
-import { createDocumentationContext } from "./documentationContext.js";
+import { classifyApiItems } from "./analysis/classification.js";
+import { ReleaseLevel, selectApiItems } from "./analysis-types/classification.js";
+import { createDocumentationContext } from "./analysis/documentationContext.js";
 
 const context = createDocumentationContext(
 	[
@@ -580,8 +592,9 @@ Separate selections must produce separate artifacts from shared analysis. Baseli
 The initial declaration renderer supports function-only entrypoints. Its report syntax is experimental.
 Raw declaration text is not a substitute for correctly selected declarations, and metadata-only output is not a complete API report.
 
-Internally, `prepareReviewReport(context)` binds inheritance and API links, resolves all callable comments, and creates complete report records once during analysis.
-The context supplies parsed original comments, full classification, and shared indexes.
+Internally, `completeAnalysis(context)` owns binding and resolution and produces the immutable generator input.
+`prepareReviewReport(graph)` reads resolved content, original metadata, and fixed export data from that graph.
+Preparation cannot produce documentation diagnostics because analysis has already completed those checks.
 Preparation validates fixed export identities and records unsupported declaration forms once per surface.
 `createReviewReport(prepared, entrypoint, selection)` validates new selection criteria and filters prepared records without reparsing or repeating semantic validation.
 Unselected ancestors and link targets remain available, and invalid documentation fails the request even for an empty selection.
@@ -757,7 +770,7 @@ TS6 supplies the conventional compiler API required by ESLint and also builds fi
 It is not an analysis fallback.
 Run `pnpm build` before testing and after changing TypeScript sources or tests.
 `pnpm test` runs the compiled tests without building, including native capability and declaration-consumer checks.
-[.mocharc.cjs](.mocharc.cjs) uses CommonJS, discovers every compiled `lib/test/**/*.test.js` file, and sets a 20-second timeout.
+[.mocharc.cjs](.mocharc.cjs) uses CommonJS, discovers every compiled `lib/**/test/**/*.test.js` file, and sets a 20-second timeout.
 New test modules are included automatically; do not maintain suite-name allowlists in package scripts.
 `pnpm exec mocha` runs the compiled suite without building first.
 There is one test script and one configuration; no separate contract or investigation runner is required.
@@ -773,15 +786,19 @@ For a focused check after building, bypass automatic discovery and supply the de
 The following command runs only the report tests:
 
 ```sh
-pnpm exec mocha --no-config lib/test/reviewReport.test.js --timeout 20000
+pnpm exec mocha --no-config lib/report-generation/test/reviewReport.test.js --timeout 20000
 ```
 
 Mocha otherwise adds the configured `spec` glob to command-line file arguments.
+Layer tests live under each implemented layer's `test` directory.
+Cross-layer compiler and public API tests remain in `src/test`, with shared test helpers, fixtures, and snapshots.
+After moving or deleting modules, remove their stale generated files before rebuilding; TypeScript does not remove old output files automatically.
 
 ### Linting
 
 [eslint.config.mts](eslint.config.mts) uses the `strict` preset from the in-repo `@fluidframework/eslint-config-fluid` package.
 `pnpm lint` checks the package with zero warnings allowed.
+It also runs `pnpm check:fences` to enforce directory dependencies.
 Use `pnpm lint:fix` to apply automatic fixes, then rerun the build and contract tests.
 Some fixes require manual review, especially changes to imports or test assertions.
 Biome remains the formatter; run `pnpm check:format` after lint fixes.
@@ -796,6 +813,22 @@ Fixtures are formatted and validated in their temporary compiler projects instea
 This keeps the lint plugins compatible without replacing the analyzer's native TypeScript 7 dependency.
 Comments explain the compatibility overrides, reviewed trust exceptions, and allowed dependency build scripts.
 The package retains strict peer dependency checks and supply-chain policies.
+
+### Dependency boundaries
+
+Per-directory `fence.json` files define permitted imports and exported modules.
+Analysis and reporting can import shared contracts and utilities but cannot import one another or the root API.
+Shared contracts cannot import compiler or parser implementations.
+Test helpers are accessible only to tagged tests, not production modules.
+The boundary regression uses temporary import probes with the real fence files, including `.js` specifiers, type-only imports, and re-exports.
+
+`good-fences` 0.10.0 is pinned as an MIT-licensed development dependency.
+The JavaScript project is no longer maintained upstream; changes to its version require the boundary regression to pass.
+Version 1.2.0 was blocked by a Git-hosted transitive dependency under the current supply-chain policy.
+Version 1.1.0 requires native `nodegit` even for a full check; 0.10.0 avoids that dependency and runs without additional build permissions.
+No supply-chain policy exceptions or compiler-version overrides were added for this tool.
+Its own TypeScript dependency inspects imports only; the analyzer continues to use the pinned native TS7 engine for semantics.
+ESLint permits local source paths because good-fences owns layer rules, while external subpath restrictions remain in ESLint.
 
 ## Stage 0 results
 
@@ -886,7 +919,7 @@ It does not close the full W/F/B requirements or resolve the Stage 0 declaration
 ## Initial Stage 2 results
 
 Verified on 2026-09-15: `pnpm test:contracts` passes 45 tests.
-This includes 29 analysis and configuration contracts, 12 [classification and selection tests](src/test/classification.test.ts), and four real-compiler integration cases.
+This includes 29 analysis and configuration contracts, 12 [classification and selection tests](src/analysis/test/classification.test.ts), and four real-compiler integration cases.
 Tests distinguish absent, ordinary, explicit empty, and tagged comments through source analysis and TS6/TS7 declaration emit.
 They preserve that distinction after session closure and JSON serialization, and verify that documentation excludes declaration text.
 Tests fix the numeric release-level ordering and verify that selections remain explicit sets rather than thresholds.
@@ -904,7 +937,7 @@ The full compiler investigation suite was not rerun for this increment. Its reco
 ### Baseline handling increment
 
 Verified on 2026-09-15: `pnpm test:contracts` passes 48 tests. The build, formatting, and whitespace checks pass.
-The [baseline tests](src/test/reviewBaseline.test.ts) add three acceptance cases to `test:contracts`.
+The [baseline tests](src/report-generation/test/reviewBaseline.test.ts) add three acceptance cases to `test:contracts`.
 They check exact comparison, absent versus empty baselines, read-only checks, explicit creation and replacement,
 relative-path diagnostics, and propagation of unexpected filesystem errors.
 The tests first failed because the public baseline APIs were absent, then passed after implementation.

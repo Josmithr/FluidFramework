@@ -1,26 +1,14 @@
 import assert from "node:assert/strict";
 import {
-	DocPlainText,
-	DocCodeSpan,
-	DocFencedCode,
-	DocLinkTag,
-	type DocNode,
-} from "@microsoft/tsdoc";
-import {
 	ReleaseLevel,
 	selectApiItems,
 	type ApiClassification,
 	type ApiItemSelection,
-} from "./classification.js";
-import {
-	bindDocumentationLinks,
-	bindDocumentationReferences,
-	resolveDocumentation,
-	type ResolvedDocumentation,
-} from "./documentation.js";
-import type { ApiItemId } from "./facts.js";
-import type { AnalysisContext } from "./documentationContext.js";
-import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
+} from "../analysis-types/classification.js";
+import type { ApiItemId } from "../analysis-types/facts.js";
+import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
+import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { freezeData } from "../utilities/freezeData.js";
 
 /**
  * A selected callable signature and its review metadata.
@@ -147,36 +135,39 @@ export interface PreparedReviewData {
 }
 
 /**
- * Prepares all callable documentation once, independently of entrypoint and report selection.
+ * Prepares fixed report records from completed semantic data.
  *
  * @remarks
- * Binds inheritance and API links and resolves all supplied signature comments before selection.
- * Measures effective content but retains original block tags for report annotations.
+ * Uses resolved content status and original metadata without parsing or resolving documentation.
  * Does not select APIs, query the compiler, or write files.
- * Consumes the context's parsed comments through one inheritance resolution pass.
- * Copies report fields so later report generation does not retain mutable TSDoc nodes or source records.
+ * Copies report fields without changing the completed graph.
  *
- * @param context - The indexed analysis with original classification and unresolved parsed comments.
- * @returns Prepared inputs or documentation diagnostics without partial data.
+ * @param graph - Immutable completed analysis for the supported callable scope.
+ * @returns Prepared report records without compiler or parser state.
  * @throws If facts violate internal identity or documentation invariants.
  */
-export function prepareReviewReport(context: AnalysisContext): Result<PreparedReviewData> {
-	const { facts, declarations } = context;
-	const documentation = resolveReportDocumentation(context);
-	if (!documentation.ok) {
-		return documentation;
-	}
+export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewData {
+	const { facts } = graph;
+	const declarations = new Map(
+		facts.declarations.map((declaration) => [declaration.id, declaration]),
+	);
+	const metadataById = new Map(graph.classification.items.map((item) => [item.id, item]));
+	const documentationById = new Map(graph.documentation.map((item) => [item.id, item]));
 	// Capture effective content after inheritance, but keep the original tags for annotations.
 	const signatures = new Map<ApiItemId, ReviewSignature & { readonly id: ApiItemId }>();
-	for (const item of context.items.values()) {
-		const metadata = context.metadata.get(item.id);
+	for (const item of facts.declarations.flatMap((declaration) => declaration.signatures)) {
+		const metadata = metadataById.get(item.id);
 		assert.ok(metadata, "Prepared signatures must have original classification metadata.");
+		const documentation = documentationById.get(item.id);
+		assert.ok(documentation, "Prepared signatures must have completed documentation.");
 		signatures.set(item.id, {
 			id: item.id,
-			text: item.signature.callSignatureText,
-			documented: hasDocumentationContent(item.parsed.docComment),
+			text: item.callSignatureText,
+			documented: documentation.documented,
 			releaseLevel: metadata.releaseLevel,
-			modifierTags: [...new Set([...metadata.modifierTags, ...item.originalBlockTags])].sort(),
+			modifierTags: [
+				...new Set([...metadata.modifierTags, ...documentation.originalBlockTags]),
+			].sort(),
 		});
 	}
 	// Resolve and validate fixed export data once; report calls only filter these records.
@@ -221,14 +212,7 @@ export function prepareReviewReport(context: AnalysisContext): Result<PreparedRe
 		);
 		surfaces.set(surface.name, freezeData({ exports, unsupported }));
 	}
-	return {
-		ok: true,
-		value: {
-			packageName: facts.packageName,
-			surfaces,
-			classification: context.classification,
-		},
-	};
+	return { packageName: facts.packageName, surfaces, classification: graph.classification };
 }
 
 /**
@@ -278,49 +262,6 @@ export function createReviewReport(
 			exports,
 		},
 	});
-}
-
-/**
- * Resolves all signature comments before a report applies its metadata selection.
- *
- * @param context - Original parsed comments, fact indexes, and classification from one invocation.
- * @returns Effective comments and link provenance, or unchanged binding and resolution diagnostics.
- * @throws If lookup data or bindings violate internal invariants.
- */
-function resolveReportDocumentation(
-	context: AnalysisContext,
-): Result<readonly ResolvedDocumentation[]> {
-	const inheritance = bindDocumentationReferences(context);
-	if (!inheritance.ok) {
-		return inheritance;
-	}
-	const links = bindDocumentationLinks(context);
-	if (!links.ok) {
-		return links;
-	}
-	return resolveDocumentation(context, inheritance.value, {
-		linkValidation: { bindings: links.value, metadata: context.metadata },
-	});
-}
-
-/**
- * Checks parsed documentation content without treating tag names or comment delimiters as prose.
- *
- * @param node - A node from the official TSDoc parser.
- * @returns Whether the node or its children contain descriptive content.
- */
-function hasDocumentationContent(node: DocNode): boolean {
-	if (node instanceof DocPlainText) {
-		return node.text.trim().length > 0;
-	}
-	if (node instanceof DocCodeSpan || node instanceof DocFencedCode) {
-		return node.code.trim().length > 0;
-	}
-	// API links have passed policy validation; URL links require no destination access.
-	if (node instanceof DocLinkTag) {
-		return true;
-	}
-	return node.getChildNodes().some(hasDocumentationContent);
 }
 
 /**

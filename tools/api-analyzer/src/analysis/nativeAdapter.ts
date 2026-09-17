@@ -53,7 +53,7 @@ import {
 	type Symbol as CompilerSymbol,
 	type Type,
 } from "typescript/unstable/sync";
-import type { EffectiveConfiguration } from "./configuration.js";
+import type { EffectiveConfiguration } from "../analysis-types/configuration.js";
 import type {
 	AnalysisFacts,
 	ApiItemId,
@@ -65,9 +65,10 @@ import type {
 	Origin,
 	SignatureFact,
 	SourceDeclarationFact,
-} from "./facts.js";
-import { DiagnosticCode, failure, freezeData, type Result } from "./result.js";
-import { assertDefined } from "./utilities.js";
+} from "../analysis-types/facts.js";
+import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { freezeData } from "../utilities/freezeData.js";
+import { assertDefined } from "../utilities/assertDefined.js";
 import type { ExtractedComments } from "./documentationContext.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 

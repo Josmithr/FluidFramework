@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
-import type { ApiItemDocumentation, ClassificationOptions } from "../classification.js";
+import type {
+	ApiItemDocumentation,
+	ClassificationOptions,
+} from "../analysis-types/classification.js";
 import {
 	createAnalysisContext,
 	createDocumentationContext,
 	type AnalysisContext,
 	type DocumentationContext,
-} from "../documentationContext.js";
-import type { AnalysisFacts } from "../facts.js";
-import { DiagnosticCode, type Result } from "../result.js";
-import type { DocumentationResolutionOptions } from "../documentation.js";
+} from "../analysis/documentationContext.js";
+import type { AnalysisFacts } from "../analysis-types/facts.js";
+import { DiagnosticCode, type Result } from "../analysis-types/result.js";
+import { freezeData } from "../utilities/freezeData.js";
+import type { DocumentationResolutionOptions } from "../analysis-types/documentation.js";
 
 /**
  * Creates a parsed fixture context whose configuration is expected to be valid.
@@ -41,6 +45,7 @@ export function documentationContext<Input extends ApiItemDocumentation>(
  * @remarks
  * Binding tests can isolate reference failures without requiring release tags or valid syntax in every fixture.
  * Binding and resolution still enforce the context's strict syntax validation result.
+ * Copies and freezes fixture facts so analysis completion does not freeze caller-owned test data.
  *
  * @param facts - Detached fixture declarations.
  * @param options - Parser vocabulary and optional classification overrides.
@@ -51,7 +56,7 @@ export function analysisContext(
 	facts: AnalysisFacts,
 	options: ClassificationOptions = {},
 ): AnalysisContext {
-	const context = createAnalysisContext(facts, {
+	const context = createAnalysisContext(freezeData(structuredClone(facts)), {
 		...options,
 		rules: { requireReleaseLevel: false, validateTsdocSyntax: false, ...options.rules },
 	});

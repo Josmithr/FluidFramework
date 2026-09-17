@@ -1,0 +1,8 @@
+{
+	"tags": ["test"],
+	"exports": [
+		{ "modules": "assertionUtils", "accessibleTo": "test" },
+		{ "modules": "contextUtils", "accessibleTo": "test" },
+		{ "modules": "snapshotUtils", "accessibleTo": "test" }
+	]
+}

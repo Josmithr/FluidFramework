@@ -1,26 +1,29 @@
-import { documentationContext, analysisContext } from "./contextUtils.js";
+import { documentationContext, analysisContext } from "../../test/contextUtils.js";
 import { createAnalysisContext, createDocumentationContext } from "../documentationContext.js";
 import assert from "node:assert/strict";
 import { mock } from "node:test";
 import { TSDocParser } from "@microsoft/tsdoc";
 import { describe, it } from "mocha";
-import { classifyApiItems, selectApiItems } from "../classification.js";
+import { classifyApiItems } from "../classification.js";
+import { selectApiItems, ReleaseLevel } from "../../analysis-types/classification.js";
 import {
 	bindDocumentationLinks,
 	bindDocumentationReferences,
 	resolveDocumentation,
-	type DocumentationInput,
-	type DocumentationReferenceBinding,
-	type ResolvedDocumentation,
 } from "../documentation.js";
+import type {
+	DocumentationInput,
+	DocumentationReferenceBinding,
+	ResolvedDocumentation,
+} from "../../analysis-types/documentation.js";
 import type {
 	AnalysisFacts,
 	DeclarationFact,
 	DocumentationReferenceLookup,
-} from "../facts.js";
-import { ReleaseLevel, DiagnosticCode } from "../index.js";
-import { assertAssertionError } from "./assertionUtils.js";
-import { assertSnapshot } from "./snapshotUtils.js";
+} from "../../analysis-types/facts.js";
+import { DiagnosticCode } from "../../analysis-types/result.js";
+import { assertAssertionError } from "../../test/assertionUtils.js";
+import { assertSnapshot } from "../../test/snapshotUtils.js";
 
 /**
  * Creates a documentation input in the shared example package.

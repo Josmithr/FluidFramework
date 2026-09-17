@@ -27,22 +27,23 @@ import {
 	type Symbol as CompilerSymbol,
 } from "typescript/unstable/sync";
 import { resolveConfiguration } from "../configuration.js";
-import { classifyApiItems, selectApiItems } from "../classification.js";
+import { classifyApiItems } from "../analysis/classification.js";
+import { selectApiItems } from "../analysis-types/classification.js";
 import {
 	bindAutomaticDocumentationReferences,
 	bindDocumentationLinks,
 	bindDocumentationReferences,
 	resolveDocumentation,
-	type ResolvedDocumentation,
-} from "../documentation.js";
-import type { AnalysisFacts, DocumentationReferenceLookup } from "../facts.js";
+} from "../analysis/documentation.js";
+import type { ResolvedDocumentation } from "../analysis-types/documentation.js";
+import type { AnalysisFacts, DocumentationReferenceLookup } from "../analysis-types/facts.js";
 import { ReleaseLevel, DiagnosticCode, analyzeAPIs } from "../index.js";
 import {
 	createReviewReport,
 	prepareReviewReport,
 	renderReviewReport,
-} from "../reviewReport.js";
-import { compareReviewBaseline } from "../reviewBaseline.js";
+} from "../report-generation/reviewReport.js";
+import { compareReviewBaseline } from "../report-generation/reviewBaseline.js";
 import {
 	aliasTypeOnly,
 	createNativeAdapter,
@@ -58,8 +59,9 @@ import {
 	target as resolveTarget,
 	type CollectionState,
 	type LocationContext,
-} from "../nativeAdapter.js";
+} from "../analysis/nativeAdapter.js";
 import { assertSnapshot } from "./snapshotUtils.js";
+import { completeAnalysis } from "../analysis/completeAnalysis.js";
 import { documentationContext, analysisContext, success } from "./contextUtils.js";
 
 describe("Adapter fact extraction: documentation links", () => {
@@ -2075,7 +2077,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						assert.equal(selected.ok, true);
 						assert.equal(selected.value.items.length, 1);
 						const report = createReviewReport(
-							success(prepareReviewReport(analysisContext(facts, {}))),
+							prepareReviewReport(success(completeAnalysis(analysisContext(facts, {})))),
 							".",
 							{
 								name: "public",
@@ -2133,9 +2135,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						const selection = selectApiItems(classification.value, { name, releaseLevels });
 						assert.ok(selection.ok);
 						const report = createReviewReport(
-							success(
-								prepareReviewReport(
-									analysisContext(analysis.value, { customModifierTags: ["@partner"] }),
+							prepareReviewReport(
+								success(
+									completeAnalysis(
+										analysisContext(analysis.value, { customModifierTags: ["@partner"] }),
+									),
 								),
 							),
 							"./functions",

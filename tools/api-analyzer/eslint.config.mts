@@ -23,11 +23,12 @@ const config: Linter.Config[] = [
 	{
 		files: ["src/**/*.ts"],
 		rules: {
-			// These are official TS7 entrypoints; tests also verify the installed compiler versions.
+			// Good-fences owns relative module boundaries. Keep external subpath restrictions here.
 			"import-x/no-internal-modules": [
 				"error",
 				{
 					allow: [
+						"**/api-analyzer/src/**",
 						"typescript/unstable/**",
 						"typescript/package.json",
 						"typescript6/package.json",
@@ -37,7 +38,7 @@ const config: Linter.Config[] = [
 		},
 	},
 	{
-		files: ["src/test/**/*.ts"],
+		files: ["src/**/test/**/*.ts"],
 		// Tests may intentionally verify JSON serialization, not in-memory cloning.
 		rules: { "unicorn/prefer-structured-clone": "off" },
 	},

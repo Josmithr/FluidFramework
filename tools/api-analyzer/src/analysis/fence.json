@@ -1,0 +1,10 @@
+{
+	"tags": ["analysis"],
+	"exports": [
+		"nativeAdapter",
+		"documentationContext",
+		"completeAnalysis",
+		{ "modules": "*", "accessibleTo": "test" }
+	],
+	"imports": ["analysis-types", "utilities", "test"]
+}

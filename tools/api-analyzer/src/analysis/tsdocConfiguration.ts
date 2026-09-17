@@ -1,22 +1,7 @@
+import type { TsdocOptions } from "../analysis-types/tsdocOptions.js";
 import { TSDocConfiguration, TSDocTagDefinition, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
-import { failure } from "./result.js";
-import type { DiagnosticCode, Result } from "./result.js";
-
-/**
- * The custom tag vocabulary for classification and documentation resolution.
- *
- * @remarks
- * Pass the same options to classification, reference binding, and content resolution.
- * These options register modifier tags only. They do not load configuration files or disable syntax validation.
- */
-export interface TsdocOptions {
-	/**
-	 * Custom modifier names, including `@`. Must not redefine standard tags or each other.
-	 *
-	 * @defaultValue No custom modifier tags.
-	 */
-	readonly customModifierTags?: readonly string[];
-}
+import { failure } from "../analysis-types/result.js";
+import type { DiagnosticCode, Result } from "../analysis-types/result.js";
 
 /**
  * Creates an independent TSDoc configuration for one operation.
