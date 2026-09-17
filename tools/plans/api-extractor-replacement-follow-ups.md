@@ -7,6 +7,24 @@ These items do not define delivery-stage exit criteria. Schedule them separately
 The plan retains required capability gates, acceptance criteria, and implementation blockers.
 Moving an item here does not waive those requirements or mark an unresolved capability as supported.
 
+## Persistent analysis reuse across builds
+
+Status: open; explicitly deferred from initial delivery by the [2026-09-17 API decision](../api-analyzer/API-Proposal.md).
+
+Investigate avoiding repeated package analysis when inputs have not changed since a previous build.
+The initial version may perform fresh analysis on every invocation.
+This follow-up does not introduce watch mode or source invalidation on `APIAnalysis`.
+
+- Identify all relevant inputs, including analyzed declarations, effective configuration, resolution settings, selected dependency models, and analyzer and compiler versions.
+- Define input fingerprints and validation rules for restoring completed analysis.
+- Determine whether the portable API model contains sufficient data for restoration or a separate cache artifact is required.
+- Compare restored and fresh analysis for reports, declaration rollups, models, API statistics, and configured validation.
+- Reject stale, incomplete, or incompatible cache entries and recompute analysis rather than return stale success.
+- Keep baseline checks and missing-output regeneration independent of analysis cache hits.
+
+Acceptance: restored analysis is equivalent to fresh analysis for unchanged inputs, and relevant input changes prevent stale reuse.
+Within-invocation reuse across outputs and dependency-aware build correctness remain required before this follow-up.
+
 ## Automatic overload documentation inheritance
 
 Status: open; explicitly deferred from Stage 2 by the revised inheritance scope.

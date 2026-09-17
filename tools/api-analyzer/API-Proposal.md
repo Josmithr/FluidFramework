@@ -1,38 +1,82 @@
 # `api-analyzer` API Proposal
 
-The following is my rough proposal for the API shape for this library.
-I want the API to be as narrow as reasonably possible to start.
-It is okay to also export supporting *types*, but the functional API should be small.
+Status: API direction agreed on 2026-09-17; not yet implemented.
+This proposal supersedes the reusable session API direction in the implementation plan.
+Keep the functional API as narrow as reasonably possible.
+Supporting types can also be exported.
 
 ## Proposed flow
 
-The user starts by creating an analysis session.
-The function to create this takes in the configuration used for analysis, and performs the analysis immediately.
+The user calls `analyzeAPIs` with ordinary configuration to analyze one package.
+The function resolves configuration internally and completes shared analysis before returning a successful result.
+Callers do not need to call `resolveConfiguration` separately.
+The proposed return type is `Promise<Result<APIAnalysis>>`.
 
-- This deviates from the current `createAnalysisSession` API, in that it eagerly does analysis work, and doesn't return until there is a result.
+The following example starts analysis and waits for either a completed analysis or expected validation diagnostics.
+The configuration identifies the package and the suite of dependency model artifacts to load.
 
 ```typescript
-// Performs the analysis on the package's APIs.
-// The configuration includes information about the "suite" of other packages that should be included.
-// The code can assume that API analysis has already been done on those packages, and that API model artifacts have been generated, which this process can load and consider in its own analysis.
-const analysis = await analyzeAPIs(configuration);
+// Dependency packages have already generated their API models.
+// Successful analysis is available as result.value; expected failures return diagnostics.
+const result = await analyzeAPIs(configuration);
 ```
 
-The object returned by the above API returns an analysis session object (similar to what we currently have with `AnalysisSession`, but without an `analyze` method, since analysis is already done).
-This object is the focal point of `api-analyzer`'s API.
+`APIAnalysis` is the focal point of the functional API.
+It represents completed analysis with private, immutable data, not a live compiler session.
+It has no `analyze`, `invalidate`, or `close` method.
 
 It should offer the following capabilities:
 
-- Generation of API model artifacts (used for other packages' API analysis and for API documentation generation)
-- Generation of API reports
-- Surfacing of stats about the API
+- Generate declaration rollups for configured entrypoints.
+- Generate API model artifacts for dependency analysis and documentation generation.
+- Generate API reports.
+- Expose API statistics, such as declaration counts and documentation coverage.
 
-The current `AnalysisSession` type assumes that we need to handle invalidation of sources so that we can recompute our "facts" in response to code changes that occur while the analysis object is still alive.
-I don't think we need this, at least for now.
-The expected workflow is that each package will run the tool after running `tsc` to generate API model artifacts, API reports, etc.
-There is no current need for something equivalent to a `watch` service.
+Declaration rollup generation remains required functionality.
+The exact method signatures, artifact schemas, and statistics remain to be specified.
+API statistics are distinct from analysis timing and cache counters.
 
-The only incrementality requirement I would like for us to handle is the ability to detect when sources have/haven't changed so we can avoid re-running analysis when nothing has changed since the previous build.
-This is something we could handle by hashing the relevant inputs (compilation output in the form of the `.d.ts` files that get analyzed, configurations, etc.) and loading the session directly from the API model artifact, rather than analyzing the source code.
-That said, I think we should save this for a future follow-up task.
-Re-running analysis even when nothing has changed is fine for the initial version.
+## Completion and outputs
+
+Successful analysis includes configuration resolution, suite loading, fact extraction, classification, documentation resolution, and configured semantic validation.
+Output methods reuse these results without repeating full analysis or shared validation.
+Output-specific option errors can still produce diagnostics during generation.
+Raw facts and intermediate pipeline operations remain internal.
+
+Release compiler resources before returning the completed analysis, including on failure.
+Collect all data needed for later output generation while compiler resources are available.
+Verify that declaration rollups can be generated under this resource contract.
+If the compiler cannot support this contract, record a blocker rather than silently retain a live session or remove rollup support.
+
+Initially, output methods return artifact content, such as report text and serializable model data, rather than write files.
+The caller controls file writes.
+Baseline acceptance remains an explicit action and must not occur as a side effect of generation.
+
+## Failures and execution
+
+Expected configuration and API-validation failures return diagnostics through `Result`.
+Internal invariant failures and unexpected operational failures reject the promise.
+Cleanup must preserve the original failure, including when cleanup also fails.
+
+The asynchronous entrypoint does not require the native asynchronous compiler client.
+The initial implementation can retain the synchronous compiler adapter and must document its event-loop blocking behavior.
+Do not adopt the native asynchronous client until its unresolved process-termination failure is resolved or contained through an approved design.
+
+## Dependency models
+
+Dependency packages must generate their API models before this package is analyzed.
+Validate the identity, format compatibility, and completeness of every selected suite model, including models not referenced by documentation links.
+Dependency models do not replace the type declarations used for compiler analysis.
+
+## Build workflow and future caching
+
+Each package runs the tool after `tsc` generates its declaration inputs.
+The initial version does not support source invalidation or watch mode.
+Changes require a new call to `analyzeAPIs`.
+Reusing one completed analysis across multiple outputs remains required.
+
+Persistent reuse across builds is deferred to a future follow-up.
+Investigate hashing relevant declarations, configurations, dependency models, and tool versions to detect unchanged inputs.
+Do not assume a portable API model contains enough data to restore a complete analysis.
+Determine whether restoration can use that model or needs a separate cache artifact, and verify equivalence with fresh analysis for all supported outputs and validation.
+Re-running analysis when nothing has changed is acceptable for the initial version.

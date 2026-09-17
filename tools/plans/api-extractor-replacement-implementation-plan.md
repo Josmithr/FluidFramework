@@ -2,6 +2,12 @@
 
 ## Status and objective
 
+API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](../api-analyzer/API-Proposal.md).
+The reusable session described in the implementation history below remains current code, not the target public API.
+Migrate to `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>` with shared validation complete before success and no live compiler resources in the returned object.
+Declaration rollups remain required.
+Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
+
 Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 29 focused contract tests, verified on 2026-09-15.
 The adapter returns facts that contain no compiler objects.
 The first Stage 2 increment implements TSDoc-based release classification and configurable metadata selection, with 45 combined contract tests passing on 2026-09-15.
@@ -31,7 +37,12 @@ An implementation blocker must produce a documented decision request, not an una
 - Name the package `api-analyzer` and place it at `tools/api-analyzer`.
 - Use the official native TS7 semantic tooling as the planned analysis backend. Do not build a TypeScript parser, type checker, or native compiler bridge.
 - One TS7 engine may analyze packages authored or built with TS6 or TS7 using TS7 semantics. Matching the TS6 checker's behavior is not required.
-- Compiler child processes are acceptable. One Node.js API session must reuse applicable analysis across requested tasks for unchanged inputs.
+- Compiler child processes are acceptable during analysis. One completed `APIAnalysis` must serve requested outputs without repeating full analysis or shared validation.
+- Accept ordinary configuration through `analyzeAPIs`; keep configuration resolution, raw facts, and pipeline operations internal. Supporting types can be exported.
+- Release compiler resources before returning success or failure. The returned analysis has no `analyze`, `invalidate`, or `close` method.
+- Generate reports, portable models, and declaration rollups as artifact content. Callers control file writes and explicit baseline acceptance.
+- Expose API statistics separately from internal performance instrumentation. Exact output signatures and statistics remain to be specified.
+- Expected validation failures return diagnostics; internal and unexpected operational failures reject the promise. An asynchronous entrypoint does not require the native asynchronous compiler client.
 - Provide a Node.js-compatible TypeScript API. A CLI is optional, not part of the initial required delivery.
 - ESM-only support is acceptable. Preserve Node, browser, and custom resolution conditions for supported entrypoints.
 - Keep Fluid tags, package scopes, surface names, and policy meanings outside the generic implementation.
@@ -127,7 +138,7 @@ Use a functional core with an effectful boundary:
 - Use discriminated unions for states and diagnostic results. Make unsupported or incomplete analysis explicit.
 - Pass configuration and dependencies explicitly. Avoid global sessions, hidden filesystem access, and ambient mutable registries.
 - Keep filesystem access, compiler communication, process lifecycle, timing, and output publication at the boundary.
-- Limit necessary mutation to session-owned compiler state, caches, and private algorithm-local builders. Do not copy large graphs merely to simulate immutability.
+- Limit necessary mutation to invocation-owned compiler state, local caches, and private algorithm-local builders. Do not copy large graphs merely to simulate immutability.
 - Use basic caching sparingly in performance-critical areas where measurements show costly redundant computation. Prefer small, local caches with explicit ownership, lifetimes, and invalidation rules. Avoid general caching infrastructure unless its benefit justifies the added complexity; cached and uncached results must agree.
 - Use focused functions and composition. Do not add a functional programming framework or a large compiler abstraction without a demonstrated need.
 
@@ -152,23 +163,25 @@ The following components are logical ownership boundaries, not a commitment to s
 | Component | Responsibility | Boundary |
 | --- | --- | --- |
 | Configuration resolution | Resolve defaults, inheritance, overrides, suite selection, and required surface coverage. Expose the effective configuration. | Load files at the boundary; merge and validate explicit data in pure functions. |
-| Analysis session | Own the compiler connection, snapshots, analysis contexts, caches, cancellation, and disposal. Schedule shared work. | Effectful; no repository-specific policy. |
+| Analysis entrypoint | Resolve ordinary configuration, load suite models, own compiler resources, and complete shared analysis and validation. | Effectful; release resources before returning success or failure. |
+| Completed analysis | Own private immutable results and provide report, model, declaration rollup, and API-statistics operations. | No compiler handles, source invalidation, or caller disposal. |
 | TS7 adapter | Query official compiler semantics, exports, aliases, effective types, signatures, and declaration origins. | Only this component depends directly on unstable TS7 interfaces. |
 | API facts | Represent declarations, export paths, references, signatures, effective members, and provenance. | Readonly data consumed without compiler handles. |
 | Documentation processing | Parse TSDoc; resolve suite references and inherited content against API facts and dependency models. | Use the TSDoc parser; keep resolution policy separate from I/O. |
 | Policy and selection | Apply generic release-level rules, custom directional rules, per-rule opt-outs, and configured surface selections. | Pure transformations over complete facts and effective configuration. |
-| Artifact construction | Construct review artifacts, portable models, declaration output plans, and entrypoint output plans. | Pure where possible; compiler printing or emit remains behind the adapter. |
+| Artifact construction | Construct review artifacts, portable models, declaration output plans, and entrypoint output plans. | Reuse detached results; complete required compiler work behind the adapter before returning the analysis. |
 | Output and build integration | Compare baselines, write requested artifacts, report diagnostics, track dependencies, and publish completion metadata. | Effectful; does not reconstruct API semantics. |
 
 The initial processing flow is:
 
 1. Resolve configuration and discover package entrypoints, resolution contexts, dependencies, and selected suite models.
-2. Load the required declarations and acquire or reuse the applicable compiler analysis.
+2. Validate every selected suite model and analyze the required declarations in the applicable compiler contexts.
 3. Extract reusable API facts while preserving complete validation scope, including excluded targets.
 4. Parse documentation and resolve references and inheritance in the correct originating context.
 5. Apply enabled policies and derive selected surface views without discarding the complete facts.
-6. Construct only the requested reports, models, declarations, and entrypoints from shared results.
-7. Publish successful artifacts and return structured diagnostics and completion status.
+6. Retain all data needed for requested output capabilities, release compiler resources, and return the completed analysis or failure diagnostics.
+7. Construct requested artifact content from the completed analysis without repeating shared validation.
+8. Let build integration write artifacts and perform explicit baseline checks or acceptance.
 
 Validation-only requests must not produce artifacts.
 Documentation requests must not implicitly accept report changes.
@@ -177,18 +190,23 @@ Task prerequisites must reflect these contracts rather than force every optional
 
 ### Analysis reuse and lifecycle
 
-Start with session-local reuse. Defer persistent caching until correctness is demonstrated.
-The unit of reuse is a compatible analysis context, not necessarily the entire repository or every resolution condition.
-Distinct conditions or compiler options may require distinct contexts; output format or release-level filtering alone must not cause a complete reanalysis.
+Use one completed analysis per package invocation, following the [agreed API contract](../api-analyzer/API-Proposal.md).
+Complete configuration resolution, suite loading, extraction, classification, documentation resolution, and configured semantic validation before success.
+Distinct conditions or compiler options may require distinct internal contexts.
+Output format or release-level filtering alone must not cause a complete reanalysis.
 
-Track compiler setup, extracted facts, parsed comments, resolved documentation, and selected surfaces separately where their invalidation inputs differ.
-Shared work must be reused even when callers request operations sequentially through separate API calls.
-Coalesce concurrent requests for the same work or otherwise prevent duplicate full analysis and unsafe mutation.
+Output methods reuse private immutable results, including when called sequentially or in a different order.
+Output-specific option validation remains separate from shared semantic validation.
+Do not expose source invalidation, reanalysis, or watch behavior on the completed analysis.
+Changed inputs require a new invocation; unchanged inputs may also be analyzed again in the initial version.
+Persistent reuse across builds is tracked as a [deferred follow-up](api-extractor-replacement-follow-ups.md#persistent-analysis-reuse-across-builds).
 
-Define snapshot ownership and resource lifetime before exposing the public session API.
-Compiler handles must not escape into portable artifacts or remain usable after their owning snapshot is invalid.
-Dispose of owned child processes on normal completion and failure. Specify cancellation and recovery behavior in the session contract.
-Do not silently reuse stale state after a compiler crash.
+Keep compiler resources inside `analyzeAPIs` and dispose of them before returning success or failure.
+Verify that retained data supports declaration rollups without later compiler access.
+Treat a failure of that capability as a blocker, not permission to remove rollups or add an undisclosed live session.
+Internal and unexpected operational failures reject the promise after cleanup; preserve both the original failure and any cleanup failure.
+The initial implementation may use the synchronous compiler adapter behind the asynchronous entrypoint, with documented event-loop blocking.
+The native asynchronous client's process-termination failure remains unresolved and does not become acceptable through this API change.
 
 Instrument analysis creation and fact extraction so tests can detect task-triggered full reruns.
 A single child process alone is not proof of reuse.
@@ -252,24 +270,23 @@ Do not scaffold the full architecture around an unverified capability.
 
 ### Stage 1. Implement reusable analysis and configuration
 
-- Document the session lifecycle, dependency inputs, effective configuration, and diagnostic contracts.
+- Document the one-shot analysis lifecycle, dependency inputs, effective configuration, and diagnostic contracts.
 - Implement minimal configuration inheritance and explicit analysis contexts.
 - Build the TS7 adapter and reusable API facts from real compiler fixtures.
 - Cover export aliases, type-only paths, namespaces, merged declarations, effective members, and callable overload identity.
-- Verify deterministic facts, task-order independence, input invalidation, and no leaked compiler handles.
+- Verify deterministic facts, task-order independence, fresh analysis after changed inputs, and no leaked compiler handles.
 
 Exit: reusable analysis and effective configuration pass focused contract tests for W4, W6, W11, F1, B1, and B2.
 Tests at this stage need not claim final artifact behavior that has not yet been implemented.
 
-The initial implementation requires callers to invalidate cached facts after input changes.
-Each session owns its cache. Automatic input tracking remains Stage 5 work.
-The public session's `analyze` method returns completion status or diagnostics, not analysis facts.
-Facts remain private to the session; the internal compiler adapter can return them to internal consumers and tests.
-Add future report, documentation model, declaration generation, and validation operations to the session itself.
-Do not introduce a separate public analysis-result object that exposes facts.
-The current standalone pipeline exports still require integration behind this session boundary.
+Implementation history: the initial session requires callers to invalidate cached facts after input changes.
+Its `analyze` method returns completion status or diagnostics, not analysis facts.
+This lifecycle is superseded by the 2026-09-17 proposal and must be replaced, not retained as a compatibility API.
+The internal compiler adapter can still return facts to internal consumers and tests.
+The pending public API migration must put shared validation in `analyzeAPIs` and output operations on `APIAnalysis` without exposing facts.
+Internal pipeline exports have been removed from the package entrypoint; remaining configuration, renderer, and baseline exports require reconciliation with the narrow API contract.
 Facts are frozen and contain no compiler objects before the snapshot is disposed.
-Different TypeScript projects use separate cache entries.
+The current session uses separate cache entries for different TypeScript projects; this cache is not required by the new contract.
 The data format remains provisional. Stable versioned identifiers, complete reference graphs, and the remaining documentation model fields require later contracts and tests.
 See the package's Stage 1 results for the tested subset. Stage 1 does not satisfy all W/F/B requirements.
 
@@ -294,6 +311,7 @@ Numeric comparisons express the linear ordering; configured selections remain ex
 TSDoc tag strings map explicitly to enum values, and classification metadata stores those numeric values.
 
 - Document the initial programmatic API, report format, baseline comparison, and update behavior.
+- Replace the reusable public session with the agreed eager analysis entrypoint and detached result. Move shared report-time validation into analysis and test cleanup before return.
 - Use `@microsoft/tsdoc` to parse release levels and custom tags before surface selection. Document tag configuration, missing or conflicting metadata, diagnostics, and rule opt-outs.
 - Implement release-level selection per callable overload and generic custom-tag selection.
 - Specify and test structured reference facts before implementing reference-validation policies. Preserve reference origins and targets, including non-exported and cross-package targets, independently of selected report surfaces.
@@ -302,7 +320,7 @@ TSDoc tag strings map explicitly to enum values, and classification metadata sto
 - Generate separate review artifacts from shared facts and check Node/browser parity without overwriting an accepted baseline.
 - Add a small repository pilot using configured policy, not built-in Fluid behavior.
 
-Exit: W1, W2, W10, and F4 work together through one session, with B1, B2, and B6 assertions against review output.
+Exit: W1, W2, W10, and F4 work together through one completed analysis, with B1, B2, and B6 assertions against review output.
 Report documentation status must use successfully resolved effective documentation, including explicit and automatic inheritance within a package and across the configured suite.
 The resolution acceptance cases below are also required. Initial function-only report tests do not satisfy this gate.
 Validation-only and baseline-update modes remain independent.
@@ -333,7 +351,7 @@ Extract the required reference facts before disposing of the snapshot so later p
 Documentation-link resolution and inheritance now belong to Stage 2. The function report builder resolves all supplied signature comments before selection and measures effective content.
 An inheritance request alone does not count as documentation. Empty inherited content remains undocumented.
 The declaration-generation gate does not block review and validation work. It remains open for the generation path.
-The async termination failure also remains open; Stage 2 continues with the documented synchronous session contract.
+The async termination failure also remains open; the planned asynchronous entrypoint may continue using the synchronous adapter with documented blocking behavior.
 
 #### Resolve documentation before report construction
 
@@ -470,6 +488,7 @@ Load and consume models without a source checkout or live compiler connection.
 ### Stage 4. Deliver declarations and entrypoint capabilities
 
 - Productize the generation path proven in Stage 0 using the shared facts and selected surfaces.
+- Generate entrypoint declaration rollups from completed `APIAnalysis` data without live compiler resources or full reanalysis. This capability remains required by the revised API scope.
 - Preserve required imports, remove excluded-only imports, and retain namespace and alias semantics.
 - Expose sufficient APIs for release-level entrypoint generation without consumer reimplementation of analysis or selection.
 - Test included-dependency and external-reference variants and compile consumers with TS6 and TS7.
@@ -482,13 +501,15 @@ The existing `flub generate entrypoints` command need not be migrated in this st
 - Document build dependency tracking and failure propagation before changing task integration.
 - Add export-validation coverage checks based on configured surfaces, not obsolete command strings.
 - Track relevant source, declaration, dependency, export-map, documentation, configuration, and tool-version changes.
+- Fresh analysis on every invocation satisfies the initial analysis-reuse contract; build integration must not reuse stale completion status or omit requested missing outputs.
 - Keep baseline checks and output-existence checks separate from reusable semantic analysis.
 - Test removed outputs, restored baselines, failed runs, concurrent jobs, and clean/incremental agreement.
 - Adapt the documenter and website inputs to the new model without repeating semantic resolution downstream.
 - Establish a tested retention or conversion path for maintained historical documentation artifacts before replacing their reader.
 
 Exit: W6, W8, W9, and W11 pass in repository integration, including artifact completion and publication status.
-Persistent caches are optional; any cache added must pass the invalidation suite before use.
+Persistent analysis caches are deferred to the follow-up tracker, not required for initial delivery.
+Future caching must pass the invalidation and fresh-analysis equivalence tests before use.
 
 ### Stage 6. Migrate and retire API Extractor
 

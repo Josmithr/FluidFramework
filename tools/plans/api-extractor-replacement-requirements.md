@@ -206,21 +206,23 @@ Evidence:
 ### W6. Integrate with local and automated builds
 
 The required workflows must be accessible through a Node.js-compatible TypeScript API without requiring a CLI.
-One Node.js API session must support the requested workflows; the tool does not need to provide its own executable.
+One completed package analysis must support the requested workflows; the tool does not need to provide its own executable.
 Compiler child processes are permitted as an implementation detail.
 
 Developers must be able to run API work for one package, affected dependent packages, or a release group without manually ordering a series of extractor invocations.
 They must be able to request review, validation, declaration generation, or documentation outcomes together or independently where useful.
 Selecting several outcomes must not require separate copies of the same package policy.
-The tool must support one configured session that performs all requested API report generation, declaration generation, documentation model generation, and validation using shared analysis.
-This does not require a single API call or simultaneous execution of all operations.
-For example, a caller could load a package model through one API, then use separate APIs to generate reports, generate documentation model artifacts, and perform validation based on that model within the same session.
-This is an acceptable example, not a prescribed API design.
+The tool must complete configured shared semantic validation once and reuse the completed analysis for requested API reports, declaration rollups, and documentation model artifacts.
+The [API direction agreed on 2026-09-17](../api-analyzer/API-Proposal.md) uses `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
+The returned analysis exposes output operations and API statistics, but no source invalidation, reanalysis, or disposal methods.
+Output operations may run separately and must not repeat full analysis or shared validation.
 Different content variants, API surfaces, or validation policies must not require independent configurations or a complete rerun of the same API analysis for each operation.
-A reusable native compiler service is acceptable. A wrapper that reruns the entire API analysis independently for each task is not, regardless of process count.
+A wrapper that reruns the entire API analysis independently for each output is not acceptable, regardless of process count.
 The design must reuse applicable setup and analysis across outcomes for unchanged inputs.
 Task-specific work, distinct analysis contexts, and recomputation after relevant input changes are permitted; the internal analysis strategy remains open.
 Numerical performance targets are deferred.
+Fresh analysis on each invocation is acceptable, even for unchanged inputs.
+Persistent analysis caching and restoration across builds are deferred; watch mode and live source invalidation are not initial requirements.
 
 Builds must preserve dependency-aware correctness across package boundaries.
 An incremental build must not report success using stale API results after a relevant source, declaration, dependency, export map, documentation, configuration, or tool-version change.
@@ -426,7 +428,7 @@ Existing configuration is evidence for expected policy, not a byte-for-byte orac
 | Load package artifacts in a different order. | Cross-package links and inherited documentation resolve to the same content. | W7, W8 |
 | Render a maintained documentation version without its source checkout. | The published artifact set supplies the required API data and links. | W7, W8 |
 | Request models without accepting report changes, or validation without generation. | Only the selected workflow outcomes occur. | W2, W6, W8 |
-| Request all supported API generation and validation operations for the configured surfaces together. | One configured API session reuses applicable analysis for unchanged inputs across operations and variants. Instrumentation verifies that each task does not trigger a complete rerun of the same analysis. Compiler child processes are permitted. | W6 |
+| Request all supported API generation and validation operations for the configured surfaces together. | One invocation completes shared validation and returns an analysis that supports all requested output variants without full reanalysis. Instrumentation verifies reuse and compiler cleanup before return. | W6 |
 | Apply build-tools or server policy with individual rules disabled, such as the requirement for explicit release tags. | Disabled rules do not produce policy violations, other enabled checks remain active, and the area's existing policy choices are preserved. | W2, W4, W10 |
 | Configure current and legacy surfaces using `@legacy` and release levels. | API selection follows repository configuration, including the configured overlap between surfaces, without Fluid-specific logic in the tool. | W4, W10 |
 | Configure equivalent selections with a different custom tag and different surface names. | Review, validation, and documentation workflows use the configured selections and metadata without tool implementation changes. | W1, W2, W7, W10 |
@@ -438,7 +440,7 @@ Compare both positive and negative cases, including accepted exceptions and inte
 
 ## Resolved workflow decisions
 
-1. **Performance and simplification targets:** Numerical performance targets are deferred. The primary improvement goal is one configured API session that reuses analysis across generation and validation tasks instead of rerunning the entire API analysis for each task. Compiler child processes are permitted as an implementation detail. W6 and its acceptance scenario capture this requirement. This decision does not prescribe the internal analysis strategy or require downstream website rendering and publication to run in the tool session.
+1. **Performance and simplification targets:** Numerical performance targets are deferred. One completed package analysis must support multiple outputs without repeating full analysis or shared validation. The 2026-09-17 API decision removes live session invalidation and defers persistent caching while retaining declaration rollups. Compiler child processes are permitted during analysis and must be released before return. W6 and its acceptance scenario capture this requirement. Downstream website rendering and publication remain separate.
 2. **Currently disabled checks:** Consumers must retain the ability to opt out of individual policy rules, including requirements for release tags or documentation completeness. Preserve the existing policy choices of build-tools, server, and other repository areas through configuration. Migration does not enable currently disabled checks. W4 and its acceptance scenario capture this requirement.
 3. **Review granularity:** Consumers must be able to configure separate review artifacts for each selected API surface. Separate artifacts are not required to be the only supported output form; consolidated or other output forms remain optional. W1 and its acceptance scenario capture this requirement without prescribing artifact syntax.
 4. **Deprecated publishing-time type selection:** The new tool does not need to support or replace `flub release setPackageTypesField`. Retiring that command and its remaining pipeline caller is a prerequisite for adopting the new tooling, outside this tool's requirements. This exclusion does not remove the declaration-generation requirements in W5.
