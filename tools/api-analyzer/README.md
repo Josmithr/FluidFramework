@@ -11,14 +11,20 @@ Analysis supports original declaration and member metadata, explicit method and 
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
 Reports support standalone function selection and complete selected classes, interfaces, enums, and namespaces, including constructors and static members.
 Type aliases and variables remain selectable as atomic declarations.
-Matching interface merges and repeated property comments also participate in classification, reports, and dependency models.
-Differing merged documentation, recursive namespace aliases, complete type-reference extraction, and some explicit reference forms still need acceptance work.
+Interface merges with matching headers and repeated property comments also participate in classification, reports, and dependency models.
+Their documentation combines distinct descriptions and deduplicates tags while retaining each surviving reference's original scope.
+Broader structural merges, complete type-reference extraction, and some explicit reference forms still need acceptance work.
+Local and selected-dependency references support numeric callable selectors and explicit static/instance member selectors.
+Dependency models retain finite back-references for recursive namespace aliases.
 These limitations prevent closing Stage 2; the implemented checks do not waive the remaining gates.
 
 ## Development contract
 
 Follow the [implementation plan](docs/api-extractor-replacement-implementation-plan.md), including documentation-driven development, test-driven development, and functional architecture.
 Write behavior contracts before implementation and run focused failing tests before adding or fixing behavior.
+Match TypeScript IntelliSense behavior where possible.
+For merged documentation, deduplicate tags and continue to reject conflicting explicit release tags.
+Document and test cases where analyzer validation or unsupported declaration forms require different behavior.
 Write documentation in Simplified Technical English and follow the [repository documentation guidelines](../../docs/content/Guidelines/Documentation-Guidelines.md).
 Keep compiler communication and process lifecycle separate from pure transformations.
 Do not add a custom type checker, use compiler-private APIs, or switch backends to make a capability test pass.
@@ -75,7 +81,7 @@ There is no persistent analysis cache or watch service.
 Unexpected extraction errors are propagated after cleanup; if connection cleanup also fails, an `AggregateError` retains both errors.
 The asynchronous entrypoint still blocks the Node.js event loop during synchronous compiler work.
 An active compiler call cannot be canceled.
-Merged documentation ownership and complete reference validation remain pending in Stage 2.
+Broader structural merges and complete reference validation remain pending in Stage 2.
 Complete portable models and declaration rollups remain required by later stages.
 These limitations do not waive the corresponding delivery requirements.
 
@@ -99,13 +105,14 @@ An unavailable declaration node supplies no comment. JSON serialization omits ab
 
 Both `DeclarationFact.declarations` and `MemberFact.declarations` retain source records with locations, syntax kinds, source text, and original comments.
 The member records replace the former location-only `origins` array. Read locations from `declarations`.
-Records follow compiler declaration order. Overloads and merged declarations retain separate comments; extraction does not select or combine them.
+Records follow compiler declaration order.
+Overloads and merged declarations retain separate original comments; combined documentation is stored separately in supported lookup contexts.
 An effective inherited member retains its original source records, even when generic substitution changes its effective type.
 A local override retains only its own declaration comments. An absent or empty override comment does not receive ancestor content during extraction.
 These records remain frozen and usable after session closure. They describe original declarations, not resolved documentation.
 
 Compiler tests cover classes, interfaces, inherited generic members, local overrides, overloads, and merged declarations for both supported input compilers.
-This is a prerequisite for broader classification and reporting. It does not define merged-comment precedence or implement automatic inheritance.
+Original source preservation is independent of combined documentation and automatic inheritance.
 Single-declaration class and interface reports now consume the completed member documentation.
 
 ### Merged release tags
@@ -117,12 +124,27 @@ Update the tags to agree; no declaration wins by file or declaration order.
 This check also applies to repeated property declarations, independently of their containing type's tags.
 Callable function and method overloads remain independently classified and may use different release levels.
 Untagged parts do not supply an implicit release tag or receive one from this check.
-Release-tag agreement alone does not choose descriptive documentation precedence.
-Merged interfaces with identical original TSDoc and header syntax can produce one selected interface, using the compiler's combined effective members.
-Repeated properties with identical comments retain one documentation input.
-All original source records remain available; matching comments must also resolve their references to the same targets.
-Merged reference requests without one consistent supported context fail analysis rather than silently disappearing.
-Differing comments, differing interface headers, and merged declared signatures remain unsupported by this increment.
+
+### Merged documentation
+
+Supported merged interfaces and repeated properties follow TypeScript IntelliSense's content-selection policy.
+Distinct summaries are combined in compiler declaration order; identical normalized summaries retain their first occurrence.
+A sole description is retained when other parts have no comment or only tags.
+Modifier tags form a deduplicated union, including custom tags that appear on only one part.
+Identical block contributions are deduplicated; distinct content for one parameter or singleton block is combined in order.
+Distinct example and see-also blocks remain separate.
+
+Each retained link uses the scope and location of its original comment.
+When identical text appears in different scopes, the first retained copy supplies the link target, as in IntelliSense.
+Links in distinct retained descriptions are all validated against the resulting API's metadata.
+Original source records remain unchanged.
+The combined comment's primary location is the first declaration; link and type-reference occurrences retain their own locations.
+
+Merged interface reports still require matching header syntax and the compiler's combined effective members.
+Differing headers, compound type/value merges, and merged declared signatures remain unsupported.
+Explicit inheritance on merged interfaces or properties remains unsupported by the binder.
+The merge helper can retain one deduplicated request, but cannot represent multiple distinct inheritance sources.
+Unsupported reference-bearing merges fail analysis rather than discarding their references.
 
 ### Effective member identities and signatures
 
@@ -146,7 +168,7 @@ Single-declaration non-callable properties retain `MemberFact.documentationConte
 Analysis classifies and resolves these comments under member identifiers, without creating synthetic signatures.
 Callable properties use their property comments for classification and remain properties in reports.
 Declared constructors, static members, accessors, and signature declarations retain separate comment and printed-syntax records.
-Automatic accessor inheritance, merged-property precedence, and broader explicit reference forms remain incomplete.
+Automatic accessor inheritance and broader explicit reference forms remain incomplete.
 Heritage comparison views do not receive lookup contexts or separate classification.
 Conservative ancestor matching is described below.
 
@@ -254,7 +276,7 @@ Any configured missing-documentation policy can still report that absence.
 Explicit inheritance requests must resolve and validate successfully or produce diagnostics.
 The current source selector requires one distinct compatible original source across base classes and interfaces.
 It does not prioritize a class source over a distinct interface source.
-Broader member reference contexts, merged-comment precedence, and class/interface report integration remain pending.
+Broader member reference contexts remain pending; supported interface/property merges and class/interface reports use completed documentation.
 Current extraction does not copy interface documentation or change release classification.
 
 ### Instantiated heritage views
@@ -457,14 +479,18 @@ Selectors are one-based and follow compiler declaration order, excluding impleme
 Reordering overloads can change the selected source; review numeric references when overload order changes.
 For an instance method, use a path such as `{@inheritDoc MethodSource.(operation:2)}`.
 Namespace paths are supported for explicit inheritance, with a numeric selector only on the final member.
-Static class member paths and static/instance name collisions are rejected rather than guessed.
+Unambiguous static members are supported without a side selector.
+Use `ReferenceSource.(operation:static)` or `ReferenceSource.(operation:instance)` when the sides have the same member name.
+An unqualified static/instance collision is rejected rather than guessed.
 Missing targets, out-of-range selectors, and invalid explicit requests produce diagnostics without partial results.
 Source and target parameter names, order, and count must match.
 Optional parameter flags, rest parameter flags, and type-parameter names must also match.
 Use local documentation when parameters use destructuring or parameter names differ.
 These checks protect parameter documentation but do not establish TypeScript assignability.
 They do not compare parameter types, return types, generic constraints, or generic defaults.
-Package-qualified references, nonnumeric TSDoc selectors, targets in other packages, and other declaration forms produce diagnostics.
+Package-qualified dependency paths use selected suite models.
+Selectors other than numeric, static, or instance remain unsupported, as do self-package qualified paths and target-less inheritance requests.
+The terminal component accepts one selector: selecting a side does not infer an overload when multiple callables remain.
 TSDoc selectors identify a specific declaration, such as an overload, within a reference.
 Classification, binding, and content resolution share parsed comments and custom modifier configuration through the analysis context.
 Custom block and inline tag configuration and configuration-file loading remain pending.
@@ -529,10 +555,11 @@ Unlike inheritance binding, link lookup can retain variables and overloaded func
 A `ResolvedDocumentationReference` has `status: "resolved"` and a required `target` declaration identifier.
 A `MissingDocumentationReference` has `status: "not-found"` and no target field.
 An `UnsupportedDocumentationReference` has `status: "unsupported"` and no target field.
-Package-qualified references and selectors in API links, nonnumeric inheritance selectors, and target-less inheritance requests currently produce the unsupported native lookup outcome.
-Local API links support named namespace and instance member paths, using the same original-scope traversal as explicit inheritance.
+Package-qualified references are routed to selected dependency models after native lookup; target-less inheritance requests remain unsupported.
+Local API links support namespace and static/instance member paths, using the same original-scope traversal as explicit inheritance.
 Selected dependency models handle supported package-qualified references after native extraction.
-Numeric selectors are supported for explicit inheritance only; the lookup retains the declaration target and the binder selects its callable signature.
+Numeric selectors are supported for links and explicit inheritance; the lookup retains the declaration target and the binder selects its callable signature.
+Links apply visibility policy to the selected overload, not to every overload in the declaration.
 All outcomes retain the printed `reference` text, including an empty string for a target-less inheritance request.
 Narrow on `status` before accessing `target`.
 Lookup does not validate the target's package scope, release level, or suitability for documentation links.
@@ -551,7 +578,8 @@ The context supplies original classification, including targets excluded from re
 The binder does not recompute classification or rebuild its metadata index.
 
 Sources must have original supported declaration or member documentation contexts.
-Targets must have declaration-level documentation contexts, or one supported callable signature with its original context.
+Targets must have declaration-level documentation contexts, or a supported callable signature selected from its overload set.
+Use a one-based numeric selector for an overloaded target; without one, the callable must be unambiguous.
 The source and target must belong to the same original package, which can differ from the package that re-exports them.
 Aliases and retained unexported targets are supported.
 Parameter names and types do not need to match because links do not copy parameter documentation.
@@ -736,7 +764,8 @@ Unknown entrypoints return `report-configuration` diagnostics.
 Report callers supply release levels and tag filters, not independently assembled classification records or selected identifiers.
 Invalid criteria produce selection diagnostics.
 Duplicate fact identities assert during context creation, and unresolved export targets assert during preparation.
-The builder throws for unsupported forms, including unresolved merged ownership, recursive namespace aliases, and container implementation bodies.
+The builder throws for unsupported forms, including unresolved merged ownership and container implementation bodies.
+Recursive namespace references render as aliases to an enclosing namespace instead of expanding indefinitely.
 These are unsupported library capabilities, not user-input diagnostics. No partial report is returned.
 
 `renderReviewReport(report, options?)` produces API Extractor-like Markdown: a package heading, generated-file notice,
@@ -953,6 +982,11 @@ const modelText = result.value.generateModel();
 The artifact identifies format `api-analyzer-documentation`, version `1`, identity version `1`, and compiler version `7.0.2`.
 It retains original metadata, resolved documentation, link and section origins, callable parameter facts, exported paths in overload order, external identities, and hashes of analyzed package files.
 The codec validates schema, package identity, uniqueness, target integrity, resolved TSDoc syntax, and stored link occurrences.
+Export records distinguish static and instance members and can reference a shorter enclosing namespace path.
+These back-references allow paths such as `Group.self.self.run` without serializing an infinite export tree.
+The decoder checks that each back-reference points to an enclosing canonical record with the same target identities.
+Imported dependency overload references use compiler declaration order, not the identity-sorted API array.
+Regenerate experimental dependency models to obtain the newly retained member-side and recursive-path data.
 Dependency comments are parsed for structural validation and content copying, but their targets and inheritance chains are not resolved again.
 This artifact is not a complete portable API model and cannot restore an entire analysis or generate declaration rollups.
 The loader rejects missing or changed analyzed package files by comparing their SHA-256 hashes before consumer analysis.

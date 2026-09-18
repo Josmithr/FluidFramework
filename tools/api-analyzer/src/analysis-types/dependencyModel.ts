@@ -64,6 +64,21 @@ export interface DependencyApi {
  */
 export interface DependencyExport {
 	/**
+	 * The class or interface member side for this terminal path component.
+	 * @defaultValue Omitted for top-level and namespace exports.
+	 */
+	readonly memberKind?: "static" | "instance";
+
+	/**
+	 * An enclosing namespace path used instead of recursively expanding this alias.
+	 *
+	 * @remarks
+	 * Refers to a shorter prefix in the same entrypoint. Lookup replaces this alias prefix and continues through the target.
+	 * @defaultValue Omitted when this path is expanded normally.
+	 */
+	readonly referencePath?: readonly string[];
+
+	/**
 	 * Configured entrypoint name that exposes the target path.
 	 */
 	readonly entrypoint: string;

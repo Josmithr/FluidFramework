@@ -126,12 +126,20 @@ const modelSchema = z.strictObject({
 			})),
 	),
 	exports: z.array(
-		z.strictObject({
-			entrypoint: z.string().min(1),
-			path: z.array(z.string()).min(1),
-			typeOnly: z.boolean(),
-			items: z.array(z.string()).min(1),
-		}),
+		z
+			.strictObject({
+				entrypoint: z.string().min(1),
+				path: z.array(z.string()).min(1),
+				typeOnly: z.boolean(),
+				items: z.array(z.string()).min(1),
+				memberKind: z.enum(["static", "instance"]).optional(),
+				referencePath: z.array(z.string()).min(1).optional(),
+			})
+			.transform(({ memberKind, referencePath, ...entry }) => ({
+				...entry,
+				...(memberKind === undefined ? {} : { memberKind }),
+				...(referencePath === undefined ? {} : { referencePath }),
+			})),
 	),
 	external: z.array(z.strictObject({ id: z.string(), packageName: z.string().min(1) })),
 });
@@ -346,18 +354,17 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 	 * @param path - Exported names leading to this target.
 	 * @param id - Target declaration identity.
 	 * @param typeOnly - Whether any export step on this path is type-only.
-	 * @param active - Namespace identities on the current path; siblings use independent paths.
+	 * @param active - Namespace identities and exported paths on this traversal branch.
+	 * @param memberKind - Terminal member side, or undefined for namespace and top-level exports.
 	 */
 	function collectExportTarget(
 		entrypoint: string,
 		path: readonly string[],
 		id: ApiItemId,
 		typeOnly: boolean,
-		active: ReadonlySet<ApiItemId>,
+		active: ReadonlyMap<ApiItemId, readonly string[]>,
+		memberKind: DependencyExport["memberKind"],
 	): void {
-		if (active.has(id)) {
-			return;
-		}
 		const declaration = declarations.get(id);
 		assert(
 			declaration !== undefined,
@@ -369,7 +376,18 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 					.filter((signature) => metadata.has(signature.id))
 					.map((signature) => signature.id);
 		if (items.length > 0) {
-			exports.push({ entrypoint, path, items, typeOnly });
+			const referencePath = active.get(id);
+			exports.push({
+				entrypoint,
+				path,
+				items,
+				typeOnly,
+				...(memberKind === undefined ? {} : { memberKind }),
+				...(referencePath === undefined ? {} : { referencePath }),
+			});
+		}
+		if (active.has(id)) {
+			return;
 		}
 		for (const member of declaration.members) {
 			const memberItems = metadata.has(member.id)
@@ -383,10 +401,29 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 					path: [...path, member.name],
 					items: memberItems,
 					typeOnly,
+					memberKind: "instance",
 				});
 			}
 		}
-		const visited = new Set([...active, id]);
+		const visited = new Map([...active, [id, path] as const]);
+
+		// Static overload records can share a declaration target. Export that target only once per path.
+		for (const target of new Set(
+			(declaration.container?.declaredMembers ?? []).flatMap((member) =>
+				member.staticTarget === undefined ? [] : [member.staticTarget],
+			),
+		)) {
+			const member = declarations.get(target);
+			assert(member !== undefined, "Static export targets must retain declaration facts.");
+			collectExportTarget(
+				entrypoint,
+				[...path, member.name],
+				target,
+				typeOnly,
+				visited,
+				"static",
+			);
+		}
 		for (const binding of declaration.exports) {
 			collectExportTarget(
 				entrypoint,
@@ -394,6 +431,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 				binding.target,
 				typeOnly || binding.typeOnly,
 				visited,
+				undefined,
 			);
 		}
 	}
@@ -404,7 +442,8 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 				[binding.name],
 				binding.target,
 				binding.typeOnly,
-				new Set(),
+				new Map(),
+				undefined,
 			);
 		}
 	}
@@ -561,7 +600,7 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 	}
 	const paths = new Set<string>();
 	for (const entry of model.exports) {
-		const key = JSON.stringify([entry.entrypoint, entry.path]);
+		const key = JSON.stringify([entry.entrypoint, entry.path, entry.memberKind]);
 		if (paths.has(key)) {
 			return reportFailure(
 				DiagnosticCode.DependencyModel,
@@ -569,6 +608,28 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 			);
 		}
 		paths.add(key);
+		if (entry.referencePath !== undefined) {
+			const prefix = entry.referencePath;
+			const target = model.exports.find(
+				(candidate) =>
+					candidate.entrypoint === entry.entrypoint &&
+					candidate.memberKind === undefined &&
+					JSON.stringify(candidate.path) === JSON.stringify(prefix),
+			);
+			if (
+				entry.memberKind !== undefined ||
+				prefix.length >= entry.path.length ||
+				prefix.some((name, index) => name !== entry.path[index]) ||
+				target === undefined ||
+				target.referencePath !== undefined ||
+				JSON.stringify(target.items) !== JSON.stringify(entry.items)
+			) {
+				return reportFailure(
+					DiagnosticCode.DependencyModel,
+					`Dependency ${packageName}: invalid recursive namespace alias ${entry.path.join(".")}. Regenerate the model.`,
+				);
+			}
+		}
 	}
 	const missing = collectReferencedApiIds(model.apis, model.exports).find(
 		(id) => !ids.has(id),

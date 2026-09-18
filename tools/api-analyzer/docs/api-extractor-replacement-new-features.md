@@ -142,21 +142,20 @@ Missing sections must not be filled from ancestors when a local comment exists.
 Authors can therefore suppress automatic inheritance by supplying a local TSDoc comment.
 An explicit `{@inheritDoc}` in that comment remains an intentional resolution request under F2, not automatic inheritance.
 
-If multiple bases provide different documentation for a member that would automatically inherit documentation, processing must report an error.
-The diagnostic must identify the member and conflicting ancestor sources and direct the author to add an explicit local TSDoc comment.
-The tool must not silently select an ancestor.
+Revised Stage 2 decision: if multiple bases provide distinct candidate sources, automatic inheritance leaves the member undocumented rather than choosing one.
+An explicit local comment or validated inheritance request can remove the ambiguity.
+The tool must not silently select an ancestor by declaration order.
 
-Overloads must be matched by signature where automatic matching is possible, not by declaration order alone.
-If matching or adapting signature-dependent documentation cannot be handled automatically, processing must report an error and require an explicit local TSDoc comment.
-This includes parameter differences that prevent correct automatic documentation inheritance.
-The exact matching algorithm remains a design decision.
+Automatic overload inheritance is deferred to the [follow-up investigation](api-extractor-replacement-follow-ups.md#automatic-overload-documentation-inheritance).
+Overloaded receivers or candidate sources do not receive automatic documentation in Stage 2.
+Unproven compatibility or parameter adaptation also prevents automatic copying; explicit requests still produce diagnostics when invalid.
 
-In this example, `Bar.fooMember` inherits the documentation from `Foo.fooMember` while retaining its narrower type:
+In this example, `Bar.fooMember` can inherit documentation from `Foo.fooMember` because the compiler can establish compatibility without adapting the comment:
 
 ```typescript
 export interface Foo {
   /** fooMember docs */
-  fooMember: number | string;
+  fooMember: number;
 }
 
 export interface Bar extends Foo {
@@ -167,15 +166,14 @@ export interface Bar extends Foo {
 
 Verification checks:
 
-- Cover members inherited unchanged and members redeclared with narrower types, both within a package and across the configured suite. Verify that documentation is inherited without replacing the derived member's signature.
+- Cover members inherited unchanged and compiler-proven generic substitutions, both within a package and across the configured suite. Verify that documentation is inherited without replacing the receiving member's signature. Unproven narrower redeclarations remain undocumented.
 - Add a local TSDoc comment containing only a summary or a tag. Verify that automatic inheritance stops entirely and no missing documentation sections are filled from ancestors.
-- Provide conflicting documentation from multiple bases. Verify an actionable error, then add local documentation and verify that it removes the automatic-inheritance conflict.
-- Reorder distinguishable base overloads and verify that documentation follows the matching signatures rather than declaration positions.
-- Exercise an ambiguous overload match or parameter difference that cannot be handled automatically. Verify an actionable error, then verify that an explicit local TSDoc comment avoids automatic inheritance.
+- Provide conflicting documentation from multiple bases. Verify that automatic inheritance does not choose a source, then add local documentation and verify that it is retained.
+- Reorder base overloads and verify that automatic inheritance remains disabled rather than matching by position.
+- Exercise an unproven match or parameter difference that cannot be adapted. Verify that no automatic content is copied and that an explicit local comment remains authoritative.
 - Verify that an explicit local `{@inheritDoc}` request still resolves and receives the validation required by F2.
 
-Resolved decisions: Any local TSDoc comment disables all automatic inheritance. Conflicting ancestor documentation requires an error and explicit local documentation. Overloads are matched by signature where possible; cases that cannot be handled automatically require an error and explicit local documentation.
-All F3 questions listed during this requirements discussion are resolved. Signature matching and documentation adaptation details remain design decisions within these constraints.
+Revised decisions: Any local TSDoc comment disables all automatic inheritance. Conflicting or unproven automatic sources are skipped. Automatic overload matching is deferred; explicit numeric inheritance remains supported. These decisions supersede the original requirements for automatic-overload errors and inferred signature matching.
 
 Related requirements: W3, W7.
 

@@ -267,10 +267,11 @@ export interface MemberFact {
 	 * Original reference lookup facts for a property.
 	 *
 	 * @remarks
-	 * Includes callable properties and repeated declarations whose comments and reference targets agree.
+	 * Includes callable properties and repeated declarations with combined documentation.
+	 * Retained references use the scope of the part that supplied their content.
 	 * Methods retain lookup facts on their signatures instead.
 	 *
-	 * @defaultValue Omitted for methods, accessors, inconsistent merged comments or references, heritage comparison views, or unavailable extraction state.
+	 * @defaultValue Omitted for methods, accessors, unsupported merges, heritage comparison views, or unavailable extraction state.
 	 */
 	readonly documentationContext?: DocumentationReferenceContext;
 
@@ -418,6 +419,12 @@ export type DocumentationReferenceLookup =
  */
 interface DocumentationReferenceLookupBase {
 	/**
+	 * The source location of an occurrence retained from a merged comment.
+	 * @defaultValue Omitted; use the enclosing documentation context's origin.
+	 */
+	readonly origin?: Origin;
+
+	/**
 	 * The declaration reference printed by TSDoc, or an empty string when the request has no reference.
 	 *
 	 * @example
@@ -430,10 +437,9 @@ interface DocumentationReferenceLookupBase {
 	 * ```
 	 *
 	 * @example
-	 * Unsupported reference syntax is still retained for later diagnostics.
-	 * Package-qualified references and selectors in API links are not supported by the current compiler lookup.
+	 * Qualified references and numeric selectors retain their original reference text.
+	 * Package-qualified references are routed to dependency models instead of the native lexical lookup.
 	 * Later binding can resolve supported package-qualified references through selected dependency models.
-	 * Numeric selectors in explicit inheritance requests are supported and retain the selected reference text.
 	 *
 	 * ```typescript
 	 * // For {@link example#base}:
@@ -453,8 +459,7 @@ interface DocumentationReferenceLookupBase {
 	 * const unresolvedReference = "missing";
 	 * ```
 	 */
-	// TODO (Stage 2 reference syntax): Update qualified-reference and API-link selector examples when
-	// lookup supports them. Preserve the printed reference text even when the target is missing.
+	// TODO (Stage 2 reference syntax): Resolve self-package qualified paths through configured surfaces.
 	// TODO (Stage 2 automatic inheritance): Revisit the target-less inheritance example when implicit
 	// target selection is defined. Distinguish supported requests from malformed comments;
 	// an empty reference alone must not authorize automatic inheritance.
@@ -479,7 +484,7 @@ export interface ResolvedDocumentationReference extends DocumentationReferenceLo
 	 * @remarks
 	 * The identifier refers to a declaration, not an individual overload.
 	 * For a member path, identifies that member's collected declaration rather than its effective {@link MemberFact.id}.
-	 * Numeric inheritance selectors are applied later; finding this declaration does not validate the requested index.
+	 * Numeric selectors for links and inheritance are applied later; finding this declaration does not validate the requested index.
 	 * Reference validation checks the target's declaration form, package, and applicable policies separately.
 	 */
 	readonly target: ApiItemId;
@@ -509,7 +514,7 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
 	 * Identifies a reference for which lookup is unsupported.
 	 *
 	 * @remarks
-	 * Includes unsupported syntax and static member paths that this lookup does not resolve.
+	 * Includes unsupported syntax and unqualified static/instance name collisions.
 	 * Unlike `not-found`, this outcome does not establish that a supported search found no target.
 	 */
 	readonly status: "unsupported";
@@ -523,6 +528,13 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
  * Optional properties are omitted when their values are absent, including during JSON serialization.
  */
 export interface DocumentationReferenceContext {
+	/**
+	 * Combined local documentation for a supported merged declaration.
+	 * Original comments remain on their source declaration records.
+	 * @defaultValue Omitted; use the original source comment, including its absence.
+	 */
+	readonly documentation?: string;
+
 	/**
 	 * The original class, interface, enum, or namespace that declares this API.
 	 *
@@ -553,7 +565,8 @@ export interface DocumentationReferenceContext {
 	 *
 	 * @remarks
 	 * Lookup uses the scope where the comment was written, even when an effective member belongs to another type.
-	 * For supported merged comments, this is the first source location; individual type-reference occurrences retain their own origins.
+	 * For supported merged comments, this is the first source location.
+	 * Individual documentation and type-reference occurrences retain their own origins.
 	 */
 	readonly origin: Origin;
 
@@ -850,10 +863,11 @@ export interface DeclarationFact {
 	 * Original lookup context for a declaration-level comment.
 	 *
 	 * @remarks
-	 * Supported merged interface comments retain their common lookup results and all type-reference occurrences.
+	 * Supported merged interface comments combine distinct content in compiler declaration order.
+	 * Identical contributions retain their first occurrence and its lookup results; all type-reference occurrences remain retained.
 	 * Callable function and method contexts are retained on signatures instead.
 	 *
-	 * @defaultValue Omitted for ambiguous merged, unavailable, or unsupported declaration-level comments.
+	 * @defaultValue Omitted for unsupported merges, unavailable source nodes, or unsupported declaration-level comments.
 	 */
 	readonly documentationContext?: DocumentationReferenceContext;
 
@@ -998,6 +1012,12 @@ export interface DeclarationFact {
  * An independently documented constructor, static member, accessor, or signature declaration.
  */
 export interface DeclaredMemberFact extends SourceDeclarationFact {
+	/**
+	 * The collected declaration identity of a named static member.
+	 * @defaultValue Omitted for constructors, instance members, and declarations without a name.
+	 */
+	readonly staticTarget?: ApiItemId;
+
 	/**
 	 * A provisional identifier scoped to the owning declaration and the member's printed syntax or enum member name.
 	 *

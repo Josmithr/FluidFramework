@@ -50,7 +50,7 @@ import {
  *
  * Sources include effective method signatures. The target must be a function or method in the same package.
  * Numeric method references use a terminal selector, such as `Base.(method:2)`.
- * Static class member paths and static/instance name collisions are unsupported.
+ * Static and instance member paths are supported. Colliding names require an explicit side selector.
  * Numeric selectors choose a callable overload by its one-based declaration order.
  * Without a selector, the target must have exactly one callable signature. No overload is inferred.
  * Parameter names, order, and count must match.
@@ -203,7 +203,7 @@ export function bindDocumentationReferences(
 			}
 			if (
 				request.declarationReference?.memberReferences.some(
-					(part) => part.selector !== undefined,
+					(part) => part.selector?.selectorKind === SelectorKind.Index,
 				) === true
 			) {
 				return reportFailure(
@@ -261,7 +261,7 @@ function bindCallableInheritance(
 		signature.documentationContext,
 		"Supported inheritance sources must retain documentation context.",
 	);
-	const selected = selectInheritanceOverload(signature.id, target, reference, referenceText);
+	const selected = selectCallableOverload(signature.id, target, reference, referenceText);
 	if (!selected.ok) {
 		return selected;
 	}
@@ -291,11 +291,11 @@ function bindCallableInheritance(
  * Selects a callable by explicit one-based ordinal, never by inferred overload similarity.
  * @param source - Receiving signature identity for diagnostics.
  * @param target - Original target declaration and callable signatures in compiler order.
- * @param reference - Parsed reference; undefined requires an unambiguous single-signature target.
+ * @param reference - Parsed reference; absent numeric selectors require an unambiguous single-signature target. Member-side selectors are handled during lookup.
  * @param referenceText - Original text used in diagnostics.
  * @returns Selected signature or a target-form, selector-kind, or range diagnostic.
  */
-function selectInheritanceOverload(
+function selectCallableOverload(
 	source: ApiItemId,
 	target: DeclarationFact,
 	reference: DocDeclarationReference | undefined,
@@ -315,8 +315,16 @@ function selectInheritanceOverload(
 			`Item ${source}: target ${referenceText} must be a function or method.`,
 		);
 	}
-	const selector = reference?.memberReferences.at(-1)?.selector;
-	if (selector !== undefined && selector.selectorKind !== SelectorKind.Index) {
+	const terminal = reference?.memberReferences.at(-1)?.selector;
+	const selector = terminal?.selectorKind === SelectorKind.Index ? terminal : undefined;
+	if (
+		terminal !== undefined &&
+		terminal.selectorKind !== SelectorKind.Index &&
+		!(
+			terminal.selectorKind === SelectorKind.System &&
+			["static", "instance"].includes(terminal.selector)
+		)
+	) {
 		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source}: use a numeric overload selector.`,
@@ -387,8 +395,8 @@ export function bindAutomaticDocumentationReferences(
 	facts: AnalysisFacts,
 	packages: ReadonlySet<string> = new Set(),
 ): readonly AutomaticDocumentationBinding[] {
-	// TODO (Stage 2 member documentation): Define merged-member precedence and accessor
-	// comment ownership before extending completion and integrating class/interface reports.
+	// TODO (Stage 2 member documentation): Extend automatic matching to merged members and accessors
+	// only when the compiler establishes an unambiguous source and compatible documentation shape.
 	const declarations = new Map(facts.declarations.map((entry) => [entry.id, entry]));
 	const bindings: AutomaticDocumentationBinding[] = [];
 	for (const declaration of facts.declarations) {
@@ -476,7 +484,8 @@ function getMemberSourceKey(member: MemberFact): string {
  * Uses the context's original classification, parsed link nodes, and compiler lookup results.
  * Does not reparse comments or recompute classification.
  * Run this operation before content resolution updates the parsed comments.
- * Targets must be same-package standalone functions with exactly one callable signature.
+ * Targets can be supported declarations or callable signatures in the original package or selected dependency models.
+ * Overloaded callables require a one-based numeric selector; non-callable targets reject numeric selectors.
  * Parameter compatibility is not required for links.
  * Public, beta, and alpha sources can link to each other, but cannot link to internal targets.
  * Internal sources can link to any release level. Missing release levels produce diagnostics.
@@ -508,11 +517,12 @@ export function bindDocumentationLinks(
 			continue;
 		}
 		for (const [linkIndex, lookup] of context.links.entries()) {
+			const origin = lookup.origin ?? context.origin;
 			const dependency = resolveDependencyReference(
 				analysis,
 				item.originalLinks[linkIndex]?.codeDestination,
 				lookup,
-				context.origin.packageName,
+				origin.packageName,
 			);
 			if (!dependency.ok) {
 				return dependency;
@@ -544,11 +554,18 @@ export function bindDocumentationLinks(
 					reference: lookup.reference,
 					target: dependencyTarget.declarationId,
 					targetSignature: dependencyTarget.id,
-					origin: context.origin,
+					origin,
 				});
 				continue;
 			}
-			const local = bindLocalLink(analysis, item.id, context, lookup, linkIndex);
+			const local = bindLocalLink(
+				analysis,
+				item.id,
+				{ ...context, origin },
+				lookup,
+				linkIndex,
+				item.originalLinks[linkIndex]?.codeDestination,
+			);
 			if (!local.ok) {
 				return local;
 			}
@@ -632,6 +649,7 @@ function validateLinkSource(
  * @param context - Source lookup facts and original package location.
  * @param lookup - Retained compiler lookup outcome for this occurrence.
  * @param linkIndex - Original occurrence index in TSDoc traversal order.
+ * @param reference - Parsed link reference; undefined means no explicit selector is available.
  * @returns A binding or the first lookup, target-form, package, or visibility diagnostic.
  */
 function bindLocalLink(
@@ -640,11 +658,12 @@ function bindLocalLink(
 	context: DocumentationReferenceContext,
 	lookup: DocumentationReferenceLookup,
 	linkIndex: number,
+	reference: DocDeclarationReference | undefined,
 ): Result<DocumentationLinkBinding> {
 	if (lookup.status === "unsupported") {
 		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
-			`Item ${source}: use an unqualified API link reference. Qualified references and selectors are not supported yet.`,
+			`Item ${source}: unsupported or ambiguous API link ${lookup.reference}. Use a named path, a numeric callable selector, or an explicit static/instance member selector. Qualified dependency paths require a selected model.`,
 		);
 	}
 	if (lookup.status === "not-found") {
@@ -658,26 +677,21 @@ function bindLocalLink(
 		target !== undefined,
 		"Documentation lookup targets must be retained in declaration facts.",
 	);
-	if (
-		target.documentationContext === undefined &&
-		(target.declarations.length === 0 ||
-			target.declarations.some(
-				(record) =>
-					record.kind !== "FunctionDeclaration" &&
-					record.kind !== "MethodDeclaration" &&
-					record.kind !== "MethodSignature",
-			) ||
-			target.signatures.length !== 1)
-	) {
-		return reportFailure(
-			DiagnosticCode.DocumentationUnsupported,
-			`Item ${source}: target ${lookup.reference} requires a standalone function with one callable signature and documentation context. Other declaration forms and overload targets are not supported yet.`,
-		);
+
+	// Links select overload metadata without imposing inheritance's parameter-shape requirements.
+	const selected =
+		target.documentationContext === undefined
+			? selectCallableOverload(source, target, reference, lookup.reference)
+			: reference?.memberReferences.at(-1)?.selector?.selectorKind === SelectorKind.Index
+				? reportFailure(
+						DiagnosticCode.DocumentationReference,
+						`Item ${source}: non-callable target ${lookup.reference} does not accept an overload selector.`,
+					)
+				: { ok: true as const, value: target };
+	if (!selected.ok) {
+		return selected;
 	}
-	const targetSignature = assertDefined(
-		target.documentationContext === undefined ? target.signatures[0] : target,
-		"Single-signature targets must have a signature.",
-	);
+	const targetSignature = selected.value;
 	const targetContext = assertDefined(
 		targetSignature.documentationContext,
 		"Supported API link targets must retain documentation context.",
@@ -864,6 +878,7 @@ export function resolveDocumentation(
  * @param targets - Validated inheritance binding identities.
  * @param linksBySource - Validated original link identities and occurrence indices.
  * @param hasLinkValidation - Whether link validation inputs were supplied.
+ * @param options - Resolution settings with stored dependency links and section provenance.
  * @returns Request-owned mutable comments and original link-node associations, or diagnostics.
  */
 function associateDocumentationBindings(

@@ -90,7 +90,8 @@ import type {
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
-import type { ExtractedComments } from "./documentationContext.js";
+import { collectApiLinkNodes, type ExtractedComments } from "./documentationContext.js";
+import { mergeDocumentationComments } from "./mergedDocumentation.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 
 /**
@@ -511,6 +512,7 @@ export function resolveSymbolTarget(
  * Uses sorted, distinct package-relative locations and containing symbol names.
  * Source-file modules use a fixed marker instead of the compiler's absolute-path name.
  * Does not encode source offsets or package versions.
+ * Static member symbols include a separate marker so same-named instance members retain distinct identities.
  * The format is not a stable public contract.
  * Uniqueness across installed versions or all compiler-generated symbols is not guaranteed.
  *
@@ -541,6 +543,19 @@ export function getDeclarationId(
 		// Declaration order and repeated declarations in one file must not change the ID.
 		[...new Set(declarationLocations.map((location) => JSON.stringify(location)))].sort(),
 		...parents,
+
+		// Static and instance members can have the same parent and name but are distinct declarations.
+		...(symbol.declarations.some((handle) => {
+			const node = handle.resolve();
+			return (
+				node !== undefined &&
+				"modifiers" in node &&
+				Array.isArray(node.modifiers) &&
+				node.modifiers.some((modifier: Node) => modifier.kind === SyntaxKind.StaticKeyword)
+			);
+		})
+			? ["<static>"]
+			: []),
 		symbol.declarations.some((handle) => handle.kind === SyntaxKind.SourceFile)
 			? "<module>"
 			: symbol.name,
@@ -1418,9 +1433,9 @@ export function collectExports(
  * @remarks
  * Internal helper. Not exported from the package entrypoint.
  * Supports unqualified names and falls back to module export aliases.
- * Links and inheritance accept namespace and instance member paths.
- * Only explicit inheritance accepts a terminal numeric selector.
- * Static class members are unsupported; a static/instance name collision is never guessed.
+ * Links and inheritance accept namespace paths, unambiguous static or instance members, and explicit member-side selectors.
+ * Numeric selectors retain the declaration target; binding later selects the callable overload.
+ * A static/instance name collision requires an explicit side and is never guessed.
  * Collects resolved targets into the supplied state, including targets that are not exported.
  * Does not validate TSDoc syntax, target compatibility, or release policies.
  * The caller must keep the compiler snapshot alive until lookup finishes.
@@ -1431,7 +1446,7 @@ export function collectExports(
  * @param node - The original declaration node used for name resolution.
  * @param source - The source file that contains the original declaration.
  * @param reference - Parsed declaration reference. Undefined represents a target-less inheritance request and produces an unsupported lookup, not an inferred target.
- * @param allowIndexSelector - Whether this lookup accepts numeric inheritance selectors.
+ * @param allowIndexSelector - Whether this lookup accepts numeric callable selectors. Link and inheritance extraction enable them.
  * @returns Detached lookup facts without compatibility or release-policy validation.
  * @throws If compiler queries or target collection fail unexpectedly.
  */
@@ -1450,8 +1465,8 @@ export function lookupReference(
 
 	// Accept only explicit references without package or import-path qualification.
 	// This is a lookup capability check, not TSDoc syntax or target compatibility validation.
-	// Member paths preserve original scope for both links and inheritance. Only explicit inheritance
-	// accepts a terminal numeric selector; its range is checked by the binder.
+	// Member paths preserve original scope for both links and inheritance. Numeric selector
+	// ranges and callable compatibility are checked later by the binder.
 	const supported =
 		reference !== undefined &&
 		reference.packageName === undefined &&
@@ -1467,7 +1482,10 @@ export function lookupReference(
 				part.selector === undefined ||
 				(allowIndexSelector &&
 					index === reference.memberReferences.length - 1 &&
-					part.selector.selectorKind === SelectorKind.Index)
+					part.selector.selectorKind === SelectorKind.Index) ||
+				(index > 0 &&
+					part.selector.selectorKind === SelectorKind.System &&
+					["static", "instance"].includes(part.selector.selector))
 			);
 		});
 	let targetId: ApiItemId | undefined;
@@ -1496,35 +1514,20 @@ export function lookupReference(
 					break;
 				}
 				const partName = part.memberIdentifier?.identifier;
-				if (resolved.flags & (SymbolFlags.Class | SymbolFlags.Interface)) {
-					// TODO (Stage 2 reference syntax): Resolve explicit static and instance selectors through
-					// the corresponding compiler type. Keep unqualified static/instance collisions ambiguous.
-					// Classes also have a static side. Reject any matching static name, even when an
-					// instance member has the same name, rather than silently choosing the instance member.
-					if (resolved.flags & SymbolFlags.Class) {
-						const staticType = checker.getTypeOfSymbol(resolved);
-						if (
-							staticType &&
-							checker.getPropertiesOfType(staticType).some((entry) => entry.name === partName)
-						) {
-							return { reference: reference.emitAsTsdoc(), status: "unsupported" };
-						}
-					}
-
-					// The declared type exposes instance members, including inherited members, not class statics.
-					const ownerType = checker.getDeclaredTypeOfSymbol(resolved);
-					resolved = checker
-						.getPropertiesOfType(ownerType)
-						.find((entry) => entry.name === partName);
-				} else if (resolved.flags & SymbolFlags.Module) {
-					// Namespace and module paths traverse exports instead of instance properties.
-					resolved = checker
-						.getExportsOfModule(resolved)
-						.find((entry) => entry.name === partName);
-				} else {
-					// Other symbol kinds cannot supply the remaining path through this lookup implementation.
-					resolved = undefined;
+				const side =
+					part.selector?.selectorKind === SelectorKind.System
+						? part.selector.selector
+						: undefined;
+				const selected: Result<CompilerSymbol | undefined> = lookupMemberSymbol(
+					checker,
+					resolved,
+					assertDefined(partName),
+					side,
+				);
+				if (!selected.ok) {
+					return { reference: reference.emitAsTsdoc(), status: "unsupported" };
 				}
+				resolved = selected.value;
 				if (resolved) {
 					// Each exported path component can itself be an alias, including the final target.
 					resolved = resolveSymbolTarget(checker, resolved);
@@ -1546,6 +1549,61 @@ export function lookupReference(
 		return { reference: referenceText, status: "not-found" };
 	}
 	return { reference: referenceText, status: "resolved", target: targetId };
+}
+
+/**
+ * Looks up one path component without choosing between colliding class member sides.
+ * @param checker - Active native checker.
+ * @param owner - Resolved class, interface, or module symbol containing the component.
+ * @param name - Parsed member identifier.
+ * @param side - Explicit static or instance selector, or undefined for an unqualified component.
+ * @returns The member, undefined for a missing target, or an unsupported-path diagnostic.
+ */
+function lookupMemberSymbol(
+	checker: Project["checker"],
+	owner: CompilerSymbol,
+	name: string,
+	side: string | undefined,
+): Result<CompilerSymbol | undefined> {
+	if (owner.flags & (SymbolFlags.Class | SymbolFlags.Interface)) {
+		const staticType =
+			owner.flags & SymbolFlags.Class ? checker.getTypeOfSymbol(owner) : undefined;
+		const staticMember =
+			staticType === undefined
+				? undefined
+				: checker.getPropertiesOfType(staticType).find((entry) => entry.name === name);
+		const instanceMember = checker
+			.getPropertiesOfType(checker.getDeclaredTypeOfSymbol(owner))
+			.find((entry) => entry.name === name);
+		if (side === undefined && staticMember !== undefined && instanceMember !== undefined) {
+			return reportFailure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Member ${name} exists on both class sides. Specify static or instance.`,
+			);
+		}
+		return {
+			ok: true,
+			value:
+				side === "static"
+					? staticMember
+					: side === "instance"
+						? instanceMember
+						: (instanceMember ?? staticMember),
+		};
+	}
+	if (owner.flags & SymbolFlags.Module) {
+		if (side !== undefined) {
+			return reportFailure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Namespace member ${name} does not have a class member side.`,
+			);
+		}
+		return {
+			ok: true,
+			value: checker.getExportsOfModule(owner).find((entry) => entry.name === name),
+		};
+	}
+	return { ok: true, value: undefined };
 }
 
 /**
@@ -1794,7 +1852,7 @@ function extractDeclarationSignatures(
  * Captures the original documentation context for a supported declaration.
  *
  * @remarks
- * Merged declarations are supported only for interfaces whose original comments and reference targets agree.
+ * Merged interface comments combine content in compiler order while retaining each surviving reference's scope.
  * Retains type-reference occurrences from every supported interface declaration.
  *
  * @param compiler - Active checker and emitter.
@@ -1820,12 +1878,7 @@ function extractDeclarationDocumentationContext(
 		return undefined;
 	}
 	if (sources.length > 1) {
-		// Equal comment text can resolve differently in different scopes. Keep all type-reference
-		// occurrences, but do not choose between inconsistent documentation reference targets.
-		if (
-			!sourceNodes.every((node) => node !== undefined && isInterfaceDeclaration(node)) ||
-			sources.some((part) => part.documentation !== source.documentation)
-		) {
+		if (!sourceNodes.every((node) => node !== undefined && isInterfaceDeclaration(node))) {
 			return undefined;
 		}
 		return mergeReferenceContexts(compiler, locations, state, sourceNodes, sources, id);
@@ -1853,10 +1906,11 @@ function extractDeclarationDocumentationContext(
 }
 
 /**
- * Combines identical source comments only when their original reference outcomes agree.
+ * Combines source comments in compiler order without changing original reference scopes.
  *
  * @remarks
- * Resolves each comment in its own declaration scope before comparing reference targets.
+ * Resolves each comment in its own declaration scope before deduplicating content.
+ * Equal contributions retain the first occurrence and its lookup results; distinct contributions retain separate lookups.
  *
  * @param compiler - Active checker and emitter.
  * @param locations - Package ownership lookup state.
@@ -1864,7 +1918,7 @@ function extractDeclarationDocumentationContext(
  * @param nodes - Available original nodes in source-record order.
  * @param sources - Nonempty original source records with the same length as nodes.
  * @param id - Documentation input identity of the effective member or declaration.
- * @returns A context with the first source's origin and all type-reference occurrences, or `undefined` when comments or reference targets differ.
+ * @returns Combined documentation with original reference origins, or `undefined` for malformed comments or distinct inheritance requests.
  * @throws If source records are empty, do not correspond to the nodes, or compiler extraction fails unexpectedly.
  */
 function mergeReferenceContexts(
@@ -1875,21 +1929,18 @@ function mergeReferenceContexts(
 	sources: readonly SourceDeclarationFact[],
 	id: ApiItemId,
 ): DocumentationReferenceContext | undefined {
-	const firstSource = assertDefined(
-		sources[0],
-		"Merged contexts require original source records.",
-	);
+	assert(sources.length > 0, "Merged contexts require original source records.");
 	assert(nodes.length === sources.length, "Merged nodes must correspond to source records.");
 
-	// Require identical original comments before choosing one context; do not select a preferred declaration.
-	if (sources.some((source) => source.documentation !== firstSource.documentation)) {
-		return undefined;
-	}
+	const parser = state.documentation?.parser ?? new TSDocParser();
+	const comments: ReturnType<TSDocParser["parseString"]>[] = [];
+	const links = new Map<DocLinkTag, DocumentationReferenceLookup>();
+	const inheritance = new Map<DocNode, DocumentationReferenceLookup>();
 
-	// Resolve each copy in its own scope, since matching text can name different local targets.
+	// Resolve before combining: a retained node must keep the lookup from its own declaration scope.
 	const contexts = nodes.map((node, index) => {
 		const source = assertDefined(sources[index]);
-		return createReferenceContext(
+		const context = createReferenceContext(
 			compiler,
 			locations,
 			state,
@@ -1898,25 +1949,50 @@ function mergeReferenceContexts(
 			id,
 			source.documentation,
 		);
+		const parsed =
+			state.documentation?.comments.get(id) ??
+			parser.parseString(source.documentation ?? "/** */");
+		comments.push(parsed);
+		for (const [linkIndex, link] of collectApiLinkNodes(parsed.docComment).entries()) {
+			links.set(link, { ...assertDefined(context.links[linkIndex]), origin: context.origin });
+		}
+		if (parsed.docComment.inheritDocTag !== undefined && context.inheritance !== undefined) {
+			inheritance.set(parsed.docComment.inheritDocTag, {
+				...context.inheritance,
+				origin: context.origin,
+			});
+		}
+		return context;
 	});
 	const first = assertDefined(
 		contexts[0],
 		"Merged contexts must retain an original lookup context.",
 	);
-	if (
-		contexts.some(
-			(context) =>
-				JSON.stringify(context.links) !== JSON.stringify(first.links) ||
-				JSON.stringify(context.inheritance) !== JSON.stringify(first.inheritance),
-		)
-	) {
-		// Equal spelling alone cannot establish provenance when parts have different lexical scopes.
+	if (sources.length === 1) {
+		return first;
+	}
+	if (comments.some((comment) => comment.log.messages.length > 0)) {
 		return undefined;
 	}
-
-	// The agreed documentation uses one origin, but policy checks still need type references from every part.
+	const merged = mergeDocumentationComments(
+		parser,
+		comments.map((comment) => comment.docComment),
+	);
+	if (merged === undefined) {
+		return undefined;
+	}
+	const documentation = sources.every((source) => source.documentation === undefined)
+		? undefined
+		: merged.emitAsTsdoc() || "/** */";
+	state.documentation?.comments.set(id, parser.parseString(documentation ?? "/** */"));
+	const request =
+		merged.inheritDocTag === undefined ? undefined : inheritance.get(merged.inheritDocTag);
 	return {
-		...first,
+		...(first.container === undefined ? {} : { container: first.container }),
+		origin: first.origin,
+		...(documentation === undefined ? {} : { documentation }),
+		links: collectApiLinkNodes(merged).map((link) => assertDefined(links.get(link))),
+		...(request === undefined ? {} : { inheritance: request }),
 		typeReferences: contexts.flatMap((context) => context.typeReferences ?? []),
 	};
 }
@@ -1925,7 +2001,7 @@ function mergeReferenceContexts(
  * Combines matching interface headers into one container description.
  *
  * @remarks
- * Requires identical original comments and supported headers with the same generic and heritage syntax.
+ * Requires supported headers with the same generic and heritage syntax; comments are combined separately.
  * Declared signatures that are not represented by effective members remain unsupported.
  *
  * @param compiler - Active checker and emitter.
@@ -1947,12 +2023,11 @@ function mergeInterfaceContainers(
 ): DeclarationContainerFact | undefined {
 	const source = sources[0];
 
-	// Other declaration kinds and differing comments need ownership rules that this merge does not provide.
+	// Other declaration kinds require separate structural merge support.
 	if (
 		sources.length < 2 ||
 		source === undefined ||
-		!nodes.every((node) => node !== undefined && isInterfaceDeclaration(node)) ||
-		sources.some((part) => part.documentation !== source.documentation)
+		!nodes.every((node) => node !== undefined && isInterfaceDeclaration(node))
 	) {
 		return undefined;
 	}
@@ -2109,8 +2184,26 @@ function createDeclaredMemberRecord(
 ): DeclaredMemberFact {
 	const location = { packageName: source.packageName, file: source.file, start: member.pos };
 	const documentation = getOriginalComment(member);
+	let staticTarget: ApiItemId | undefined;
+	if (
+		"modifiers" in member &&
+		Array.isArray(member.modifiers) &&
+		member.modifiers.some((modifier: Node) => modifier.kind === SyntaxKind.StaticKeyword) &&
+		"name" in member &&
+		member.name !== undefined
+	) {
+		const symbol = compiler.checker.getSymbolAtLocation(member.name as Node);
+		assert(symbol !== undefined, "Named static members must have compiler symbols.");
+		staticTarget = collect(
+			compiler,
+			locations,
+			state,
+			resolveSymbolTarget(compiler.checker, symbol),
+		);
+	}
 	return {
 		...location,
+		...(staticTarget === undefined ? {} : { staticTarget }),
 		kind: SyntaxKind[member.kind],
 		text: member.getFullText(),
 		documentation,
@@ -2249,7 +2342,7 @@ function createReferenceContext(
 	);
 	state.documentation?.comments.set(id, parsed);
 	const links = collectLinks(parsed.docComment, (reference) =>
-		lookupReference(compiler, locations, state, node, source, reference, false),
+		lookupReference(compiler, locations, state, node, source, reference, true),
 	);
 	const request = parsed.docComment.inheritDocTag;
 	const inheritance =

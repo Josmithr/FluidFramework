@@ -55,14 +55,6 @@ export enum DiagnosticCode {
 	DocumentationTsdoc = "documentation-tsdoc",
 
 	/**
-	 * Parts of a merged non-overloaded API supply different nonempty descriptive documentation.
-	 *
-	 * @remarks
-	 * Make their descriptions agree rather than relying on source declaration order.
-	 */
-	DocumentationMergeConflict = "documentation-merge-conflict",
-
-	/**
 	 * A documentation inheritance reference or API link target failed validation.
 	 *
 	 * @remarks
@@ -87,8 +79,8 @@ export enum DiagnosticCode {
 	 * A comment requests a documentation feature that is not supported.
 	 *
 	 * @remarks
-	 * Use supported same-package function or method references for inheritance.
-	 * API links currently require unqualified references to standalone functions.
+	 * Use supported local declaration paths or package-qualified paths into selected dependency models.
+	 * Disambiguate callable overloads with numeric selectors and class member collisions with static or instance selectors.
 	 * See the diagnostic message for the specific limitation.
 	 */
 	DocumentationUnsupported = "documentation-unsupported",

@@ -24,7 +24,8 @@ export interface CompletedDocumentation extends ResolvedDocumentation {
  * @remarks
  * Contains no compiler objects, TSDoc nodes, or mutable construction indexes.
  * This internal graph is not a versioned serialized model.
- * General merged-declaration documentation and complete type-reference edges remain pending.
+ * Supported interface/property merges retain combined documentation and original link origins.
+ * Broader structural merges and complete type-reference edges remain pending.
  */
 export interface CompletedAnalysis {
 	/**

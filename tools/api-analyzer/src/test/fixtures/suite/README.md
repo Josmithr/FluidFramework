@@ -12,6 +12,7 @@ Tests do not update accepted baselines or modify production package inputs.
 | --- | --- |
 | [dependency.d.ts](dependency.d.ts) | Public-to-beta links, internal reference policy, and a generic automatic-inheritance source. |
 | [consumer.d.ts](consumer.d.ts) | Qualified inheritance and links, dependency aliases, automatic implementation documentation, and original-package lookup despite a same-named internal consumer API. |
+| [selectors-consumer.d.ts](selectors-consumer.d.ts) | Member-side selectors, numeric overload links, recursive namespace paths, visibility failures, and overload reordering through serialized dependency data. |
 | [unused.d.ts](unused.d.ts) | Missing and incompatible selected dependencies must fail even when no documentation references them. |
 | [conditional-entry.d.ts](conditional-entry.d.ts) | The same package import resolves through actual Node and browser export conditions. |
 | [platform.d.ts](platform.d.ts) | Equal platform contracts produce equal reports; an intentional browser-only return-type change produces a parity failure. |

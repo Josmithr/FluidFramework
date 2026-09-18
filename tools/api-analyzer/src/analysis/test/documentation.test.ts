@@ -2,7 +2,11 @@ import {
 	createTestDocumentationContext,
 	createTestAnalysisContext,
 } from "../../test/contextUtils.js";
-import { createAnalysisContext, createDocumentationContext } from "../documentationContext.js";
+import {
+	collectApiLinkNodes,
+	createAnalysisContext,
+	createDocumentationContext,
+} from "../documentationContext.js";
 import assert from "node:assert/strict";
 import { mock } from "node:test";
 import { TSDocParser } from "@microsoft/tsdoc";
@@ -27,6 +31,7 @@ import type {
 import { DiagnosticCode } from "../../analysis-types/result.js";
 import { assertAssertionError } from "../../test/assertionUtils.js";
 import { assertSnapshot } from "../../test/snapshotUtils.js";
+import { mergeDocumentationComments } from "../mergedDocumentation.js";
 
 /**
  * Creates a documentation input in the shared example package.
@@ -108,7 +113,110 @@ function createLinkFacts(declarations: readonly DeclarationFact[]): AnalysisFact
 	};
 }
 
+describe("Merged documentation", () => {
+	it("combines block contributions without repeating identical tags or mutating originals", () => {
+		const parser = new TSDocParser();
+		const comments = ["First", "Second", "First"].map(
+			(name) =>
+				parser.parseString(`/**
+ * ${name} summary.
+ * @remarks ${name} details.
+ * @typeParam Value - ${name} type.
+ * @param value - ${name} argument.
+ * @returns ${name} result.
+ * @deprecated ${name} replacement.
+ * @example ${name} example. {@link example${name}}
+ * @see ${name} reference. {@link see${name}}
+ * @public
+ */`).docComment,
+		);
+		const originals = comments.map((comment) => comment.emitAsTsdoc());
+		const combined = mergeDocumentationComments(parser, comments);
+		assert(combined !== undefined);
+		const text = combined.emitAsTsdoc();
+		assert.deepEqual(parser.parseString(text).log.messages, []);
+		for (const content of [
+			"summary",
+			"details",
+			"type",
+			"argument",
+			"result",
+			"replacement",
+			"example",
+			"reference",
+		]) {
+			for (const name of ["First", "Second"]) {
+				assert.equal(text.split(`${name} ${content}.`).length - 1, 1, text);
+			}
+			assert(text.indexOf(`First ${content}.`) < text.indexOf(`Second ${content}.`), text);
+		}
+		assert.equal(combined.params.count, 1);
+		assert.equal(combined.typeParams.count, 1);
+		assert.equal(combined.seeBlocks.length, 2);
+		assert.equal(combined.customBlocks.length, 2);
+		assert.equal(text.split("@public").length - 1, 1);
+		assert.deepEqual(
+			collectApiLinkNodes(combined).map((link) => link.codeDestination?.emitAsTsdoc()),
+			collectApiLinkNodes(parser.parseString(text).docComment).map((link) =>
+				link.codeDestination?.emitAsTsdoc(),
+			),
+		);
+		assert.deepEqual(
+			comments.map((comment) => comment.emitAsTsdoc()),
+			originals,
+		);
+	});
+
+	it("deduplicates one inheritance request but does not select among distinct requests", () => {
+		const parser = new TSDocParser();
+		const first = parser.parseString("/** {@inheritDoc first} @public */").docComment;
+		const duplicate = parser.parseString("/** {@inheritDoc first} @public */").docComment;
+		const second = parser.parseString("/** {@inheritDoc second} @public */").docComment;
+		const combined = mergeDocumentationComments(parser, [first, duplicate]);
+		assert(combined !== undefined);
+		assert.strictEqual(combined.inheritDocTag, first.inheritDocTag);
+		assert.equal(combined.emitAsTsdoc().split("@inheritDoc").length - 1, 1);
+		assert.equal(mergeDocumentationComments(parser, [first, second]), undefined);
+	});
+});
+
 describe("Documentation link binding", () => {
+	it("selects local overload links before applying release visibility", () => {
+		const target = createFunctionFact("target", "/** Public overload. @public */", []);
+		const first = target.signatures[0];
+		assert(first !== undefined);
+		const overloaded = {
+			...target,
+			signatures: [
+				first,
+				{
+					...first,
+					id: "internal-overload",
+					documentation: "/** Internal overload. @internal */",
+				},
+			],
+		};
+		for (const [reference, expected] of [
+			["(target:1)", undefined],
+			["(target:2)", DiagnosticCode.DocumentationLinkPolicy],
+			["(target:3)", DiagnosticCode.DocumentationReference],
+			["target", DiagnosticCode.DocumentationReference],
+		] as const) {
+			const source = createFunctionFact("source", `/** See {@link ${reference}}. @public */`, [
+				{ reference, status: "resolved", target: target.id },
+			]);
+			const result = bindDocumentationLinks(
+				createTestAnalysisContext(createLinkFacts([source, overloaded])),
+			);
+			assert.equal(result.ok, expected === undefined, JSON.stringify(result));
+			if (result.ok) {
+				assert.equal(result.value[0]?.targetSignature, first.id);
+			} else {
+				assert.equal(result.diagnostics[0]?.code, expected);
+			}
+		}
+	});
+
 	it("reuses captured comments and parses only missing entries", () => {
 		const inputs = [
 			createDocumentationInput(
@@ -459,7 +567,7 @@ describe("Documentation link binding", () => {
 				},
 			],
 		];
-		for (const declarations of variants) {
+		for (const [index, declarations] of variants.entries()) {
 			const classified = classifyApiItems(
 				createTestDocumentationContext(declarations.flatMap((entry) => entry.signatures)),
 			);
@@ -468,7 +576,12 @@ describe("Documentation link binding", () => {
 				createTestAnalysisContext(createLinkFacts(declarations), {}),
 			);
 			assert.equal(result.ok, false);
-			assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+			assert.equal(
+				result.diagnostics[0]?.code,
+				index === 1
+					? DiagnosticCode.DocumentationReference
+					: DiagnosticCode.DocumentationUnsupported,
+			);
 		}
 	});
 

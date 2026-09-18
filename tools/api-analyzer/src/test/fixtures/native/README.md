@@ -48,7 +48,7 @@ Do not treat current unsupported outcomes as permanent limitations.
 - [report-members.ts](report-members.ts) verifies container headers, complete member overload sets, callable-property syntax, declared constructors and statics, complete enum and namespace contents, type-only aliases, and built-in-shadow exclusion in the checked-in declaration report.
 - The same report fixture covers matching merged interface headers, repeated property comments, atomic member selection, and local namespace/method/property link targets.
 - [container-members.ts](container-members.ts) verifies declaring-container release inheritance, nested namespace selection, inherited public members in a beta receiver, constructor overloads, accessor pairs, and call/construct/index signatures. Temporary mutations add mismatched member tags to verify unconditional rejection without modifying the checked-in fixture.
-- [merged-scope.ts](merged-scope.ts) and [merged-scope-augmentation.ts](merged-scope-augmentation.ts) contribute identical interface comments from different lexical scopes. Distinct link targets must prevent a successful merged documentation result.
+- [merged-scope.ts](merged-scope.ts) and [merged-scope-augmentation.ts](merged-scope-augmentation.ts) contribute identical interface comments from different lexical scopes. Identical content keeps the first occurrence's link target. Temporary test mutations supply distinct descriptions to verify that both original targets are retained and validated.
 - [type-references.ts](type-references.ts) retains separate parameter and return reference occurrences to an unexported beta and legacy target for independent release, directional, and entrypoint-exposure policies.
 - [signature-views.ts](signature-views.ts) distinguishes original declarations, effective signature text, reduced types, and selectively normalized output. It covers compiler utilities, named and branded aliases, utility-name shadowing, explicit receivers, optional and rest parameters, and predicate or assertion returns.
 
@@ -65,6 +65,9 @@ The report-inheritance fixtures use parameter type queries to retain their unexp
 Their detached reports match the pure report snapshots after session closure and JSON serialization for both input compilers.
 
 ## Verification
+
+[reference-selectors.ts](reference-selectors.ts) checks local static/instance disambiguation, numeric links, distinct member identities, and explicit inheritance after compiler disposal.
+The suite tests also use it as a dependency producer for model-only reference resolution.
 
 Run `pnpm build`, then `pnpm test` from the package directory for adapter, documentation, and declaration-consumer checks.
 Known failing capability probes remain pending through `it.skip` and have stage-specific TODO comments.

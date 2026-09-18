@@ -21,7 +21,7 @@ export type KeepLocalTarget = typeof localTarget;
 
 /** Shared description. See {@link localTarget}. @public */
 // Keep this TSDoc on one line so emission into differently indented scopes preserves identical text.
-// Matching comment text alone must not establish shared reference provenance.
+// Identical content retains this first occurrence and its original reference provenance.
 export interface SharedSettings {
 	/**
 	 * First setting.

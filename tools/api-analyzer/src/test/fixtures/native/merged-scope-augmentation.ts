@@ -16,7 +16,7 @@ export declare function localTarget(): void;
 declare module "./merged-scope.js" {
 	/** Shared description. See {@link localTarget}. @public */
 	// Match the other scope's single-line TSDoc exactly; this test requires different targets for identical text.
-	// Choosing either declaration by order would hide the other declaration's reference meaning.
+	// Identical content is deduplicated; a distinct description must retain this scope's target instead.
 	interface SharedSettings {
 		/**
 		 * Second setting.

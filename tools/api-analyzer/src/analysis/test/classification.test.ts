@@ -298,8 +298,8 @@ describe("Merged release metadata", () => {
 		}
 	});
 
-	it("rejects distinct descriptive comments instead of choosing declaration order", () => {
-		// Keep release tags equal to isolate conflicts in summaries and ancillary descriptive blocks.
+	it("does not reject distinct descriptions when validating merged release tags", () => {
+		// Detached records without extraction contexts still validate release tags, not description equality.
 		for (const comments of [
 			["/** Network settings. @public */", "/** Retry settings. @public */"],
 			[
@@ -308,7 +308,6 @@ describe("Merged release metadata", () => {
 			],
 		]) {
 			for (const member of [false, true]) {
-				// General syntax and missing-tag opt-outs must not authorize ambiguous merged documentation.
 				const result = createAnalysisContext(
 					createMergedReleaseFacts(
 						member ? "PropertySignature" : "InterfaceDeclaration",
@@ -317,11 +316,8 @@ describe("Merged release metadata", () => {
 					),
 					{ rules: { requireReleaseLevel: false, validateTsdocSyntax: false } },
 				);
-				assert.equal(result.ok, false);
-				assert.equal(result.diagnostics[0]?.code, "documentation-merge-conflict");
-				assert.match(result.diagnostics[0]?.message ?? "", /Settings/);
-				assert.match(result.diagnostics[0]?.message ?? "", /part-0\.d\.ts/);
-				assert.match(result.diagnostics[0]?.message ?? "", /part-1\.d\.ts/);
+				assert.equal(result.ok, true, JSON.stringify(result));
+				assert.deepEqual(result.value.classification.items, []);
 			}
 		}
 	});

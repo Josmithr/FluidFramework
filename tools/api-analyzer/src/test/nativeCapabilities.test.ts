@@ -1175,63 +1175,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						/DocumentedMerged\.shared/,
 					);
 
-					// Aligned tags alone do not resolve competing descriptions.
-					const correctedTags = {
-						...correctedInterface,
-						declarations: correctedInterface.declarations.map((declaration) =>
-							declaration.name === "DocumentedMerged"
-								? {
-										...declaration,
-										members: declaration.members.map((member) => ({
-											...member,
-											declarations: member.declarations.map((source) => ({
-												...source,
-												documentation: source.documentation?.replace("@beta", "@public"),
-											})),
-										})),
-									}
-								: declaration,
-						),
-					};
-
-					const conflictingDescriptions = createAnalysisContext(correctedTags, {
-						rules: { requireReleaseLevel: false },
-					});
-					assert.equal(conflictingDescriptions.ok, false);
-					assert.equal(
-						conflictingDescriptions.diagnostics[0]?.code,
-						DiagnosticCode.DocumentationMergeConflict,
-					);
-
-					// Preserve merged source records, but exclude the unrelated mixed-release type used only by extraction tests.
+					// Keep deliberate release-conflict fixtures out of the successful member-documentation path.
+					// The dedicated merged-documentation test exercises valid combined comments through extraction.
 					const facts = {
-						...correctedTags,
-						declarations: correctedTags.declarations
-							.filter((declaration) => declaration.name !== "DocumentedDerived")
-							.map((declaration) =>
-								declaration.name === "DocumentedMerged"
-									? {
-											...declaration,
-											declarations: declaration.declarations.map((source) => ({
-												...source,
-												documentation: source.documentation?.replace(
-													"Second declaration.",
-													"First declaration.",
-												),
-											})),
-											members: declaration.members.map((member) => ({
-												...member,
-												declarations: member.declarations.map((source) => ({
-													...source,
-													documentation: source.documentation?.replace(
-														"Second member declaration.",
-														"First member declaration.",
-													),
-												})),
-											})),
-										}
-									: declaration,
-							),
+						...detached,
+						declarations: detached.declarations.filter(
+							(declaration) =>
+								!["DocumentedDerived", "DocumentedMerged"].includes(declaration.name),
+						),
 					};
 
 					// Check the automatic receiver separately to verify container release inheritance before link validation.
@@ -1584,18 +1535,183 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
-			it("rejects merged comments whose identical links resolve in different scopes", async () => {
-				// Both link targets exist. Failure must come from their different identities, not an unresolved name.
+			it("resolves member-side selectors and numeric links before compiler disposal", async () => {
+				const result = await analyzeAPIs(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/reference-selectors.d.ts" }],
+					},
+					directory,
+				);
+				assert.equal(result.ok, true, JSON.stringify(result));
+				const model = decodeDependencyModel(result.value.generateModel(), "example");
+				assert.equal(model.ok, true, JSON.stringify(model));
+				const links = model.value.apis.find((item) => item.name === "links")?.documentation
+					.links;
+				assert(links !== undefined);
+				assert.equal(links.length, 4);
+				assert.notEqual(links[0]?.target, links[1]?.target);
+				assert.match(
+					model.value.apis.find((item) => item.name === "fromStatic")?.documentation
+						.documentation ?? "",
+					/Static operation documentation/,
+				);
+				assert.match(
+					model.value.apis.find((item) => item.name === "fromInstance")?.documentation
+						.documentation ?? "",
+					/Instance operation documentation/,
+				);
+			});
+
+			it("combines merged documentation like IntelliSense and deduplicates tags", async () => {
+				const file = path.join(directory, "declarations/merged-comments.d.ts");
+				const cases = [
+					{
+						first: "First description.",
+						second: "Second description.",
+						expected: ["First description.", "Second description."],
+					},
+					{
+						first: "Shared description.",
+						second: "Shared description.",
+						expected: ["Shared description."],
+					},
+					{ first: "Only description.", second: "", expected: ["Only description."] },
+					{ first: "", second: "Only description.", expected: ["Only description."] },
+					{ first: undefined, second: "Only description.", expected: ["Only description."] },
+					{ first: "Only description.", second: undefined, expected: ["Only description."] },
+				];
+				try {
+					for (const example of cases) {
+						// Exercise both a tag on only one part and duplicate tags on otherwise identical parts.
+						const secondTag =
+							example.first === undefined || example.first === example.second ? "@legacy" : "";
+						writeFileSync(
+							file,
+							[
+								example.first === undefined
+									? ""
+									: `/**\n * ${example.first}\n * @public\n * @legacy\n */`,
+								"export interface Settings { first: string;",
+								example.first === undefined ? "" : `/** ${example.first} */`,
+								"shared: string; }",
+								example.second === undefined
+									? ""
+									: `/**\n * ${example.second}\n * @public\n * ${secondTag}\n */`,
+								"export interface Settings { second: number;",
+								example.second === undefined ? "" : `/** ${example.second} */`,
+								"shared: string; }",
+							].join("\n"),
+						);
+						const analysis = getSuccessValue(
+							await analyzeAPIs(
+								{
+									packageName: "example",
+									project: "tsconfig.json",
+									entrypoints: [{ name: ".", path: "declarations/merged-comments.d.ts" }],
+									customModifierTags: ["@legacy"],
+								},
+								directory,
+							),
+						);
+						const model = getSuccessValue(
+							decodeDependencyModel(analysis.generateModel(), "example"),
+						);
+						const settings = model.apis.find((item) => item.name === "Settings");
+						assert(settings !== undefined);
+						const text = settings.documentation.documentation ?? "";
+						const parsed = new TSDocParser().parseString(text).docComment;
+						assert.equal(parsed.summarySection.getChildNodes().length > 0, true);
+						for (const description of example.expected) {
+							assert.equal(text.split(description).length - 1, 1, text);
+						}
+						const property = model.apis.find((item) => item.name === "shared");
+						assert(property !== undefined);
+						const propertyText = property.documentation.documentation ?? "";
+						for (const description of example.expected) {
+							assert.equal(propertyText.split(description).length - 1, 1, propertyText);
+						}
+						assert.equal(property.metadata.releaseLevel, ReleaseLevel.Public);
+						assert.equal(text.split("@public").length - 1, 1, text);
+						assert.equal(text.split("@legacy").length - 1, 1, text);
+						const report = getSuccessValue(
+							analysis.generateReport(".", {
+								name: "legacy",
+								releaseLevels: [ReleaseLevel.Public],
+								requireTags: ["@legacy"],
+							}),
+						);
+						assert.match(report, /first: string/);
+						assert.match(report, /second: number/);
+					}
+				} finally {
+					rmSync(file, { force: true });
+				}
+			});
+
+			it("retains the first identical description and its original link scope", async () => {
+				// The duplicate description points to an internal target; only the retained beta target is valid here.
 				const configuration = {
 					packageName: "example",
 					project: "tsconfig.json",
 					entrypoints: [{ name: ".", path: "declarations/merged-scope-augmentation.d.ts" }],
 				};
-				const result = await analyzeAPIs(configuration, directory);
-				assert.equal(result.ok, false);
-				assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
-				assert.match(result.diagnostics[0]?.message ?? "", /SharedSettings/);
-				assert.equal("value" in result, false);
+				const analysis = getSuccessValue(await analyzeAPIs(configuration, directory));
+				const model = getSuccessValue(
+					decodeDependencyModel(analysis.generateModel(), "example"),
+				);
+				const settings = model.apis.find((item) => item.name === "SharedSettings");
+				assert(settings !== undefined);
+				assert.equal(settings.documentation.links.length, 1);
+				const link = settings.documentation.links[0];
+				assert(link !== undefined);
+				assert.equal(link.origin.file, "declarations/merged-scope.d.ts");
+				assert.equal(
+					model.apis.find((item) => item.id === link.targetSignature)?.metadata.releaseLevel,
+					ReleaseLevel.Beta,
+				);
+			});
+
+			it("retains distinct merged descriptions with each link's original scope", async () => {
+				const file = path.join(directory, "declarations/merged-scope-augmentation.d.ts");
+				const original = readFileSync(file, "utf8");
+				const distinct = original.replace("Shared description.", "Another description.");
+				assert.notEqual(distinct, original);
+				const configuration = {
+					packageName: "example",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "declarations/merged-scope-augmentation.d.ts" }],
+				};
+				try {
+					writeFileSync(file, distinct.replace("@internal", "@beta"));
+					const analysis = getSuccessValue(await analyzeAPIs(configuration, directory));
+					const model = getSuccessValue(
+						decodeDependencyModel(analysis.generateModel(), "example"),
+					);
+					const settings = model.apis.find((item) => item.name === "SharedSettings");
+					assert(settings !== undefined);
+					assert.deepEqual(
+						settings.documentation.links.map((link) => link.origin.file),
+						["declarations/merged-scope.d.ts", "declarations/merged-scope-augmentation.d.ts"],
+					);
+					assert.notEqual(
+						settings.documentation.links[0]?.target,
+						settings.documentation.links[1]?.target,
+					);
+					const text = settings.documentation.documentation ?? "";
+					assert(text.includes("Shared description."));
+					assert(text.includes("Another description."));
+					assert(text.indexOf("Shared description.") < text.indexOf("Another description."));
+
+					// Retaining the second description must also retain policy validation for its internal link.
+					writeFileSync(file, distinct);
+					const invalid = await analyzeAPIs(configuration, directory);
+					assert.equal(invalid.ok, false);
+					assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.DocumentationLinkPolicy);
+				} finally {
+					writeFileSync(file, original);
+				}
 			});
 
 			it("inherits container releases and retains complete selected containers", async () => {
@@ -2630,7 +2746,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						{ reference: "overloaded", status: "resolved", target: overloaded.id },
 						{ reference: "missing", status: "not-found" },
 						{ reference: "example#base", status: "unsupported" },
-						{ reference: "(base:1)", status: "unsupported" },
+						{ reference: "(base:1)", status: "resolved", target: localBase.id },
 						{ reference: "linked", status: "resolved", target: linked.id },
 						{ reference: "imported", status: "resolved", target: importedBase.id },
 						{ reference: "base", status: "resolved", target: localBase.id },
@@ -2951,7 +3067,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					["MethodSource.(operation:2)", "resolved"],
 					["MethodSource.missing", "not-found"],
 					["AmbiguousMethodScope.operation", "unsupported"],
-					["MethodSource.(operation:static)", "unsupported"],
+					["MethodSource.(operation:static)", "not-found"],
 					["(MethodSource:1).operation", "unsupported"],
 				] as const) {
 					const parsed = new TSDocParser().parseString(`/** {@inheritDoc ${reference}} */`);

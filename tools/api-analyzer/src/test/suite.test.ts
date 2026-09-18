@@ -256,6 +256,135 @@ describe("Dependency suite models", () => {
 		);
 	});
 
+	it("resolves selectors and recursive namespace paths through dependency models", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/native/reference-selectors.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		const base = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...base, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		cpSync(
+			new URL("../../src/test/fixtures/suite/selectors-consumer.d.ts", import.meta.url),
+			path.join(directory, "index.d.ts"),
+		);
+		const result = await analyzeAPIs(
+			{
+				...base,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		const links = model.value.apis.find((api) => api.name === "links")?.documentation.links;
+		assert(links !== undefined);
+		assert.equal(links.length, 5);
+		assert.equal(links[4]?.targetSignature, links[2]?.targetSignature);
+		assert.notEqual(links[0]?.targetSignature, links[1]?.targetSignature);
+		assert.match(
+			model.value.apis.find((api) => api.name === "fromStatic")?.documentation.documentation ??
+				"",
+			/Static operation documentation/,
+		);
+		assert.match(
+			model.value.apis.find((api) => api.name === "fromAlias")?.documentation.documentation ??
+				"",
+			/Operation retained through recursive aliases/,
+		);
+
+		// Successfully resolving a model target must not bypass ambiguity, range, or visibility checks.
+		const consumerFile = path.join(directory, "index.d.ts");
+		const original = readFileSync(consumerFile, "utf8");
+		for (const [from, to, expected] of [
+			[
+				"dependency#(overloaded:1)",
+				"dependency#(overloaded:2)",
+				DiagnosticCode.DocumentationLinkPolicy,
+			],
+			[
+				"dependency#(overloaded:1)",
+				"dependency#(overloaded:3)",
+				DiagnosticCode.DocumentationReference,
+			],
+			[
+				"dependency#ReferenceSource.(operation:static)",
+				"dependency#ReferenceSource.operation",
+				DiagnosticCode.DocumentationReference,
+			],
+			[
+				"dependency#Group.self.self.run",
+				"dependency#Group.self.self.missing",
+				DiagnosticCode.DocumentationReference,
+			],
+		] as const) {
+			writeFileSync(consumerFile, original.replace(from, to));
+			const rejected = await analyzeAPIs(
+				{
+					...base,
+					packageName: "consumer",
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+				},
+				directory,
+			);
+			assert.equal(rejected.ok, false, to);
+			assert.equal(rejected.diagnostics[0]?.code, expected, JSON.stringify(rejected));
+		}
+		const produced = decodeDependencyModel(dependency.value.generateModel(), "dependency");
+		assert.equal(produced.ok, true);
+		const alias = produced.value.exports.find((entry) => entry.referencePath !== undefined);
+		assert(alias !== undefined);
+
+		// Corrupt aliases must fail before lookup; otherwise a model could induce an endless rewrite loop.
+		const invalid = {
+			...produced.value,
+			exports: produced.value.exports.map((entry) =>
+				entry === alias ? { ...entry, referencePath: entry.path } : entry,
+			),
+		};
+		assert.equal(decodeDependencyModel(JSON.stringify(invalid), "dependency").ok, false);
+
+		// Reverse compiler overload order without changing either signature's stable identity.
+		const producerFile = path.join(root, "index.d.ts");
+		const producer = readFileSync(producerFile, "utf8");
+		const publicStart = producer.indexOf("/**\n * Public overload documentation.");
+		const internalStart = producer.indexOf("/**\n * Internal overload documentation.");
+		const afterOverloads = producer.indexOf("/**\n * Links to", internalStart);
+		assert(publicStart >= 0 && internalStart > publicStart && afterOverloads > internalStart);
+		writeFileSync(
+			producerFile,
+			producer.slice(0, publicStart) +
+				producer.slice(internalStart, afterOverloads) +
+				producer.slice(publicStart, internalStart) +
+				producer.slice(afterOverloads).replace("(overloaded:1)", "(overloaded:2)"),
+		);
+		const reordered = await analyzeAPIs({ ...base, packageName: "dependency" }, root);
+		assert.equal(reordered.ok, true, JSON.stringify(reordered));
+		writeFileSync(path.join(root, "api-model.json"), reordered.value.generateModel());
+		writeFileSync(
+			consumerFile,
+			original
+				.replace("dependency#(overloaded:1)", "dependency#(overloaded:2)")
+				.replace("(localAlias:1)", "(localAlias:2)"),
+		);
+		const reorderedConsumer = await analyzeAPIs(
+			{
+				...base,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert.equal(reorderedConsumer.ok, true, JSON.stringify(reorderedConsumer));
+	});
+
 	it("loads matching transitive and peer models and rejects missing selected artifacts", async () => {
 		const dependencyRoot = path.join(directory, "node_modules", "dependency");
 		writeFileSync(
