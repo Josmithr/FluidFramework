@@ -1,5 +1,12 @@
 # TODOs
 
+## Audit diagnostic messages
+
+We should audit our diagnostic messages and ensure they are:
+- Clear and succinct
+- Are expressed in terms of user-facing API details, rather than internal implementation details
+- Include necessary details to make feedback actionable to the user
+
 ## Merged declarations
 
 I think it could potentially be powerful to support declarations that would otherwise merge with different release levels, if possible.
