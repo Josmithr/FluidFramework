@@ -34,8 +34,8 @@ Current paths and command names are evidence, not requirements for the replaceme
 - **Declaration rollup**: a generated declaration file that consolidates declarations for a package entrypoint.
 - **CI**: continuous integration.
 
-See [Release Tags](../../docs/content/Guidelines/Documentation-Guidelines/Documenting-TypeScript/Release-Tags.md) for the intended audiences, stability guarantees, and guidance for applying these tags.
-The [client entrypoint generator](../../build-tools/packages/build-cli/src/library/commands/generateEntrypoints.ts) defines how current and legacy API levels are combined into entrypoints.
+See [Release Tags](../../../docs/content/Guidelines/Documentation-Guidelines/Documenting-TypeScript/Release-Tags.md) for the intended audiences, stability guarantees, and guidance for applying these tags.
+The [client entrypoint generator](../../../build-tools/packages/build-cli/src/library/commands/generateEntrypoints.ts) defines how current and legacy API levels are combined into entrypoints.
 
 ## Current usage inventory
 
@@ -45,15 +45,15 @@ This investigation inspected configuration, implementations, tests, and pipeline
 
 | Current use | Representative examples | Required outcome |
 | --- | --- | --- |
-| Current and legacy reports by release level | Core-interfaces [current report](../../packages/common/core-interfaces/api-extractor/api-extractor-report.current.json) and [legacy report](../../packages/common/core-interfaces/api-extractor/api-extractor-report.legacy.json); [Tree scripts](../../packages/dds/tree/package.json) | Review the APIs exposed to each audience. |
-| Complete reports and combined report/model generation | [Build-tools configuration](../../build-tools/api-extractor-base.json); [server configuration](../../server/routerlicious/api-extractor-build-base.json) | Support areas that do not use the client report split. |
-| Entrypoint and cross-package linting | [Entrypoint validation](../../common/build/build-common/api-extractor-lint.entrypoint.json); [cross-package validation](../../common/build/build-common/api-extractor-lint.json); [export-coverage policy](../../build-tools/packages/build-cli/src/library/repoPolicyCheck/npmPackages.ts) | Validate both exposed declarations and their dependencies. |
-| Complete and trimmed declaration roll-ups | [API Markdown documenter configuration](../api-markdown-documenter/api-extractor.json) | Preserve usable published type declarations. |
-| Programmatic extraction and incremental tracking | [Fluid Build task](../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/apiExtractorTask.ts) and [worker](../../build-tools/packages/build-tools/src/fluidBuild/tasks/workers/apiExtractorWorker.ts) | Integrate results, diagnostics, and invalidation into builds. |
-| Package-level and aggregated documentation models | [Core-interfaces model](../../packages/common/core-interfaces/api-extractor/api-extractor-model.json); [fluid-framework aggregate model](../../packages/framework/fluid-framework/api-extractor/api-extractor-model.json); [documenter model loader](../api-markdown-documenter/src/LoadModel.ts) | Supply API structure and documentation independently of reports. |
-| Artifact collection, storage, and versioned rendering | [Client artifact staging](../pipelines/templates/build-npm-client-package.yml); [server artifact publication](../pipelines/templates/build-docker-service.yml); [combined artifact publication](../pipelines/publish-api-model-artifact.yml); [website version inputs](../../website/config/docs-versions.mjs) | Publish reference documentation from build artifacts. |
-| Shared tag definitions and metadata | [Fluid tag definitions](../../common/build/build-common/tsdoc-base.json); [dependency metadata generation](../../common/build/build-common/api-extractor-report-base.esm.json) | Preserve API policy across package boundaries. |
-| Conditional selection of published type declarations (out of scope) | [Deprecated release command](../../build-tools/packages/build-cli/src/commands/release/setPackageTypesField.ts); [conditional pipeline caller](../pipelines/templates/include-set-package-version.yml) | Retirement is an adoption prerequisite, not a replacement-tool requirement. |
+| Current and legacy reports by release level | Core-interfaces [current report](../../../packages/common/core-interfaces/api-extractor/api-extractor-report.current.json) and [legacy report](../../../packages/common/core-interfaces/api-extractor/api-extractor-report.legacy.json); [Tree scripts](../../../packages/dds/tree/package.json) | Review the APIs exposed to each audience. |
+| Complete reports and combined report/model generation | [Build-tools configuration](../../../build-tools/api-extractor-base.json); [server configuration](../../../server/routerlicious/api-extractor-build-base.json) | Support areas that do not use the client report split. |
+| Entrypoint and cross-package linting | [Entrypoint validation](../../../common/build/build-common/api-extractor-lint.entrypoint.json); [cross-package validation](../../../common/build/build-common/api-extractor-lint.json); [export-coverage policy](../../../build-tools/packages/build-cli/src/library/repoPolicyCheck/npmPackages.ts) | Validate both exposed declarations and their dependencies. |
+| Complete and trimmed declaration roll-ups | [API Markdown documenter configuration](../../api-markdown-documenter/api-extractor.json) | Preserve usable published type declarations. |
+| Programmatic extraction and incremental tracking | [Fluid Build task](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/apiExtractorTask.ts) and [worker](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/workers/apiExtractorWorker.ts) | Integrate results, diagnostics, and invalidation into builds. |
+| Package-level and aggregated documentation models | [Core-interfaces model](../../../packages/common/core-interfaces/api-extractor/api-extractor-model.json); [fluid-framework aggregate model](../../../packages/framework/fluid-framework/api-extractor/api-extractor-model.json); [documenter model loader](../../api-markdown-documenter/src/LoadModel.ts) | Supply API structure and documentation independently of reports. |
+| Artifact collection, storage, and versioned rendering | [Client artifact staging](../../pipelines/templates/build-npm-client-package.yml); [server artifact publication](../../pipelines/templates/build-docker-service.yml); [combined artifact publication](../../pipelines/publish-api-model-artifact.yml); [website version inputs](../../../website/config/docs-versions.mjs) | Publish reference documentation from build artifacts. |
+| Shared tag definitions and metadata | [Fluid tag definitions](../../../common/build/build-common/tsdoc-base.json); [dependency metadata generation](../../../common/build/build-common/api-extractor-report-base.esm.json) | Preserve API policy across package boundaries. |
+| Conditional selection of published type declarations (out of scope) | [Deprecated release command](../../../build-tools/packages/build-cli/src/commands/release/setPackageTypesField.ts); [conditional pipeline caller](../../pipelines/templates/include-set-package-version.yml) | Retirement is an adoption prerequisite, not a replacement-tool requirement. |
 
 ## Confirmed workflow requirements
 
@@ -73,11 +73,11 @@ This requirement does not include automatic approval, automatic breaking-change 
 
 Evidence:
 
-- [Shared API Extractor configuration](../../common/build/build-common/api-extractor-base.json)
-- [Report configuration and dependency inclusion](../../common/build/build-common/api-extractor-report-base.esm.json)
-- [Current-surface report configuration](../../common/build/build-common/api-extractor-report.esm.current.json)
-- [Legacy-surface report configuration](../../common/build/build-common/api-extractor-report.esm.legacy.json)
-- [API-review ownership](../../.github/CODEOWNERS)
+- [Shared API Extractor configuration](../../../common/build/build-common/api-extractor-base.json)
+- [Report configuration and dependency inclusion](../../../common/build/build-common/api-extractor-report-base.esm.json)
+- [Current-surface report configuration](../../../common/build/build-common/api-extractor-report.esm.current.json)
+- [Legacy-surface report configuration](../../../common/build/build-common/api-extractor-report.esm.legacy.json)
+- [API-review ownership](../../../.github/CODEOWNERS)
 
 ### W2. Validate API contracts within and across packages
 
@@ -108,10 +108,10 @@ The tool must not reject a mixed overload set solely because it combines these r
 
 Evidence:
 
-- [Shared validation rules](../../common/build/build-common/api-extractor-base.json)
-- [Cross-package validation policy](../../common/build/build-common/api-extractor-lint.json)
-- [Entrypoint validation policy](../../common/build/build-common/api-extractor-lint.entrypoint.json)
-- [Release-level validation patch](../../patches/@microsoft__api-extractor@7.58.1.patch)
+- [Shared validation rules](../../../common/build/build-common/api-extractor-base.json)
+- [Cross-package validation policy](../../../common/build/build-common/api-extractor-lint.json)
+- [Entrypoint validation policy](../../../common/build/build-common/api-extractor-lint.entrypoint.json)
+- [Release-level validation patch](../../../patches/@microsoft__api-extractor@7.58.1.patch)
 
 ### W3. Validate documentation in the appropriate context
 
@@ -127,9 +127,9 @@ The current shared configuration disables both checks; documentation completenes
 
 Evidence:
 
-- [Documentation diagnostics](../../common/build/build-common/api-extractor-base.json)
-- [Report-specific link handling](../../common/build/build-common/api-extractor-report-base.esm.json)
-- [Complete-model configuration](../../common/build/build-common/api-extractor-model.esm.json)
+- [Documentation diagnostics](../../../common/build/build-common/api-extractor-base.json)
+- [Report-specific link handling](../../../common/build/build-common/api-extractor-report-base.esm.json)
+- [Complete-model configuration](../../../common/build/build-common/api-extractor-model.esm.json)
 
 ### W4. Support the repository's package surfaces and policy differences
 
@@ -171,14 +171,14 @@ This does not require the current `bundledPackages` setting or its pattern synta
 
 Evidence:
 
-- [Conditional exports and parity-check scripts](../../packages/common/client-utils/package.json)
-- [Node report parity rule](../../packages/common/client-utils/api-extractor/api-extractor-report-node.current.json)
-- [Build-tools complete reports and policy](../../build-tools/api-extractor-base.json)
-- [Server generation configuration](../../server/routerlicious/api-extractor-build-base.json)
-- [Server cross-package policy](../../server/routerlicious/api-extractor-lint-base.json)
-- [Documented renamed-export failure](../../common/build/build-common/README.md)
-- [Local-driver dependency exception](../../packages/drivers/local-driver/api-extractor/api-extractor-report.current.json)
-- [Tree declaration input and resolution workaround](../../packages/dds/tree/api-extractor/api-extractor-model.json)
+- [Conditional exports and parity-check scripts](../../../packages/common/client-utils/package.json)
+- [Node report parity rule](../../../packages/common/client-utils/api-extractor/api-extractor-report-node.current.json)
+- [Build-tools complete reports and policy](../../../build-tools/api-extractor-base.json)
+- [Server generation configuration](../../../server/routerlicious/api-extractor-build-base.json)
+- [Server cross-package policy](../../../server/routerlicious/api-extractor-lint-base.json)
+- [Documented renamed-export failure](../../../common/build/build-common/README.md)
+- [Local-driver dependency exception](../../../packages/drivers/local-driver/api-extractor/api-extractor-report.current.json)
+- [Tree declaration input and resolution workaround](../../../packages/dds/tree/api-extractor/api-extractor-model.json)
 
 ### W5. Preserve consumable package declarations
 
@@ -199,9 +199,9 @@ This requirement does not prescribe the API design or require the existing `flub
 
 Evidence:
 
-- [Documenter declaration generation](../../tools/api-markdown-documenter/api-extractor.json)
-- [Documenter package exports](../../tools/api-markdown-documenter/package.json)
-- [Existing release-level entrypoint generator](../../build-tools/packages/build-cli/src/library/commands/generateEntrypoints.ts)
+- [Documenter declaration generation](../../api-markdown-documenter/api-extractor.json)
+- [Documenter package exports](../../api-markdown-documenter/package.json)
+- [Existing release-level entrypoint generator](../../../build-tools/packages/build-cli/src/library/commands/generateEntrypoints.ts)
 
 ### W6. Integrate with local and automated builds
 
@@ -213,8 +213,8 @@ Developers must be able to run API work for one package, affected dependent pack
 They must be able to request review, validation, declaration generation, or documentation outcomes together or independently where useful.
 Selecting several outcomes must not require separate copies of the same package policy.
 The tool must complete configured shared semantic validation once and reuse the completed analysis for requested API reports, declaration rollups, and documentation model artifacts.
-The [API direction agreed on 2026-09-17](../api-analyzer/API-Proposal.md) uses `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
-The [agreed architecture](../api-analyzer/Architecture-Proposal.md) makes report, model, and declaration generators independent consumers of one completed immutable graph.
+The [API direction agreed on 2026-09-17](API-Proposal.md) uses `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
+The [agreed architecture](Architecture-Proposal.md) makes report, model, and declaration generators independent consumers of one completed immutable graph.
 Shared classification, documentation resolution, and validation belong to analysis, not to a generator.
 The returned analysis exposes output operations and API statistics, but no source invalidation, reanalysis, or disposal methods.
 Output operations may run separately and must not repeat full analysis or shared validation.
@@ -239,10 +239,10 @@ The replacement does not have to preserve the current worker API or task-name co
 
 Evidence:
 
-- [Current task ordering](../../fluidBuild.config.cjs)
-- [Incremental extraction task](../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/apiExtractorTask.ts)
-- [Report-state regression tests](../../build-tools/packages/build-tools/src/test/tasks/leaf/apiExtractorTask.tests.ts)
-- [Programmatic worker integration](../../build-tools/packages/build-tools/src/fluidBuild/tasks/workers/apiExtractorWorker.ts)
+- [Current task ordering](../../../fluidBuild.config.cjs)
+- [Incremental extraction task](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/apiExtractorTask.ts)
+- [Report-state regression tests](../../../build-tools/packages/build-tools/src/test/tasks/leaf/apiExtractorTask.tests.ts)
+- [Programmatic worker integration](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/workers/apiExtractorWorker.ts)
 
 ### W7. Supply complete data for API documentation
 
@@ -279,15 +279,15 @@ Downstream consumers must not need to repeat semantic reference resolution; outp
 
 Evidence:
 
-- [Complete-model configuration](../../common/build/build-common/api-extractor-model.esm.json)
-- [Fluid documentation tags](../../common/build/build-common/tsdoc-base.json)
-- [Model loading and inherited documentation](../../tools/api-markdown-documenter/src/LoadModel.ts)
-- [Model-level reference validation](../../tools/api-markdown-documenter/src/LintApiModel.ts)
-- [Documentation transformation helpers](../../tools/api-markdown-documenter/src/api-item-transforms/helpers/Helpers.ts)
-- [Website rendering and filtering](../../website/infra/api-markdown-documenter/render-api-documentation.mjs)
-- [API link identity and overload handling](../../website/infra/api-markdown-documenter/api-link-manifest.mjs)
-- [Aggregate-package documentation scope](../../packages/framework/fluid-framework/api-extractor/api-extractor-model.json)
-- [Presence re-export documentation scope](../../packages/framework/presence/api-extractor/api-extractor-model.json)
+- [Complete-model configuration](../../../common/build/build-common/api-extractor-model.esm.json)
+- [Fluid documentation tags](../../../common/build/build-common/tsdoc-base.json)
+- [Model loading and inherited documentation](../../api-markdown-documenter/src/LoadModel.ts)
+- [Model-level reference validation](../../api-markdown-documenter/src/LintApiModel.ts)
+- [Documentation transformation helpers](../../api-markdown-documenter/src/api-item-transforms/helpers/Helpers.ts)
+- [Website rendering and filtering](../../../website/infra/api-markdown-documenter/render-api-documentation.mjs)
+- [API link identity and overload handling](../../../website/infra/api-markdown-documenter/api-link-manifest.mjs)
+- [Aggregate-package documentation scope](../../../packages/framework/fluid-framework/api-extractor/api-extractor-model.json)
+- [Presence re-export documentation scope](../../../packages/framework/presence/api-extractor/api-extractor-model.json)
 
 ### W8. Produce and consume versioned documentation artifacts
 
@@ -309,13 +309,13 @@ The current artifact names, flattened directories, archive types, storage URLs, 
 
 Evidence:
 
-- [Root generation and collection workflows](../../package.json)
-- [Client build artifact staging](../../tools/pipelines/templates/build-npm-client-package.yml)
-- [Independent-package artifact staging](../../tools/pipelines/templates/build-npm-package.yml)
-- [Server artifact publication](../../tools/pipelines/templates/build-docker-service.yml)
-- [Combined documentation artifact publication](../../tools/pipelines/publish-api-model-artifact.yml)
-- [Published artifact download](../../website/infra/download-doc-models.mjs)
-- [Versioned and local documentation inputs](../../website/config/docs-versions.mjs)
+- [Root generation and collection workflows](../../../package.json)
+- [Client build artifact staging](../../pipelines/templates/build-npm-client-package.yml)
+- [Independent-package artifact staging](../../pipelines/templates/build-npm-package.yml)
+- [Server artifact publication](../../pipelines/templates/build-docker-service.yml)
+- [Combined documentation artifact publication](../../pipelines/publish-api-model-artifact.yml)
+- [Published artifact download](../../../website/infra/download-doc-models.mjs)
+- [Versioned and local documentation inputs](../../../website/config/docs-versions.mjs)
 
 ### W9. Keep validation coverage complete as packages change
 
@@ -330,9 +330,9 @@ Removing the executable alone is not a complete workflow replacement.
 
 Evidence:
 
-- [Export-coverage policy and generated lint configuration](../../build-tools/packages/build-cli/src/library/repoPolicyCheck/npmPackages.ts)
-- [Shared documentation configuration dependency](../../common/build/build-common/tsdoc-base.json)
-- [Cross-package metadata generation](../../common/build/build-common/api-extractor-report-base.esm.json)
+- [Export-coverage policy and generated lint configuration](../../../build-tools/packages/build-cli/src/library/repoPolicyCheck/npmPackages.ts)
+- [Shared documentation configuration dependency](../../../common/build/build-common/tsdoc-base.json)
+- [Cross-package metadata generation](../../../common/build/build-common/api-extractor-report-base.esm.json)
 
 ### W10. Keep repository-specific policy outside the tool
 
@@ -380,9 +380,9 @@ They do not require one executable to own every step.
 
 Boundary evidence:
 
-- [Independent entrypoint generator](../../build-tools/packages/build-cli/src/library/commands/generateEntrypoints.ts)
-- [Existing export and release-level analysis](../../build-tools/packages/build-cli/src/library/typescriptApi.ts)
-- [Tree generation and validation workflows](../../packages/dds/tree/package.json)
+- [Independent entrypoint generator](../../../build-tools/packages/build-cli/src/library/commands/generateEntrypoints.ts)
+- [Existing export and release-level analysis](../../../build-tools/packages/build-cli/src/library/typescriptApi.ts)
+- [Tree generation and validation workflows](../../../packages/dds/tree/package.json)
 
 ## Existing constraints that are not requirements
 

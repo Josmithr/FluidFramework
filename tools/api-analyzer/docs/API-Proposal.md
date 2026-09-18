@@ -1,7 +1,7 @@
 # `api-analyzer` API Proposal
 
 Status: API direction agreed on 2026-09-17; declaration reports and versioned dependency-model generation are implemented for the current Stage 2 subset.
-The [README](README.md#experimental-api) describes the implemented subset and remaining limitations.
+The [README](../README.md#experimental-api) describes the implemented subset and remaining limitations.
 The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
 Keep the functional API as narrow as reasonably possible.

@@ -2,14 +2,14 @@
 
 ## Status and objective
 
-API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](../api-analyzer/API-Proposal.md).
+API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](API-Proposal.md).
 The reusable public session has been removed in favor of `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
 The initial implementation completes existing callable classification and documentation validation before success and closes the compiler connection before returning.
 The completed analysis exposes effective configuration, API counts, selected declaration reports, and versioned dependency-model generation.
 Stage 2 remains open for remaining declaration ownership, reference coverage, and model compatibility acceptance; declaration rollups remain incomplete.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
-Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](../api-analyzer/Architecture-Proposal.md).
+Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](Architecture-Proposal.md).
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
 Analysis completion now owns documentation resolution and returns a frozen graph for the currently supported callable scope.
 Reporting consumes that graph without compiler or parser access.
@@ -24,9 +24,9 @@ An initial function-only review report builder and Markdown renderer use checked
 The combined contract suite passes 54 tests, including configurable report presentation and snapshots for TS6- and TS7-built declarations, verified on 2026-09-15.
 Those counts describe historical increments, not the current Stage 2 implementation.
 Current tests also cover declaration reports, configured reference policies, dependency models, conditional-export parity, and a small repository pilot.
-See the [Stage 0 results and review decisions](../api-analyzer/README.md#stage-0-results) for reproducible evidence.
+See the [Stage 0 results and review decisions](../README.md#stage-0-results) for reproducible evidence.
 The Stage 0 probe recorded 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
-The [Stage 1 results and experimental API](../api-analyzer/README.md#stage-1-results) describe the new tests and limits.
+The [Stage 1 results and experimental API](../README.md#stage-1-results) describe the new tests and limits.
 The full semantic fixture suite now runs through the synchronous client.
 Declaration generation and minimal examples for upstream issue reports remain open tasks.
 Stage 1 does not depend on an emit method and does not resolve the asynchronous client failure.
@@ -58,7 +58,7 @@ An implementation blocker must produce a documented decision request, not an una
 - Provide a Node.js-compatible TypeScript API. A CLI is optional, not part of the initial required delivery.
 - ESM-only support is acceptable. Preserve Node, browser, and custom resolution conditions for supported entrypoints.
 - Keep Fluid tags, package scopes, surface names, and policy meanings outside the generic implementation.
-- V1 selects classes, interfaces, enums, and namespaces as whole containers. Neither release-level nor custom-tag selection may trim their members, including constructors and static members. Explicit member release levels must equal the declaring container's effective level; untagged members inherit that level. This rule has no V1 opt-out. Validate local overrides against their declaring container and reuse completed base-member validation. Standalone overload selection remains independent. See the [implementation TODO](../api-analyzer/TODOs.md#member-compatibility) and [future flexibility investigation](api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
+- V1 selects classes, interfaces, enums, and namespaces as whole containers. Neither release-level nor custom-tag selection may trim their members, including constructors and static members. Explicit member release levels must equal the declaring container's effective level; untagged members inherit that level. This rule has no V1 opt-out. Validate local overrides against their declaring container and reuse completed base-member validation. Standalone overload selection remains independent. See the [implementation TODO](../TODOs.md#member-compatibility) and [future flexibility investigation](api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
 - Follow documentation-driven development, test-driven development, and functional programming principles throughout this project.
 - Preserve all W1-W11 requirements, F1-F4 capabilities, and B1-B6 regression obligations. Staged delivery does not make later requirements optional.
 
@@ -74,7 +74,7 @@ Include this plan in development handoffs and change reviews.
 ### Documentation-driven development
 
 Write documentation in Simplified Technical English (ASD-STE100).
-Follow the repository's [Documentation Guidelines](../../docs/content/Guidelines/Documentation-Guidelines.md) and the applicable guidance linked there, including source-code documentation guidance.
+Follow the repository's [Documentation Guidelines](../../../docs/content/Guidelines/Documentation-Guidelines.md) and the applicable guidance linked there, including source-code documentation guidance.
 These requirements apply to design documents, API documentation, code examples, and user and migration guides.
 
 When the purpose or importance of code might not be clear to a developer or AI agent reading it for the first time, add inline comments to explain it.
@@ -139,7 +139,7 @@ Explain the expected distinction or constraint in Simplified Technical English, 
 Keep these explanations separate from tested TSDoc and preserve absent, empty, malformed, and tag-only documentation inputs.
 Place explanatory comments after the complete tested TSDoc block or group and before its declaration; the pinned TS7 API includes preceding line comments in extracted TSDoc text even across blank lines.
 Keep adjacent TSDoc comments and compiler directives attached to their original declarations or statements, and keep explanations outside exact source blocks replaced by tests.
-Review module overviews and API-level comments whenever fixtures are added or changed, following the [fixture comment guide](../api-analyzer/src/test/fixtures/README.md#fixture-comments).
+Review module overviews and API-level comments whenever fixtures are added or changed, following the [fixture comment guide](../src/test/fixtures/README.md#fixture-comments).
 For comment-only edits, verify unchanged code tokens and attached TSDoc, then run the affected fixture tests without updating snapshots.
 
 Use semantic test and suite names that describe the behavior under test.
@@ -175,7 +175,7 @@ The dependency rules in the architecture proposal apply to source imports, not o
 Use `good-fences` to enforce those rules as implementations move into layers, following the per-directory fence conventions in `api-markdown-documenter`.
 Define layer tags, allowed imports, and exported entrypoints, with explicit root-composition and test boundaries.
 The initial migration pins `good-fences` 0.10.0 and integrates `check:fences` into lint; the boundary regression verifies allowed and forbidden imports under the package's TypeScript and ESM conventions.
-See the [tooling notes](../api-analyzer/README.md#dependency-boundaries) for upstream maintenance and native-dependency limitations.
+See the [tooling notes](../README.md#dependency-boundaries) for upstream maintenance and native-dependency limitations.
 Keep ESLint for coding conventions rather than duplicating directory dependency rules.
 Keep generic utilities free of release policy and graph-specific traversal.
 Compute shared semantics in analysis, or place narrowly scoped shared operations beside the graph contract when multiple generators require them.
@@ -195,7 +195,7 @@ Document each supported diagnostic code and its corrective action in the public 
 
 ## Agreed architecture
 
-The [architecture proposal](../api-analyzer/Architecture-Proposal.md#source-organization) specifies the agreed source directories and allowed dependencies within this package.
+The [architecture proposal](Architecture-Proposal.md#source-organization) specifies the agreed source directories and allowed dependencies within this package.
 The following components refine those ownership boundaries; they do not require separate packages or one directory per row.
 Do not create empty directories for unimplemented generators.
 
@@ -231,7 +231,7 @@ Task prerequisites must reflect these contracts rather than force every optional
 
 ### Analysis reuse and lifecycle
 
-Use one completed analysis per package invocation, following the [agreed API contract](../api-analyzer/API-Proposal.md).
+Use one completed analysis per package invocation, following the [agreed API contract](API-Proposal.md).
 Complete configuration resolution, suite loading, extraction, classification, documentation resolution, and configured semantic validation before success.
 Distinct conditions or compiler options may require distinct internal contexts.
 Output format or release-level filtering alone must not cause a complete reanalysis.
@@ -382,7 +382,7 @@ These results do not yet close Stage 2.
 Remaining work includes differing merged-declaration documentation ownership, recursive namespace aliases, complete reference-form coverage, and final requirement-by-requirement acceptance.
 Existing unsupported outcomes must not be silently reclassified as completed requirements.
 
-Current progress: The [initial classification contract and results](../api-analyzer/README.md#release-classification-and-selection-contract) cover independent callable-overload release levels, explicit custom modifier configuration, diagnostic opt-outs, and named metadata selections.
+Current progress: The [initial classification contract and results](../README.md#release-classification-and-selection-contract) cover independent callable-overload release levels, explicit custom modifier configuration, diagnostic opt-outs, and named metadata selections.
 `classifyApiItems` and `selectApiItems` are experimental pure APIs over explicit data. Selection reuses classified metadata without repeating compiler analysis.
 This is metadata selection, not a complete selected declaration graph or report representation.
 Real-compiler tests use detached overload facts after session closure with both supported input-build compilers.
@@ -410,7 +410,7 @@ Validation-only and baseline-update modes remain independent.
 
 The initial per-overload classification and metadata-selection contract was implemented after its tests failed against stubs.
 The next increment adds independent baseline comparison, file checking, and explicit file updates.
-The [baseline contract](../api-analyzer/README.md#review-artifacts-and-baselines) requires exact text comparison, no writes during checks, and exception propagation for unexpected filesystem errors.
+The [baseline contract](../README.md#review-artifacts-and-baselines) requires exact text comparison, no writes during checks, and exception propagation for unexpected filesystem errors.
 Three acceptance tests cover missing and stale baselines, exact whitespace, explicit creation and replacement, invalid paths, and filesystem failures.
 These operations consume text without parsing report syntax or repeating analysis. They do not yet constitute a review-artifact generator or satisfy the end-to-end parity gate.
 The initial report representation now joins selected signature metadata to detached function facts.
@@ -439,7 +439,7 @@ The async termination failure also remains open; the planned asynchronous entryp
 #### Resolve documentation before report construction
 
 Current implementation: `resolveDocumentation` copies inherited documentation within the same package using explicit target bindings and official TSDoc parsing and printing.
-The [resolver contract](../api-analyzer/README.md#explicit-documentation-inheritance-contract) defines bindings, resolved comments, local metadata, and inheritance paths.
+The [resolver contract](../README.md#explicit-documentation-inheritance-contract) defines bindings, resolved comments, local metadata, and inheritance paths.
 Pure tests cover chains, empty targets, blocks that remain local, invalid bindings, cycles, and unsupported features.
 Real-compiler tests resolve comments from TypeScript 6 and TypeScript 7 declaration builds after the TypeScript 7 analysis session closes.
 

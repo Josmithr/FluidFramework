@@ -17,7 +17,7 @@ These limitations prevent closing Stage 2; the implemented checks do not waive t
 
 ## Development contract
 
-Follow the [implementation plan](../plans/api-extractor-replacement-implementation-plan.md), including documentation-driven development, test-driven development, and functional architecture.
+Follow the [implementation plan](docs/api-extractor-replacement-implementation-plan.md), including documentation-driven development, test-driven development, and functional architecture.
 Write behavior contracts before implementation and run focused failing tests before adding or fixing behavior.
 Write documentation in Simplified Technical English and follow the [repository documentation guidelines](../../docs/content/Guidelines/Documentation-Guidelines.md).
 Keep compiler communication and process lifecycle separate from pure transformations.
@@ -192,7 +192,7 @@ These checks do not disable configured reference/exposure policies or make parti
 The [container fixture](src/test/fixtures/native/container-members.ts) covers complete output and original ownership with both supported input compilers.
 Pure tests cover release-level pairs, nested ownership, untagged roots, repeated inherited views, and custom-tag selections.
 Later declaration rollups must follow the same selection invariant; rollups are not implemented by this change.
-Additional selection flexibility remains a [post-V1 investigation](../plans/api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
+Additional selection flexibility remains a [post-V1 investigation](docs/api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
 
 ### Original and resolved signature text
 
@@ -280,12 +280,12 @@ A function-type node returned by `signatureToSignatureDeclaration` causes a node
 Comparing individual parameter types is not a valid substitute: equivalent generic methods have separately declared type parameters that fail mutual assignability.
 The native capability regression reproduces both boundaries for TS6- and TS7-built inputs.
 Automatic overload inheritance is excluded from Stage 2 rather than approximated with those APIs.
-The [overload inheritance follow-up](../plans/api-extractor-replacement-follow-ups.md#automatic-overload-documentation-inheritance) tracks better support.
+The [overload inheritance follow-up](docs/api-extractor-replacement-follow-ups.md#automatic-overload-documentation-inheritance) tracks better support.
 This limitation does not block explicit numeric inheritance selectors or other Stage 2 work.
 
 ## Shared analysis context
 
-The [architecture proposal](Architecture-Proposal.md) defines the layer dependencies.
+The [architecture proposal](docs/Architecture-Proposal.md) defines the layer dependencies.
 `src/api.ts` composes configuration resolution, analysis, and output generation without exposing internal types.
 `analysis-types` contains shared graph and input contracts and generic release-selection operations.
 `analysis` owns compiler queries, original classification, documentation resolution, and mutable working state.
@@ -388,7 +388,7 @@ It copies the target's summary, remarks, parameter documentation, type-parameter
 Other blocks and modifier tags come from the local comment.
 In the example, the derived comment receives the summary and retains `@public`.
 It does not receive `@internal`.
-These copying rules are fixed. Evaluating configurable rules is a [future follow-up](../plans/api-extractor-replacement-follow-ups.md#configurable-documentation-inheritance-rules).
+These copying rules are fixed. Evaluating configurable rules is a [future follow-up](docs/api-extractor-replacement-follow-ups.md#configurable-documentation-inheritance-rules).
 
 Use the original inputs for release classification.
 Do not classify the resolved comment as a new API item.
@@ -761,7 +761,7 @@ Inherited links retain their original targets and must also satisfy the receivin
 This status measures content presence, not documentation quality or completeness.
 
 Same-package explicit inheritance, selected-suite resolution, and automatic member report integration are implemented for the supported scope.
-The [Stage 2 documentation-resolution plan](../plans/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) records remaining declaration and reference acceptance work.
+The [Stage 2 documentation-resolution plan](docs/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) records remaining declaration and reference acceptance work.
 The resolver's automatic inheritance rule treats any local TSDoc comment, including an empty or tag-only comment, as an override.
 Versioned dependency-model loading and structural validation now run before compiler extraction.
 Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
@@ -777,7 +777,7 @@ const presentation = {
 };
 ```
 
-Package-level `@packageDocumentation` handling remains a [required follow-up](../plans/api-extractor-replacement-follow-ups.md#required-package-documentation-support).
+Package-level `@packageDocumentation` handling remains a [required follow-up](docs/api-extractor-replacement-follow-ups.md#required-package-documentation-support).
 No missing-package-documentation annotation is emitted before that analysis exists.
 General report-format customization is a separate follow-up after rough API Extractor parity.
 The text uses LF line endings and one final newline. It excludes source comments, implementation bodies,

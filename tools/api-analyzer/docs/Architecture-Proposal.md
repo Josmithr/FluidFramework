@@ -4,7 +4,7 @@ Status: architecture direction agreed on 2026-09-17; the initial implemented lay
 `utilities`, `analysis-types`, `analysis`, and `report-generation` now have enforced boundaries.
 The completed graph covers the current callable-analysis scope; general declaration documentation, complete reference edges, and model and rollup output remain pending.
 The [API proposal](API-Proposal.md) defines the public workflow.
-The [implementation plan](../plans/api-extractor-replacement-implementation-plan.md) defines delivery stages and capability gates.
+The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery stages and capability gates.
 
 ## Public workflow
 
@@ -74,12 +74,12 @@ If generators need a common selection or graph operation, place it beside the gr
 Add such operations only when shared use requires them; do not add a general graph framework.
 
 Enforce directory dependency rules with `good-fences` as layers are introduced.
-Follow the per-directory `fence.json` conventions in `api-markdown-documenter`, including its [renderer boundary](../api-markdown-documenter/src/renderers/fence.json) and [utility boundary](../api-markdown-documenter/src/utilities/fence.json).
+Follow the per-directory `fence.json` conventions in `api-markdown-documenter`, including its [renderer boundary](../../api-markdown-documenter/src/renderers/fence.json) and [utility boundary](../../api-markdown-documenter/src/utilities/fence.json).
 Use tags, allowed imports, and exported entrypoints to express the dependencies in the table above.
 Configure root composition and test boundaries explicitly; production layers must not depend on test helpers or bypass layer boundaries through root exports.
 `pnpm check:fences` runs the installed `good-fences` checker, and `pnpm lint` includes that check.
-The [boundary regression](src/test/architecture.test.ts) verifies allowed imports and rejected cross-layer imports, type-only imports, re-exports, root-barrel access, and production access to test helpers.
-See the [tooling notes](README.md#dependency-boundaries) for the selected version and compatibility limitations.
+The [boundary regression](../src/test/architecture.test.ts) verifies allowed imports and rejected cross-layer imports, type-only imports, re-exports, root-barrel access, and production access to test helpers.
+See the [tooling notes](../README.md#dependency-boundaries) for the selected version and compatibility limitations.
 Keep ESLint for coding conventions; do not duplicate the layer dependency rules in ESLint or a custom checker.
 Create directories when their implementations are needed, not as empty scaffolding.
 
@@ -94,7 +94,7 @@ Dependency models do not replace the type declarations used by compiler analysis
 
 The shared graph and portable artifact may eventually support complete analysis restoration without compiler access.
 That is a future capability to verify, not a guarantee of the initial serializer.
-The [persistent-reuse follow-up](../plans/api-extractor-replacement-follow-ups.md#persistent-analysis-reuse-across-builds) must determine whether the portable model contains all required data or a separate cache artifact is needed.
+The [persistent-reuse follow-up](api-extractor-replacement-follow-ups.md#persistent-analysis-reuse-across-builds) must determine whether the portable model contains all required data or a separate cache artifact is needed.
 Restored analysis must agree with fresh analysis for every supported output, statistic, and configured validation result.
 Dependency-model decoding is required for suite resolution and is not deferred with cross-build caching.
 

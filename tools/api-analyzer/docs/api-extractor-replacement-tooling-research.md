@@ -32,7 +32,7 @@ The original investigation inspected upstream documentation, package metadata, p
 It did not install candidates, execute their analysis engines, run the upstream reproductions, or benchmark performance.
 An available API method is evidence of a capability to test, not proof that a requirement passes.
 
-The subsequent [Stage 0 investigation](../api-analyzer/README.md#stage-0-results) executed pinned TS7 7.0.2 against fixtures built with TS6 6.0.3 and TS7 7.0.2.
+The subsequent [Stage 0 investigation](../README.md#stage-0-results) executed pinned TS7 7.0.2 against fixtures built with TS6 6.0.3 and TS7 7.0.2.
 It verified several semantic queries, declaration printing and consumption, and a narrow cached-query reuse case.
 It recorded failed gates for retained-program declaration emission and async native-crash handling.
 These runtime results supplement the original research; they do not establish full workflow coverage or performance targets.

@@ -16,20 +16,20 @@ Upstream issue closure does not establish that the replacement handles the case 
 Before closing an entry, link its passing regression tests and verify the applicable behavior with both TypeScript 6 and TypeScript 7.
 These versions identify the package build and declaration-consumption test configurations. One TypeScript 7 analysis engine using TypeScript 7 semantics may serve both, as permitted by W4; record the analysis engine separately.
 
-The [Stage 0 results](../api-analyzer/README.md#stage-0-results) and [native capability tests](../api-analyzer/src/test/nativeCapabilities.test.ts) provide preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
+The [Stage 0 results](../README.md#stage-0-results) and [native capability tests](../src/test/nativeCapabilities.test.ts) provide preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
 They do not implement the required artifacts or reproduce the full cross-package regressions. All F1-F4 and B1-B6 entries remain open.
-The [Stage 1 session tests](../api-analyzer/src/test/session.test.ts) check facts that contain no compiler objects.
+The [Stage 1 session tests](../src/test/session.test.ts) check facts that contain no compiler objects.
 They cover aliases, chained type-only exports, inherited members, overload identifiers, and diagnostics for incomplete member expansion.
 These tests do not satisfy the requirements for generated artifacts.
 
-The [direct adapter-helper tests](../api-analyzer/src/test/nativeCapabilities.test.ts) use real compiler fixtures built with TS6 and TS7.
+The [direct adapter-helper tests](../src/test/nativeCapabilities.test.ts) use real compiler fixtures built with TS6 and TS7.
 They check package locations, alias targets, type-only export status, effective members, documented overloads, and declaration collection.
 They also verify independent location caches, reuse of completed declarations, and the active-identifier guard.
 The focused analysis and configuration suite passes 29 tests, verified on 2026-09-15.
 Test names describe behavior; comments above tests retain applicable design identifiers.
 This evidence does not close F1-F4 or B1-B6. Artifact-level and full cross-package acceptance tests remain required.
 
-The [classification and selection tests](../api-analyzer/src/analysis/test/classification.test.ts) provide initial Stage 2 evidence for independent overload classification and configurable release and modifier-tag filters.
+The [classification and selection tests](../src/analysis/test/classification.test.ts) provide initial Stage 2 evidence for independent overload classification and configurable release and modifier-tag filters.
 The native capability fixtures also verify selection from detached callable facts after session closure for both input-build compilers.
 The combined contract suite passes 45 tests on 2026-09-15, including numeric release-level ordering and explicit-set selection checks.
 Extraction tests distinguish absent and explicit empty TSDoc comments in source and TS6/TS7-built declarations, including after JSON serialization.
@@ -98,7 +98,7 @@ Any missing or incompatible documentation model for a selected suite dependency 
 The failure must identify the affected dependency and the model availability or compatibility problem.
 Consumers must not need to repeat that semantic resolution when rendering documentation.
 
-The [agreed architecture](../api-analyzer/Architecture-Proposal.md) assigns documentation resolution to analysis and artifact decoding and validation to the model layer.
+The [agreed architecture](Architecture-Proposal.md) assigns documentation resolution to analysis and artifact decoding and validation to the model layer.
 Root composition reads selected dependency artifacts and passes validated data to analysis.
 All generators consume the completed graph, which preserves resolved content and original metadata without mutable compiler or parser state.
 Dependency-model decoding is required here; full analysis restoration for incremental builds remains a separate deferred capability.
@@ -212,7 +212,7 @@ Resolved decision: Mixed `@internal` and non-internal standalone function overlo
 Scope clarification agreed on 2026-09-18: independent selection applies to standalone functions, not members of an atomic container.
 V1 requires every selected class, interface, enum, or namespace to retain its members, including static members and constructors.
 Contained overloads remain supported but must satisfy the container's release-level rules and must not be trimmed independently by release-level or custom-tag filters.
-See the [member compatibility decision](../api-analyzer/TODOs.md#member-compatibility).
+See the [member compatibility decision](../TODOs.md#member-compatibility).
 All F4 questions listed during this requirements discussion are resolved.
 
 Related requirements: W1, W2, W4, W5, W7.

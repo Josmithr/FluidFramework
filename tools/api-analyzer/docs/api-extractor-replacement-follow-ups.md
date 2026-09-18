@@ -9,12 +9,12 @@ Moving an item here does not waive those requirements or mark an unresolved capa
 
 ## Persistent analysis reuse across builds
 
-Status: open; explicitly deferred from initial delivery by the [2026-09-17 API decision](../api-analyzer/API-Proposal.md).
+Status: open; explicitly deferred from initial delivery by the [2026-09-17 API decision](API-Proposal.md).
 
 Investigate avoiding repeated package analysis when inputs have not changed since a previous build.
 The initial version may perform fresh analysis on every invocation.
 This follow-up does not introduce watch mode or source invalidation on `APIAnalysis`.
-Follow the [agreed model contract](../api-analyzer/Architecture-Proposal.md#model-contract): serialized artifacts have an explicit versioned format, not the internal working-context layout.
+Follow the [agreed model contract](Architecture-Proposal.md#model-contract): serialized artifacts have an explicit versioned format, not the internal working-context layout.
 Dependency-model decoding and validation remain required for suite resolution and are not deferred by this item.
 
 - Identify all relevant inputs, including analyzed declarations, effective configuration, resolution settings, selected dependency models, and analyzer and compiler versions.
@@ -49,7 +49,7 @@ This item is not a Stage 2 exit requirement and does not defer non-overloaded au
 Status: open; explicitly deferred beyond V1 by the 2026-09-18 container decision.
 
 V1 must keep selected containers intact, including namespace exports, static class members, and constructor signatures.
-Implementing that rule remains required work in the [member compatibility TODO](../api-analyzer/TODOs.md#member-compatibility); this follow-up does not defer it.
+Implementing that rule remains required work in the [member compatibility TODO](../TODOs.md#member-compatibility); this follow-up does not defer it.
 Investigate whether a later version can permit different member release levels or independent member selection with a clear compatibility contract.
 No namespace or static-member exception is approved for V1.
 
@@ -64,7 +64,7 @@ Any implementation requires an approved design; this item is not a commitment to
 
 ## Upstream TypeScript reports
 
-Status: open; follow-up to the [Stage 0 findings](../api-analyzer/README.md#stage-0-results).
+Status: open; follow-up to the [Stage 0 findings](../README.md#stage-0-results).
 
 - Create a minimal standalone reproduction of the async native-process termination issue. Show that the pending request does not reject as expected.
 - Create minimal reproductions for other suspected TypeScript defects encountered during this project. Remove repository-specific dependencies and unrelated behavior.
@@ -100,7 +100,7 @@ Direct programmatic use remains available without filesystem access.
 
 Status: open; future investigation. No configurable inheritance rules are implemented or committed by this item.
 
-Evaluate whether consumers need configuration beyond the fixed [documentation inheritance rules](../api-analyzer/README.md#explicit-documentation-inheritance-contract).
+Evaluate whether consumers need configuration beyond the fixed [documentation inheritance rules](../README.md#explicit-documentation-inheritance-contract).
 Keep the current rules as the default while evaluating use cases and compatibility with TSDoc and API Extractor.
 
 - Consider which documentation sections can be inherited, including blocks that currently remain local, such as examples and deprecation notices.
