@@ -34,6 +34,7 @@ enum ApiItemKind {
 	Method,
 	Module,
 	Namespace,
+	Package,
 	Parameter,
 	Property,
 	TypeParameter,
@@ -45,6 +46,8 @@ enum ApiItemKind {
 
 /**
  * An API item.
+ * @remarks
+ * Separate overloads of functions or methods are represented as distinct API items.
  */
 export interface ApiItem<
 	TKind extends ApiItemKind = ApiItemKind,
@@ -61,10 +64,31 @@ export interface ApiItem<
 	// Other data common to all kinds of API items
 }
 
+/**
+ * An API item with child elements
+ */
+export interface ApiParentItem<
+	TKind extends ApiItemKind = ApiItemKind,
+	TChild extends ApiItem = ApiItem,
+	TParent extends ApiItem | undefined = undefined,
+> extends ApiItem<TKind, TParent> {
+	readonly children: readonly TChild[];
+}
+
 // TODO: probably a type that represents API items may have child elements
 // Child elements should be type-restricted based on the kind of API item they belong to.
 
 // TODO: specific types can constrain the types of child elements they can have and the types of parent contexts they can appear in.
+
+/**
+ * API item representing a package.
+ * @remarks May contain 1 or more entrypoints.
+ */
+export interface ApiPackage extends ApiParentItem<ApiItemKind.Package> {
+	// The docs for the package come from the `@packageDocumentation` comment.
+	// Package-specific data (entrypoints)
+}
+
 /**
  * API item representing a function.
  */
