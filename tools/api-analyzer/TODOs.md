@@ -1,5 +1,12 @@
 # TODOs
 
+## (Long-term) Add support for `{@label}`
+
+TSDoc has an experimental tag definition that allows users to annotate their APIs with unique labels that can be used to more easily disambiguate references.
+See [TSDoc's documentation](https://tsdoc.org/pages/tags/label/) for more details.
+
+While the design hasn't been finalized, I think it would be reasonable to add support for it here and allow references to be expressed in terms of labels.
+
 ## (Long-term) End-to-end test configurations
 
 Once we have most of the code working, we should add some comprehensive end-to-end test suites that cover sample repo configurations.
