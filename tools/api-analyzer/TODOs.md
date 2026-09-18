@@ -1,5 +1,61 @@
 # TODOs
 
+## Merged declarations
+
+I think it could potentially be powerful to support declarations that would otherwise merge with different release levels, if possible.
+E.g.
+
+```typescript
+/**
+ * @public
+ */
+export interface Foo {
+	publicApi: number;
+}
+
+/**
+ * @beta
+ */
+export interface Foo {
+	betaApi: string;
+}
+
+/**
+ * @alpha
+ */
+export interface Foo {
+	alphaApi: boolean;
+}
+```
+
+If trimmed exports omitted components by release level, then we would effectively get something like:
+
+```typescript
+// Foo exported from the public API (tagged `@public`):
+interface Foo {
+	publicApi: number;
+}
+
+// Foo exported from the beta API (tagged `@beta`):
+interface Foo {
+	publicApi: number;
+	betaApi: string;
+}
+
+// Foo exported from the alpha API (tagged `@alpha`):
+interface Foo {
+	publicApi: number;
+	betaApi: string;
+	alphaApi: boolean;
+}
+```
+
+This would conceptually preserve the expected invariant that APIs can be used with other APIs of the same or more-public release levels.
+
+But does this actually work? Do we get sufficient information from the `.d.ts` files to properly do this splitting?
+
+And what would the end-user implications of this be?
+
 ## (Long-term) Add support for `{@label}`
 
 TSDoc has an experimental tag definition that allows users to annotate their APIs with unique labels that can be used to more easily disambiguate references.
