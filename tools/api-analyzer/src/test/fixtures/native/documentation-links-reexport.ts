@@ -1,6 +1,6 @@
 /*
  * Validates original-scope API link lookup through a re-export.
- * Links in linked must resolve base in documentation-links.ts, not the variable declared here.
+ * Unqualified links resolve base in documentation-links.ts; example#base resolves the exported variable here.
  */
 
 export { linked } from "./documentation-links.js";

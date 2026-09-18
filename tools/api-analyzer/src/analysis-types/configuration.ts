@@ -99,7 +99,7 @@ export interface Configuration extends TsdocOptions {
 	readonly entrypoints?: readonly Entrypoint[];
 
 	/**
-	 * Enabled or disabled classification rules.
+	 * Enabled or disabled package-documentation and classification rules.
 	 *
 	 * @remarks
 	 * Settings merge with inherited rules; a local value, including `false`, overrides the same key.
@@ -159,7 +159,7 @@ export interface EffectiveConfiguration {
 	 * The merged rule settings after inheritance and overrides, or an empty map if none were supplied.
 	 *
 	 * @remarks
-	 * Omitted classification rules use their documented defaults.
+	 * Omitted rules use their documented defaults; package documentation is optional unless required explicitly.
 	 */
 	readonly rules: ClassificationRules;
 

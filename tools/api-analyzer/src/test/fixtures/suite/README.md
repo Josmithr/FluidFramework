@@ -11,8 +11,12 @@ Tests do not update accepted baselines or modify production package inputs.
 | Fixture | Validation role |
 | --- | --- |
 | [dependency.d.ts](dependency.d.ts) | Public-to-beta links, internal reference policy, and a generic automatic-inheritance source. |
+| [package-overview.d.ts](package-overview.d.ts) | One package-owned comment independent of exports. Native tests also emit it from a temporary TypeScript source file; suite tests verify ownership, malformed model records, and freshness. |
 | [consumer.d.ts](consumer.d.ts) | Qualified inheritance and links, dependency aliases, automatic implementation documentation, and original-package lookup despite a same-named internal consumer API. |
 | [selectors-consumer.d.ts](selectors-consumer.d.ts) | Member-side selectors, numeric overload links, recursive namespace paths, visibility failures, and overload reordering through serialized dependency data. |
+| [self-references-consumer.d.ts](self-references-consumer.d.ts) | Self-qualified dependency re-exports, qualified model subpaths, retained inherited provenance, and missing-suite and internal-link rejection. |
+| [merged-inheritance-consumer.d.ts](merged-inheritance-consumer.d.ts) | Explicit generic interface and repeated-property inheritance through qualified and imported model targets, parameter-name checks, and original dependency provenance. |
+| [merged-namespace-consumer.d.ts](merged-namespace-consumer.d.ts) | Links and inherited member documentation through combined namespace exports and recursive aliases, with dependency provenance and unchanged receiver metadata. |
 | [unused.d.ts](unused.d.ts) | Missing and incompatible selected dependencies must fail even when no documentation references them. |
 | [conditional-entry.d.ts](conditional-entry.d.ts) | The same package import resolves through actual Node and browser export conditions. |
 | [platform.d.ts](platform.d.ts) | Equal platform contracts produce equal reports; an intentional browser-only return-type change produces a parity failure. |

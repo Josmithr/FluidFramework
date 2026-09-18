@@ -1,6 +1,6 @@
 /*
- * Validates rejection of package-qualified syntax before target lookup.
- * Naming the current package does not make this syntax supported, even when no target exists.
+ * Validates a missing target on the configured root export surface.
+ * Naming the current package must not invent an export named base.
  */
 
 /** {@inheritDoc example#base} @public */

@@ -41,6 +41,25 @@ describe("Effective configuration", () => {
 		assert(Object.isFrozen(result.value.rules));
 	});
 
+	it("allows an inherited package-documentation requirement to be disabled", () => {
+		const result = resolveConfiguration(
+			{
+				extends: [
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "index.d.ts" }],
+						rules: { requirePackageDocumentation: true },
+					},
+				],
+				rules: { requirePackageDocumentation: false },
+			},
+			"/workspace",
+		);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		assert.equal(result.value.rules.requirePackageDocumentation, false);
+	});
+
 	// Design requirement: W11.
 	it("preserves defaults and nested precedence across partial layers", () => {
 		const result = resolveConfiguration(

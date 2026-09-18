@@ -95,9 +95,19 @@ export interface ApiItemDocumentation {
 }
 
 /**
- * Independently configurable diagnostic rules for classification.
+ * Independently configurable diagnostic rules for package documentation and API classification.
  */
 export interface ClassificationRules {
+	/**
+	 * Whether analysis requires the package's single documentation comment.
+	 *
+	 * @remarks
+	 * Enforced during package extraction, independently of entrypoint count and item release tags.
+	 * Duplicate or invalid package comments are rejected even when this rule is disabled.
+	 * @defaultValue `false`
+	 */
+	readonly requirePackageDocumentation?: boolean;
+
 	/**
 	 * Whether a missing release level fails classification.
 	 *
@@ -116,6 +126,7 @@ export interface ClassificationRules {
 	 * Set to `false` to ignore parser diagnostics while retaining recognized tags.
 	 * These diagnostics include unrecognized tags, malformed inline tags, and missing comment delimiters.
 	 * This does not disable parsing, change {@link ClassificationRules.requireReleaseLevel}, or suppress release-level conflicts.
+	 * Package documentation is validated separately and is not covered by this item-classification opt-out.
 	 *
 	 * @defaultValue `true`
 	 *

@@ -114,14 +114,19 @@ This investigation does not defer the required automatic-inheritance or suite-re
 
 ## Required package documentation support
 
-Status: open; required follow-up for API Extractor parity, not an optional presentation enhancement.
+Status: single-package ownership and initial extraction, validation, model retention, and report output are implemented; package-level API reference resolution remains open.
 
-Support `@packageDocumentation` as package-level documentation, not an item modifier.
-Extract the associated comment through the compiler adapter and parse it with TSDoc.
-Specify entrypoint and package ownership, missing and conflicting package comments, configurable validation, and report representation.
-Preserve package documentation for later resolved documentation models.
-Add real-compiler and snapshot tests, including multiple entrypoints and absent package documentation.
-Do not emit a missing-package-documentation annotation until package-level extraction can distinguish absence from unsupported analysis.
+The agreed contract is one package-owned comment, separate from all entrypoints.
+Extraction scans package-owned compiler inputs and excludes the comment from API-item metadata.
+Missing documentation is allowed unless `rules.requirePackageDocumentation` is enabled.
+Duplicates, misplaced tags, malformed comments, and API-only parameter, return, release, or inheritance tags are diagnosed.
+Facts and dependency models retain the original comment and location; all entrypoint reports render that same comment when present.
+TS6/TS7 emission tests, absent and multi-entrypoint tests, a report snapshot, and suite ownership/freshness tests cover these paths.
+No missing-comment annotation is emitted.
+
+Remaining required work: resolve API declaration links in package comments with original-scope lookup and define their applicable reference policies without inventing API-item classification for the package.
+Those references currently produce an explicit unsupported-feature diagnostic; URL links are supported.
+Complete portable documentation models remain part of Stage 3.
 
 ## Configurable report presentation
 

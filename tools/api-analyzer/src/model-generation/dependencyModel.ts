@@ -15,12 +15,7 @@ import type {
 	DependencyExport,
 	DependencyModel,
 } from "../analysis-types/dependencyModel.js";
-import type {
-	ApiItemId,
-	DeclarationFact,
-	Origin,
-	SignatureDocumentationContext,
-} from "../analysis-types/facts.js";
+import type { ApiItemId, DeclarationFact, Origin } from "../analysis-types/facts.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 
@@ -69,6 +64,9 @@ const modelSchema = z.strictObject({
 	compilerVersion: z.literal("7.0.2"),
 	packageName: z.string().min(1),
 	modifierTags: z.array(z.string()),
+	packageDocumentation: z
+		.strictObject({ origin: originSchema, documentation: z.string() })
+		.optional(),
 	inputFiles: z
 		.array(
 			z.strictObject({
@@ -164,6 +162,9 @@ export function encodeDependencyModel(graph: CompletedAnalysis): string {
 		identityVersion: 1,
 		compilerVersion: graph.facts.compilerVersion,
 		packageName: graph.facts.packageName,
+		...(graph.facts.packageDocumentation === undefined
+			? {}
+			: { packageDocumentation: graph.facts.packageDocumentation }),
 		inputFiles: graph.facts.inputFiles,
 
 		// The selected suite is a validated analysis input, even when no retained API references a package.
@@ -244,7 +245,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 	 * @param name - Original declaration or member name.
 	 * @param kind - Compiler syntax kind of the original input.
 	 * @param origin - Original comment location, which can differ from the effective member owner.
-	 * @param signature - Callable parameter facts. Omit for non-callable inputs, which carry no parameter arrays.
+	 * @param context - Retained callable or interface parameter facts. Omit when neither shape is applicable.
 	 */
 	function add(
 		id: ApiItemId,
@@ -252,7 +253,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 		name: string,
 		kind: string,
 		origin: Origin,
-		signature?: SignatureDocumentationContext,
+		context?: Pick<DependencyApi, "parameters" | "typeParameters">,
 	): void {
 		const owner = declaration.declarations[0]?.packageName;
 		assert(
@@ -271,9 +272,10 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 			name,
 			kind,
 			origin,
-			...(signature === undefined
+			...(context?.parameters === undefined ? {} : { parameters: context.parameters }),
+			...(context?.typeParameters === undefined
 				? {}
-				: { parameters: signature.parameters, typeParameters: signature.typeParameters }),
+				: { typeParameters: context.typeParameters }),
 			metadata: original,
 			documentation: { ...resolved, sections: resolved.sections ?? [] },
 		});
@@ -290,6 +292,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 			declaration.name,
 			source.kind,
 			declaration.documentationContext?.origin ?? source,
+			declaration.documentationContext,
 		);
 		for (const signature of declaration.signatures) {
 			add(
@@ -533,7 +536,11 @@ export function decodeDependencyModel(
 			`Dependency ${packageName}: incompatible or incomplete model: ${parsed.error.message}`,
 		);
 	}
-	const model: DependencyModel = parsed.data;
+	const { packageDocumentation, ...records } = parsed.data;
+	const model: DependencyModel = {
+		...records,
+		...(packageDocumentation === undefined ? {} : { packageDocumentation }),
+	};
 
 	// Shape validation cannot prove cross-record identity or resolved-comment consistency.
 	const identities = validateModelIdentities(model, packageName);
@@ -665,10 +672,23 @@ function validateModelDocumentation(model: DependencyModel): Result {
 		}
 	}
 	const parser = new TSDocParser(configuration);
+	const packageComment = validatePackageModelDocumentation(model, parser);
+	if (!packageComment.ok) {
+		return packageComment;
+	}
 	const apis = new Map(model.apis.map((api) => [api.id, api]));
 	for (const api of model.apis) {
 		// Decoding checks stored structure only. Source lookup and inheritance remain analysis responsibilities.
 		const comment = parser.parseString(api.documentation.documentation ?? "/** */");
+		if (
+			comment.docComment.modifierTagSet.hasTagName("@packageDocumentation") ||
+			api.metadata.modifierTags.includes("@packageDocumentation")
+		) {
+			return reportFailure(
+				DiagnosticCode.DependencyModel,
+				`Dependency ${packageName}, API ${api.id}: @packageDocumentation belongs in the package documentation record, not API comments or metadata. Regenerate the model.`,
+			);
+		}
 		if (comment.log.messages.length > 0 || comment.docComment.inheritDocTag !== undefined) {
 			return reportFailure(
 				DiagnosticCode.DependencyModel,
@@ -696,12 +716,55 @@ function validateModelDocumentation(model: DependencyModel): Result {
 				);
 			}
 		}
-		if ((api.parameters === undefined) !== (api.typeParameters === undefined)) {
+		if (
+			api.kind === "InterfaceDeclaration" && api.parameters === undefined
+				? api.typeParameters === undefined
+				: (api.parameters === undefined) !== (api.typeParameters === undefined)
+		) {
 			return reportFailure(
 				DiagnosticCode.DependencyModel,
-				`Dependency ${packageName}, API ${api.id}: callable parameter facts are incomplete.`,
+				`Dependency ${packageName}, API ${api.id}: callable or interface parameter facts are incomplete.`,
 			);
 		}
+	}
+	return { ok: true };
+}
+
+/**
+ * Validates package-owned comment data independently of API-item metadata.
+ *
+ * @param model - Decoded model with its package identity and input fingerprints.
+ * @param parser - Parser configured with the model's modifier vocabulary.
+ * @returns Success, or an invalid package-documentation diagnostic.
+ */
+function validatePackageModelDocumentation(
+	model: DependencyModel,
+	parser: TSDocParser,
+): Result {
+	const documentation = model.packageDocumentation;
+	if (documentation === undefined) {
+		return { ok: true };
+	}
+	const parsed = parser.parseString(documentation.documentation);
+	const comment = parsed.docComment;
+	if (
+		documentation.origin.packageName !== model.packageName ||
+		!model.inputFiles.some((input) => input.file === documentation.origin.file) ||
+		parsed.log.messages.length > 0 ||
+		!comment.modifierTagSet.hasTagName("@packageDocumentation") ||
+		comment.inheritDocTag !== undefined ||
+		comment.params.count > 0 ||
+		comment.typeParams.count > 0 ||
+		comment.returnsBlock !== undefined ||
+		collectCommentReferences(comment).length > 0 ||
+		["@public", "@beta", "@alpha", "@internal"].some((tag) =>
+			comment.modifierTagSet.hasTagName(tag),
+		)
+	) {
+		return reportFailure(
+			DiagnosticCode.DependencyModel,
+			`Dependency ${model.packageName}: package documentation must be a valid package-owned comment from a recorded input, without API-only tags or unresolved references.`,
+		);
 	}
 	return { ok: true };
 }

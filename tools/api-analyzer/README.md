@@ -9,12 +9,14 @@ Publication remains a separate decision.
 
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
+One optional package documentation comment is retained separately from entrypoints and API-item metadata.
 Reports support standalone function selection and complete selected classes, interfaces, enums, and namespaces, including constructors and static members.
 Type aliases and variables remain selectable as atomic declarations.
-Interface merges with matching headers and repeated property comments also participate in classification, reports, and dependency models.
+Interface merges with matching headers, repeated properties, and repeated named namespaces also participate in classification, reports, and dependency models.
 Their documentation combines distinct descriptions and deduplicates tags while retaining each surviving reference's original scope.
 Broader structural merges, complete type-reference extraction, and some explicit reference forms still need acceptance work.
 Local and selected-dependency references support numeric callable selectors and explicit static/instance member selectors.
+Self-package qualified references use configured root or subpath exports, including aliases and dependency re-exports.
 Dependency models retain finite back-references for recursive namespace aliases.
 These limitations prevent closing Stage 2; the implemented checks do not waive the remaining gates.
 
@@ -100,6 +102,7 @@ The Stage 1 representation is not yet a versioned documentation model or a compl
 
 `SourceDeclarationFact.documentation` retains the closest attached TSDoc comment, including delimiters, or `undefined` when absent.
 Empty and tag-only comments remain present. Ordinary comments are excluded.
+Package documentation is retained separately and never becomes the following API's comment.
 The adapter reads attached compiler AST comments; it does not recover documentation by parsing printed declaration text.
 An unavailable declaration node supplies no comment. JSON serialization omits absent documentation properties.
 
@@ -115,6 +118,44 @@ Compiler tests cover classes, interfaces, inherited generic members, local overr
 Original source preservation is independent of combined documentation and automatic inheritance.
 Single-declaration class and interface reports now consume the completed member documentation.
 
+### Package documentation
+
+A package has at most one `@packageDocumentation` comment, independent of its entrypoints.
+There is no special ownership rule for the `.` entrypoint.
+The comment can be in any package-owned file included in the analyzed compiler project, including a file with no exported API.
+It must precede all statements in that file and survive declaration emission.
+Dependency files and compiler-library files do not supply the analyzed package's documentation.
+
+This standalone module retains a package comment during declaration emission:
+
+```typescript
+/**
+ * Package-wide overview.
+ *
+ * @remarks
+ * Describe the package as a whole, not one entrypoint or API item.
+ *
+ * @packageDocumentation
+ */
+export {};
+```
+
+Missing package documentation is allowed by default.
+Set `rules.requirePackageDocumentation` to `true` to require it; an inherited requirement can be disabled with `false`.
+Multiple package comments are errors even when their text is identical.
+Misplaced tags, malformed TSDoc, release tags, parameter or return blocks, and `@inheritDoc` in a package comment are rejected independently of the missing-comment rule.
+These errors cannot be disabled through the item-classification syntax opt-out.
+Literal tag text in strings and code examples does not count as a package declaration.
+
+The facts and dependency model retain the original comment and its package-relative location outside API records.
+Every entrypoint report renders the same package comment before its selected declarations, even when that selection contains no API items.
+No missing-package-documentation notice is rendered when the comment is absent.
+Package documentation is not copied into the first API, classified by release level, or inherited from a dependency.
+The source scan records fingerprints for all inspected package-owned inputs, including files without exported APIs, so edits to those recorded files invalidate stale dependency models.
+
+URL links are supported, but API declaration links in package comments currently produce an unsupported-feature diagnostic.
+Reference resolution for package comments remains [required follow-up work](docs/api-extractor-replacement-follow-ups.md#required-package-documentation-support).
+
 ### Merged release tags
 
 Explicit release tags on parts of the same merged non-overloaded API must agree.
@@ -127,7 +168,7 @@ Untagged parts do not supply an implicit release tag or receive one from this ch
 
 ### Merged documentation
 
-Supported merged interfaces and repeated properties follow TypeScript IntelliSense's content-selection policy.
+Supported merged interfaces, repeated properties, and repeated named namespaces follow TypeScript IntelliSense's content-selection policy.
 Distinct summaries are combined in compiler declaration order; identical normalized summaries retain their first occurrence.
 A sole description is retained when other parts have no comment or only tags.
 Modifier tags form a deduplicated union, including custom tags that appear on only one part.
@@ -141,10 +182,27 @@ Original source records remain unchanged.
 The combined comment's primary location is the first declaration; link and type-reference occurrences retain their own locations.
 
 Merged interface reports still require matching header syntax and the compiler's combined effective members.
+Repeated identifier-named namespace declarations use the compiler's combined export set, including nested namespaces and recursive aliases.
+Selection retains the complete namespace even when a member does not match the namespace's custom tags.
+All explicit release tags on merged parts must agree, and member/container equality still applies.
 Differing headers, compound type/value merges, and merged declared signatures remain unsupported.
-Explicit inheritance on merged interfaces or properties remains unsupported by the binder.
-The merge helper can retain one deduplicated request, but cannot represent multiple distinct inheritance sources.
+String-literal ambient module merges and namespace-level documentation inheritance are not added by this support.
+Explicit inheritance supports merged interface and repeated-property receivers and targets.
+Each merged receiver can retain one deduplicated inheritance request; multiple distinct requests remain unsupported.
+Interface type-parameter names and order must match; documentation is not adapted to renamed parameters.
 Unsupported reference-bearing merges fail analysis rather than discarding their references.
+
+### Type-only enum and constant exports
+
+Reports and dependency models retain type-only flags for enum and constant aliases, including ordinary re-exports of type-only aliases and `export type *` paths.
+The report renders a local declaration and an `export type` binding when a target has no direct value export.
+It does not turn that binding into a value export.
+Value and type-only aliases of the same original declaration retain the same target identity.
+
+The [consumer regression](src/test/fixtures/consumer/typeOnlyValues.ts) checks declarations built by TS6 and TS7 with both consumer compilers.
+It permits enum types and constant type queries while requiring value use of type-only aliases to remain an error.
+The same consumer compiles against the original declarations and the isolated report code blocks.
+This verifies these self-contained reports, not a general declaration-rollup implementation.
 
 ### Effective member identities and signatures
 
@@ -472,7 +530,7 @@ The binder does not guess a target from its name.
 These facts remain usable after the session closes or after JSON serialization.
 Their format can change, and they do not represent all declaration references.
 
-The target must be a function or method in the same package.
+For a callable receiver, the target must be a function or method in the same package or a selected dependency model.
 Without a selector, it must have exactly one callable signature.
 For an overloaded target, use a numeric selector such as `{@inheritDoc (foo:2)}` to select the second callable signature.
 Selectors are one-based and follow compiler declaration order, excluding implementation signatures.
@@ -489,7 +547,8 @@ Use local documentation when parameters use destructuring or parameter names dif
 These checks protect parameter documentation but do not establish TypeScript assignability.
 They do not compare parameter types, return types, generic constraints, or generic defaults.
 Package-qualified dependency paths use selected suite models.
-Selectors other than numeric, static, or instance remain unsupported, as do self-package qualified paths and target-less inheritance requests.
+Self-package qualified paths use configured entrypoint exports.
+Selectors other than numeric, static, or instance remain unsupported, as do target-less inheritance requests.
 The terminal component accepts one selector: selecting a side does not infer an overload when multiple callables remain.
 TSDoc selectors identify a specific declaration, such as an overload, within a reference.
 Classification, binding, and content resolution share parsed comments and custom modifier configuration through the analysis context.
@@ -501,6 +560,26 @@ They also verify that original release classification and metadata selection do 
 Pass bindings to `resolveDocumentation` with the context that owns the original signature comments and package names.
 Use the original comments for classification.
 Function reports use these bindings and resolved comments to determine documentation presence.
+
+### Explicit declaration inheritance
+
+Interfaces and properties can request documentation from the same supported declaration category.
+This includes merged interfaces and repeated properties, using the combined target documentation.
+The [merged inheritance fixture](src/test/fixtures/native/merged-inheritance.ts) covers both paths with declarations emitted by TS6 and TS7.
+The [suite consumer](src/test/fixtures/suite/merged-inheritance-consumer.d.ts) covers package-qualified and imported dependency targets.
+
+Interface type-parameter names, count, and order must match.
+These names are retained from compiler nodes, not parsed from printed headers.
+Property requests cannot copy callable parameter documentation.
+Numeric selectors do not apply to interface or property documentation.
+The checks do not compare member types, generic constraints, or generic defaults and do not establish assignability.
+
+Inheritance resolves the target's own requests before copying content and rejects cycles.
+Copied links and section provenance keep their original sources.
+Release levels and custom tags stay with the receiving API; they are not copied from the target.
+Dependency models retain interface type-parameter arrays even for non-generic interfaces, whose arrays are empty.
+Models missing those facts must be regenerated before use.
+Multiple distinct requests on a merged API and broader structural merge forms remain unsupported.
 
 ### Conservative automatic inheritance
 
@@ -551,13 +630,22 @@ Self-references and mutually linked declarations do not cause unbounded collecti
 The lookup result identifies a declaration, not an overload.
 Unlike inheritance binding, link lookup can retain variables and overloaded functions without checking parameter compatibility.
 
+Self-package qualified names start at the selected export surface instead of the comment's lexical scope.
+For package `example`, `example#SourceAlias` selects an export from entrypoint `.` and `example/selectors#Source` selects one from entrypoint `./selectors`.
+Scoped package names use the same rule, for example `@scope/example/selectors#Source`.
+The path uses exported names, including aliases, and can continue through supported namespace and member paths.
+All configured entrypoints are available before collection, regardless of their configuration or traversal order.
+A missing export or unconfigured subpath produces a reference diagnostic; lookup does not fall back to private names or another surface.
+Numeric overload selection, member-side disambiguation, and release policies still apply.
+Self-qualified re-exports of dependency APIs require the owning package's selected model and preserve its documentation provenance.
+
 `DocumentationReferenceLookup` is a discriminated union with three `status` values.
 A `ResolvedDocumentationReference` has `status: "resolved"` and a required `target` declaration identifier.
 A `MissingDocumentationReference` has `status: "not-found"` and no target field.
 An `UnsupportedDocumentationReference` has `status: "unsupported"` and no target field.
-Package-qualified references are routed to selected dependency models after native lookup; target-less inheritance requests remain unsupported.
+Self-package qualified references are resolved during native lookup; target-less inheritance requests remain unsupported.
 Local API links support namespace and static/instance member paths, using the same original-scope traversal as explicit inheritance.
-Selected dependency models handle supported package-qualified references after native extraction.
+Selected dependency models handle foreign package-qualified references and dependency-owned re-exports after native extraction.
 Numeric selectors are supported for links and explicit inheritance; the lookup retains the declaration target and the binder selects its callable signature.
 Links apply visibility policy to the selected overload, not to every overload in the declaration.
 All outcomes retain the printed `reference` text, including an empty string for a target-less inheritance request.
@@ -806,10 +894,10 @@ const presentation = {
 };
 ```
 
-Package-level `@packageDocumentation` handling remains a [required follow-up](docs/api-extractor-replacement-follow-ups.md#required-package-documentation-support).
-No missing-package-documentation annotation is emitted before that analysis exists.
+The package's single `@packageDocumentation` comment appears before the selected declarations when present.
+No missing-package-documentation annotation is emitted when it is absent.
 General report-format customization is a separate follow-up after rough API Extractor parity.
-The text uses LF line endings and one final newline. It excludes source comments, implementation bodies,
+The text uses LF line endings and one final newline. It excludes API-item source comments, implementation bodies,
 source locations, provisional IDs, and compiler versions. It is review text, not a declaration rollup.
 Both operations perform no compiler queries or filesystem writes and do not mutate their inputs.
 Full-report tests compare generated output with checked-in snapshot files.
@@ -884,6 +972,7 @@ console.log(analysis.getStatistics());
 Supplied arrays replace inherited arrays. Rule maps merge by key.
 An explicit `false` rule value overrides an inherited `true`.
 `rules.requireReleaseLevel` and `rules.validateTsdocSyntax` control classification and default to `true`.
+`rules.requirePackageDocumentation` controls package-comment presence and defaults to `false`.
 Documentation binding and resolution still require valid TSDoc even when classification tolerates syntax errors.
 `customModifierTags` registers the same modifier vocabulary for classification and documentation processing.
 Compiler options and module resolution conditions come from the selected TypeScript project.
@@ -981,6 +1070,8 @@ const modelText = result.value.generateModel();
 
 The artifact identifies format `api-analyzer-documentation`, version `1`, identity version `1`, and compiler version `7.0.2`.
 It retains original metadata, resolved documentation, link and section origins, callable parameter facts, exported paths in overload order, external identities, and hashes of analyzed package files.
+The optional `packageDocumentation` record retains the package's own comment and source location independently of API records and export paths.
+Decoding validates its syntax, supported tag usage, package ownership, and recorded input file.
 The codec validates schema, package identity, uniqueness, target integrity, resolved TSDoc syntax, and stored link occurrences.
 Export records distinguish static and instance members and can reference a shorter enclosing namespace path.
 These back-references allow paths such as `Group.self.self.run` without serializing an infinite export tree.

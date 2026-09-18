@@ -17,6 +17,22 @@
 // - Roll-up generation
 export enum DiagnosticCode {
 	/**
+	 * Package documentation is duplicated, misplaced, or contains an invalid package-level tag combination.
+	 *
+	 * @remarks
+	 * Keep one leading package documentation comment in the analyzed package, separate from API-item metadata.
+	 */
+	PackageDocumentationInvalid = "package-documentation-invalid",
+
+	/**
+	 * The configured package-documentation requirement is enabled but no package comment was found.
+	 *
+	 * @remarks
+	 * Add one leading package documentation comment to a package-owned compiler input or disable the requirement.
+	 */
+	PackageDocumentationMissing = "package-documentation-missing",
+
+	/**
 	 * A member or namespace export has a different release level from its declaring container.
 	 *
 	 * @remarks

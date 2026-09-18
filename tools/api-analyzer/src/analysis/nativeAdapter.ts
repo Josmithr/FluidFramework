@@ -17,6 +17,7 @@ import {
 	NodeFlags,
 	getSynthesizedDeepClone,
 	getLeadingCommentRanges,
+	getTrailingCommentRanges,
 	type CallSignatureDeclaration,
 	type FunctionLikeDeclaration,
 	type FunctionTypeNode,
@@ -83,6 +84,7 @@ import type {
 	MemberFact,
 	HeritageFact,
 	Origin,
+	PackageDocumentationFact,
 	SignatureFact,
 	SignatureText,
 	SourceDeclarationFact,
@@ -306,6 +308,16 @@ export interface CollectionDocumentation {
  */
 export interface CollectionState {
 	/**
+	 * Configured entrypoint module symbols used for self-package qualified references.
+	 *
+	 * @remarks
+	 * Populated before declaration collection so references can name later entrypoints.
+	 * These compiler handles remain private to the active extraction and are never returned in facts.
+	 * @defaultValue Omitted by low-level callers; self-package qualified lookup is then unsupported.
+	 */
+	readonly entrypoints?: ReadonlyMap<string, CompilerSymbol>;
+
+	/**
 	 * Invocation-owned parser and comments retained for later semantic stages.
 	 *
 	 * @remarks
@@ -359,14 +371,23 @@ function extractFacts(
 	if (!configured.ok) {
 		return configured;
 	}
-	const state: CollectionState = {
-		declarations: new Map(),
-		visiting: new Set(),
-		documentation: { parser: new TSDocParser(configured.value), comments },
-	};
+	const parser = new TSDocParser(configured.value);
+	const packageDocumentation = extractPackageDocumentation(project, locations, parser);
+	if (!packageDocumentation.ok) {
+		return packageDocumentation;
+	}
+	if (
+		configuration.rules.requirePackageDocumentation === true &&
+		packageDocumentation.value.documentation === undefined
+	) {
+		return reportFailure(
+			DiagnosticCode.PackageDocumentationMissing,
+			`Package ${configuration.packageName}: add one leading @packageDocumentation comment to a package-owned compiler input or disable rules.requirePackageDocumentation.`,
+		);
+	}
 
-	// Start at each entrypoint. Export traversal fills the shared declaration map.
-	const surfaces = [];
+	// Register all surfaces first; references must not depend on entrypoint traversal order.
+	const entrypoints = new Map<string, CompilerSymbol>();
 	for (const entrypoint of [...configuration.entrypoints].sort((left, right) =>
 		left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
 	)) {
@@ -384,15 +405,23 @@ function extractFacts(
 				`Entrypoint is not a module: ${entrypoint.path}`,
 			);
 		}
-		surfaces.push({
-			name: entrypoint.name,
-			exports: collectExports(project, locations, state, moduleSymbol),
-		});
+		entrypoints.set(entrypoint.name, moduleSymbol);
 	}
+	const state: CollectionState = {
+		declarations: new Map(),
+		visiting: new Set(),
+		documentation: { parser, comments },
+		entrypoints,
+	};
+	const surfaces = [...entrypoints].map(([name, moduleSymbol]) => ({
+		name,
+		exports: collectExports(project, locations, state, moduleSymbol),
+	}));
 
 	// Preserve the exact analyzed inputs so consumers can reject stale dependency models without reanalysis.
 	const inputPaths = new Set(
 		[
+			...packageDocumentation.value.inputs,
 			...configuration.entrypoints.map((entrypoint) =>
 				getOrigin(locations, entrypoint.path, 0),
 			),
@@ -417,6 +446,9 @@ function extractFacts(
 		ok: true,
 		value: {
 			packageName: configuration.packageName,
+			...(packageDocumentation.value.documentation === undefined
+				? {}
+				: { packageDocumentation: packageDocumentation.value.documentation }),
 			compilerVersion: "7.0.2",
 			inputFiles,
 			surfaces,
@@ -425,6 +457,174 @@ function extractFacts(
 			),
 		},
 	});
+}
+
+/**
+ * Package comments and scanned inputs retained by one extraction.
+ */
+interface PackageDocumentationExtraction {
+	/**
+	 * The sole package comment, or undefined when no package comment exists.
+	 */
+	readonly documentation: PackageDocumentationFact | undefined;
+
+	/**
+	 * Every scanned package-owned input, including files without package comments.
+	 */
+	readonly inputs: readonly Origin[];
+}
+
+/**
+ * A compiler-located TSDoc comment that might declare package documentation.
+ */
+interface PackageCommentOccurrence {
+	/**
+	 * Original comment text including delimiters.
+	 */
+	readonly text: string;
+
+	/**
+	 * Offset of the opening comment delimiter.
+	 */
+	readonly start: number;
+
+	/**
+	 * Whether the comment precedes all statements in its source file.
+	 */
+	readonly leading: boolean;
+}
+
+/**
+ * Collects candidate comments at compiler-node boundaries without scanning text inside literals.
+ *
+ * @param source - Package-owned source file from the active compiler.
+ * @returns Distinct candidate comments in source order, including misplaced package tags.
+ */
+function collectPackageComments(source: SourceFile): readonly PackageCommentOccurrence[] {
+	if (!source.text.includes("@packageDocumentation")) {
+		return [];
+	}
+	const leading = new Set(
+		(getLeadingCommentRanges(source.text, 0) ?? []).map((range) => range.pos),
+	);
+	const comments = new Map<number, PackageCommentOccurrence>();
+
+	/**
+	 * Records comments at syntax-node boundaries without interpreting literal contents as trivia.
+	 * @param node - Current source node whose children are visited recursively.
+	 */
+	function visit(node: Node): void {
+		for (const position of [node.pos, node.end]) {
+			for (const range of [
+				...(getLeadingCommentRanges(source.text, position) ?? []),
+				...(getTrailingCommentRanges(source.text, position) ?? []),
+			]) {
+				const text = source.text.slice(range.pos, range.end);
+				if (text.startsWith("/**") && text.includes("@packageDocumentation")) {
+					comments.set(range.pos, { text, start: range.pos, leading: leading.has(range.pos) });
+				}
+			}
+		}
+		node.forEachChild(visit);
+	}
+	visit(source);
+	return [...comments.values()].sort((left, right) => left.start - right.start);
+}
+
+/**
+ * Extracts the package's single leading documentation comment independently of entrypoint selection.
+ *
+ * @param compiler - Active native compiler services used to enumerate package inputs.
+ * @param locations - Package ownership lookup state.
+ * @param parser - Invocation-owned parser with the configured tag vocabulary.
+ * @returns Scanned inputs and optional package documentation, or invalid-comment diagnostics.
+ */
+function extractPackageDocumentation(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	parser: TSDocParser,
+): Result<PackageDocumentationExtraction> {
+	let documentation: PackageDocumentationFact | undefined;
+	const inputs: Origin[] = [];
+	for (const file of [...compiler.program.getSourceFileNames()].sort()) {
+		const source = compiler.program.getSourceFile(file);
+		if (source === undefined || compiler.program.isSourceFileDefaultLibrary(source)) {
+			continue;
+		}
+		const origin = getOrigin(locations, file, 0);
+		if (origin.packageName !== locations.configuration.packageName) {
+			continue;
+		}
+		inputs.push(origin);
+		for (const comment of collectPackageComments(source)) {
+			const parsed = parsePackageDocumentation(comment, origin, parser);
+			if (!parsed.ok) {
+				return parsed;
+			}
+			if (parsed.value === undefined) {
+				continue;
+			}
+			if (documentation !== undefined) {
+				return reportFailure(
+					DiagnosticCode.PackageDocumentationInvalid,
+					`Package ${origin.packageName}: multiple @packageDocumentation comments at ${documentation.origin.file}:${documentation.origin.start} and ${origin.file}:${comment.start}. Keep one package-owned comment.`,
+				);
+			}
+			documentation = parsed.value;
+		}
+	}
+	return { ok: true, value: { documentation, inputs } };
+}
+
+/**
+ * Parses a candidate package comment and checks the supported package-level documentation contract.
+ *
+ * @param comment - Compiler-located comment with its placement classification.
+ * @param origin - Original file ownership and location.
+ * @param parser - Invocation-owned TSDoc parser with the configured modifier vocabulary.
+ * @returns Package documentation, undefined for literal tag text, or a syntax, placement, or unsupported-reference diagnostic.
+ */
+function parsePackageDocumentation(
+	comment: PackageCommentOccurrence,
+	origin: Origin,
+	parser: TSDocParser,
+): Result<PackageDocumentationFact | undefined> {
+	const parsed = parser.parseString(comment.text);
+	const doc = parsed.docComment;
+	if (!doc.modifierTagSet.hasTagName("@packageDocumentation")) {
+		return { ok: true, value: undefined };
+	}
+	if (parsed.log.messages.length > 0) {
+		return reportFailure(
+			DiagnosticCode.DocumentationTsdoc,
+			`Package ${origin.packageName}, ${origin.file}:${comment.start}: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
+		);
+	}
+	if (
+		!comment.leading ||
+		doc.inheritDocTag !== undefined ||
+		doc.params.count > 0 ||
+		doc.typeParams.count > 0 ||
+		doc.returnsBlock !== undefined ||
+		["@public", "@beta", "@alpha", "@internal"].some((tag) =>
+			doc.modifierTagSet.hasTagName(tag),
+		)
+	) {
+		return reportFailure(
+			DiagnosticCode.PackageDocumentationInvalid,
+			`Package ${origin.packageName}, ${origin.file}:${comment.start}: @packageDocumentation must be a leading file comment without release tags, parameter blocks, returns, or @inheritDoc.`,
+		);
+	}
+	if (collectApiLinkNodes(doc).length > 0) {
+		return reportFailure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Package ${origin.packageName}, ${origin.file}:${comment.start}: API declaration links in package documentation are not supported yet. URL links are supported.`,
+		);
+	}
+	return {
+		ok: true,
+		value: { origin: { ...origin, start: comment.start }, documentation: comment.text },
+	};
 }
 
 /**
@@ -1428,11 +1628,13 @@ export function collectExports(
 }
 
 /**
- * Looks up one documentation reference in its original declaration scope.
+ * Looks up a documentation reference in its original scope or a configured export surface.
  *
  * @remarks
  * Internal helper. Not exported from the package entrypoint.
  * Supports unqualified names and falls back to module export aliases.
+ * Self-package qualified names start at a configured entrypoint's exports and never fall back to lexical names.
+ * A missing or unconfigured export path produces a not-found result; foreign qualified names use dependency models later.
  * Links and inheritance accept namespace paths, unambiguous static or instance members, and explicit member-side selectors.
  * Numeric selectors retain the declaration target; binding later selects the callable overload.
  * A static/instance name collision requires an explicit side and is never guessed.
@@ -1463,14 +1665,16 @@ export function lookupReference(
 	const member = reference?.memberReferences[0];
 	const name = member?.memberIdentifier?.identifier;
 
-	// Accept only explicit references without package or import-path qualification.
+	const selfQualified = reference?.packageName === locations.configuration.packageName;
+
+	// Qualified names start at configured exports, never at private lexical declarations.
 	// This is a lookup capability check, not TSDoc syntax or target compatibility validation.
 	// Member paths preserve original scope for both links and inheritance. Numeric selector
 	// ranges and callable compatibility are checked later by the binder.
 	const supported =
 		reference !== undefined &&
-		reference.packageName === undefined &&
-		reference.importPath === undefined &&
+		((reference.packageName === undefined && reference.importPath === undefined) ||
+			(selfQualified && state.entrypoints !== undefined)) &&
 		name !== undefined &&
 		reference.memberReferences.every((part, index) => {
 			// Symbol references do not identify a named path component supported by this lookup.
@@ -1490,16 +1694,23 @@ export function lookupReference(
 		});
 	let targetId: ApiItemId | undefined;
 	if (supported && name !== undefined) {
-		const moduleSymbol = checker.getSymbolAtLocation(source);
+		const entrypoint =
+			reference.importPath === undefined || reference.importPath === ""
+				? "."
+				: `./${reference.importPath.replace(/^\//, "").replace(/^\.\//, "")}`;
+		const moduleSymbol = selfQualified
+			? state.entrypoints?.get(entrypoint)
+			: checker.getSymbolAtLocation(source);
 
-		// Resolve the first name where the comment was written, including local and imported names.
-		// Fall back to exported aliases only when lexical lookup returns no symbol.
+		// Only unqualified names can resolve where the comment was written.
 		const found =
-			checker.resolveName(
-				name,
-				SymbolFlags.Value | SymbolFlags.Type | SymbolFlags.Namespace,
-				node,
-			) ??
+			(selfQualified
+				? undefined
+				: checker.resolveName(
+						name,
+						SymbolFlags.Value | SymbolFlags.Type | SymbolFlags.Namespace,
+						node,
+					)) ??
 			(moduleSymbol
 				? checker.getExportsOfModule(moduleSymbol).find((entry) => entry.name === name)
 				: undefined);
@@ -1660,7 +1871,7 @@ export function collectLinks(
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for declaration locations.
- * @param state - Declaration tracking updated in place. Discard it if extraction throws.
+ * @param state - Declaration tracking and optional configured module symbols. Discard it if extraction throws.
  * @param symbol - A declaration target after alias resolution.
  * @returns The provisional identifier used to reference the declaration in this result.
  * @throws If a declaration or heritage target cannot be resolved, or extraction of required facts fails.
@@ -1852,8 +2063,9 @@ function extractDeclarationSignatures(
  * Captures the original documentation context for a supported declaration.
  *
  * @remarks
- * Merged interface comments combine content in compiler order while retaining each surviving reference's scope.
- * Retains type-reference occurrences from every supported interface declaration.
+ * Merged interface, property, and named namespace comments combine content in compiler order while retaining each surviving reference's scope.
+ * Namespace merges must contain only identifier-named module declarations, not compound type/value declarations.
+ * Retains type-reference occurrences from every supported declaration part.
  *
  * @param compiler - Active checker and emitter.
  * @param locations - Package ownership lookup state.
@@ -1878,7 +2090,17 @@ function extractDeclarationDocumentationContext(
 		return undefined;
 	}
 	if (sources.length > 1) {
-		if (!sourceNodes.every((node) => node !== undefined && isInterfaceDeclaration(node))) {
+		const namespace = sources.every((part) => part.kind === "ModuleDeclaration");
+		if (
+			!sourceNodes.every(
+				(node): node is Node =>
+					node !== undefined &&
+					(isInterfaceDeclaration(node) ||
+						node.kind === SyntaxKind.PropertySignature ||
+						node.kind === SyntaxKind.PropertyDeclaration ||
+						(namespace && isModuleDeclaration(node) && isIdentifier(node.name))),
+			)
+		) {
 			return undefined;
 		}
 		return mergeReferenceContexts(compiler, locations, state, sourceNodes, sources, id);
@@ -1990,6 +2212,7 @@ function mergeReferenceContexts(
 	return {
 		...(first.container === undefined ? {} : { container: first.container }),
 		origin: first.origin,
+		...(first.typeParameters === undefined ? {} : { typeParameters: first.typeParameters }),
 		...(documentation === undefined ? {} : { documentation }),
 		links: collectApiLinkNodes(merged).map((link) => assertDefined(links.get(link))),
 		...(request === undefined ? {} : { inheritance: request }),
@@ -2321,7 +2544,7 @@ function addDocumentationContexts(
  * @param location - Original package-relative location.
  * @param id - Identity of the comment input.
  * @param documentation - Original comment text, including explicit empty comments. Undefined uses an empty parser tree without adding a source comment.
- * @returns Detached reference facts; parsed nodes remain private to the invocation.
+ * @returns Detached reference facts, including original interface type-parameter names; parsed nodes remain private to the invocation.
  */
 function createReferenceContext(
 	compiler: CompilerContext,
@@ -2360,6 +2583,9 @@ function createReferenceContext(
 	return {
 		...(container === undefined ? {} : { container }),
 		origin: { packageName: location.packageName, file: location.file, start: location.start },
+		...(isInterfaceDeclaration(node)
+			? { typeParameters: node.typeParameters?.map((parameter) => parameter.name.text) ?? [] }
+			: {}),
 		typeReferences: collectDeclarationReferences(compiler, locations, state, node, location),
 		links,
 		...(inheritance === undefined ? {} : { inheritance }),
@@ -2500,5 +2726,11 @@ function getOriginalComment(node: Node | undefined): string | undefined {
 		(entry) => entry.end === comment.end && entry.kind === SyntaxKind.MultiLineCommentTrivia,
 	);
 	assert(range !== undefined, "Attached TSDoc nodes must identify an original comment range.");
-	return source.slice(range.pos, range.end);
+	const text = source.slice(range.pos, range.end);
+	return text.includes("@packageDocumentation") &&
+		new TSDocParser()
+			.parseString(text)
+			.docComment.modifierTagSet.hasTagName("@packageDocumentation")
+		? undefined
+		: text;
 }

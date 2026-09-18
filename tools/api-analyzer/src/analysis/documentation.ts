@@ -31,6 +31,7 @@ import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/re
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
 import { resolveDependencyReference } from "./dependencyReferences.js";
+import type { DependencyApi } from "../analysis-types/dependencyModel.js";
 import {
 	collectApiLinkNodes,
 	type AnalysisContext,
@@ -40,7 +41,7 @@ import {
 } from "./documentationContext.js";
 
 /**
- * Associates explicit callable documentation inheritance requests with target signature identifiers.
+ * Associates explicit documentation inheritance requests with target documentation identifiers.
  *
  * @remarks
  * Internal operation. Not exported from the package entrypoint.
@@ -48,7 +49,10 @@ import {
  * Supports unqualified names, such as `base`, export aliases, and namespace or instance method paths.
  * The compiler resolves names in the original declaration scope, including imported aliases.
  *
- * Sources include effective method signatures. The target must be a function or method in the same package.
+ * Callable sources include effective method signatures; targets are functions or methods.
+ * Interfaces and properties can inherit from their own declaration category, including supported merged contexts.
+ * Interface type-parameter names and order must match. Numeric selectors apply only to callable documentation.
+ * Targets can belong to the same original package or to selected dependency models.
  * Numeric method references use a terminal selector, such as `Base.(method:2)`.
  * Static and instance member paths are supported. Colliding names require an explicit side selector.
  * Numeric selectors choose a callable overload by its one-based declaration order.
@@ -65,7 +69,7 @@ import {
  * The function does not query the compiler, change the facts, or copy inherited content.
  *
  * @param analysis - The indexed analysis with original parsed comments and compiler lookup results.
- * @returns Deeply frozen bindings sorted by source signature identifier, or diagnostics without partial bindings.
+ * @returns Deeply frozen bindings sorted by source documentation identifier, or diagnostics without partial bindings.
  * @throws If required lookup data is missing or inconsistent, or an unexpected processing error occurs.
  */
 export function bindDocumentationReferences(
@@ -92,8 +96,8 @@ export function bindDocumentationReferences(
 			continue;
 		}
 
-		// TODO (Stage 2 documentation references): Support other declaration kinds once
-		// the adapter extracts their original-scope documentation lookup context.
+		// TODO (Stage 2 documentation references): Extend other declaration kinds after retaining
+		// the documentation shapes needed to validate their parameters and merged ownership.
 		const sources =
 			declaredMember === undefined ? (member ?? declaration).declarations : [declaredMember];
 		if (
@@ -105,14 +109,15 @@ export function bindDocumentationReferences(
 					source.kind !== "MethodSignature" &&
 					!(
 						signature === undefined &&
-						sources.length === 1 &&
-						(source.kind === "PropertyDeclaration" || source.kind === "PropertySignature")
+						(source.kind === "PropertyDeclaration" ||
+							source.kind === "PropertySignature" ||
+							source.kind === "InterfaceDeclaration")
 					),
 			)
 		) {
 			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
-				`Item ${id}: @inheritDoc requires a function, method, or single-declaration property. Supply local documentation for this declaration.`,
+				`Item ${id}: @inheritDoc requires a function, method, property, or supported interface. Supply local documentation for this declaration.`,
 			);
 		}
 		const context = assertDefined(
@@ -123,63 +128,60 @@ export function bindDocumentationReferences(
 			context.inheritance,
 			"Inheritance requests must retain compiler lookup facts.",
 		);
+		const origin = lookup.origin ?? context.origin;
 		assert.equal(
 			lookup.reference,
 			request.declarationReference?.emitAsTsdoc() ?? "",
 			"Inheritance lookup facts must match the original comment.",
 		);
+		const sourceShape = getNonCallableDocumentationShape(
+			sources.map((source) => source.kind),
+			context.typeParameters,
+		);
+		if (
+			signature === undefined &&
+			request.declarationReference?.memberReferences.some(
+				(part) => part.selector?.selectorKind === SelectorKind.Index,
+			) === true
+		) {
+			return reportFailure(
+				DiagnosticCode.DocumentationReference,
+				`Item ${id}: interface and property inheritance do not accept overload selectors.`,
+			);
+		}
 		const dependency = resolveDependencyReference(
 			analysis,
 			request.declarationReference,
 			lookup,
-			context.origin.packageName,
+			origin.packageName,
 		);
 		if (!dependency.ok) {
 			return dependency;
 		}
 		if (dependency.value !== undefined) {
-			const dependencyTarget = dependency.value;
-			if (signature !== undefined) {
-				const parameters = assertDefined(
-					signature.documentationContext,
-					"Supported inheritance sources must retain documentation context.",
-				);
-				if (
-					parameters.parameters.length !== dependencyTarget.parameters?.length ||
-					parameters.parameters.some(
-						(parameter, index) =>
-							parameter.name === undefined ||
-							parameter.name !== dependencyTarget.parameters?.[index]?.name ||
-							parameter.optional !== dependencyTarget.parameters?.[index]?.optional ||
-							parameter.rest !== dependencyTarget.parameters?.[index]?.rest,
-					) ||
-					JSON.stringify(parameters.typeParameters) !==
-						JSON.stringify(dependencyTarget.typeParameters)
-				) {
-					return reportFailure(
-						DiagnosticCode.DocumentationReference,
-						`Item ${id}: parameter documentation does not match dependency target ${lookup.reference}. Supply local documentation.`,
-					);
-				}
-			} else if (dependencyTarget.parameters !== undefined) {
-				return reportFailure(
-					DiagnosticCode.DocumentationUnsupported,
-					`Item ${id}: non-callable documentation cannot inherit callable parameters from ${lookup.reference}.`,
-				);
+			const compatible = bindDependencyInheritance(
+				id,
+				lookup.reference,
+				signature,
+				sourceShape,
+				dependency.value,
+			);
+			if (!compatible.ok) {
+				return compatible;
 			}
-			bindings.push({ source: id, reference: lookup.reference, target: dependencyTarget.id });
+			bindings.push(compatible.value);
 			continue;
 		}
 		if (lookup.status === "unsupported") {
 			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
-				`Item ${id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a function, instance method, or property in the same package, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select a callable overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
+				`Item ${id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a supported function, method, interface, or property in the original package or selected suite, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select a callable overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
 			);
 		}
 		if (lookup.status === "not-found") {
 			return reportFailure(
 				DiagnosticCode.DocumentationReference,
-				`Item ${id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the reference.`,
+				`Item ${id}: target ${lookup.reference} was not found in ${origin.packageName}/${origin.file}. Correct the reference.`,
 			);
 		}
 		const target = declarations.get(lookup.target);
@@ -188,37 +190,32 @@ export function bindDocumentationReferences(
 			"Documentation lookup targets must be retained in declaration facts.",
 		);
 		if (signature === undefined) {
-			if (
-				target.signatures.length > 0 ||
-				target.declarations.length !== 1 ||
-				!target.declarations.every(
-					(source) =>
-						source.kind === "PropertyDeclaration" || source.kind === "PropertySignature",
-				)
-			) {
+			const targetContext = target.documentationContext;
+			if (targetContext === undefined) {
 				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
-					`Item ${id}: target ${lookup.reference} must be a single-declaration non-callable property.`,
+					`Item ${id}: target ${lookup.reference} has no supported documentation context.`,
 				);
 			}
-			if (
-				request.declarationReference?.memberReferences.some(
-					(part) => part.selector?.selectorKind === SelectorKind.Index,
-				) === true
-			) {
-				return reportFailure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${id}: property inheritance does not accept overload selectors.`,
-				);
-			}
-			const propertyContext = assertDefined(
-				target.documentationContext,
-				"Supported property targets must retain documentation context.",
+			const targetShape = getNonCallableDocumentationShape(
+				target.declarations.map((source) => source.kind),
+				targetContext.typeParameters,
 			);
-			if (propertyContext.origin.packageName !== context.origin.packageName) {
+			const compatible = validateNonCallableInheritance(
+				id,
+				lookup.reference,
+				sourceShape,
+				targetShape?.kind === "property" && target.signatures.length > 0
+					? undefined
+					: targetShape,
+			);
+			if (!compatible.ok) {
+				return compatible;
+			}
+			if (targetContext.origin.packageName !== origin.packageName) {
 				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
-					`Item ${id}: cross-package property inheritance requires suite resolution.`,
+					`Item ${id}: cross-package declaration inheritance requires suite resolution.`,
 				);
 			}
 			bindings.push({ source: id, reference: lookup.reference, target: target.id });
@@ -241,6 +238,130 @@ export function bindDocumentationReferences(
 			left.source < right.source ? -1 : left.source > right.source ? 1 : 0,
 		),
 	});
+}
+
+/**
+ * Binds a selected dependency target after validating callable or non-callable documentation shapes.
+ *
+ * @param id - Receiving documentation input identity.
+ * @param reference - Original target reference text for diagnostics and the binding.
+ * @param signature - Receiving callable facts, or undefined for declaration-owned comments.
+ * @param sourceShape - Receiving non-callable shape, or undefined for callables or unsupported forms.
+ * @param target - Selected dependency API with validated model facts.
+ * @returns A binding, or a documentation-kind or parameter mismatch diagnostic.
+ */
+function bindDependencyInheritance(
+	id: ApiItemId,
+	reference: string,
+	signature: SignatureFact | undefined,
+	sourceShape: NonCallableDocumentationShape | undefined,
+	target: DependencyApi,
+): Result<DocumentationReferenceBinding> {
+	if (signature === undefined) {
+		const compatible = validateNonCallableInheritance(
+			id,
+			reference,
+			sourceShape,
+			target.parameters === undefined
+				? getNonCallableDocumentationShape([target.kind], target.typeParameters)
+				: undefined,
+		);
+		if (!compatible.ok) {
+			return compatible;
+		}
+	} else {
+		const parameters = assertDefined(
+			signature.documentationContext,
+			"Supported inheritance sources must retain documentation context.",
+		);
+		if (
+			parameters.parameters.length !== target.parameters?.length ||
+			parameters.parameters.some(
+				(parameter, index) =>
+					parameter.name === undefined ||
+					parameter.name !== target.parameters?.[index]?.name ||
+					parameter.optional !== target.parameters?.[index]?.optional ||
+					parameter.rest !== target.parameters?.[index]?.rest,
+			) ||
+			JSON.stringify(parameters.typeParameters) !== JSON.stringify(target.typeParameters)
+		) {
+			return reportFailure(
+				DiagnosticCode.DocumentationReference,
+				`Item ${id}: parameter documentation does not match dependency target ${reference}. Supply local documentation.`,
+			);
+		}
+	}
+	return { ok: true, value: { source: id, reference, target: target.id } };
+}
+
+/**
+ * Documentation shape used to validate non-callable inheritance without printed-type parsing.
+ */
+interface NonCallableDocumentationShape {
+	/**
+	 * Supported declaration category; interfaces and properties do not exchange documentation.
+	 */
+	readonly kind: "interface" | "property";
+
+	/**
+	 * Original interface type-parameter names, or an empty array for properties.
+	 */
+	readonly typeParameters: readonly string[];
+}
+
+/**
+ * Identifies supported non-callable shapes from original declaration kinds and parameter facts.
+ *
+ * @param kinds - Syntax kinds of every original declaration part.
+ * @param typeParameters - Retained interface parameter names; undefined means no supported interface shape.
+ * @returns The supported shape, or undefined for missing or unsupported declaration facts.
+ */
+function getNonCallableDocumentationShape(
+	kinds: readonly string[],
+	typeParameters: readonly string[] | undefined,
+): NonCallableDocumentationShape | undefined {
+	if (kinds.length === 0) {
+		return undefined;
+	}
+	if (kinds.every((kind) => kind === "InterfaceDeclaration")) {
+		return typeParameters === undefined ? undefined : { kind: "interface", typeParameters };
+	}
+	return kinds.every((kind) => kind === "PropertyDeclaration" || kind === "PropertySignature")
+		? { kind: "property", typeParameters: [] }
+		: undefined;
+}
+
+/**
+ * Checks local and dependency non-callable inheritance using the same documentation shape rules.
+ *
+ * @param id - Receiving documentation input identity for diagnostics.
+ * @param reference - Original target reference text.
+ * @param source - Receiving shape; undefined means the source is unsupported.
+ * @param target - Target shape; undefined means the target is unsupported or callable.
+ * @returns Success, or a declaration-kind or type-parameter mismatch diagnostic.
+ */
+function validateNonCallableInheritance(
+	id: ApiItemId,
+	reference: string,
+	source: NonCallableDocumentationShape | undefined,
+	target: NonCallableDocumentationShape | undefined,
+): Result {
+	if (source === undefined || source.kind !== target?.kind) {
+		return reportFailure(
+			DiagnosticCode.DocumentationUnsupported,
+			`Item ${id}: target ${reference} must have the same supported interface or non-callable property kind as the receiver.`,
+		);
+	}
+	if (
+		source.typeParameters.length !== target.typeParameters.length ||
+		source.typeParameters.some((name, index) => name !== target.typeParameters[index])
+	) {
+		return reportFailure(
+			DiagnosticCode.DocumentationReference,
+			`Item ${id}: type parameters do not match ${reference}. Supply local documentation; parameter adaptation is not supported.`,
+		);
+	}
+	return { ok: true };
 }
 
 /**

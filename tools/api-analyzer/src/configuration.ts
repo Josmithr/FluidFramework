@@ -121,7 +121,11 @@ const configurationSchema = new ObjectSchema({
 				throw new TypeError("Expected a rule map, not an array.");
 			}
 			for (const [name, setting] of Object.entries(value as Record<string, unknown>)) {
-				if (name !== "requireReleaseLevel" && name !== "validateTsdocSyntax") {
+				if (
+					name !== "requireReleaseLevel" &&
+					name !== "validateTsdocSyntax" &&
+					name !== "requirePackageDocumentation"
+				) {
 					throw new TypeError(`Unsupported classification rule: ${name}.`);
 				}
 				ValidationStrategy.boolean(setting);

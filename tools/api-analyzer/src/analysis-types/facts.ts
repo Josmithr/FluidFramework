@@ -438,8 +438,8 @@ interface DocumentationReferenceLookupBase {
 	 *
 	 * @example
 	 * Qualified references and numeric selectors retain their original reference text.
-	 * Package-qualified references are routed to dependency models instead of the native lexical lookup.
-	 * Later binding can resolve supported package-qualified references through selected dependency models.
+	 * Self-package qualified references use configured exports rather than lexical lookup.
+	 * Foreign package-qualified references are resolved through selected dependency models during binding.
 	 *
 	 * ```typescript
 	 * // For {@link example#base}:
@@ -459,7 +459,6 @@ interface DocumentationReferenceLookupBase {
 	 * const unresolvedReference = "missing";
 	 * ```
 	 */
-	// TODO (Stage 2 reference syntax): Resolve self-package qualified paths through configured surfaces.
 	// TODO (Stage 2 automatic inheritance): Revisit the target-less inheritance example when implicit
 	// target selection is defined. Distinguish supported requests from malformed comments;
 	// an empty reference alone must not authorize automatic inheritance.
@@ -528,6 +527,17 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
  * Optional properties are omitted when their values are absent, including during JSON serialization.
  */
 export interface DocumentationReferenceContext {
+	/**
+	 * Original type-parameter names in declaration order for supported inheritance shapes.
+	 *
+	 * @remarks
+	 * Interface contexts retain these names without parsing their printed headers.
+	 * Signature contexts require this array separately from ordinary parameter facts.
+	 * @defaultValue Omitted for declaration forms without retained type-parameter facts.
+	 * An empty array means that a supported declaration has no type parameters.
+	 */
+	readonly typeParameters?: readonly string[];
+
 	/**
 	 * Combined local documentation for a supported merged declaration.
 	 * Original comments remain on their source declaration records.
@@ -660,6 +670,7 @@ export interface SourceDeclarationFact extends Origin {
 	 *
 	 * @remarks
 	 * Preserves empty and tag-only comments. Excludes ordinary comments and does not inherit content.
+	 * Package documentation is retained on {@link AnalysisFacts.packageDocumentation}, not on the following API declaration.
 	 * Records each declaration's own comment, including separate overload and merged-declaration comments.
 	 * Does not classify comments or choose precedence between merged declarations.
 	 * An unavailable declaration node supplies no comment. JSON serialization omits absent documentation.
@@ -863,7 +874,7 @@ export interface DeclarationFact {
 	 * Original lookup context for a declaration-level comment.
 	 *
 	 * @remarks
-	 * Supported merged interface comments combine distinct content in compiler declaration order.
+	 * Supported merged interface, property, and named namespace comments combine distinct content in compiler declaration order.
 	 * Identical contributions retain their first occurrence and its lookup results; all type-reference occurrences remain retained.
 	 * Callable function and method contexts are retained on signatures instead.
 	 *
@@ -1081,10 +1092,18 @@ export interface SurfaceFact {
  */
 export interface AnalysisFacts {
 	/**
+	 * The package's single documentation comment, independent of configured entrypoints.
+	 *
+	 * @defaultValue Omitted when no package documentation was found in the analyzed package inputs.
+	 */
+	readonly packageDocumentation?: PackageDocumentationFact;
+
+	/**
 	 * Hashes of package-owned compiler inputs used to validate dependency model freshness.
 	 *
 	 * @remarks
-	 * Covers recorded files in the analyzed package, not serialized dependency-model content.
+	 * Includes every compiler input inspected for package documentation, even when it supplies no retained API declaration.
+	 * Covers recorded files in the analyzed package, not serialized dependency-model content or newly added project files.
 	 * A text-only change can invalidate a recorded input even when the reviewed API is unchanged.
 	 *
 	 * @defaultValue Omitted on synthetic internal facts without captured inputs; those facts cannot generate dependency models.
@@ -1122,6 +1141,21 @@ export interface AnalysisFacts {
 	 * Use the configured surfaces' bindings to determine what each entrypoint exposes.
 	 */
 	readonly declarations: readonly DeclarationFact[];
+}
+
+/**
+ * Package-owned documentation retained separately from API declaration metadata.
+ */
+export interface PackageDocumentationFact {
+	/**
+	 * The original comment location in a package-owned compiler input.
+	 */
+	readonly origin: Origin;
+
+	/**
+	 * Original TSDoc text, including comment delimiters and the package documentation tag.
+	 */
+	readonly documentation: string;
 }
 
 /**

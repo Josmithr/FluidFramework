@@ -20,3 +20,11 @@ Its original imports resolve to the declaration-build output under `declarations
 Both supported compilers check assignability in both directions and require invalid calls to remain errors.
 Predicate and assertion checks verify narrowing, not just that generated declarations are syntactically valid.
 These checks validate callable fragments with their required named types in scope; they do not establish a complete declaration-rollup implementation.
+
+## Type-only values
+
+[typeOnlyValues.ts](typeOnlyValues.ts) checks enum and constant aliases from [type-only-values.ts](../native/type-only-values.ts) and [type-only-forward.ts](../native/type-only-forward.ts).
+Both supported input compilers emit the declarations, and both consumer compilers check each emitted and report-rendered version.
+Positive checks use enum types and constant type queries.
+Negative checks require value use of type-only aliases to remain an error through direct exports, ordinary forwarding, and type-only star exports.
+The report-rendered modules are isolated, self-contained test cases, not general declaration rollups.

@@ -36,8 +36,9 @@ import { validateReferencePolicies } from "./referencePolicy.js";
  * Includes supported declaration, property, callable, and declared-member comments.
  * Automatic inheritance applies only to confidently matched non-overloaded members without local comments.
  * Selected dependency documentation retains resolved link and section origins without repeating target resolution.
- * Supported interface and property merges retain combined content and original link origins.
- * Broader structural merges and explicit inheritance on merged receivers remain pending.
+ * Supported interface, property, and named namespace merges retain combined content and original link origins.
+ * Explicit interface and property inheritance includes supported merged receivers and targets.
+ * Broader structural merges and multiple distinct inheritance requests remain pending.
  *
  * @param context - Original indexed facts, parsed comments, and classification from one invocation.
  * @returns A completed graph, or documentation diagnostics without partial graph data.

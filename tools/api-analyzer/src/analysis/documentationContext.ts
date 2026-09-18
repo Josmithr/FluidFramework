@@ -268,7 +268,7 @@ export function collectApiLinkNodes(node: DocNode): readonly DocLinkTag[] {
  * Uses signature lookup context for package ownership, or the original declaration when no lookup is needed.
  * Includes effective callable signatures, supported property comments, and separately documented declaration members.
  * Does not copy property comments to signatures.
- * Accepts combined interface and property comments with original-scope lookup results supplied by extraction.
+ * Accepts combined interface, property, and named namespace comments with original-scope lookup results supplied by extraction.
  * Rejects conflicting explicit release tags on merged non-overloaded declarations and members.
  * Applies declaring-container release inheritance and rejects mismatches before reference validation.
  * Untagged parts do not supply an implicit release level; callable overloads remain separate inputs.

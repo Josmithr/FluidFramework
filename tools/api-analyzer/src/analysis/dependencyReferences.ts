@@ -10,6 +10,11 @@ import type { AnalysisContext } from "./documentationContext.js";
 
 /**
  * Resolves selected dependency documentation by exported path or compiler target identity.
+ *
+ * @remarks
+ * Self-package qualified re-exports use the collected target's owning package and identity.
+ * Foreign qualified paths use export records from the selected model, including configured subpaths.
+ *
  * @param analysis - Original facts and validated dependency models.
  * @param reference - Parsed reference from the original comment.
  * @param lookup - Original compiler lookup result.
@@ -24,7 +29,14 @@ export function resolveDependencyReference(
 ): Result<DependencyApi | undefined> {
 	const declaration =
 		lookup.status === "resolved" ? analysis.declarations.get(lookup.target) : undefined;
-	const packageName = reference?.packageName ?? declaration?.declarations[0]?.packageName;
+	const useCompilerTarget =
+		reference?.packageName === undefined ||
+		reference.packageName === analysis.facts.packageName;
+
+	// A self-qualified export can re-export another package's API. Its model still owns the documentation.
+	const packageName = useCompilerTarget
+		? declaration?.declarations[0]?.packageName
+		: reference.packageName;
 	if (packageName === undefined || packageName === analysis.facts.packageName) {
 		return { ok: true, value: undefined };
 	}
@@ -39,7 +51,7 @@ export function resolveDependencyReference(
 		);
 	}
 	let candidates: readonly DependencyApi[];
-	if (reference?.packageName === undefined) {
+	if (useCompilerTarget) {
 		const records = new Map(model.apis.map((api) => [api.id, api]));
 		const own = declaration === undefined ? undefined : records.get(declaration.id);
 
@@ -145,7 +157,7 @@ function resolveQualifiedExport(
 	const entrypoint =
 		reference.importPath === undefined || reference.importPath === ""
 			? "."
-			: `./${reference.importPath.replace(/^\.\//, "")}`;
+			: `./${reference.importPath.replace(/^\//, "").replace(/^\.\//, "")}`;
 	const selector = reference.memberReferences.at(-1)?.selector;
 	const side = selector?.selectorKind === SelectorKind.System ? selector.selector : undefined;
 	const matches = findExportedTargets(model, entrypoint, names).filter(

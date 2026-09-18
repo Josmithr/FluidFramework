@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, it } from "mocha";
 import { analyzeAPIs, DiagnosticCode, ReleaseLevel } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
 import { compareReviewBaseline } from "../report-generation/reviewBaseline.js";
+import type { DependencyApi } from "../analysis-types/dependencyModel.js";
 
 describe("Dependency suite models", () => {
 	let directory: string;
@@ -38,6 +39,114 @@ describe("Dependency suite models", () => {
 		);
 	});
 	afterEach(() => rmSync(directory, { recursive: true, force: true }));
+
+	it("keeps package documentation local and rejects stale or malformed package records", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		const original = readFileSync(
+			new URL("../../src/test/fixtures/suite/package-overview.d.ts", import.meta.url),
+			"utf8",
+		);
+		const dependencyFile = path.join(root, "package-overview.d.ts");
+		writeFileSync(dependencyFile, original);
+		writeFileSync(
+			path.join(root, "tsconfig.json"),
+			JSON.stringify({
+				compilerOptions: { strict: true },
+				files: ["index.d.ts", "package-overview.d.ts"],
+			}),
+		);
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs(
+			{ ...common, packageName: "dependency", rules: { requirePackageDocumentation: true } },
+			root,
+		);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const decoded = decodeDependencyModel(dependency.value.generateModel(), "dependency");
+		assert.equal(decoded.ok, true, JSON.stringify(decoded));
+		const packageComment = decoded.value.packageDocumentation;
+		assert(packageComment !== undefined);
+		const consumerFile = path.join(directory, "index.d.ts");
+		writeFileSync(
+			consumerFile,
+			`import "dependency/package-overview";\n${readFileSync(consumerFile, "utf8")}`,
+		);
+		const configuration = {
+			...common,
+			packageName: "consumer",
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+		};
+		const consumer = await analyzeAPIs(configuration, directory);
+		assert.equal(consumer.ok, true, JSON.stringify(consumer));
+		const consumerModel = decodeDependencyModel(consumer.value.generateModel(), "consumer");
+		assert.equal(consumerModel.ok, true, JSON.stringify(consumerModel));
+		assert.equal(consumerModel.value.packageDocumentation, undefined);
+		const required = await analyzeAPIs(
+			{ ...configuration, rules: { requirePackageDocumentation: true } },
+			directory,
+		);
+		assert.equal(required.ok, false);
+		assert.equal(required.diagnostics[0]?.code, DiagnosticCode.PackageDocumentationMissing);
+		for (const corrupted of [
+			{ ...packageComment, origin: { ...packageComment.origin, packageName: "other" } },
+			{ ...packageComment, origin: { ...packageComment.origin, file: "not-an-input.d.ts" } },
+			{ ...packageComment, documentation: "/** No package tag. */" },
+			{ ...packageComment, documentation: "/** See {@link source}. @packageDocumentation */" },
+		]) {
+			const invalid = decodeDependencyModel(
+				JSON.stringify({ ...decoded.value, packageDocumentation: corrupted }),
+				"dependency",
+			);
+			assert.equal(invalid.ok, false);
+			assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+		}
+		for (const field of ["comment", "metadata"] as const) {
+			const invalid = decodeDependencyModel(
+				JSON.stringify({
+					...decoded.value,
+					apis: decoded.value.apis.map((api) =>
+						api.name === "source"
+							? {
+									...api,
+									...(field === "comment"
+										? {
+												documentation: {
+													...api.documentation,
+													documentation: api.documentation.documentation?.replace(
+														"*/",
+														" * @packageDocumentation\n */",
+													),
+												},
+											}
+										: {
+												metadata: {
+													...api.metadata,
+													modifierTags: [
+														...api.metadata.modifierTags,
+														"@packageDocumentation",
+													],
+												},
+											}),
+								}
+							: api,
+					),
+				}),
+				"dependency",
+			);
+			assert.equal(invalid.ok, false, field);
+			assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+		}
+		writeFileSync(
+			dependencyFile,
+			original.replace("Package-wide overview.", "Updated package overview."),
+		);
+		const stale = await analyzeAPIs(configuration, directory);
+		assert.equal(stale.ok, false);
+		assert.equal(stale.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+	});
 
 	it("rejects missing and incompatible selected models even when unused", async () => {
 		const configuration = {
@@ -254,6 +363,235 @@ describe("Dependency suite models", () => {
 				?.packageName,
 			"dependency",
 		);
+	});
+
+	it("resolves merged namespace exports and recursive aliases from dependency models", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/native/merged-namespace.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+			customModifierTags: ["@selected", "@omit"],
+		};
+		const dependency = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const consumerFile = path.join(directory, "index.d.ts");
+		const original = readFileSync(
+			new URL("../../src/test/fixtures/suite/merged-namespace-consumer.d.ts", import.meta.url),
+			"utf8",
+		);
+		writeFileSync(consumerFile, original);
+		const configuration = {
+			...common,
+			packageName: "consumer",
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+		};
+		const result = await analyzeAPIs(configuration, directory);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		assert.equal(
+			model.value.apis.find((item) => item.name === "links")?.documentation.links.length,
+			2,
+		);
+		const second = model.value.apis.find((item) => item.name === "fromSecond");
+		assert(second !== undefined);
+		assert.match(second.documentation.documentation ?? "", /Second operation/);
+		assert.equal(second.metadata.modifierTags.includes("@omit"), false);
+		assert.equal(
+			second.documentation.sections?.find((section) => section.section === "summary")
+				?.packageName,
+			"dependency",
+		);
+		assert.match(
+			model.value.apis.find((item) => item.name === "fromNested")?.documentation
+				.documentation ?? "",
+			/Right operation/,
+		);
+		writeFileSync(
+			consumerFile,
+			original.replace("Services.self.Nested.right", "Services.self.Nested.missing"),
+		);
+		const missing = await analyzeAPIs(configuration, directory);
+		assert.equal(missing.ok, false);
+		assert.equal(missing.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
+	});
+
+	it("resolves self-qualified re-exports and dependency subpaths through selected models", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		const dependency = await analyzeAPIs(
+			{
+				packageName: "dependency",
+				project: "tsconfig.json",
+				entrypoints: [
+					{ name: ".", path: "index.d.ts" },
+					{ name: "./compat", path: "index.d.ts" },
+				],
+			},
+			root,
+		);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const file = path.join(directory, "index.d.ts");
+		const original = readFileSync(
+			new URL("../../src/test/fixtures/suite/self-references-consumer.d.ts", import.meta.url),
+			"utf8",
+		);
+		writeFileSync(file, original);
+		const configuration = {
+			packageName: "consumer",
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+		};
+		const result = await analyzeAPIs(configuration, directory);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		const links = model.value.apis.find((item) => item.name === "links")?.documentation.links;
+		assert(links !== undefined);
+		assert.equal(links.length, 2);
+		assert.equal(links[0]?.targetSignature, links[1]?.targetSignature);
+		const inherited = model.value.apis.find((item) => item.name === "fromSelf")?.documentation;
+		assert(inherited !== undefined);
+		assert.match(inherited.documentation ?? "", /Source documentation/);
+		assert.equal(inherited.links[0]?.origin.packageName, "dependency");
+		assert.equal(
+			inherited.sections?.find((section) => section.section === "summary")?.packageName,
+			"dependency",
+		);
+		const withoutSuite = await analyzeAPIs(
+			{
+				packageName: configuration.packageName,
+				project: configuration.project,
+				entrypoints: configuration.entrypoints,
+			},
+			directory,
+		);
+		assert.equal(withoutSuite.ok, false);
+		assert.equal(withoutSuite.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+		writeFileSync(
+			file,
+			original.replace("source as ExportedSource", "internalSource as ExportedSource"),
+		);
+		const internal = await analyzeAPIs(configuration, directory);
+		assert.equal(internal.ok, false);
+		assert.equal(internal.diagnostics[0]?.code, DiagnosticCode.DocumentationLinkPolicy);
+		writeFileSync(
+			file,
+			original.replace("dependency/compat#source", "dependency/missing#source"),
+		);
+		const missing = await analyzeAPIs(configuration, directory);
+		assert.equal(missing.ok, false);
+		assert.equal(missing.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
+	});
+
+	it("inherits merged interfaces and properties through qualified and imported model targets", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/native/merged-inheritance.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		const dependency = await analyzeAPIs(
+			{
+				packageName: "dependency",
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+				customModifierTags: ["@legacy"],
+			},
+			root,
+		);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		const dependencyText = dependency.value.generateModel();
+		writeFileSync(path.join(root, "api-model.json"), dependencyText);
+		const dependencyModel = decodeDependencyModel(dependencyText, "dependency");
+		assert.equal(dependencyModel.ok, true, JSON.stringify(dependencyModel));
+		assert.deepEqual(
+			dependencyModel.value.apis.find((item) => item.name === "ReceivingSettings")
+				?.typeParameters,
+			["Value"],
+		);
+		const consumerFile = path.join(directory, "index.d.ts");
+		const original = readFileSync(
+			new URL(
+				"../../src/test/fixtures/suite/merged-inheritance-consumer.d.ts",
+				import.meta.url,
+			),
+			"utf8",
+		);
+		writeFileSync(consumerFile, original);
+		const configuration = {
+			packageName: "consumer",
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			customModifierTags: ["@legacy"],
+		};
+		const result = await analyzeAPIs(configuration, directory);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		for (const name of ["ConsumerSettings", "ImportedReceiver"]) {
+			const receiver: DependencyApi | undefined = model.value.apis.find(
+				(item) => item.name === name,
+			);
+			assert(receiver !== undefined);
+			assert.match(receiver.documentation.documentation ?? "", /First source description/);
+			assert.match(receiver.documentation.documentation ?? "", /Second source description/);
+			assert.match(receiver.documentation.documentation ?? "", /@typeParam Value/);
+			assert.equal(receiver.metadata.modifierTags.includes("@legacy"), false);
+			assert.equal(receiver.documentation.links[0]?.origin.packageName, "dependency");
+			assert.equal(
+				receiver.documentation.sections?.find((section) => section.section === "summary")
+					?.packageName,
+				"dependency",
+			);
+		}
+		assert.match(
+			model.value.apis.find((item) => item.name === "value")?.documentation.documentation ??
+				"",
+			/Second property description/,
+		);
+		for (const [before, after, code] of [
+			["<Value>", "<Renamed>", DiagnosticCode.DocumentationReference],
+			[
+				"dependency#ReceivingSettings}",
+				"dependency#(ReceivingSettings:1)}",
+				DiagnosticCode.DocumentationReference,
+			],
+			[
+				"dependency#ReceivingSettings.value",
+				"dependency#destination",
+				DiagnosticCode.DocumentationUnsupported,
+			],
+			[
+				"dependency#ReceivingSettings}",
+				"dependency#ReceivingSettings.value}",
+				DiagnosticCode.DocumentationUnsupported,
+			],
+		] as const) {
+			const changed = original.replaceAll(before, after);
+			assert.notEqual(changed, original);
+			writeFileSync(consumerFile, changed);
+			const rejected = await analyzeAPIs(configuration, directory);
+			assert.equal(rejected.ok, false, JSON.stringify(rejected));
+			assert.equal(rejected.diagnostics[0]?.code, code, JSON.stringify(rejected));
+		}
+		const malformed = decodeDependencyModel(
+			JSON.stringify({
+				...dependencyModel.value,
+				apis: dependencyModel.value.apis.map((item) =>
+					item.kind === "InterfaceDeclaration" ? { ...item, typeParameters: undefined } : item,
+				),
+			}),
+			"dependency",
+		);
+		assert.equal(malformed.ok, false);
+		assert.equal(malformed.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
 	});
 
 	it("resolves selectors and recursive namespace paths through dependency models", async () => {

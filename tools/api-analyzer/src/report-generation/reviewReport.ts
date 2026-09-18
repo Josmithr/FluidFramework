@@ -218,6 +218,12 @@ export interface ReviewExport {
  */
 export interface ReviewReport {
 	/**
+	 * The package's documentation comment, shared by all entrypoint reports.
+	 * @defaultValue Omitted when the package has no documentation comment; no missing-comment notice is rendered.
+	 */
+	readonly packageDocumentation?: string;
+
+	/**
 	 * The name of the package that exposes this surface.
 	 */
 	readonly packageName: string;
@@ -351,6 +357,12 @@ interface PreparedSurface {
  * Records and classification are frozen. The internal surface map is constructed once and then read only.
  */
 export interface PreparedReviewData {
+	/**
+	 * The single package documentation comment retained independently of surface preparation.
+	 * @defaultValue Omitted when the analyzed package has no documentation comment.
+	 */
+	readonly packageDocumentation?: string;
+
 	/**
 	 * Package identity shared by all reports.
 	 */
@@ -546,7 +558,14 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 		const preparedExports = prepareEntries(surface.exports, new Set());
 		surfaces.set(surface.name, freezeData({ exports: preparedExports, unsupported }));
 	}
-	return { packageName: facts.packageName, surfaces, classification: graph.classification };
+	return {
+		packageName: facts.packageName,
+		surfaces,
+		classification: graph.classification,
+		...(facts.packageDocumentation === undefined
+			? {}
+			: { packageDocumentation: facts.packageDocumentation.documentation }),
+	};
 }
 
 /**
@@ -702,6 +721,9 @@ export function createReviewReport(
 		ok: true,
 		value: {
 			packageName,
+			...(prepared.packageDocumentation === undefined
+				? {}
+				: { packageDocumentation: prepared.packageDocumentation }),
 			surface: selection.name,
 			exports: selectEntries(surface.exports, false),
 		},
@@ -777,6 +799,7 @@ function formatCodeSpan(text: string): string {
  * Accepts a report created by {@link createReviewReport}. Does not mutate or sort its input.
  * Uses an API Extractor-like heading, a single TypeScript block, per-overload tag comments,
  * and explicit alias exports. Uses LF line endings and exactly one final newline.
+ * Includes the package-owned documentation comment before declarations when present, regardless of API selection.
  * Output is review text, not compilable declarations. No baseline is read or updated.
  *
  * @param report - Detached function report in canonical export and overload order.
@@ -788,7 +811,11 @@ export function renderReviewReport(
 	report: ReviewReport,
 	options: ReviewPresentationOptions = {},
 ): string {
-	const body = renderDeclarationText(report.exports, options, new Map());
+	const declarations = renderDeclarationText(report.exports, options, new Map());
+	const body =
+		report.packageDocumentation === undefined
+			? declarations
+			: `${report.packageDocumentation.replaceAll(/\r\n?/g, "\n")}\n\n${declarations}`;
 	const fence = "`".repeat(
 		Math.max(3, ...(body.match(/`+/g) ?? []).map((run) => run.length + 1)),
 	);
