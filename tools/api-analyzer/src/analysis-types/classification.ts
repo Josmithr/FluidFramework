@@ -1,6 +1,6 @@
 import type { ApiItemId } from "./facts.js";
 import type { TsdocOptions } from "./tsdocOptions.js";
-import { DiagnosticCode, failure, type Result } from "./result.js";
+import { DiagnosticCode, reportFailure, type Result } from "./result.js";
 import { freezeData } from "../utilities/freezeData.js";
 
 /**
@@ -260,7 +260,7 @@ export function selectApiItems(
 		selection.name.trim().length === 0 ||
 		selection.releaseLevels.some((level) => !releaseLevels.includes(level))
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.SelectionConfiguration,
 			"Supply a nonempty selection name and supported release levels.",
 		);
@@ -271,7 +271,7 @@ export function selectApiItems(
 	// Reject unknown filters instead of silently producing misleading matches or exclusions.
 	for (const tag of [...requireTags, ...excludeTags]) {
 		if (!classification.modifierTags.includes(tag)) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.SelectionConfiguration,
 				`Unknown modifier filter ${tag}. Use a standard or configured modifier name.`,
 			);

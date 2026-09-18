@@ -1,6 +1,6 @@
 import type { TsdocOptions } from "../analysis-types/tsdocOptions.js";
 import { TSDocConfiguration, TSDocTagDefinition, TSDocTagSyntaxKind } from "@microsoft/tsdoc";
-import { failure } from "../analysis-types/result.js";
+import { reportFailure } from "../analysis-types/result.js";
 import type { DiagnosticCode, Result } from "../analysis-types/result.js";
 
 /**
@@ -21,13 +21,13 @@ export function createTsdocConfiguration(
 		try {
 			TSDocTagDefinition.validateTSDocTagName(tagName);
 		} catch (error) {
-			return failure(
+			return reportFailure(
 				diagnosticCode,
 				`Invalid custom modifier configuration: ${String(error)}`,
 			);
 		}
 		if (configuration.tryGetTagDefinition(tagName)) {
-			return failure(
+			return reportFailure(
 				diagnosticCode,
 				`Tag ${tagName} is already defined. Use a distinct custom modifier name.`,
 			);

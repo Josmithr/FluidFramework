@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, it } from "mocha";
 import { resolveConfiguration } from "../configuration.js";
 import type { EffectiveConfiguration } from "../analysis-types/configuration.js";
 import { analyzeDeclarations, createNativeAdapter } from "../analysis/nativeAdapter.js";
-import { DiagnosticCode, failure } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure } from "../analysis-types/result.js";
 import type {
 	AnalysisFacts,
 	DeclarationFact,
@@ -185,7 +185,7 @@ describe("One-shot API analysis and adapter facts", () => {
 		};
 		for (const result of [
 			{ ok: true, value: facts } as const,
-			failure(DiagnosticCode.CompilerDiagnostics, "Invalid compiler input."),
+			reportFailure(DiagnosticCode.CompilerDiagnostics, "Invalid compiler input."),
 		]) {
 			let disposed = false;
 			assert.strictEqual(

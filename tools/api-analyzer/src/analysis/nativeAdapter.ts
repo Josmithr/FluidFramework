@@ -87,7 +87,7 @@ import type {
 	SignatureText,
 	SourceDeclarationFact,
 } from "../analysis-types/facts.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
 import type { ExtractedComments } from "./documentationContext.js";
@@ -199,7 +199,7 @@ export function createNativeAdapter(): NativeAdapter {
 			comments?: ExtractedComments,
 		): Result<AnalysisFacts> {
 			if (!existsSync(configuration.project)) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.ProjectMissing,
 					`Project configuration not found: ${configuration.project}`,
 				);
@@ -208,7 +208,7 @@ export function createNativeAdapter(): NativeAdapter {
 			try {
 				const project = snapshot.getProject(configuration.project);
 				if (!project) {
-					return failure(
+					return reportFailure(
 						DiagnosticCode.ProjectMissing,
 						`Cannot open project: ${configuration.project}`,
 					);
@@ -222,7 +222,7 @@ export function createNativeAdapter(): NativeAdapter {
 					...project.program.getSemanticDiagnostics(),
 				];
 				if (diagnostics.length > 0) {
-					return failure(
+					return reportFailure(
 						DiagnosticCode.CompilerDiagnostics,
 						`Project ${configuration.project} has compiler diagnostics: ${JSON.stringify(diagnostics)}`,
 					);
@@ -371,28 +371,30 @@ function extractFacts(
 	)) {
 		const source = project.program.getSourceFile(entrypoint.path);
 		if (!source) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.EntrypointMissing,
 				`Entrypoint ${entrypoint.name} is not in project ${configuration.project}: ${entrypoint.path}`,
 			);
 		}
 		const moduleSymbol = project.checker.getSymbolAtLocation(source);
 		if (!moduleSymbol) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.EntrypointModule,
 				`Entrypoint is not a module: ${entrypoint.path}`,
 			);
 		}
 		surfaces.push({
 			name: entrypoint.name,
-			exports: exportsOf(project, locations, state, moduleSymbol),
+			exports: collectExports(project, locations, state, moduleSymbol),
 		});
 	}
 
 	// Preserve the exact analyzed inputs so consumers can reject stale dependency models without reanalysis.
 	const inputPaths = new Set(
 		[
-			...configuration.entrypoints.map((entrypoint) => origin(locations, entrypoint.path, 0)),
+			...configuration.entrypoints.map((entrypoint) =>
+				getOrigin(locations, entrypoint.path, 0),
+			),
 			...[...state.declarations.values()].flatMap((declaration) => declaration.declarations),
 		]
 			.filter((source) => source.packageName === configuration.packageName)
@@ -449,7 +451,11 @@ interface PackageNameMetadata {
  * @returns A location with `/` path separators relative to the owning package root.
  * @throws If an encountered package manifest cannot be read or parsed.
  */
-export function origin(locations: LocationContext, fileName: string, start: number): Origin {
+export function getOrigin(
+	locations: LocationContext,
+	fileName: string,
+	start: number,
+): Origin {
 	const { configuration, packageCache } = locations;
 	let owner = packageCache.get(fileName);
 	if (!owner) {
@@ -491,7 +497,10 @@ export function origin(locations: LocationContext, fileName: string, start: numb
  * @param symbol - The exported symbol to resolve.
  * @returns The alias target, or the original symbol if it is not an alias.
  */
-export function target(checker: Project["checker"], symbol: CompilerSymbol): CompilerSymbol {
+export function resolveSymbolTarget(
+	checker: Project["checker"],
+	symbol: CompilerSymbol,
+): CompilerSymbol {
 	return symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 }
 
@@ -509,9 +518,12 @@ export function target(checker: Project["checker"], symbol: CompilerSymbol): Com
  * @param symbol - The symbol whose identity is needed.
  * @returns An opaque identifier for declaration tracking and export references.
  */
-export function identity(locations: LocationContext, symbol: CompilerSymbol): ApiItemId {
+export function getDeclarationId(
+	locations: LocationContext,
+	symbol: CompilerSymbol,
+): ApiItemId {
 	const declarationLocations = symbol.declarations.map((handle) => {
-		const location = origin(locations, handle.path, 0);
+		const location = getOrigin(locations, handle.path, 0);
 		return [location.packageName, location.file];
 	});
 	const parents: string[] = [];
@@ -548,7 +560,7 @@ export function identity(locations: LocationContext, symbol: CompilerSymbol): Ap
  * Defaults to a new empty set for each top-level call.
  * @returns `true` if type-only syntax is found; otherwise `false`, including on a repeated symbol.
  */
-export function aliasTypeOnly(
+export function isTypeOnlyAlias(
 	checker: Project["checker"],
 	symbol: CompilerSymbol,
 	seen = new Set<CompilerSymbol>(),
@@ -576,7 +588,7 @@ export function aliasTypeOnly(
 	}
 	const next =
 		symbol.flags & SymbolFlags.Alias ? checker.getImmediateAliasedSymbol(symbol) : undefined;
-	return next ? aliasTypeOnly(checker, next, seen) : false;
+	return next ? isTypeOnlyAlias(checker, next, seen) : false;
 }
 
 /**
@@ -596,14 +608,14 @@ export function aliasTypeOnly(
  * @returns Whether the inspected paths establish a type-only export.
  * Returns `false` for a repeated traversal key or when no type-only path is established.
  */
-export function exportTypeOnly(
+export function isTypeOnlyExport(
 	checker: Project["checker"],
 	locations: LocationContext,
 	moduleSymbol: CompilerSymbol,
 	name: string,
 	seen = new Set<string>(),
 ): boolean {
-	const key = JSON.stringify([identity(locations, moduleSymbol), name]);
+	const key = JSON.stringify([getDeclarationId(locations, moduleSymbol), name]);
 	if (seen.has(key)) {
 		return false;
 	}
@@ -632,7 +644,7 @@ export function exportTypeOnly(
 				checker.getExportsOfModule(from).some((item) => item.name === name)
 			) {
 				stars.push(
-					statement.isTypeOnly || exportTypeOnly(checker, locations, from, name, active),
+					statement.isTypeOnly || isTypeOnlyExport(checker, locations, from, name, active),
 				);
 			} else if (statement.exportClause && isNamedExports(statement.exportClause)) {
 				for (const specifier of statement.exportClause.elements) {
@@ -646,7 +658,7 @@ export function exportTypeOnly(
 						statement.isTypeOnly ||
 							specifier.isTypeOnly ||
 							(from
-								? exportTypeOnly(
+								? isTypeOnlyExport(
 										checker,
 										locations,
 										from,
@@ -654,7 +666,7 @@ export function exportTypeOnly(
 										active,
 									)
 								: local
-									? aliasTypeOnly(checker, local)
+									? isTypeOnlyAlias(checker, local)
 									: false),
 					);
 				}
@@ -678,12 +690,12 @@ export function exportTypeOnly(
 			moduleSymbol.declarations.some((moduleHandle) => moduleHandle.path === handle.path),
 		) === true
 	) {
-		return aliasTypeOnly(checker, symbol);
+		return isTypeOnlyAlias(checker, symbol);
 	}
 	return stars.length > 0
 		? stars.every(Boolean)
 		: symbol
-			? aliasTypeOnly(checker, symbol)
+			? isTypeOnlyAlias(checker, symbol)
 			: false;
 }
 
@@ -705,7 +717,7 @@ export function exportTypeOnly(
  * @returns Signature facts in compiler order, or an empty array if there are no call signatures.
  * @throws If the compiler cannot produce a printable node for a call signature.
  */
-export function signatures(
+export function extractSignatures(
 	compiler: CompilerContext,
 	type: Type,
 	owner: ApiItemId,
@@ -738,16 +750,16 @@ export function signatures(
 			"The compiler must materialize a call-signature declaration.",
 		);
 		const source = signature.declaration?.resolve();
-		const views = signatureViews(compiler, signature, declaration, source);
+		const views = createSignatureViews(compiler, signature, declaration, source);
 		return {
 			...views,
 			...(source === undefined || signature.declaration === undefined
 				? {}
-				: { source: sourceDeclaration(locations, signature.declaration) }),
+				: { source: extractSourceDeclaration(locations, signature.declaration) }),
 			callSignatureText: emitter.printNode(declaration).trim(),
 			id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
 			functionTypeText,
-			documentation: originalComment(signature.declaration?.resolve()),
+			documentation: getOriginalComment(signature.declaration?.resolve()),
 		};
 	});
 }
@@ -766,7 +778,7 @@ export function signatures(
  * @returns Reduced and selectively normalized text, independent of report selection.
  * @throws If the compiler cannot materialize a required type or violates parameter-shape invariants.
  */
-function signatureViews(
+function createSignatureViews(
 	compiler: CompilerContext,
 	signature: Signature,
 	template: CallSignatureDeclaration,
@@ -883,7 +895,7 @@ function isComputedSignatureType(
 	if (symbol === undefined || checker.isUnknownSymbol(symbol)) {
 		return false;
 	}
-	const resolved = target(checker, symbol);
+	const resolved = resolveSymbolTarget(checker, symbol);
 	return (
 		resolved.declarations.length > 0 &&
 		resolved.declarations.every((handle) => {
@@ -922,16 +934,16 @@ function printSignatureText(
  * @param handle - A compiler declaration handle from a symbol.
  * @returns Original location, syntax kind, source text, and the closest attached TSDoc comment.
  */
-function sourceDeclaration(
+function extractSourceDeclaration(
 	locations: LocationContext,
 	handle: CompilerSymbol["declarations"][number],
 ): SourceDeclarationFact {
 	const node = handle.resolve();
 	return {
-		...origin(locations, handle.path, node?.pos ?? 0),
+		...getOrigin(locations, handle.path, node?.pos ?? 0),
 		kind: SyntaxKind[handle.kind],
 		text: node?.getFullText() ?? "",
-		documentation: originalComment(
+		documentation: getOriginalComment(
 			node &&
 				isVariableDeclaration(node) &&
 				node.parent.kind === SyntaxKind.VariableDeclarationList
@@ -958,7 +970,7 @@ function sourceDeclaration(
  * @returns Direct heritage views in source declaration and clause order, without adding exports.
  * @throws If a declaration or heritage target cannot be resolved.
  */
-function heritageFacts(
+function extractHeritageFacts(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -993,17 +1005,17 @@ function heritageFacts(
 					compiler,
 					locations,
 					state,
-					target(compiler.checker, heritageSymbol),
+					resolveSymbolTarget(compiler.checker, heritageSymbol),
 				);
 				const kind = clause.token === SyntaxKind.ExtendsKeyword ? "extends" : "implements";
 				const viewOwner = `heritage:${JSON.stringify([owner, kind, targetId, compiler.checker.typeToString(instantiated)])}`;
-				const viewMembers = members(compiler, locations, instantiated, viewOwner);
+				const viewMembers = extractMembers(compiler, locations, instantiated, viewOwner);
 				views.push({
 					kind,
 					target: targetId,
 					members: viewMembers,
 					documentationMatches: receiver
-						? documentationMatches(
+						? findDocumentationMatches(
 								compiler.checker,
 								receiver,
 								instantiated,
@@ -1028,7 +1040,7 @@ function heritageFacts(
  * @param ancestorMembers - Detached members of this instantiated heritage view.
  * @returns Compatible member pairs, without selecting among competing heritage sources.
  */
-function documentationMatches(
+function findDocumentationMatches(
 	checker: Project["checker"],
 	receiver: Type,
 	ancestor: Type,
@@ -1062,7 +1074,7 @@ function documentationMatches(
 		if (
 			!receiverType ||
 			!ancestorType ||
-			!documentationTypesMatch(checker, receiverType, ancestorType)
+			!haveMatchingDocumentationTypes(checker, receiverType, ancestorType)
 		) {
 			continue;
 		}
@@ -1094,7 +1106,7 @@ function documentationMatches(
 			// Method parameters can be bivariant, so whole-method assignability is insufficient.
 			// Require mutual compatibility for individual parameter and return types as well.
 			if (
-				!documentationTypesMatch(
+				!haveMatchingDocumentationTypes(
 					checker,
 					checker.getReturnTypeOfSignature(receiverSignature),
 					checker.getReturnTypeOfSignature(ancestorSignature),
@@ -1103,7 +1115,7 @@ function documentationMatches(
 					.getParameters()
 					.some(
 						(_parameter, index) =>
-							!documentationTypesMatch(
+							!haveMatchingDocumentationTypes(
 								checker,
 								checker.getParameterType(receiverSignature, index),
 								checker.getParameterType(ancestorSignature, index),
@@ -1229,7 +1241,7 @@ function haveMatchingDocumentationParameters(
  * @param candidate - The candidate documentation source type, or undefined when unresolved.
  * @returns Whether the compiler establishes compatibility without an unconstrained top-level type.
  */
-function documentationTypesMatch(
+function haveMatchingDocumentationTypes(
 	checker: Project["checker"],
 	receiver: Type | undefined,
 	candidate: Type | undefined,
@@ -1266,7 +1278,7 @@ function documentationTypesMatch(
  * @returns Detached members sorted by name. Other type categories produce an empty array.
  * @throws If the compiler cannot resolve an effective property type.
  */
-export function members(
+export function extractMembers(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	type: Type,
@@ -1327,10 +1339,10 @@ export function members(
 			const id = `member:${JSON.stringify([owner, name])}`;
 			const callableType = checker.getNonNullableType(propertyType);
 			const callableSignatures = callableType
-				? signatures(compiler, callableType, id, locations)
+				? extractSignatures(compiler, callableType, id, locations)
 				: [];
 			const sourceDeclarations = property.declarations.map((handle) =>
-				sourceDeclaration(locations, handle),
+				extractSourceDeclaration(locations, handle),
 			);
 			const propertyContext =
 				state &&
@@ -1348,7 +1360,7 @@ export function members(
 				...(propertyContext === undefined ? {} : { documentationContext: propertyContext }),
 				signatures:
 					callableType && state
-						? withDocumentationContexts(
+						? addDocumentationContexts(
 								compiler,
 								locations,
 								state,
@@ -1379,7 +1391,7 @@ export function members(
  * @param moduleSymbol - The module or namespace whose exports are requested.
  * @returns Detached export facts sorted by exported name.
  */
-export function exportsOf(
+export function collectExports(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -1389,12 +1401,12 @@ export function exportsOf(
 	return checker
 		.getExportsOfModule(moduleSymbol)
 		.map((exported) => {
-			const resolved = target(checker, exported);
+			const resolved = resolveSymbolTarget(checker, exported);
 			const id = collect(compiler, locations, state, resolved);
 			return {
 				name: exported.name,
 				target: id,
-				typeOnly: exportTypeOnly(checker, locations, moduleSymbol, exported.name),
+				typeOnly: isTypeOnlyExport(checker, locations, moduleSymbol, exported.name),
 			};
 		})
 		.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
@@ -1477,7 +1489,7 @@ export function lookupReference(
 		// The compiler's unknown-symbol sentinel is not a declaration we can traverse or collect.
 		if (found !== undefined && !checker.isUnknownSymbol(found)) {
 			// Follow aliases before inspecting the kind of container that owns the next path component.
-			let resolved: CompilerSymbol | undefined = target(checker, found);
+			let resolved: CompilerSymbol | undefined = resolveSymbolTarget(checker, found);
 			for (const part of reference.memberReferences.slice(1)) {
 				// A failed intermediate lookup invalidates the whole path; do not restart in outer scope.
 				if (!resolved || checker.isUnknownSymbol(resolved)) {
@@ -1515,7 +1527,7 @@ export function lookupReference(
 				}
 				if (resolved) {
 					// Each exported path component can itself be an alias, including the final target.
-					resolved = target(checker, resolved);
+					resolved = resolveSymbolTarget(checker, resolved);
 				}
 			}
 			if (resolved && !checker.isUnknownSymbol(resolved)) {
@@ -1604,7 +1616,7 @@ export function collect(
 	const { checker } = compiler;
 	const { declarations, visiting } = state;
 	assert(!checker.isUnknownSymbol(symbol), "Collected declaration symbols must be resolved.");
-	const id = identity(locations, symbol);
+	const id = getDeclarationId(locations, symbol);
 	if (declarations.has(id) || visiting.has(id)) {
 		return id;
 	}
@@ -1623,12 +1635,14 @@ export function collect(
 			: checker.getTypeOfSymbol(symbol);
 	const effectiveMembers =
 		type && !(symbol.flags & SymbolFlags.Module)
-			? members(compiler, locations, type, id, state)
+			? extractMembers(compiler, locations, type, id, state)
 			: [];
 	const baseDeclarations = collectBaseDeclarations(compiler, locations, state, symbol, type);
 	const namespaceExports =
-		symbol.flags & SymbolFlags.Module ? exportsOf(compiler, locations, state, symbol) : [];
-	const heritage = heritageFacts(
+		symbol.flags & SymbolFlags.Module
+			? collectExports(compiler, locations, state, symbol)
+			: [];
+	const heritage = extractHeritageFacts(
 		compiler,
 		locations,
 		state,
@@ -1647,12 +1661,21 @@ export function collect(
 				type.isUnionType() ||
 				effectiveMembers.some((member) => member.readonly === null)),
 	);
-	const callSignatures = declarationSignatures(compiler, locations, state, symbol, type, id);
-	const sources = symbol.declarations.map((handle) => sourceDeclaration(locations, handle));
+	const callSignatures = extractDeclarationSignatures(
+		compiler,
+		locations,
+		state,
+		symbol,
+		type,
+		id,
+	);
+	const sources = symbol.declarations.map((handle) =>
+		extractSourceDeclaration(locations, handle),
+	);
 	const source = sources[0];
 	const sourceNodes = symbol.declarations.map((handle) => handle.resolve());
 	const sourceNode = sourceNodes[0];
-	const documentationContext = declarationDocumentationContext(
+	const documentationContext = extractDeclarationDocumentationContext(
 		compiler,
 		locations,
 		state,
@@ -1662,9 +1685,9 @@ export function collect(
 	);
 	const container =
 		sourceNode && source && sources.length === 1
-			? containerSyntax(compiler, locations, state, sourceNode, source, id)
+			? extractContainerSyntax(compiler, locations, state, sourceNode, source, id)
 			: mergeInterfaceContainers(compiler, locations, state, sourceNodes, sources, id);
-	const statement = statementSyntax(compiler, sourceNode, type);
+	const statement = extractStatementSyntax(compiler, sourceNode, type);
 
 	// Publish only after recursive dependencies have been collected; active identities prevent cycles.
 	declarations.set(id, {
@@ -1675,7 +1698,7 @@ export function collect(
 		baseDeclarations,
 		heritage,
 		implementedDeclarations: implemented,
-		name: moduleSource ? origin(locations, moduleSource.path, 0).file : symbol.name,
+		name: moduleSource ? getOrigin(locations, moduleSource.path, 0).file : symbol.name,
 		declarations: sources,
 		type: type ? checker.typeToString(type, symbol.declarations[0]?.resolve()) : "",
 		memberView: partial ? "partial" : "complete",
@@ -1724,7 +1747,12 @@ function collectBaseDeclarations(
 			baseSymbol !== undefined,
 			"The compiler must resolve a declaration symbol for a base type.",
 		);
-		return collect(compiler, locations, state, target(compiler.checker, baseSymbol));
+		return collect(
+			compiler,
+			locations,
+			state,
+			resolveSymbolTarget(compiler.checker, baseSymbol),
+		);
 	});
 }
 
@@ -1739,7 +1767,7 @@ function collectBaseDeclarations(
  * @param id - Owning declaration identity.
  * @returns Detached signatures in compiler order, with lookup contexts where supported.
  */
-function declarationSignatures(
+function extractDeclarationSignatures(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -1750,7 +1778,7 @@ function declarationSignatures(
 	if (type === undefined) {
 		return [];
 	}
-	const facts = signatures(compiler, type, id, locations);
+	const facts = extractSignatures(compiler, type, id, locations);
 	const hasCallableComment = symbol.declarations.every(
 		(handle) =>
 			handle.kind === SyntaxKind.FunctionDeclaration ||
@@ -1758,7 +1786,7 @@ function declarationSignatures(
 			handle.kind === SyntaxKind.MethodSignature,
 	);
 	return hasCallableComment
-		? withDocumentationContexts(compiler, locations, state, type, facts)
+		? addDocumentationContexts(compiler, locations, state, type, facts)
 		: facts;
 }
 
@@ -1778,7 +1806,7 @@ function declarationSignatures(
  * @returns The original reference context, or `undefined` for ambiguous, unavailable, or unsupported declarations.
  * @throws If source records are inconsistent or compiler extraction fails unexpectedly.
  */
-function declarationDocumentationContext(
+function extractDeclarationDocumentationContext(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -1812,7 +1840,7 @@ function declarationDocumentationContext(
 		isModuleDeclaration(sourceNode) ||
 		isVariableDeclaration(sourceNode);
 	return supported
-		? referenceContext(
+		? createReferenceContext(
 				compiler,
 				locations,
 				state,
@@ -1861,7 +1889,7 @@ function mergeReferenceContexts(
 	// Resolve each copy in its own scope, since matching text can name different local targets.
 	const contexts = nodes.map((node, index) => {
 		const source = assertDefined(sources[index]);
-		return referenceContext(
+		return createReferenceContext(
 			compiler,
 			locations,
 			state,
@@ -1929,7 +1957,14 @@ function mergeInterfaceContainers(
 		return undefined;
 	}
 	const containers = nodes.map((node, index) =>
-		containerSyntax(compiler, locations, state, node, assertDefined(sources[index]), id),
+		extractContainerSyntax(
+			compiler,
+			locations,
+			state,
+			node,
+			assertDefined(sources[index]),
+			id,
+		),
 	);
 	const first = assertDefined(
 		containers[0],
@@ -1963,7 +1998,7 @@ function mergeInterfaceContainers(
  * @param id - Owning declaration identity.
  * @returns A detached class, interface, or enum container; undefined for other forms.
  */
-function containerSyntax(
+function extractContainerSyntax(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -1991,7 +2026,7 @@ function containerSyntax(
 				// Remove trivia only on the printing clone; lookup still uses the original member node.
 				const printed = compiler.emitter.printNode(getSynthesizedDeepClone(member)).trim();
 				const memberId = `${id}:declared:${createHash("sha256").update(printed).digest("hex")}`;
-				return declaredMemberRecord(
+				return createDeclaredMemberRecord(
 					compiler,
 					locations,
 					state,
@@ -2012,7 +2047,7 @@ function containerSyntax(
 			declaredMembers: node.members.map((member) => {
 				const printed = `${compiler.emitter.printNode(getSynthesizedDeepClone(member)).trim()},`;
 				const memberId = `${id}:enum:${compiler.emitter.printNode(member.name).trim()}`;
-				return declaredMemberRecord(
+				return createDeclaredMemberRecord(
 					compiler,
 					locations,
 					state,
@@ -2060,7 +2095,7 @@ function needsDeclaredMemberRecord(member: Node): boolean {
  * @param printed - Comment-free compiler-printed syntax.
  * @returns Detached source and reference records for this member.
  */
-function declaredMemberRecord(
+function createDeclaredMemberRecord(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -2070,7 +2105,7 @@ function declaredMemberRecord(
 	printed: string,
 ): DeclaredMemberFact {
 	const location = { packageName: source.packageName, file: source.file, start: member.pos };
-	const documentation = originalComment(member);
+	const documentation = getOriginalComment(member);
 	return {
 		...location,
 		kind: SyntaxKind[member.kind],
@@ -2078,7 +2113,7 @@ function declaredMemberRecord(
 		documentation,
 		id,
 		printed,
-		documentationContext: referenceContext(
+		documentationContext: createReferenceContext(
 			compiler,
 			locations,
 			state,
@@ -2097,7 +2132,7 @@ function declaredMemberRecord(
  * @param type - Effective variable type; if undefined and no type or initializer exists, prints unknown.
  * @returns Detached type alias or variable syntax, or undefined for other declarations.
  */
-function statementSyntax(
+function extractStatementSyntax(
 	compiler: Pick<Project, "checker" | "emitter">,
 	sourceNode: Node | undefined,
 	type: Type | undefined,
@@ -2137,7 +2172,7 @@ function statementSyntax(
  * @returns New signature records with context for inspectable callable declarations.
  * @throws If compiler signature identities or original source locations are inconsistent.
  */
-function withDocumentationContexts(
+function addDocumentationContexts(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -2159,12 +2194,12 @@ function withDocumentationContexts(
 			return {
 				...fact,
 				documentationContext: {
-					...referenceContext(
+					...createReferenceContext(
 						compiler,
 						locations,
 						state,
 						node,
-						origin(locations, handle.path, node.pos),
+						getOrigin(locations, handle.path, node.pos),
 						fact.id,
 						fact.documentation,
 					),
@@ -2192,7 +2227,7 @@ function withDocumentationContexts(
  * @param documentation - Original comment text, including explicit empty comments. Undefined uses an empty parser tree without adding a source comment.
  * @returns Detached reference facts; parsed nodes remain private to the invocation.
  */
-function referenceContext(
+function createReferenceContext(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -2227,7 +2262,7 @@ function referenceContext(
 				);
 	return {
 		origin: { packageName: location.packageName, file: location.file, start: location.start },
-		typeReferences: declarationReferences(compiler, locations, state, node, location),
+		typeReferences: collectDeclarationReferences(compiler, locations, state, node, location),
 		links,
 		...(inheritance === undefined ? {} : { inheritance }),
 	};
@@ -2243,7 +2278,7 @@ function referenceContext(
  * @param location - Package-relative declaration location.
  * @returns Ordered reference occurrences, excluding type parameters and standard-library targets.
  */
-function declarationReferences(
+function collectDeclarationReferences(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -2270,7 +2305,7 @@ function declarationReferences(
 		if (name !== undefined) {
 			const symbol = compiler.checker.getSymbolAtLocation(name);
 			if (symbol && !compiler.checker.isUnknownSymbol(symbol)) {
-				const resolved = target(compiler.checker, symbol);
+				const resolved = resolveSymbolTarget(compiler.checker, symbol);
 				if (
 					!(resolved.flags & SymbolFlags.TypeParameter) &&
 					resolved.declarations.length > 0 &&
@@ -2316,7 +2351,7 @@ function declarationReferences(
  * @param node - Original declaration or variable statement that owns the comment.
  * @returns Exact comment text, or undefined when no TSDoc is attached.
  */
-function originalComment(node: Node | undefined): string | undefined {
+function getOriginalComment(node: Node | undefined): string | undefined {
 	const comment = node?.jsDoc?.at(-1);
 	if (node === undefined || comment === undefined) {
 		return undefined;

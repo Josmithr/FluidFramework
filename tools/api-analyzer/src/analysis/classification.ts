@@ -10,7 +10,7 @@ import type { DocumentationContext } from "./documentationContext.js";
 import type { AnalysisFacts, SourceDeclarationFact } from "../analysis-types/facts.js";
 import {
 	DiagnosticCode,
-	failure,
+	reportFailure,
 	type AnalyzerDiagnostic,
 	type Result,
 } from "../analysis-types/result.js";
@@ -31,7 +31,7 @@ import { freezeData } from "../utilities/freezeData.js";
 export function validateMergedReleaseLevels(
 	facts: AnalysisFacts,
 	configuration: TSDocConfiguration,
-): Result<void> {
+): Result {
 	const parser = new TSDocParser(configuration);
 	for (const declaration of facts.declarations) {
 		const own = validateMergedReleaseGroup(
@@ -55,7 +55,7 @@ export function validateMergedReleaseLevels(
 			}
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -71,7 +71,7 @@ function validateMergedReleaseGroup(
 	sources: readonly SourceDeclarationFact[],
 	parser: TSDocParser,
 	configuration: TSDocConfiguration,
-): Result<void> {
+): Result {
 	// Signature-level classification owns overload metadata, even when a callable has no parameters.
 	if (
 		sources.length < 2 ||
@@ -82,7 +82,7 @@ function validateMergedReleaseGroup(
 				source.kind === "MethodSignature",
 		)
 	) {
-		return { ok: true, value: undefined };
+		return { ok: true };
 	}
 	const levels = new Set<string>();
 	const locations: string[] = [];
@@ -110,12 +110,12 @@ function validateMergedReleaseGroup(
 		}
 	}
 	if (levels.size > 1) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.ClassificationReleaseConflict,
 			`Merged API ${name}: conflicting release tags ${[...levels].sort().join(", ")} across ${locations.join("; ")}. Update the explicit release tags on the merged declarations so they agree.`,
 		);
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**

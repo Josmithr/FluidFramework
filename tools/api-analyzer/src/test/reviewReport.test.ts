@@ -1,4 +1,4 @@
-import { analysisContext, success } from "./contextUtils.js";
+import { createTestAnalysisContext, getSuccessValue } from "./contextUtils.js";
 import assert from "node:assert/strict";
 import { TSDocParser } from "@microsoft/tsdoc";
 import { describe, it } from "mocha";
@@ -87,7 +87,7 @@ const facts: AnalysisFacts = {
  * @param documentation - The ancestor's original comment, or `undefined` when absent.
  * @returns Mutable facts with matching parameter context and a single exported receiver.
  */
-function inheritanceReportFacts(documentation: string | undefined): AnalysisFacts {
+function createInheritanceReportFacts(documentation: string | undefined): AnalysisFacts {
 	const template = facts.declarations[0];
 	assert(template !== undefined);
 	const signature = template.signatures[0];
@@ -143,8 +143,10 @@ function inheritanceReportFacts(documentation: string | undefined): AnalysisFact
 
 describe("Review report generation", () => {
 	it("prepares reports from a completed graph without documentation processing", () => {
-		const context = analysisContext(inheritanceReportFacts("/** Base content. @internal */"));
-		const graph = success(completeAnalysis(context));
+		const context = createTestAnalysisContext(
+			createInheritanceReportFacts("/** Base content. @internal */"),
+		);
+		const graph = getSuccessValue(completeAnalysis(context));
 		assert.equal(Object.isFrozen(graph), true);
 		assert.equal(Object.isFrozen(graph.documentation), true);
 		assert.equal(Object.isFrozen(graph.facts.declarations), true);
@@ -212,9 +214,9 @@ describe("Review report generation", () => {
 	});
 
 	it("detaches report records from mutable preparation state", () => {
-		const input = inheritanceReportFacts("/** Base content. @internal */");
-		const context = analysisContext(input);
-		const prepared = prepareReviewReport(success(completeAnalysis(context)));
+		const input = createInheritanceReportFacts("/** Base content. @internal */");
+		const context = createTestAnalysisContext(input);
+		const prepared = prepareReviewReport(getSuccessValue(completeAnalysis(context)));
 		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
 		const before = createReviewReport(prepared, ".", selection);
 		assert.equal(before.ok, true);
@@ -250,9 +252,12 @@ describe("Review report generation", () => {
 			assert.throws(
 				() =>
 					prepareReviewReport(
-						success(
+						getSuccessValue(
 							completeAnalysis(
-								analysisContext({ ...facts, surfaces: [{ name: ".", exports }] }, options),
+								createTestAnalysisContext(
+									{ ...facts, surfaces: [{ name: ".", exports }] },
+									options,
+								),
 							),
 						),
 					),
@@ -262,9 +267,9 @@ describe("Review report generation", () => {
 		assert.throws(
 			() =>
 				prepareReviewReport(
-					success(
+					getSuccessValue(
 						completeAnalysis(
-							analysisContext(
+							createTestAnalysisContext(
 								{ ...facts, surfaces: [...facts.surfaces, ...facts.surfaces] },
 								options,
 							),
@@ -282,10 +287,12 @@ describe("Review report generation", () => {
 			["/** */", false],
 			[undefined, false],
 		] as const) {
-			const input = inheritanceReportFacts(documentation);
+			const input = createInheritanceReportFacts(documentation);
 			const before = JSON.stringify(input);
 			const report = createReviewReport(
-				prepareReviewReport(success(completeAnalysis(analysisContext(input, {})))),
+				prepareReviewReport(
+					getSuccessValue(completeAnalysis(createTestAnalysisContext(input, {}))),
+				),
 				".",
 				{
 					name: "public",
@@ -304,7 +311,7 @@ describe("Review report generation", () => {
 	});
 
 	it("validates inherited API links using full original classification", () => {
-		const input = inheritanceReportFacts("/** See {@link base}. @beta @ancestorOnly */");
+		const input = createInheritanceReportFacts("/** See {@link base}. @beta @ancestorOnly */");
 		const base = input.declarations[0];
 		assert(base !== undefined);
 		const signature = base.signatures[0];
@@ -329,7 +336,9 @@ describe("Review report generation", () => {
 		};
 		const options = { customModifierTags: ["@ancestorOnly"] };
 		const report = createReviewReport(
-			prepareReviewReport(success(completeAnalysis(analysisContext(linked, { ...options })))),
+			prepareReviewReport(
+				getSuccessValue(completeAnalysis(createTestAnalysisContext(linked, { ...options }))),
+			),
 			".",
 			{
 				name: "public",
@@ -345,13 +354,13 @@ describe("Review report generation", () => {
 		);
 
 		// A modifier used only by an unselected ancestor still belongs to the parser vocabulary.
-		const unconfigured = completeAnalysis(analysisContext(linked));
+		const unconfigured = completeAnalysis(createTestAnalysisContext(linked));
 		assert.equal(unconfigured.ok, false);
 		assert.equal(unconfigured.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
 	});
 
 	it("propagates documentation failures even when no signatures are selected", () => {
-		const valid = inheritanceReportFacts("/** Base. @internal */");
+		const valid = createInheritanceReportFacts("/** Base. @internal */");
 		const base = valid.declarations[0];
 		const derived = valid.declarations[1];
 		assert(base !== undefined);
@@ -492,7 +501,7 @@ describe("Review report generation", () => {
 		for (const { name, input, code } of cases) {
 			const before = JSON.stringify(input);
 			{
-				const result = completeAnalysis(analysisContext(input));
+				const result = completeAnalysis(createTestAnalysisContext(input));
 				assert.equal(result.ok, false, name);
 				assert.equal(result.diagnostics[0]?.code, code, name);
 				assert.equal("value" in result, false);
@@ -507,7 +516,7 @@ describe("Review report generation", () => {
 		const before = JSON.stringify(facts);
 		const options = { customModifierTags: ["@partner"] };
 		const prepared = prepareReviewReport(
-			success(completeAnalysis(analysisContext(facts, options))),
+			getSuccessValue(completeAnalysis(createTestAnalysisContext(facts, options))),
 		);
 		for (const [name, releaseLevels] of [
 			["public", [ReleaseLevel.Public]],
@@ -544,7 +553,9 @@ describe("Review report generation", () => {
 			};
 			assert.deepEqual(
 				createReviewReport(
-					prepareReviewReport(success(completeAnalysis(analysisContext(reversed, options)))),
+					prepareReviewReport(
+						getSuccessValue(completeAnalysis(createTestAnalysisContext(reversed, options))),
+					),
 					".",
 					{ name, releaseLevels },
 				),
@@ -553,9 +564,9 @@ describe("Review report generation", () => {
 			if (name === "complete") {
 				const reordered = createReviewReport(
 					prepareReviewReport(
-						success(
+						getSuccessValue(
 							completeAnalysis(
-								analysisContext(
+								createTestAnalysisContext(
 									{
 										...facts,
 										declarations: facts.declarations.map((item) => ({
@@ -580,9 +591,9 @@ describe("Review report generation", () => {
 			}
 			const changedSignature = createReviewReport(
 				prepareReviewReport(
-					success(
+					getSuccessValue(
 						completeAnalysis(
-							analysisContext(
+							createTestAnalysisContext(
 								{
 									...facts,
 									declarations: facts.declarations.map((item) => ({
@@ -613,9 +624,9 @@ describe("Review report generation", () => {
 			);
 			const changedMetadata = createReviewReport(
 				prepareReviewReport(
-					success(
+					getSuccessValue(
 						completeAnalysis(
-							analysisContext(
+							createTestAnalysisContext(
 								{
 									...facts,
 									declarations: facts.declarations.map((declaration) => ({
@@ -644,9 +655,9 @@ describe("Review report generation", () => {
 			);
 			const changedExport = createReviewReport(
 				prepareReviewReport(
-					success(
+					getSuccessValue(
 						completeAnalysis(
-							analysisContext(
+							createTestAnalysisContext(
 								{
 									...facts,
 									surfaces: facts.surfaces.map((surface) => ({
@@ -699,9 +710,9 @@ describe("Review report generation", () => {
 			};
 			const report = createReviewReport(
 				prepareReviewReport(
-					success(
+					getSuccessValue(
 						completeAnalysis(
-							analysisContext(input, { customModifierTags: ["@input", "@legacy"] }),
+							createTestAnalysisContext(input, { customModifierTags: ["@input", "@legacy"] }),
 						),
 					),
 				),
@@ -741,8 +752,10 @@ describe("Review report generation", () => {
 		};
 		const report = createReviewReport(
 			prepareReviewReport(
-				success(
-					completeAnalysis(analysisContext(input, { customModifierTags: ["@partner"] })),
+				getSuccessValue(
+					completeAnalysis(
+						createTestAnalysisContext(input, { customModifierTags: ["@partner"] }),
+					),
 				),
 			),
 			".",
@@ -759,7 +772,7 @@ describe("Review report generation", () => {
 		const selection = { name: "public", releaseLevels: [] };
 		const options = { customModifierTags: ["@partner"] };
 		const prepared = prepareReviewReport(
-			success(completeAnalysis(analysisContext(facts, options))),
+			getSuccessValue(completeAnalysis(createTestAnalysisContext(facts, options))),
 		);
 		assert.equal(createReviewReport(prepared, "missing", selection).ok, false);
 		const invalid = createReviewReport(prepared, ".", { ...selection, name: " " });
@@ -769,8 +782,10 @@ describe("Review report generation", () => {
 			() =>
 				createReviewReport(
 					prepareReviewReport(
-						success(
-							completeAnalysis(analysisContext({ ...facts, declarations: [] }, options)),
+						getSuccessValue(
+							completeAnalysis(
+								createTestAnalysisContext({ ...facts, declarations: [] }, options),
+							),
 						),
 					),
 					".",
@@ -782,9 +797,9 @@ describe("Review report generation", () => {
 			() =>
 				createReviewReport(
 					prepareReviewReport(
-						success(
+						getSuccessValue(
 							completeAnalysis(
-								analysisContext(
+								createTestAnalysisContext(
 									{
 										...facts,
 										declarations: facts.declarations.map((item) => ({

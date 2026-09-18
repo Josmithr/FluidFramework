@@ -24,7 +24,7 @@ import type {
 	MemberFact,
 	SignatureFact,
 } from "../analysis-types/facts.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 import type { ReferencePolicies } from "../analysis-types/referencePolicy.js";
 import type { DependencyModel } from "../analysis-types/dependencyModel.js";
@@ -94,7 +94,7 @@ export interface DocumentationContext<
 	 * The first syntax failure in input order, or success when all comments parse without errors.
 	 * Classification rule opt-outs do not suppress this result for binding and resolution.
 	 */
-	readonly validation: Result<void>;
+	readonly validation: Result;
 }
 
 /**
@@ -203,7 +203,7 @@ export function createDocumentationContext<Input extends ApiItemDocumentation>(
 	}
 	const parser = new TSDocParser(configured.value);
 	const items = new Map<ApiItemId, ParsedDocumentationItem<Input>>();
-	let validation: Result<void> = { ok: true, value: undefined };
+	let validation: Result = { ok: true };
 	for (const input of inputs) {
 		assert(!items.has(input.id), "Documentation inputs must have distinct identities.");
 		if ("packageName" in input) {
@@ -217,7 +217,7 @@ export function createDocumentationContext<Input extends ApiItemDocumentation>(
 
 		// Preserve strict syntax failures even when classification is configured to tolerate them.
 		if (validation.ok && parsed.log.messages.length > 0) {
-			validation = failure(
+			validation = reportFailure(
 				DiagnosticCode.DocumentationTsdoc,
 				`Item ${input.id}: correct the TSDoc comment: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
 			);
@@ -225,7 +225,7 @@ export function createDocumentationContext<Input extends ApiItemDocumentation>(
 		items.set(input.id, {
 			...input,
 			parsed,
-			originalLinks: apiLinkNodes(parsed.docComment),
+			originalLinks: collectApiLinkNodes(parsed.docComment),
 			originalBlockTags: parsed.docComment
 				.getChildNodes()
 				.filter((node): node is DocBlock => node instanceof DocBlock)
@@ -249,9 +249,9 @@ export function createDocumentationContext<Input extends ApiItemDocumentation>(
  * @param node - A comment or one of its descendants.
  * @returns Original parsed nodes, including repeated occurrences.
  */
-export function apiLinkNodes(node: DocNode): readonly DocLinkTag[] {
+export function collectApiLinkNodes(node: DocNode): readonly DocLinkTag[] {
 	const own = node instanceof DocLinkTag && node.codeDestination !== undefined ? [node] : [];
-	return [...own, ...node.getChildNodes().flatMap(apiLinkNodes)];
+	return [...own, ...node.getChildNodes().flatMap(collectApiLinkNodes)];
 }
 
 /**
@@ -407,7 +407,7 @@ export function createAnalysisContext(
 function validateUnresolvedMergedComments(
 	facts: AnalysisFacts,
 	configuration: TSDocConfiguration,
-): Result<void> {
+): Result {
 	const parser = new TSDocParser(configuration);
 	for (const declaration of facts.declarations) {
 		for (const item of [declaration, ...declaration.members]) {
@@ -438,7 +438,7 @@ function validateUnresolvedMergedComments(
 				// Comparing malformed comments could hide differences, even when general syntax checks are disabled.
 				const parsed = parser.parseString(source.documentation);
 				if (parsed.log.messages.length > 0) {
-					return failure(
+					return reportFailure(
 						DiagnosticCode.DocumentationTsdoc,
 						`Merged API ${declaration.name}/${item.name} at ${source.packageName}/${source.file}:${source.start}: correct the TSDoc comment: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
 					);
@@ -456,15 +456,15 @@ function validateUnresolvedMergedComments(
 
 			// Declaration order must not decide which of several distinct descriptions survives.
 			if (descriptions.size > 1) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationMergeConflict,
 					`Merged API ${declaration.name}/${item.name}: descriptive comments differ across ${[...descriptions.values()].flat().join("; ")}. Make the descriptions agree; declaration order does not select documentation.`,
 				);
 			}
 			for (const { source, comment } of parsedSources) {
 				// A missing merged context is not proof that its comments have no references.
-				if (comment.inheritDocTag !== undefined || apiLinkNodes(comment).length > 0) {
-					return failure(
+				if (comment.inheritDocTag !== undefined || collectApiLinkNodes(comment).length > 0) {
+					return reportFailure(
 						DiagnosticCode.DocumentationUnsupported,
 						`Merged API ${declaration.name}/${item.name} at ${source.packageName}/${source.file}:${source.start}: original documentation references do not have one supported context. Make the merged comments and reference targets agree, or supply local documentation without ambiguous references.`,
 					);
@@ -472,7 +472,7 @@ function validateUnresolvedMergedComments(
 			}
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**

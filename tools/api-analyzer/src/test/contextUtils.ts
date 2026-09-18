@@ -10,7 +10,11 @@ import {
 	type DocumentationContext,
 } from "../analysis/documentationContext.js";
 import type { AnalysisFacts } from "../analysis-types/facts.js";
-import { DiagnosticCode, type Result } from "../analysis-types/result.js";
+import {
+	DiagnosticCode,
+	type FailedResult,
+	type SuccessfulResult,
+} from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import type { DocumentationResolutionOptions } from "../analysis-types/documentation.js";
 import type { ReferencePolicies } from "../analysis-types/referencePolicy.js";
@@ -27,7 +31,7 @@ import type { ReferencePolicies } from "../analysis-types/referencePolicy.js";
  * @returns Request-owned parsed inputs for the test's semantic stages.
  * @throws If context configuration fails or inputs violate identity invariants.
  */
-export function documentationContext<Input extends ApiItemDocumentation>(
+export function createTestDocumentationContext<Input extends ApiItemDocumentation>(
 	items: readonly Input[],
 	options: ClassificationOptions & DocumentationResolutionOptions = {},
 ): DocumentationContext<Input> {
@@ -53,7 +57,7 @@ export function documentationContext<Input extends ApiItemDocumentation>(
  * @returns A context with original metadata for every retained documentation input.
  * @throws If context creation or classification fails.
  */
-export function analysisContext(
+export function createTestAnalysisContext(
 	facts: AnalysisFacts,
 	options: ClassificationOptions & { readonly referencePolicies?: ReferencePolicies } = {},
 ): AnalysisContext {
@@ -68,11 +72,14 @@ export function analysisContext(
 /**
  * Extracts an expected successful test result without hiding operation boundaries.
  *
+ * @typeParam TValue - The required payload type, including undefined when explicitly permitted.
  * @param result - The operation result to check.
  * @returns Its successful value.
  * @throws If the supplied result contains diagnostics.
  */
-export function success<Value>(result: Result<Value>): Value {
+export function getSuccessValue<TValue>(
+	result: SuccessfulResult<TValue> | FailedResult,
+): TValue {
 	assert(result.ok, JSON.stringify(result));
 	return result.value;
 }

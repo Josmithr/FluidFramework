@@ -1,16 +1,5 @@
 # TODOs
 
-## Enhance `Result` type
-
-We should make the type a bit smarter so users can leverage it without a `Value` type.
-When no `Value` type is provided, there should be no `value` property.
-
-## Rename functions to follow our coding guidelines
-
-Our [coding guidelines](../../docs/content/Guidelines/Coding-Guidelines.md) call for functions to be named using verb phrases.
-E.g. `createFoo` instead of `foo`.
-We should audit the code and update functions to adhere to these guidelines.
-
 ## Member compatibility
 
 Something we haven't considered at in depth: what does it mean for type members to have release levels that are more restrictive than their container?

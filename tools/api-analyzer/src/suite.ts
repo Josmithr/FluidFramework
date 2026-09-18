@@ -4,7 +4,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { EffectiveConfiguration } from "./analysis-types/configuration.js";
 import type { DependencyModel } from "./analysis-types/dependencyModel.js";
-import { DiagnosticCode, failure, type Result } from "./analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "./analysis-types/result.js";
 import {
 	decodeDependencyModel,
 	fingerprintDependencyModel,
@@ -90,7 +90,7 @@ export function loadDependencyModels(
 			// Model references use package names, so two selected installations would be ambiguous.
 			const previous = selected.get(name);
 			if (previous && previous.root !== canonical) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${name}: multiple installed package roots match the suite. Use one unambiguous dependency version before analysis.`,
 				);
@@ -118,7 +118,7 @@ export function loadDependencyModels(
 				dependency === "." ||
 				dependency === ".."
 			) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Package ${name}: invalid dependency package name ${dependency}.`,
 				);
@@ -130,7 +130,7 @@ export function loadDependencyModels(
 				suite.packages.some((pattern) => path.posix.matchesGlob(dependency, pattern))
 			) {
 				// Missing unselected packages do not block discovery, but selected packages are required inputs.
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${dependency}: selected package is not installed. Install and build it before analysis.`,
 				);
@@ -141,7 +141,7 @@ export function loadDependencyModels(
 	// Reject unmatched selectors instead of silently analyzing a smaller suite than requested.
 	const unmatched = suite.packages.find((pattern) => !matched.has(pattern));
 	if (unmatched !== undefined) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Suite selector ${unmatched} matches no installed direct, transitive, or peer dependency.`,
 		);
@@ -185,7 +185,7 @@ function readDependencyManifest(root: string): Result<DependencyManifest> {
 			error instanceof SyntaxError ||
 			(error instanceof Error && "code" in error && error.code === "ENOENT")
 		) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Package ${root}: a valid package.json is required to discover the configured suite.`,
 			);
@@ -195,7 +195,7 @@ function readDependencyManifest(root: string): Result<DependencyManifest> {
 	const manifest = manifestSchema.safeParse(input);
 	return manifest.success
 		? { ok: true, value: manifest.data }
-		: failure(
+		: reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Package ${root}: invalid dependency manifest: ${manifest.error.message}`,
 			);
@@ -220,7 +220,7 @@ function loadSelectedModel(
 		text = readFileSync(file, "utf8");
 	} catch (error) {
 		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${name}: model is missing at ${file}. Build the dependency and generate its model before analysis, even when unused.`,
 			);
@@ -242,14 +242,14 @@ function loadSelectedModel(
  * @returns Success or the first missing or changed input diagnostic.
  * @throws On unexpected filesystem failures.
  */
-function validateInstalledInputs(root: string, model: DependencyModel): Result<void> {
+function validateInstalledInputs(root: string, model: DependencyModel): Result {
 	for (const fingerprint of model.inputFiles) {
 		let declaration: string;
 		try {
 			declaration = readFileSync(path.join(root, fingerprint.file), "utf8");
 		} catch (error) {
 			if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${model.packageName}: analyzed input ${fingerprint.file} is missing. Rebuild and regenerate its model.`,
 				);
@@ -259,13 +259,13 @@ function validateInstalledInputs(root: string, model: DependencyModel): Result<v
 
 		// Hash the same UTF-8 text as extraction. This checks staleness, not semantic equivalence or authenticity.
 		if (createHash("sha256").update(declaration).digest("hex") !== fingerprint.sha256) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${model.packageName}: model is stale for ${fingerprint.file}. Regenerate it from the installed declarations before analysis.`,
 			);
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -273,21 +273,21 @@ function validateInstalledInputs(root: string, model: DependencyModel): Result<v
  * @param models - Selected models whose own recorded source files are current.
  * @returns Success or the first absent or stale model-input diagnostic.
  */
-function validateModelInputs(models: readonly DependencyModel[]): Result<void> {
+function validateModelInputs(models: readonly DependencyModel[]): Result {
 	const fingerprints = new Map(
 		models.map((model) => [model.packageName, fingerprintDependencyModel(model)]),
 	);
 	for (const model of models) {
 		for (const dependency of model.dependencyModels) {
 			if (fingerprints.get(dependency.packageName) !== dependency.sha256) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${model.packageName}: its model was generated from missing or different ${dependency.packageName} model content. Select the required dependency model and regenerate ${model.packageName} after its dependencies.`,
 				);
 			}
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -295,21 +295,21 @@ function validateModelInputs(models: readonly DependencyModel[]): Result<void> {
  * @param models - All selected models after individual validation and freshness checks.
  * @returns Success or the first unavailable external target diagnostic.
  */
-function validateSuiteReferences(models: readonly DependencyModel[]): Result<void> {
+function validateSuiteReferences(models: readonly DependencyModel[]): Result {
 	const targets = new Map(
 		models.flatMap((model) => model.apis.map((api) => [api.id, model.packageName] as const)),
 	);
 	for (const model of models) {
 		for (const external of model.external) {
 			if (targets.get(external.id) !== external.packageName) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${model.packageName}: external target ${external.id} requires a compatible selected model for ${external.packageName}. Include and rebuild the transitive suite dependency.`,
 				);
 			}
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**

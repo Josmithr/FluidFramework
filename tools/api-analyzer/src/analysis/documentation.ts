@@ -27,12 +27,12 @@ import type {
 	DocumentationReferenceContext,
 	DocumentationReferenceLookup,
 } from "../analysis-types/facts.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
-import { dependencyReference } from "./dependencyReferences.js";
+import { resolveDependencyReference } from "./dependencyReferences.js";
 import {
-	apiLinkNodes,
+	collectApiLinkNodes,
 	type AnalysisContext,
 	type DocumentationContext,
 	type ParsedDocumentationItem,
@@ -110,7 +110,7 @@ export function bindDocumentationReferences(
 					),
 			)
 		) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
 				`Item ${id}: @inheritDoc requires a function, method, or single-declaration property. Supply local documentation for this declaration.`,
 			);
@@ -128,7 +128,7 @@ export function bindDocumentationReferences(
 			request.declarationReference?.emitAsTsdoc() ?? "",
 			"Inheritance lookup facts must match the original comment.",
 		);
-		const dependency = dependencyReference(
+		const dependency = resolveDependencyReference(
 			analysis,
 			request.declarationReference,
 			lookup,
@@ -156,13 +156,13 @@ export function bindDocumentationReferences(
 					JSON.stringify(parameters.typeParameters) !==
 						JSON.stringify(dependencyTarget.typeParameters)
 				) {
-					return failure(
+					return reportFailure(
 						DiagnosticCode.DocumentationReference,
 						`Item ${id}: parameter documentation does not match dependency target ${lookup.reference}. Supply local documentation.`,
 					);
 				}
 			} else if (dependencyTarget.parameters !== undefined) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${id}: non-callable documentation cannot inherit callable parameters from ${lookup.reference}.`,
 				);
@@ -171,13 +171,13 @@ export function bindDocumentationReferences(
 			continue;
 		}
 		if (lookup.status === "unsupported") {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
 				`Item ${id}: unsupported @inheritDoc reference "${lookup.reference}". Reference a function, instance method, or property in the same package, for example {@inheritDoc base} or {@inheritDoc Base.method}. To select a callable overload, use {@inheritDoc (base:2)} or {@inheritDoc Base.(method:2)}. Otherwise, replace @inheritDoc with local documentation.`,
 			);
 		}
 		if (lookup.status === "not-found") {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationReference,
 				`Item ${id}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the reference.`,
 			);
@@ -196,7 +196,7 @@ export function bindDocumentationReferences(
 						source.kind === "PropertyDeclaration" || source.kind === "PropertySignature",
 				)
 			) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${id}: target ${lookup.reference} must be a single-declaration non-callable property.`,
 				);
@@ -206,7 +206,7 @@ export function bindDocumentationReferences(
 					(part) => part.selector !== undefined,
 				) === true
 			) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationReference,
 					`Item ${id}: property inheritance does not accept overload selectors.`,
 				);
@@ -216,7 +216,7 @@ export function bindDocumentationReferences(
 				"Supported property targets must retain documentation context.",
 			);
 			if (propertyContext.origin.packageName !== context.origin.packageName) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${id}: cross-package property inheritance requires suite resolution.`,
 				);
@@ -270,13 +270,13 @@ function bindCallableInheritance(
 		"Supported inheritance targets must retain documentation context.",
 	);
 	if (targetContext.origin.packageName !== sourceContext.origin.packageName) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${signature.id}: target ${referenceText} requires same-package callable documentation facts. Cross-package targets require future suite resolution.`,
 		);
 	}
-	if (!matchingDocumentationParameters(sourceContext, targetContext)) {
-		return failure(
+	if (!haveMatchingDocumentationParameters(sourceContext, targetContext)) {
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Item ${signature.id}: parameters or type parameters do not match ${referenceText}. Supply local documentation; parameter adaptation is not supported yet.`,
 		);
@@ -310,27 +310,27 @@ function selectInheritanceOverload(
 				declaration.kind !== "MethodSignature",
 		)
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source}: target ${referenceText} must be a function or method.`,
 		);
 	}
 	const selector = reference?.memberReferences.at(-1)?.selector;
 	if (selector !== undefined && selector.selectorKind !== SelectorKind.Index) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source}: use a numeric overload selector.`,
 		);
 	}
 	if (selector === undefined && target.signatures.length !== 1) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Item ${source}: target ${referenceText} has ${target.signatures.length} callable signatures. Supply a one-based numeric selector such as (foo:1), or local documentation.`,
 		);
 	}
 	const ordinal = selector === undefined ? 1 : Number(selector.selector);
 	if (!Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > target.signatures.length) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Item ${source}: overload selector ${selector?.selector} is outside the callable signature range 1..${target.signatures.length} for ${referenceText}.`,
 		);
@@ -346,7 +346,7 @@ function selectInheritanceOverload(
  * @param target - Original selected target parameter facts.
  * @returns Whether names, ordering, optional/rest flags, and type-parameter names match.
  */
-function matchingDocumentationParameters(
+function haveMatchingDocumentationParameters(
 	source: SignatureDocumentationContext,
 	target: SignatureDocumentationContext,
 ): boolean {
@@ -425,8 +425,8 @@ export function bindAutomaticDocumentationReferences(
 					uncertain = true;
 					break;
 				}
-				const key = memberSourceKey(candidate);
-				if (memberSourceKey(original) !== key) {
+				const key = getMemberSourceKey(candidate);
+				if (getMemberSourceKey(original) !== key) {
 					uncertain = true;
 					break;
 				}
@@ -457,7 +457,7 @@ export function bindAutomaticDocumentationReferences(
  * @param member - A detached member with original source records.
  * @returns An operation-local source identity, not a portable API identifier.
  */
-function memberSourceKey(member: MemberFact): string {
+function getMemberSourceKey(member: MemberFact): string {
 	return JSON.stringify(
 		member.declarations.map((entry) => [
 			entry.packageName,
@@ -508,7 +508,7 @@ export function bindDocumentationLinks(
 			continue;
 		}
 		for (const [linkIndex, lookup] of context.links.entries()) {
-			const dependency = dependencyReference(
+			const dependency = resolveDependencyReference(
 				analysis,
 				item.originalLinks[linkIndex]?.codeDestination,
 				lookup,
@@ -524,7 +524,7 @@ export function bindDocumentationLinks(
 					receivingLevel === undefined ||
 					dependencyTarget.metadata.releaseLevel === undefined
 				) {
-					return failure(
+					return reportFailure(
 						DiagnosticCode.DocumentationConfiguration,
 						`Item ${item.id}: dependency links require release tags on source and target ${lookup.reference}.`,
 					);
@@ -533,7 +533,7 @@ export function bindDocumentationLinks(
 					receivingLevel !== ReleaseLevel.Internal &&
 					dependencyTarget.metadata.releaseLevel === ReleaseLevel.Internal
 				) {
-					return failure(
+					return reportFailure(
 						DiagnosticCode.DocumentationLinkPolicy,
 						`Item ${item.id}: non-internal APIs cannot link to internal dependency target ${lookup.reference}.`,
 					);
@@ -602,7 +602,7 @@ function validateLinkSource(
 					),
 			))
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source.id}: API links are supported only in function, method, and single-declaration non-callable property comments. Use plain text for this declaration.`,
 		);
@@ -642,13 +642,13 @@ function bindLocalLink(
 	linkIndex: number,
 ): Result<DocumentationLinkBinding> {
 	if (lookup.status === "unsupported") {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source}: use an unqualified API link reference. Qualified references and selectors are not supported yet.`,
 		);
 	}
 	if (lookup.status === "not-found") {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Item ${source}: target ${lookup.reference} was not found in ${context.origin.packageName}/${context.origin.file}. Correct the API link.`,
 		);
@@ -669,7 +669,7 @@ function bindLocalLink(
 			) ||
 			target.signatures.length !== 1)
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source}: target ${lookup.reference} requires a standalone function with one callable signature and documentation context. Other declaration forms and overload targets are not supported yet.`,
 		);
@@ -686,7 +686,7 @@ function bindLocalLink(
 		targetContext.origin.packageName !== context.origin.packageName ||
 		target.declarations.some((record) => record.packageName !== context.origin.packageName)
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Item ${source}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Cross-package links require future suite resolution.`,
 		);
@@ -702,13 +702,13 @@ function bindLocalLink(
 		"API link targets must have original classification metadata.",
 	).releaseLevel;
 	if (sourceLevel === undefined || targetLevel === undefined) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationConfiguration,
 			`Item ${source}: API links require release tags on both the source and target ${lookup.reference}. Add a release tag to each untagged declaration.`,
 		);
 	}
 	if (sourceLevel !== ReleaseLevel.Internal && targetLevel === ReleaseLevel.Internal) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationLinkPolicy,
 			`Item ${source}: non-internal APIs cannot link to internal target ${lookup.reference}. Remove the link or correct the original release tags.`,
 		);
@@ -884,7 +884,7 @@ function associateDocumentationBindings(
 	for (const item of ordered) {
 		const comment = item.parsed.docComment;
 		const dependency = options.dependencies?.get(item.id);
-		for (const section of documentationSections(comment)) {
+		for (const section of collectDocumentationSections(comment)) {
 			const original = dependency?.sections?.find(
 				(entry) => entry.section === section.section,
 			);
@@ -920,7 +920,7 @@ function associateDocumentationBindings(
 					reference.packageName !== item.packageName &&
 					options.packages?.has(reference.packageName) !== true)
 			) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${item.id}: supply an explicit same-package inheritance target. Automatic and cross-package inheritance are not supported yet.`,
 				);
@@ -938,7 +938,7 @@ function associateDocumentationBindings(
 				target.packageName !== item.packageName &&
 				options.packages?.has(target.packageName) !== true
 			) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${item.id}: target ${target.id} belongs to ${target.packageName}. Cross-package inheritance requires suite resolution, which is not supported yet.`,
 				);
@@ -1016,7 +1016,7 @@ function resolveDocumentationItem(
 		return { ok: true, value: cached };
 	}
 	if (visiting.has(id)) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationCycle,
 			`Remove the documentation inheritance cycle: ${[...visiting, id].join(" -> ")}.`,
 		);
@@ -1054,7 +1054,7 @@ function resolveDocumentationItem(
 	// do not supply all information required by the portable model contract.
 	const value: ResolvedDocumentation = {
 		id: item.id,
-		sections: documentationSections(comment).map(({ section, node }) => ({
+		sections: collectDocumentationSections(comment).map(({ section, node }) => ({
 			section,
 			...assertDefined(
 				state.sectionSources.get(node),
@@ -1080,7 +1080,9 @@ function resolveDocumentationItem(
  * @param comment - Original or resolved TSDoc comment.
  * @returns Section identities and their existing nodes, without cloning content.
  */
-function documentationSections(comment: DocComment): { section: string; node: DocNode }[] {
+function collectDocumentationSections(
+	comment: DocComment,
+): { section: string; node: DocNode }[] {
 	const sections: { section: string; node: DocNode }[] = [
 		{ section: "summary", node: comment.summarySection },
 	];
@@ -1150,7 +1152,7 @@ function resolveEffectiveLinks(
 	metadata: ReadonlyMap<ApiItemId, ApiItemMetadata>,
 ): Result<readonly DocumentationLinkBinding[]> {
 	const links: DocumentationLinkBinding[] = [];
-	for (const node of apiLinkNodes(comment)) {
+	for (const node of collectApiLinkNodes(comment)) {
 		const link = nodesToBindings.get(node);
 		assert(
 			link !== undefined,
@@ -1165,13 +1167,13 @@ function resolveEffectiveLinks(
 			"Effective API link targets must have original classification metadata.",
 		).releaseLevel;
 		if (sourceLevel === undefined || targetLevel === undefined) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationConfiguration,
 				`Item ${id}: inherited API links require release tags on both the receiving API and target ${link.reference}. Add a release tag to each untagged declaration.`,
 			);
 		}
 		if (sourceLevel !== ReleaseLevel.Internal && targetLevel === ReleaseLevel.Internal) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationLinkPolicy,
 				`Item ${id}: non-internal APIs cannot receive a link to internal target ${link.reference} from ${link.source}. Remove the link or correct the original release tags.`,
 			);

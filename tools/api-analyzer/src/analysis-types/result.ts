@@ -273,38 +273,66 @@ export interface AnalyzerDiagnostic {
 }
 
 /**
- * The successful value of an operation or its failure diagnostics.
+ * The success discriminator shared by results with and without payloads.
+ */
+interface SuccessStatus {
+	/**
+	 * Indicates that the operation succeeded.
+	 */
+	readonly ok: true;
+}
+
+/**
+ * A successful operation with a required payload.
+ *
+ * @typeParam TValue - The produced value, including undefined when explicitly permitted.
+ */
+export interface SuccessfulResult<TValue> extends SuccessStatus {
+	/**
+	 * The successful operation's value. The property remains present even when the value is undefined.
+	 */
+	readonly value: TValue;
+}
+
+/**
+ * Failure diagnostics without a partial success value.
+ */
+export interface FailedResult {
+	/**
+	 * Indicates that the operation failed.
+	 */
+	readonly ok: false;
+
+	/**
+	 * Diagnostics that explain the operation's failure.
+	 */
+	readonly diagnostics: readonly AnalyzerDiagnostic[];
+}
+
+/**
+ * An operation's success or failure diagnostics.
  *
  * @remarks
- * Check `ok` before reading the value or diagnostics. Failure results contain no partial value.
+ * Check `ok` before reading a payload or diagnostics. Failure results contain no partial value.
+ * Omitting the type argument produces a success with no `value` property.
+ * An explicit payload type, including undefined or a union, requires the `value` property.
+ * The default `never` type represents no payload. Payload unions remain a single success branch.
  * Failure diagnostics describe user-caused issues, not internal assertions or unexpected operational errors.
  * This type alone does not guarantee that the value or result is frozen.
  *
- * @typeParam Value - The value produced when the operation succeeds.
+ * @typeParam TValue - The value produced on success. Omit, or use `never`, for a value-less result.
+ *
+ * @example Validation and optional payloads
+ * Validation success has no payload. An explicitly optional payload retains its property.
+ *
+ * ```typescript
+ * const validated: Result = { ok: true };
+ * const found: Result<string | undefined> = { ok: true, value: undefined };
+ * ```
  */
-export type Result<Value> =
-	| {
-			/**
-			 * Indicates that the operation succeeded.
-			 */
-			readonly ok: true;
-
-			/**
-			 * The successful operation's value.
-			 */
-			readonly value: Value;
-	  }
-	| {
-			/**
-			 * Indicates that the operation failed.
-			 */
-			readonly ok: false;
-
-			/**
-			 * Diagnostics that explain the operation's failure.
-			 */
-			readonly diagnostics: readonly AnalyzerDiagnostic[];
-	  };
+export type Result<TValue = never> =
+	| FailedResult
+	| ([TValue] extends [never] ? SuccessStatus : SuccessfulResult<TValue>);
 
 /**
  * Constructs a frozen failure result with one diagnostic.
@@ -312,8 +340,9 @@ export type Result<Value> =
  * @param code - The diagnostic category used for programmatic checks.
  * @param message - A description of the failure and any corrective action.
  * @returns A failure result with a frozen diagnostic and diagnostic array.
+ * This branch can be returned from both value-bearing and value-less operations.
  */
-export function failure(code: DiagnosticCode, message: string): Result<never> {
+export function reportFailure(code: DiagnosticCode, message: string): FailedResult {
 	return Object.freeze({
 		ok: false,
 		diagnostics: Object.freeze([Object.freeze({ code, message })]),

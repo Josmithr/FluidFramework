@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { ObjectSchema, ValidationStrategy } from "@eslint/object-schema";
 import { z } from "zod";
-import { DiagnosticCode, failure, type Result } from "./analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "./analysis-types/result.js";
 import { freezeData } from "./utilities/freezeData.js";
 
 /**
@@ -191,7 +191,7 @@ function mergeConfigurationLayers(
 	for (const layer of layers) {
 		for (const key of Object.keys(layer)) {
 			if (key !== "extends" && !configurationSchema.hasKey(key)) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.ConfigurationInvalid,
 					`Unsupported configuration setting: ${key}.`,
 				);
@@ -211,7 +211,7 @@ function mergeConfigurationLayers(
 			configurationSchema.validate(layer);
 		} catch (error) {
 			if (error instanceof Error && error.cause instanceof TypeError) {
-				return failure(DiagnosticCode.ConfigurationInvalid, error.message);
+				return reportFailure(DiagnosticCode.ConfigurationInvalid, error.message);
 			}
 			throw error;
 		}
@@ -247,7 +247,7 @@ function validateAndNormalizeConfiguration(
 		merged.entrypoints === undefined ||
 		merged.entrypoints.length === 0
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.ConfigurationRequired,
 			"Supply packageName, project, and at least one entrypoint.",
 		);
@@ -255,13 +255,13 @@ function validateAndNormalizeConfiguration(
 	const names = new Set<string>();
 	for (const entrypoint of merged.entrypoints) {
 		if (!entrypoint.name.trim() || !entrypoint.path.trim()) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.ConfigurationEntrypoint,
 				"Each entrypoint requires a name and path.",
 			);
 		}
 		if (names.has(entrypoint.name)) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DuplicateEntrypoint,
 				`Entrypoint ${entrypoint.name} is configured more than once.`,
 			);
@@ -309,14 +309,14 @@ export function resolveConfiguration(
 	workingDirectory: string,
 ): Result<EffectiveConfiguration> {
 	if (!path.isAbsolute(workingDirectory)) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.ConfigurationDirectory,
 			"The working directory must be absolute.",
 		);
 	}
 	const layers = collectConfigurationLayers(configuration);
 	if (layers === undefined) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.ConfigurationCycle,
 			"Configuration inheritance contains a cycle.",
 		);

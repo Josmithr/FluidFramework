@@ -24,7 +24,7 @@ import {
 	resolveDocumentation,
 } from "./documentation.js";
 import { freezeData } from "../utilities/freezeData.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { validateReferencePolicies } from "./referencePolicy.js";
 
 /**
@@ -49,7 +49,7 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 			(item.originalLinks.length > 0 || item.parsed.docComment.inheritDocTag !== undefined) &&
 			!context.dependencies.some((model) => model.packageName === item.packageName)
 		) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
 				`API ${item.id}: documentation originated in ${item.packageName}, outside the configured suite. Select its model before resolving references through re-exports.`,
 			);
@@ -93,7 +93,7 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 	};
 	const documentation = resolveDocumentation(resolutionContext, inheritance.value, {
 		linkValidation: { bindings: links.value, metadata: context.metadata },
-		automaticInheritance: automaticMemberBindings(context),
+		automaticInheritance: createAutomaticMemberBindings(context),
 		dependencies,
 		packages: new Set([
 			context.facts.packageName,
@@ -134,7 +134,9 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
  * @param context - Indexed member and signature comments from the current analysis.
  * @returns Bindings to property or single-signature inputs with original reference contexts.
  */
-function automaticMemberBindings(context: AnalysisContext): AutomaticDocumentationBinding[] {
+function createAutomaticMemberBindings(
+	context: AnalysisContext,
+): AutomaticDocumentationBinding[] {
 	const inputs = new Map(
 		[...context.items.values()].flatMap(({ id, member, signature }) =>
 			member !== undefined &&

@@ -1,7 +1,7 @@
 import { SelectorKind, type DocDeclarationReference } from "@microsoft/tsdoc";
 import type { DependencyApi } from "../analysis-types/dependencyModel.js";
 import type { DocumentationReferenceLookup } from "../analysis-types/facts.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import type { AnalysisContext } from "./documentationContext.js";
 
 /**
@@ -12,7 +12,7 @@ import type { AnalysisContext } from "./documentationContext.js";
  * @param originalPackage - Package where the referring documentation was written, before re-exports.
  * @returns A dependency target, undefined for a local reference, or a suite diagnostic.
  */
-export function dependencyReference(
+export function resolveDependencyReference(
 	analysis: AnalysisContext,
 	reference: DocDeclarationReference | undefined,
 	lookup: DocumentationReferenceLookup,
@@ -29,7 +29,7 @@ export function dependencyReference(
 		return { ok: true, value: undefined };
 	}
 	if (!model) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
 			`Reference ${lookup.reference}: package ${packageName} is outside the configured suite. Select and build its dependency model.`,
 		);
@@ -52,7 +52,7 @@ export function dependencyReference(
 							part.selector.selectorKind !== SelectorKind.Index)),
 			)
 		) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
 				`Reference ${lookup.reference}: use named exported paths with a terminal numeric callable selector.`,
 			);
@@ -68,7 +68,7 @@ export function dependencyReference(
 				JSON.stringify(entry.path) === JSON.stringify(names),
 		);
 		if (!exported) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DocumentationReference,
 				`Dependency ${packageName}: exported target ${lookup.reference} does not exist in the model.`,
 			);
@@ -91,20 +91,20 @@ export function dependencyReference(
 		ordinal < 1 ||
 		ordinal > candidates.length
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Dependency ${packageName}: ${lookup.reference} has ${candidates.length} candidates. Supply a valid one-based numeric callable selector.`,
 		);
 	}
 	const selected = candidates[ordinal - 1];
 	if (selected === undefined) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Dependency ${packageName}: target ${lookup.reference} is missing from selected models.`,
 		);
 	}
 	if (selector !== undefined && selected.parameters === undefined) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DocumentationReference,
 			`Dependency ${packageName}: non-callable targets do not accept overload selectors.`,
 		);

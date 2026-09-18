@@ -12,7 +12,7 @@ const directory = process.argv[3];
 assert(directory !== undefined);
 assert.notEqual(directory, "");
 
-function childPids(): readonly number[] {
+function getChildProcessIds(): readonly number[] {
 	return readFileSync(`/proc/self/task/${process.pid}/children`, "utf8")
 		.trim()
 		.split(/\s+/)
@@ -52,7 +52,7 @@ if (mode === "analysis" || mode === "analysis-failure") {
 	}
 	console.log("analysis client disposed before return");
 } else if (mode === "sync" || mode === "sync-crash") {
-	const before = childPids();
+	const before = getChildProcessIds();
 	const api = new SyncAPI({ cwd: directory, collectTiming: true });
 	try {
 		const configFileName = path.join(directory, "tsconfig.json");
@@ -79,7 +79,7 @@ if (mode === "analysis" || mode === "analysis-failure") {
 		assert.equal(snapshot.isDisposed(), true);
 		assert.throws(() => snapshot.getProjects());
 		if (mode === "sync-crash") {
-			const owned = childPids().filter((pid) => !before.includes(pid));
+			const owned = getChildProcessIds().filter((pid) => !before.includes(pid));
 			assert.equal(owned.length, 1);
 			const nativePid = owned[0];
 			assert(nativePid !== undefined);
@@ -96,12 +96,12 @@ if (mode === "analysis" || mode === "analysis-failure") {
 	}
 	console.log("sync client disposed");
 } else {
-	const before = childPids();
+	const before = getChildProcessIds();
 	const api = new AsyncAPI({ cwd: directory, collectTiming: true });
 	const errors: unknown[] = [];
 	try {
 		const snapshot = await api.updateSnapshot();
-		const owned = childPids().filter((pid) => !before.includes(pid));
+		const owned = getChildProcessIds().filter((pid) => !before.includes(pid));
 		assert.equal(owned.length, 1, "One native compiler child must belong to this worker");
 		const nativePid = owned[0];
 		assert(nativePid !== undefined);

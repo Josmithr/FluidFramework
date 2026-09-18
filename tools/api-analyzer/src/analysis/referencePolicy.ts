@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { ReleaseLevel, selectApiItems } from "../analysis-types/classification.js";
 import type { ApiItemId, DeclarationFact } from "../analysis-types/facts.js";
 import type { DocumentationReferenceBinding } from "../analysis-types/documentation.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import type { AnalysisContext, AnalysisDocumentationInput } from "./documentationContext.js";
 
 /**
@@ -50,7 +50,7 @@ interface EntrypointExposure {
 export function validateReferencePolicies(
 	context: AnalysisContext,
 	inheritance: readonly DocumentationReferenceBinding[],
-): Result<void> {
+): Result {
 	const policies = context.referencePolicies;
 	const directional = resolveDirectionalRules(context);
 	if (!directional.ok) {
@@ -62,7 +62,8 @@ export function validateReferencePolicies(
 		directional.value.length > 0;
 	if (inspectTypes) {
 		// Export reachability is invariant across references, so compute it only once per entrypoint.
-		const exposure = policies.entrypointExposure === true ? entrypointExposure(context) : [];
+		const exposure =
+			policies.entrypointExposure === true ? collectEntrypointExposure(context) : [];
 		const references = validateTypeReferences(context, directional.value, exposure);
 		if (!references.ok) {
 			return references;
@@ -70,7 +71,7 @@ export function validateReferencePolicies(
 	}
 	return policies.inheritanceVisibility === true
 		? validateInheritanceVisibility(context, inheritance)
-		: { ok: true, value: undefined };
+		: { ok: true };
 }
 
 /**
@@ -124,7 +125,7 @@ function validateTypeReferences(
 	context: AnalysisContext,
 	directional: readonly ResolvedDirectionalRule[],
 	exposure: readonly EntrypointExposure[],
-): Result<void> {
+): Result {
 	for (const item of context.items.values()) {
 		const original = item.signature ?? item.declaredMember ?? item.member ?? item.declaration;
 		for (const reference of original.documentationContext?.typeReferences ?? []) {
@@ -150,7 +151,7 @@ function validateTypeReferences(
 			}
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -168,9 +169,9 @@ function validateReferenceMetadata(
 	target: DeclarationFact,
 	directional: readonly ResolvedDirectionalRule[],
 	description: string,
-): Result<void> {
+): Result {
 	if (context.referencePolicies.releaseCompatibility !== true && directional.length === 0) {
-		return { ok: true, value: undefined };
+		return { ok: true };
 	}
 
 	// Declaration-level metadata takes precedence; otherwise inspect each callable overload independently.
@@ -178,7 +179,7 @@ function validateReferenceMetadata(
 		? [target.id]
 		: target.signatures.map((signature) => signature.id);
 	if (targets.length === 0) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.ReferencePolicy,
 			`${description}: reference target classification is unavailable for this declaration form.`,
 		);
@@ -188,13 +189,13 @@ function validateReferenceMetadata(
 		const targetLevel = context.metadata.get(targetId)?.releaseLevel;
 		if (context.referencePolicies.releaseCompatibility === true) {
 			if (sourceLevel === undefined || targetLevel === undefined) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.ReferencePolicy,
 					`${description}: release compatibility requires original release tags on both APIs.`,
 				);
 			}
 			if (sourceLevel < targetLevel) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.ReferencePolicy,
 					`${description}: releaseCompatibility forbids a reference to a less stable API. Correct the API relationship or disable this rule.`,
 				);
@@ -204,13 +205,13 @@ function validateReferenceMetadata(
 			(rule) => rule.source.has(source) && rule.target.has(targetId),
 		);
 		if (violated) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.ReferencePolicy,
 				`${description}: directional rule ${violated.name} forbids this reference. Correct the relationship or disable this rule.`,
 			);
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -218,7 +219,7 @@ function validateReferenceMetadata(
  * @param context - Detached entrypoint bindings and declaration index.
  * @returns Exposure sets in the original surface order.
  */
-function entrypointExposure(context: AnalysisContext): EntrypointExposure[] {
+function collectEntrypointExposure(context: AnalysisContext): EntrypointExposure[] {
 	return context.facts.surfaces.map((surface) => {
 		const declarations = new Set(surface.exports.map((binding) => binding.target));
 
@@ -247,7 +248,7 @@ function validateEntrypointExposure(
 	target: DeclarationFact,
 	exposure: readonly EntrypointExposure[],
 	description: string,
-): Result<void> {
+): Result {
 	// Dependency types can be used without re-exporting them from the consumer.
 	if (target.declarations.some((source) => source.packageName === context.facts.packageName)) {
 		for (const surface of exposure) {
@@ -255,14 +256,14 @@ function validateEntrypointExposure(
 				surface.declarations.has(item.declaration.id) &&
 				!surface.declarations.has(target.id)
 			) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.ReferencePolicy,
 					`${description}: entrypointExposure requires the same-package target in entrypoint ${surface.name}. Export the target or change the reference. Dependency types do not require consumer re-exports.`,
 				);
 			}
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -274,22 +275,22 @@ function validateEntrypointExposure(
 function validateInheritanceVisibility(
 	context: AnalysisContext,
 	inheritance: readonly DocumentationReferenceBinding[],
-): Result<void> {
+): Result {
 	for (const binding of inheritance) {
 		const source = context.metadata.get(binding.source)?.releaseLevel;
 		const target = context.metadata.get(binding.target)?.releaseLevel;
 		if (source === undefined || target === undefined) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.ReferencePolicy,
 				`Package ${context.facts.packageName}, API ${binding.source}, target ${binding.reference}: inheritanceVisibility requires original release tags.`,
 			);
 		}
 		if (source !== ReleaseLevel.Internal && target === ReleaseLevel.Internal) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.ReferencePolicy,
 				`Package ${context.facts.packageName}, API ${binding.source}, target ${binding.reference}: inheritanceVisibility forbids explicit inheritance from internal APIs.`,
 			);
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }

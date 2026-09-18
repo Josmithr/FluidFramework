@@ -21,7 +21,7 @@ import type {
 	Origin,
 	SignatureDocumentationContext,
 } from "../analysis-types/facts.js";
-import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
+import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 
 const originSchema = z.strictObject({
@@ -348,7 +348,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 	 * @param typeOnly - Whether any export step on this path is type-only.
 	 * @param active - Namespace identities on the current path; siblings use independent paths.
 	 */
-	function exportTarget(
+	function collectExportTarget(
 		entrypoint: string,
 		path: readonly string[],
 		id: ApiItemId,
@@ -388,7 +388,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 		}
 		const visited = new Set([...active, id]);
 		for (const binding of declaration.exports) {
-			exportTarget(
+			collectExportTarget(
 				entrypoint,
 				[...path, binding.name],
 				binding.target,
@@ -399,7 +399,13 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 	}
 	for (const surface of graph.facts.surfaces) {
 		for (const binding of surface.exports) {
-			exportTarget(surface.name, [binding.name], binding.target, binding.typeOnly, new Set());
+			collectExportTarget(
+				surface.name,
+				[binding.name],
+				binding.target,
+				binding.typeOnly,
+				new Set(),
+			);
 		}
 	}
 	return exports;
@@ -411,7 +417,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
  * @param exports - Exported target paths.
  * @returns Referenced identities in validation order, including repeated occurrences.
  */
-function referencedApiIds(
+function collectReferencedApiIds(
 	apis: readonly DependencyApi[],
 	exports: readonly DependencyExport[],
 ): ApiItemId[] {
@@ -442,7 +448,7 @@ function collectExternalReferences(
 ): DependencyModel["external"] {
 	const known = new Set(apis.map((api) => api.id));
 	const external = new Map<ApiItemId, string>();
-	for (const id of referencedApiIds(apis, exports)) {
+	for (const id of collectReferencedApiIds(apis, exports)) {
 		if (known.has(id)) {
 			continue;
 		}
@@ -476,14 +482,14 @@ export function decodeDependencyModel(
 		if (!(error instanceof SyntaxError)) {
 			throw error;
 		}
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: model is not valid JSON. Regenerate its model.`,
 		);
 	}
 	const parsed = modelSchema.safeParse(input);
 	if (!parsed.success) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: incompatible or incomplete model: ${parsed.error.message}`,
 		);
@@ -505,9 +511,9 @@ export function decodeDependencyModel(
  * @param packageName - Expected package identity from suite discovery.
  * @returns Success or the first identity-integrity diagnostic.
  */
-function validateModelIdentities(model: DependencyModel, packageName: string): Result<void> {
+function validateModelIdentities(model: DependencyModel, packageName: string): Result {
 	if (model.packageName !== packageName) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: model belongs to ${model.packageName}. Correct the artifact path.`,
 		);
@@ -519,7 +525,7 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 	const inputPackages = new Set<string>();
 	for (const dependency of model.dependencyModels) {
 		if (dependency.packageName === packageName || inputPackages.has(dependency.packageName)) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: duplicate or self-referencing model input ${dependency.packageName}. Regenerate its model.`,
 			);
@@ -530,14 +536,14 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 		new Set(model.inputFiles.map((fingerprint) => fingerprint.file)).size !==
 		model.inputFiles.length
 	) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: duplicate analyzed input files.`,
 		);
 	}
 	for (const api of model.apis) {
 		if (ids.has(api.id) || api.metadata.id !== api.id || api.documentation.id !== api.id) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: duplicate or inconsistent API identity ${api.id}. Regenerate its model.`,
 			);
@@ -546,7 +552,7 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 	}
 	for (const external of model.external) {
 		if (ids.has(external.id) || external.packageName === packageName) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: invalid external identity ${external.id}.`,
 			);
@@ -557,21 +563,23 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 	for (const entry of model.exports) {
 		const key = JSON.stringify([entry.entrypoint, entry.path]);
 		if (paths.has(key)) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: duplicate exported target path ${key}.`,
 			);
 		}
 		paths.add(key);
 	}
-	const missing = referencedApiIds(model.apis, model.exports).find((id) => !ids.has(id));
+	const missing = collectReferencedApiIds(model.apis, model.exports).find(
+		(id) => !ids.has(id),
+	);
 	if (missing !== undefined) {
-		return failure(
+		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: dangling API reference ${missing}. Regenerate its model.`,
 		);
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -579,12 +587,12 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
  * @param model - Structurally validated model with consistent identity references.
  * @returns Success or the first vocabulary, comment, or link-structure diagnostic.
  */
-function validateModelDocumentation(model: DependencyModel): Result<void> {
+function validateModelDocumentation(model: DependencyModel): Result {
 	const { packageName } = model;
 	const configuration = new TSDocConfiguration();
 	for (const tagName of model.modifierTags) {
 		if (!/^@[A-Za-z][\dA-Za-z]*$/.test(tagName)) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: invalid modifier vocabulary ${tagName}.`,
 			);
@@ -601,19 +609,19 @@ function validateModelDocumentation(model: DependencyModel): Result<void> {
 		// Decoding checks stored structure only. Source lookup and inheritance remain analysis responsibilities.
 		const comment = parser.parseString(api.documentation.documentation ?? "/** */");
 		if (comment.log.messages.length > 0 || comment.docComment.inheritDocTag !== undefined) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}, API ${api.id}: model documentation must be valid, fully resolved TSDoc.`,
 			);
 		}
-		const linkReferences = commentReferences(comment.docComment);
+		const linkReferences = collectCommentReferences(comment.docComment);
 		if (
 			linkReferences.length !== api.documentation.links.length ||
 			linkReferences.some(
 				(reference, index) => reference !== api.documentation.links[index]?.reference,
 			)
 		) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}, API ${api.id}: stored link occurrences do not match resolved documentation.`,
 			);
@@ -621,20 +629,20 @@ function validateModelDocumentation(model: DependencyModel): Result<void> {
 		for (const link of api.documentation.links) {
 			const target = apis.get(link.targetSignature);
 			if (target !== undefined && target.declarationId !== link.target) {
-				return failure(
+				return reportFailure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${packageName}, API ${api.id}: link target declaration and API identities disagree.`,
 				);
 			}
 		}
 		if ((api.parameters === undefined) !== (api.typeParameters === undefined)) {
-			return failure(
+			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}, API ${api.id}: callable parameter facts are incomplete.`,
 			);
 		}
 	}
-	return { ok: true, value: undefined };
+	return { ok: true };
 }
 
 /**
@@ -642,10 +650,10 @@ function validateModelDocumentation(model: DependencyModel): Result<void> {
  * @param node - Parsed resolved comment or one of its descendants.
  * @returns Reference text in TSDoc tree order, excluding URL destinations.
  */
-function commentReferences(node: DocNode): string[] {
+function collectCommentReferences(node: DocNode): string[] {
 	const own =
 		node instanceof DocLinkTag && node.codeDestination !== undefined
 			? [node.codeDestination.emitAsTsdoc()]
 			: [];
-	return [...own, ...node.getChildNodes().flatMap(commentReferences)];
+	return [...own, ...node.getChildNodes().flatMap(collectCommentReferences)];
 }

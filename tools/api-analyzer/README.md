@@ -21,6 +21,8 @@ Write behavior contracts before implementation and run focused failing tests bef
 Write documentation in Simplified Technical English and follow the [repository documentation guidelines](../../docs/content/Guidelines/Documentation-Guidelines.md).
 Keep compiler communication and process lifecycle separate from pure transformations.
 Do not add a custom type checker, use compiler-private APIs, or switch backends to make a capability test pass.
+Name functions, methods, and named callbacks with verb phrases, following the repository's [coding guidelines](../../docs/content/Guidelines/Coding-Guidelines.md#-do-name-functions-using-verb-phrases).
+Compiler fixture declarations can retain names that are required to exercise an API or lookup scenario.
 
 ## Stage 0 contract
 
@@ -821,6 +823,33 @@ They are API counts, not analysis-performance or cache counters.
 `generateReport` returns `Result<string>` for the supported declaration forms described above.
 An invalid selection or unknown entrypoint produces diagnostics; unsupported declaration forms still throw.
 Multiple reports can use different selections and presentation options without reanalysis.
+
+### Operation results
+
+`Result` without a type argument represents a validation-only operation: success is `{ ok: true }` with no `value` property.
+Use `Result<TValue>` when success produces a payload.
+The property is required even when the payload type explicitly includes `undefined`.
+`never` is the default no-payload marker; other explicit types, including `void`, remain payload types.
+Payload unions are preserved as a single success branch rather than split into a union of successes.
+Always narrow on `ok` before reading `value` or `diagnostics`.
+Failure results have diagnostics and no partial value.
+
+The following declarations distinguish successful validation from a successful lookup that found no value:
+
+```typescript
+import type { Result } from "api-analyzer";
+
+const validated: Result = { ok: true };
+// A lookup can succeed without finding a value; the payload property still exists.
+const lookup: Result<string | undefined> = { ok: true, value: undefined };
+```
+
+Internal validation helpers and baseline comparisons use the value-less form.
+Reference lookups retain explicit `undefined` payloads where absence is part of a successful lookup result.
+The internal `reportFailure` helper returns the failure branch directly so either kind of operation can propagate it.
+Result types do not themselves guarantee immutability; each operation documents whether it freezes its results.
+
+### Retained analysis facts
 
 Declaration and signature identities are provisional. Tests cover separate aliases, namespaces, merged declarations, overload reordering, and checkout relocation.
 They do not establish a complete identity scheme for multiple installed versions of the same package or every anonymous and computed declaration.

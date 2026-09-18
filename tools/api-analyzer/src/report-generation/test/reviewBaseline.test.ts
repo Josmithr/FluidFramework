@@ -4,10 +4,9 @@ import { compareReviewBaseline } from "../reviewBaseline.js";
 
 describe("Review baseline handling", () => {
 	it("compares exact text and distinguishes missing from empty baselines", () => {
-		assert.deepEqual(compareReviewBaseline("", ""), { ok: true, value: undefined });
+		assert.deepEqual(compareReviewBaseline("", ""), { ok: true });
 		assert.deepEqual(compareReviewBaseline("report\n", "report\n"), {
 			ok: true,
-			value: undefined,
 		});
 		for (const [expected, code] of [
 			[undefined, "baseline-missing"],
