@@ -97,6 +97,29 @@ export interface ExternalDependencyApi {
 }
 
 /**
+ * A content fingerprint for a dependency model selected during analysis.
+ *
+ * @remarks
+ * Selected models are recorded even when no retained API references their content.
+ */
+export interface DependencyModelInput {
+	/**
+	 * Package owning the model used by the producer.
+	 */
+	readonly packageName: string;
+
+	/**
+	 * A 256-bit Secure Hash Algorithm (SHA-256) digest of the model content.
+	 *
+	 * @remarks
+	 * Serialization whitespace and object property order do not affect the digest.
+	 * Array order is preserved because it carries overload and provenance information.
+	 * The digest detects stale content; it does not authenticate the model.
+	 */
+	readonly sha256: string;
+}
+
+/**
  * The versioned dependency documentation format, not a restored analysis or compiler graph.
  */
 export interface DependencyModel {
@@ -129,6 +152,15 @@ export interface DependencyModel {
 	 * Analyzed package files used by root composition to reject stale installed models.
 	 */
 	readonly inputFiles: readonly InputFileFact[];
+
+	/**
+	 * Content fingerprints for all dependency models selected during analysis.
+	 *
+	 * @remarks
+	 * Includes selected models that no retained API references.
+	 * The array is empty when the producer analyzed without a dependency suite.
+	 */
+	readonly dependencyModels: readonly DependencyModelInput[];
 
 	/**
 	 * Standard and registered custom modifier vocabulary used to validate stored comments and selectors.

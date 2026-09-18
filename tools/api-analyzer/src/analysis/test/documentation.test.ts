@@ -82,6 +82,8 @@ function functionFact(
 				documentation,
 				callSignatureText: "(): void;",
 				functionTypeText: "() => void",
+				reduced: { callSignatureText: "(): void;", functionTypeText: "() => void" },
+				normalized: { callSignatureText: "(): void;", functionTypeText: "() => void" },
 				documentationContext: { origin, links, parameters: [], typeParameters: [] },
 			},
 		],

@@ -10,7 +10,8 @@ Publication remains a separate decision.
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
 Reports support functions, single-declaration classes and interfaces, property and callable member selection, declared constructors and static members, enums, type aliases, variables, and namespaces.
-Merged-declaration documentation ownership, recursive namespace aliases, complete type-reference extraction, and some explicit reference forms still need acceptance work.
+Matching interface merges and repeated property comments also participate in classification, reports, and dependency models.
+Differing merged documentation, recursive namespace aliases, complete type-reference extraction, and some explicit reference forms still need acceptance work.
 These limitations prevent closing Stage 2; the implemented checks do not waive the remaining gates.
 
 ## Development contract
@@ -113,7 +114,12 @@ Update the tags to agree; no declaration wins by file or declaration order.
 This check also applies to repeated property declarations, independently of their containing type's tags.
 Callable function and method overloads remain independently classified and may use different release levels.
 Untagged parts do not supply an implicit release tag or receive one from this check.
-Agreement does not yet choose descriptive documentation precedence or enable merged-declaration reports and models.
+Release-tag agreement alone does not choose descriptive documentation precedence.
+Merged interfaces with identical original TSDoc and header syntax can produce one selected interface, using the compiler's combined effective members.
+Repeated properties with identical comments retain one documentation input.
+All original source records remain available; matching comments must also resolve their references to the same targets.
+Merged reference requests without one consistent supported context fail analysis rather than silently disappearing.
+Differing comments, differing interface headers, and merged declared signatures remain unsupported by this increment.
 
 ### Effective member identities and signatures
 
@@ -140,6 +146,33 @@ Declared constructors, static members, accessors, and signature declarations ret
 Automatic accessor inheritance, merged-property precedence, and broader explicit reference forms remain incomplete.
 Heritage comparison views do not receive lookup contexts or separate classification.
 Conservative ancestor matching is described below.
+
+### Original and resolved signature text
+
+Each `SignatureFact` separates original input from compiler-produced views:
+
+- `source` identifies the original declaration for that overload and retains its exact input text and package-relative location. It is omitted when the compiler supplies no inspectable declaration.
+- `callSignatureText` and `functionTypeText` retain effective, scope-aware signature syntax, including generic substitutions. The effective function type continues to determine the provisional signature identity.
+- `reduced` contains compiler-resolved parameter and return types in both syntax forms. It can collapse primitive aliases and add `undefined` to optional parameter types.
+- `normalized` preserves application-defined names and parameter structure while reducing selected outer computed type expressions. Callable report output uses this view, not the text used for identity.
+
+For example, an effective parameter written as `Parameters<typeof helper>[0]` can normalize to `string`, while `AliasContract<string>` retains the dependency alias and `Label` retains a named primitive alias.
+An inherited method can retain `Value` in its original source and `string` in all effective views.
+Original input means the analyzed file; a declaration input does not recover the pre-build implementation source.
+
+Normalization applies at ordinary parameter and return roots to indexed accesses, type queries, conditional types, type operators, and compiler-library utility aliases.
+Utility detection uses compiler symbol lookup and default-library metadata, not a list of names.
+An application-defined `Pick` is therefore not mistaken for the compiler utility.
+Both alternatives retain compiler-produced generic headers, rest annotations, and predicate or assertion returns.
+Normalization also preserves optional parameters, unions, and application-defined named references without recursively rewriting their contents.
+Unresolved generic expressions can remain symbolic; neither alternative promises complete type expansion.
+The adapter uses official type queries, syntax-node factories, and printing, without parsing printed type strings.
+All views are captured before compiler disposal and do not depend on a selected report surface.
+
+The [signature fixture](src/test/fixtures/native/signature-views.ts) and [consumer checks](src/test/fixtures/consumer/signatureViews.ts) verify both supported input and consumer compilers.
+They cover utility reduction, named and branded aliases, explicit receivers, optional and tuple-rest parameters, generic members, and narrowing returns.
+Existing suite tests cover dependency aliases with and without consumer re-exports.
+The inherited-report snapshots retain their resolved `string` signatures without baseline updates.
 
 ### Direct base declarations
 
@@ -449,7 +482,9 @@ Unlike inheritance binding, link lookup can retain variables and overloaded func
 A `ResolvedDocumentationReference` has `status: "resolved"` and a required `target` declaration identifier.
 A `MissingDocumentationReference` has `status: "not-found"` and no target field.
 An `UnsupportedDocumentationReference` has `status: "unsupported"` and no target field.
-Package-qualified references, member paths or selectors in API links, nonnumeric inheritance selectors, and target-less inheritance requests currently produce the unsupported outcome.
+Package-qualified references and selectors in API links, nonnumeric inheritance selectors, and target-less inheritance requests currently produce the unsupported native lookup outcome.
+Local API links support named namespace and instance member paths, using the same original-scope traversal as explicit inheritance.
+Selected dependency models handle supported package-qualified references after native extraction.
 Numeric selectors are supported for explicit inheritance only; the lookup retains the declaration target and the binder selects its callable signature.
 All outcomes retain the printed `reference` text, including an empty string for a target-less inheritance request.
 Narrow on `status` before accessing `target`.
@@ -847,7 +882,11 @@ The codec validates schema, package identity, uniqueness, target integrity, reso
 Dependency comments are parsed for structural validation and content copying, but their targets and inheritance chains are not resolved again.
 This artifact is not a complete portable API model and cannot restore an entire analysis or generate declaration rollups.
 The loader rejects missing or changed analyzed package files by comparing their SHA-256 hashes before consumer analysis.
-Transitive resolved-content freshness and completeness across unsupported declaration forms still require acceptance work.
+The model also records canonical content fingerprints of every selected dependency model used during analysis.
+Suite loading compares those fingerprints before accepting stored inherited content, including when the consuming package does not reference it.
+After a dependency model changes, regenerate downstream models in dependency order.
+JSON whitespace and object-key order do not affect model fingerprints; array order remains significant.
+Completeness across unsupported declaration forms and remaining reference policies still require acceptance work.
 
 ### Reference policies
 

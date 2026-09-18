@@ -27,6 +27,14 @@ export enum Mode {
 export namespace Operations {
     // @public
     export function visible(): void;
+
+    export import self = Operations;
+}
+
+// @public
+export interface Settings {
+    // @public
+    endpoint: string;
 }
 
 // @public

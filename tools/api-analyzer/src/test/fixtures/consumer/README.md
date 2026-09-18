@@ -11,3 +11,12 @@ The `@ts-expect-error` checks require readonly assignment and value use of a typ
 Keep generated declaration files as runtime outputs.
 Checking them in as inputs would bypass the emitter behavior that this test verifies.
 See the [native fixture guide](../native/README.md) for the verification command.
+
+## Signature views
+
+[signatureViews.ts](signatureViews.ts) compares the original declarations with modules generated from `SignatureFact.reduced` and `SignatureFact.normalized`.
+The test copies this consumer beside those generated modules in the temporary project.
+Its original imports resolve to the declaration-build output under `declarations`.
+Both supported compilers check assignability in both directions and require invalid calls to remain errors.
+Predicate and assertion checks verify narrowing, not just that generated declarations are syntactically valid.
+These checks validate callable fragments with their required named types in scope; they do not establish a complete declaration-rollup implementation.

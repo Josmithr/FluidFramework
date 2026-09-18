@@ -46,7 +46,10 @@ Do not treat current unsupported outcomes as permanent limitations.
 - [report-inheritance.ts](report-inheritance.ts) supplies descriptive inheritance from an unexported internal ancestor without copying its deprecated annotation into a public report.
 - [report-inheritance-empty.ts](report-inheritance-empty.ts) supplies an empty inherited result that remains undocumented in a public report.
 - [report-members.ts](report-members.ts) verifies container headers, member overload selection, callable-property syntax, declared constructors and statics, selected enum and namespace members, type-only aliases, and built-in-shadow exclusion in the checked-in declaration report.
+- The same report fixture covers matching merged interface headers and repeated property comments, independent member selection, and local namespace/method/property link targets.
+- [merged-scope.ts](merged-scope.ts) and [merged-scope-augmentation.ts](merged-scope-augmentation.ts) contribute identical interface comments from different lexical scopes. Distinct link targets must prevent a successful merged documentation result.
 - [type-references.ts](type-references.ts) retains separate parameter and return reference occurrences to an unexported beta and legacy target for independent release, directional, and entrypoint-exposure policies.
+- [signature-views.ts](signature-views.ts) distinguishes original declarations, effective signature text, reduced types, and selectively normalized output. It covers compiler utilities, named and branded aliases, utility-name shadowing, explicit receivers, optional and rest parameters, and predicate or assertion returns.
 
 The member-documentation fixture also verifies direct instantiated heritage views and reproduces the native generic-overload comparison boundary.
 Its generic overload contract and implementation use different overload orders so position cannot substitute for semantic matching.
@@ -65,3 +68,4 @@ Their detached reports match the pure report snapshots after session closure and
 Run `pnpm build`, then `pnpm test` from the package directory for adapter, documentation, and declaration-consumer checks.
 Known failing capability probes remain pending through `it.skip` and have stage-specific TODO comments.
 After `pnpm build`, run `pnpm exec mocha --no-config lib/test/nativeCapabilities.test.js --grep "printed complete declarations" --timeout 20000` to run only the declaration-consumer check.
+Use `--grep "retains original and resolved signature views"` to check both signature alternatives and their consumers without updating report snapshots.

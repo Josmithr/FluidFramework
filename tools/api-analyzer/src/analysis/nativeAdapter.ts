@@ -23,7 +23,13 @@ import {
 	type MethodSignatureDeclaration,
 	type Node,
 	type SourceFile,
+	type TypeNode,
 } from "typescript/unstable/ast";
+import {
+	createFunctionTypeNode,
+	updateCallSignatureDeclaration,
+	updateParameterDeclaration,
+} from "typescript/unstable/ast/factory";
 import {
 	isExportDeclaration,
 	isNamedExports,
@@ -48,6 +54,7 @@ import {
 	isVariableDeclaration,
 	isTypeReferenceNode,
 	isTypeQueryNode,
+	isImportTypeNode,
 	isExpressionWithTypeArguments,
 } from "typescript/unstable/ast/is";
 import {
@@ -59,6 +66,7 @@ import {
 	type Project,
 	type Symbol as CompilerSymbol,
 	type Type,
+	type Signature,
 } from "typescript/unstable/sync";
 import type { EffectiveConfiguration } from "../analysis-types/configuration.js";
 import type {
@@ -76,6 +84,7 @@ import type {
 	HeritageFact,
 	Origin,
 	SignatureFact,
+	SignatureText,
 	SourceDeclarationFact,
 } from "../analysis-types/facts.js";
 import { DiagnosticCode, failure, type Result } from "../analysis-types/result.js";
@@ -83,6 +92,15 @@ import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
 import type { ExtractedComments } from "./documentationContext.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
+
+/**
+ * Native compiler services used by declaration extraction and signature printing.
+ *
+ * @remarks
+ * A project supplies these services while its snapshot is active.
+ * This type does not include project lifecycle operations or transfer ownership to extraction helpers.
+ */
+type CompilerContext = Pick<Project, "checker" | "emitter" | "program">;
 
 /**
  * An internal owner of a synchronous native compiler connection.
@@ -674,25 +692,36 @@ export function exportTypeOnly(
  *
  * @remarks
  * Prints each signature as a function type and combines its text hash with the owner identifier.
- * Also prints a call-signature declaration for declaration-oriented report rendering.
+ * Retains matching effective call-signature text, original source records, and separate reduced and normalized views.
+ * Normalization does not contribute to identity. Reports consume the normalized view after compiler disposal.
  * Retains the closest attached TSDoc comment without declaration text, or `undefined` if absent.
  * Preserves explicit empty comments so later inheritance can distinguish them from absent comments.
  * Does not extract construct signatures.
  *
- * @param compiler - The checker and emitter for the active compiler snapshot.
+ * @param compiler - The checker, emitter, and program metadata for the active compiler snapshot.
  * @param type - The compiler type whose callable signatures are requested.
  * @param owner - The containing declaration's provisional identifier.
+ * @param locations - Package ownership information for original declaration records.
  * @returns Signature facts in compiler order, or an empty array if there are no call signatures.
  * @throws If the compiler cannot produce a printable node for a call signature.
  */
 export function signatures(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	type: Type,
 	owner: ApiItemId,
+	locations: LocationContext,
 ): SignatureFact[] {
 	const { checker, emitter } = compiler;
 	return checker.getSignaturesOfType(type, SignatureKind.Call).map((signature) => {
-		const node = checker.signatureToSignatureDeclaration(signature, SyntaxKind.FunctionType);
+		// Alias accessibility depends on the original module scope. Without it the printer can
+		// expose a dependency's private declaration name instead of its consumer-visible alias.
+		const enclosingDeclaration = signature.declaration?.resolve()?.getSourceFile();
+		const node = checker.signatureToSignatureDeclaration(
+			signature,
+			SyntaxKind.FunctionType,
+			enclosingDeclaration,
+			NodeBuilderFlags.UseOnlyExternalAliasing,
+		);
 		assert(
 			node !== undefined,
 			"The compiler must materialize a printable node for a call signature.",
@@ -701,18 +730,189 @@ export function signatures(
 		const declaration = checker.signatureToSignatureDeclaration(
 			signature,
 			SyntaxKind.CallSignature,
+			enclosingDeclaration,
+			NodeBuilderFlags.UseOnlyExternalAliasing,
 		);
 		assert(
-			declaration !== undefined,
+			declaration !== undefined && isCallSignatureDeclaration(declaration),
 			"The compiler must materialize a call-signature declaration.",
 		);
+		const source = signature.declaration?.resolve();
+		const views = signatureViews(compiler, signature, declaration, source);
 		return {
+			...views,
+			...(source === undefined || signature.declaration === undefined
+				? {}
+				: { source: sourceDeclaration(locations, signature.declaration) }),
 			callSignatureText: emitter.printNode(declaration).trim(),
 			id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
 			functionTypeText,
 			documentation: originalComment(signature.declaration?.resolve()),
 		};
 	});
+}
+
+/**
+ * Builds resolved alternatives without changing the compiler's effective identity text.
+ *
+ * @remarks
+ * Uses printed argument positions because tuple-rest parameters can expand into several parameters.
+ * Rest syntax and predicate returns cannot be reconstructed from ordinary argument and return types alone.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param signature - Instantiated callable signature.
+ * @param template - Compiler-produced call-signature syntax, including parameter and predicate shape.
+ * @param scope - Original declaration scope, or undefined when no source is available.
+ * @returns Reduced and selectively normalized text, independent of report selection.
+ * @throws If the compiler cannot materialize a required type or violates parameter-shape invariants.
+ */
+function signatureViews(
+	compiler: CompilerContext,
+	signature: Signature,
+	template: CallSignatureDeclaration,
+	scope: Node | undefined,
+): Pick<SignatureFact, "reduced" | "normalized"> {
+	const { checker } = compiler;
+	const receiver = signature.getThisParameter();
+	const firstParameter = template.parameters[0];
+	assert(
+		receiver === undefined ||
+			(firstParameter !== undefined &&
+				isIdentifier(firstParameter.name) &&
+				firstParameter.name.text === "this"),
+		"Explicit receivers must be the first printed parameter.",
+	);
+	const reducedParameters = template.parameters.map((parameter, index) => {
+		// getParameterType returns a rest argument's element type, not the declaration's array or tuple type.
+		if (parameter.dotDotDotToken !== undefined) {
+			return parameter;
+		}
+		const type =
+			receiver !== undefined && index === 0
+				? checker.getTypeOfSymbol(receiver)
+				: checker.getParameterType(signature, index - (receiver === undefined ? 0 : 1));
+		assert(
+			type !== undefined && !type.isErrorType(),
+			"Signature parameters must have resolved types.",
+		);
+		const node = checker.typeToTypeNode(type, scope, NodeBuilderFlags.NoTruncation);
+		assert(node !== undefined, "Resolved parameters must have printable type nodes.");
+		return updateParameterDeclaration(
+			parameter,
+			parameter.modifiers,
+			parameter.dotDotDotToken,
+			parameter.name,
+			parameter.questionToken,
+			node,
+			parameter.initializer,
+		);
+	});
+	let reducedReturn = template.type;
+	if (checker.getTypePredicateOfSignature(signature) === undefined) {
+		// Replacing a predicate with its ordinary boolean or void return would remove narrowing semantics.
+		const type = checker.getReturnTypeOfSignature(signature);
+		assert(
+			type !== undefined && !type.isErrorType(),
+			"Signatures must have resolved return types.",
+		);
+		reducedReturn = checker.typeToTypeNode(type, scope, NodeBuilderFlags.NoTruncation);
+		assert(reducedReturn !== undefined, "Resolved returns must have printable type nodes.");
+	}
+	const normalizedParameters = template.parameters.map((parameter, index) =>
+		parameter.questionToken === undefined &&
+		isComputedSignatureType(parameter.type, compiler, scope)
+			? assertDefined(reducedParameters[index])
+			: parameter,
+	);
+	return {
+		reduced: printSignatureText(
+			compiler,
+			updateCallSignatureDeclaration(
+				template,
+				template.typeParameters,
+				reducedParameters,
+				reducedReturn,
+			),
+		),
+		normalized: printSignatureText(
+			compiler,
+			updateCallSignatureDeclaration(
+				template,
+				template.typeParameters,
+				normalizedParameters,
+				isComputedSignatureType(template.type, compiler, scope)
+					? reducedReturn
+					: template.type,
+			),
+		),
+	};
+}
+
+/**
+ * Identifies outer computed types and compiler utilities without expanding application-defined aliases.
+ * @param node - Effective type syntax, or undefined when no annotation was printed.
+ * @param compiler - Active compiler name lookup and source-file classification.
+ * @param scope - Original declaration scope; undefined disables utility-name lookup.
+ * @returns Whether the expression can use the compiler-resolved alternative.
+ */
+function isComputedSignatureType(
+	node: TypeNode | undefined,
+	compiler: Pick<Project, "checker" | "program">,
+	scope: Node | undefined,
+): boolean {
+	if (node === undefined) {
+		return false;
+	}
+	if (
+		[
+			SyntaxKind.IndexedAccessType,
+			SyntaxKind.TypeQuery,
+			SyntaxKind.ConditionalType,
+			SyntaxKind.TypeOperator,
+		].includes(node.kind)
+	) {
+		return true;
+	}
+	if (scope === undefined || !isTypeReferenceNode(node) || !isIdentifier(node.typeName)) {
+		return false;
+	}
+
+	// Query the original lexical scope, not a synthesized node. A user-defined utility with the same name must stay named.
+	const { checker } = compiler;
+	const symbol = checker.resolveName(node.typeName.text, SymbolFlags.Type, scope);
+	if (symbol === undefined || checker.isUnknownSymbol(symbol)) {
+		return false;
+	}
+	const resolved = target(checker, symbol);
+	return (
+		resolved.declarations.length > 0 &&
+		resolved.declarations.every((handle) => {
+			const source = handle.resolve()?.getSourceFile();
+			return (
+				handle.kind === SyntaxKind.TypeAliasDeclaration &&
+				source !== undefined &&
+				compiler.program.isSourceFileDefaultLibrary(source)
+			);
+		})
+	);
+}
+
+/**
+ * Prints two syntax forms from the same detached signature node without rewriting strings.
+ * @param compiler - Active native emitter.
+ * @param node - Call-signature syntax with its final parameter and return types.
+ * @returns Matching call-signature and function-type text.
+ */
+function printSignatureText(
+	compiler: Pick<Project, "emitter">,
+	node: CallSignatureDeclaration,
+): SignatureText {
+	return {
+		callSignatureText: compiler.emitter.printNode(node).trim(),
+		functionTypeText: compiler.emitter
+			.printNode(createFunctionTypeNode(node.typeParameters, node.parameters, node.type))
+			.trim(),
+	};
 }
 
 /**
@@ -759,7 +959,7 @@ function sourceDeclaration(
  * @throws If a declaration or heritage target cannot be resolved.
  */
 function heritageFacts(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	symbol: CompilerSymbol,
@@ -1067,7 +1267,7 @@ function documentationTypesMatch(
  * @throws If the compiler cannot resolve an effective property type.
  */
 export function members(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	type: Type,
 	owner: ApiItemId,
@@ -1126,25 +1326,22 @@ export function members(
 			);
 			const id = `member:${JSON.stringify([owner, name])}`;
 			const callableType = checker.getNonNullableType(propertyType);
-			const callableSignatures = callableType ? signatures(compiler, callableType, id) : [];
+			const callableSignatures = callableType
+				? signatures(compiler, callableType, id, locations)
+				: [];
 			const sourceDeclarations = property.declarations.map((handle) =>
 				sourceDeclaration(locations, handle),
 			);
 			const propertyContext =
 				state &&
-				property.declarations.length === 1 &&
-				declaration &&
-				(declaration.kind === SyntaxKind.PropertyDeclaration ||
-					declaration.kind === SyntaxKind.PropertySignature)
-					? referenceContext(
-							compiler,
-							locations,
-							state,
-							declaration,
-							assertDefined(sourceDeclarations[0]),
-							id,
-							sourceDeclarations[0]?.documentation,
-						)
+				nodes.length > 0 &&
+				nodes.length === sourceDeclarations.length &&
+				nodes.every(
+					(propertyNode) =>
+						propertyNode.kind === SyntaxKind.PropertyDeclaration ||
+						propertyNode.kind === SyntaxKind.PropertySignature,
+				)
+					? mergeReferenceContexts(compiler, locations, state, nodes, sourceDeclarations, id)
 					: undefined;
 			return {
 				id,
@@ -1183,7 +1380,7 @@ export function members(
  * @returns Detached export facts sorted by exported name.
  */
 export function exportsOf(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	moduleSymbol: CompilerSymbol,
@@ -1209,7 +1406,8 @@ export function exportsOf(
  * @remarks
  * Internal helper. Not exported from the package entrypoint.
  * Supports unqualified names and falls back to module export aliases.
- * Inheritance also accepts namespace and instance method paths, with a terminal numeric selector.
+ * Links and inheritance accept namespace and instance member paths.
+ * Only explicit inheritance accepts a terminal numeric selector.
  * Static class members are unsupported; a static/instance name collision is never guessed.
  * Collects resolved targets into the supplied state, including targets that are not exported.
  * Does not validate TSDoc syntax, target compatibility, or release policies.
@@ -1226,7 +1424,7 @@ export function exportsOf(
  * @throws If compiler queries or target collection fail unexpectedly.
  */
 export function lookupReference(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	node: Node,
@@ -1240,12 +1438,12 @@ export function lookupReference(
 
 	// Accept only explicit references without package or import-path qualification.
 	// This is a lookup capability check, not TSDoc syntax or target compatibility validation.
-	// Only inheritance permits member paths and a terminal numeric selector; range checks happen later.
+	// Member paths preserve original scope for both links and inheritance. Only explicit inheritance
+	// accepts a terminal numeric selector; its range is checked by the binder.
 	const supported =
 		reference !== undefined &&
 		reference.packageName === undefined &&
 		reference.importPath === undefined &&
-		(allowIndexSelector || reference.memberReferences.length === 1) &&
 		name !== undefined &&
 		reference.memberReferences.every((part, index) => {
 			// Symbol references do not identify a named path component supported by this lookup.
@@ -1398,7 +1596,7 @@ export function collectLinks(
  * @throws If a declaration or heritage target cannot be resolved, or extraction of required facts fails.
  */
 export function collect(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	symbol: CompilerSymbol,
@@ -1452,19 +1650,20 @@ export function collect(
 	const callSignatures = declarationSignatures(compiler, locations, state, symbol, type, id);
 	const sources = symbol.declarations.map((handle) => sourceDeclaration(locations, handle));
 	const source = sources[0];
-	const sourceNode = symbol.declarations[0]?.resolve();
+	const sourceNodes = symbol.declarations.map((handle) => handle.resolve());
+	const sourceNode = sourceNodes[0];
 	const documentationContext = declarationDocumentationContext(
 		compiler,
 		locations,
 		state,
 		sources,
-		sourceNode,
+		sourceNodes,
 		id,
 	);
 	const container =
 		sourceNode && source && sources.length === 1
 			? containerSyntax(compiler, locations, state, sourceNode, source, id)
-			: undefined;
+			: mergeInterfaceContainers(compiler, locations, state, sourceNodes, sources, id);
 	const statement = statementSyntax(compiler, sourceNode, type);
 
 	// Publish only after recursive dependencies have been collected; active identities prevent cycles.
@@ -1507,7 +1706,7 @@ export function collect(
  * @returns Base declaration identities in compiler order, or an empty array for other forms.
  */
 function collectBaseDeclarations(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	symbol: CompilerSymbol,
@@ -1541,7 +1740,7 @@ function collectBaseDeclarations(
  * @returns Detached signatures in compiler order, with lookup contexts where supported.
  */
 function declarationSignatures(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	symbol: CompilerSymbol,
@@ -1551,7 +1750,7 @@ function declarationSignatures(
 	if (type === undefined) {
 		return [];
 	}
-	const facts = signatures(compiler, type, id);
+	const facts = signatures(compiler, type, id, locations);
 	const hasCallableComment = symbol.declarations.every(
 		(handle) =>
 			handle.kind === SyntaxKind.FunctionDeclaration ||
@@ -1564,27 +1763,44 @@ function declarationSignatures(
 }
 
 /**
- * Captures a single declaration's documentation without selecting a comment from merged sources.
+ * Captures the original documentation context for a supported declaration.
+ *
+ * @remarks
+ * Merged declarations are supported only for interfaces whose original comments and reference targets agree.
+ * Retains type-reference occurrences from every supported interface declaration.
  *
  * @param compiler - Active checker and emitter.
  * @param locations - Package ownership lookup state.
- * @param state - Target collection and parsed comments for this invocation.
+ * @param state - Target collection and parsed comments updated during extraction.
  * @param sources - Original declaration records in compiler order.
- * @param sourceNode - First declaration node, or undefined when unavailable; no context is produced then.
+ * @param sourceNodes - Original nodes in source-record order. An undefined entry prevents context extraction.
  * @param id - Owning declaration identity.
- * @returns Original reference context, or undefined for merged, unavailable, or unsupported declarations.
+ * @returns The original reference context, or `undefined` for ambiguous, unavailable, or unsupported declarations.
+ * @throws If source records are inconsistent or compiler extraction fails unexpectedly.
  */
 function declarationDocumentationContext(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	sources: readonly SourceDeclarationFact[],
-	sourceNode: Node | undefined,
+	sourceNodes: readonly (Node | undefined)[],
 	id: ApiItemId,
 ): DocumentationReferenceContext | undefined {
 	const source = sources[0];
-	if (!sourceNode || !source || sources.length !== 1) {
+	const sourceNode = sourceNodes[0];
+	if (!sourceNode || !source) {
 		return undefined;
+	}
+	if (sources.length > 1) {
+		// Equal comment text can resolve differently in different scopes. Keep all type-reference
+		// occurrences, but do not choose between inconsistent documentation reference targets.
+		if (
+			!sourceNodes.every((node) => node !== undefined && isInterfaceDeclaration(node)) ||
+			sources.some((part) => part.documentation !== source.documentation)
+		) {
+			return undefined;
+		}
+		return mergeReferenceContexts(compiler, locations, state, sourceNodes, sources, id);
 	}
 	const supported =
 		source.kind === "PropertyDeclaration" ||
@@ -1609,6 +1825,135 @@ function declarationDocumentationContext(
 }
 
 /**
+ * Combines identical source comments only when their original reference outcomes agree.
+ *
+ * @remarks
+ * Resolves each comment in its own declaration scope before comparing reference targets.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Parsed comments and target collection updated during extraction.
+ * @param nodes - Available original nodes in source-record order.
+ * @param sources - Nonempty original source records with the same length as nodes.
+ * @param id - Documentation input identity of the effective member or declaration.
+ * @returns A context with the first source's origin and all type-reference occurrences, or `undefined` when comments or reference targets differ.
+ * @throws If source records are empty, do not correspond to the nodes, or compiler extraction fails unexpectedly.
+ */
+function mergeReferenceContexts(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	nodes: readonly Node[],
+	sources: readonly SourceDeclarationFact[],
+	id: ApiItemId,
+): DocumentationReferenceContext | undefined {
+	const firstSource = assertDefined(
+		sources[0],
+		"Merged contexts require original source records.",
+	);
+	assert(nodes.length === sources.length, "Merged nodes must correspond to source records.");
+
+	// Require identical original comments before choosing one context; do not select a preferred declaration.
+	if (sources.some((source) => source.documentation !== firstSource.documentation)) {
+		return undefined;
+	}
+
+	// Resolve each copy in its own scope, since matching text can name different local targets.
+	const contexts = nodes.map((node, index) => {
+		const source = assertDefined(sources[index]);
+		return referenceContext(
+			compiler,
+			locations,
+			state,
+			node,
+			source,
+			id,
+			source.documentation,
+		);
+	});
+	const first = assertDefined(
+		contexts[0],
+		"Merged contexts must retain an original lookup context.",
+	);
+	if (
+		contexts.some(
+			(context) =>
+				JSON.stringify(context.links) !== JSON.stringify(first.links) ||
+				JSON.stringify(context.inheritance) !== JSON.stringify(first.inheritance),
+		)
+	) {
+		// Equal spelling alone cannot establish provenance when parts have different lexical scopes.
+		return undefined;
+	}
+
+	// The agreed documentation uses one origin, but policy checks still need type references from every part.
+	return {
+		...first,
+		typeReferences: contexts.flatMap((context) => context.typeReferences ?? []),
+	};
+}
+
+/**
+ * Combines matching interface headers into one container description.
+ *
+ * @remarks
+ * Requires identical original comments and supported headers with the same generic and heritage syntax.
+ * Declared signatures that are not represented by effective members remain unsupported.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Target collection and parsed comments updated during extraction.
+ * @param nodes - Original declaration nodes in source order. An undefined entry prevents merging.
+ * @param sources - Original source records for the same symbol, in node order and with the same length as nodes.
+ * @param id - Merged declaration identity.
+ * @returns One common container header for use with effective members, or `undefined` for unsupported merges.
+ * @throws If a required source record is missing or compiler extraction fails unexpectedly.
+ */
+function mergeInterfaceContainers(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	nodes: readonly (Node | undefined)[],
+	sources: readonly SourceDeclarationFact[],
+	id: ApiItemId,
+): DeclarationContainerFact | undefined {
+	const source = sources[0];
+
+	// Other declaration kinds and differing comments need ownership rules that this merge does not provide.
+	if (
+		sources.length < 2 ||
+		source === undefined ||
+		!nodes.every((node) => node !== undefined && isInterfaceDeclaration(node)) ||
+		sources.some((part) => part.documentation !== source.documentation)
+	) {
+		return undefined;
+	}
+	const containers = nodes.map((node, index) =>
+		containerSyntax(compiler, locations, state, node, assertDefined(sources[index]), id),
+	);
+	const first = assertDefined(
+		containers[0],
+		"Interface sources must supply container syntax.",
+	);
+	if (
+		containers.some(
+			(container) =>
+				container === undefined ||
+				!container.supported ||
+				container.prefix !== first.prefix ||
+				container.suffix !== first.suffix ||
+				container.declaredMembers.length > 0,
+		)
+	) {
+		// Distinct headers and independently declared signatures still need explicit merge semantics.
+		return undefined;
+	}
+
+	// The checker already combines effective members. Reuse only the agreed header to avoid duplicate members.
+	return first;
+}
+
+/**
  * Extracts a container header and syntax not represented by effective instance properties.
  * @param compiler - Active checker and emitter.
  * @param locations - Package ownership lookup state.
@@ -1619,7 +1964,7 @@ function declarationDocumentationContext(
  * @returns A detached class, interface, or enum container; undefined for other forms.
  */
 function containerSyntax(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	node: Node,
@@ -1716,7 +2061,7 @@ function needsDeclaredMemberRecord(member: Node): boolean {
  * @returns Detached source and reference records for this member.
  */
 function declaredMemberRecord(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	member: Node,
@@ -1793,7 +2138,7 @@ function statementSyntax(
  * @throws If compiler signature identities or original source locations are inconsistent.
  */
 function withDocumentationContexts(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	type: Type,
@@ -1848,7 +2193,7 @@ function withDocumentationContexts(
  * @returns Detached reference facts; parsed nodes remain private to the invocation.
  */
 function referenceContext(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	node: Node,
@@ -1899,7 +2244,7 @@ function referenceContext(
  * @returns Ordered reference occurrences, excluding type parameters and standard-library targets.
  */
 function declarationReferences(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
 	node: Node,
@@ -1910,13 +2255,18 @@ function declarationReferences(
 		if (current.kind === SyntaxKind.Block) {
 			return;
 		}
+
+		// An import type names its API through the qualifier, without a local import binding.
+		// An unqualified import type has no named target here; its child type arguments are still visited.
 		const name = isTypeReferenceNode(current)
 			? current.typeName
 			: isTypeQueryNode(current)
 				? current.exprName
 				: isExpressionWithTypeArguments(current)
 					? current.expression
-					: undefined;
+					: isImportTypeNode(current)
+						? current.qualifier
+						: undefined;
 		if (name !== undefined) {
 			const symbol = compiler.checker.getSymbolAtLocation(name);
 			if (symbol && !compiler.checker.isUnknownSymbol(symbol)) {
@@ -1924,14 +2274,17 @@ function declarationReferences(
 				if (
 					!(resolved.flags & SymbolFlags.TypeParameter) &&
 					resolved.declarations.length > 0 &&
-					!resolved.declarations.every(
-						(handle) =>
-							/^lib\.[^.].*\.d\.ts$/.test(path.basename(handle.path)) &&
-							origin(locations, handle.path, 0).packageName === "typescript",
-					)
+					!resolved.declarations.every((handle) => {
+						// Native library files belong to a platform package, not necessarily the typescript wrapper.
+						const source = handle.resolve()?.getSourceFile();
+						return source !== undefined && compiler.program.isSourceFileDefaultLibrary(source);
+					})
 				) {
 					references.push({
-						text: compiler.emitter.printNode(name).trim(),
+						// Include the module path in import-type diagnostics so the target is unambiguous.
+						text: compiler.emitter
+							.printNode(isImportTypeNode(current) ? current : name)
+							.trim(),
 						target: collect(compiler, locations, state, resolved),
 						origin: {
 							packageName: location.packageName,
@@ -1943,6 +2296,7 @@ function declarationReferences(
 			}
 		}
 		if (isClassDeclaration(current) || isInterfaceDeclaration(current)) {
+			// Members have their own metadata and reference checks; do not attribute their types to the container.
 			for (const parameter of current.typeParameters ?? []) {
 				visit(parameter);
 			}

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
 	DocLinkTag,
@@ -86,6 +87,12 @@ const modelSchema = z.strictObject({
 			}),
 		)
 		.min(1),
+	dependencyModels: z.array(
+		z.strictObject({
+			packageName: z.string().min(1),
+			sha256: z.string().regex(/^[\da-f]{64}$/),
+		}),
+	),
 	apis: z.array(
 		z
 			.strictObject({
@@ -150,12 +157,45 @@ export function encodeDependencyModel(graph: CompletedAnalysis): string {
 		compilerVersion: graph.facts.compilerVersion,
 		packageName: graph.facts.packageName,
 		inputFiles: graph.facts.inputFiles,
+
+		// The selected suite is a validated analysis input, even when no retained API references a package.
+		// Record all selected content so consumers can detect stale transitive documentation and metadata.
+		dependencyModels: (graph.dependencies ?? []).map((dependency) => ({
+			packageName: dependency.packageName,
+			sha256: fingerprintDependencyModel(dependency),
+		})),
 		modifierTags: graph.classification.modifierTags,
 		apis,
 		exports,
 		external,
 	};
 	return `${JSON.stringify(model, undefined, 2)}\n`;
+}
+
+/**
+ * Computes a content fingerprint for a validated dependency model.
+ *
+ * @remarks
+ * Uses the 256-bit Secure Hash Algorithm (SHA-256).
+ * Serialization whitespace and object property order do not affect the digest, but array order does.
+ * The digest detects stale content; it does not authenticate the model.
+ *
+ * @param model - Decoded dependency model used as an analysis input.
+ * @returns The model's content fingerprint as a lowercase hexadecimal string.
+ */
+export function fingerprintDependencyModel(model: DependencyModel): string {
+	// Array order carries overload and provenance meaning; normalize object keys only.
+	const canonical = JSON.stringify(model, (_key: string, value: unknown): unknown => {
+		if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+			return Object.fromEntries(
+				Object.entries(value).sort(([left], [right]) =>
+					left < right ? -1 : left > right ? 1 : 0,
+				),
+			);
+		}
+		return value;
+	});
+	return createHash("sha256").update(canonical).digest("hex");
 }
 
 /**
@@ -473,6 +513,19 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 		);
 	}
 	const ids = new Set<ApiItemId>();
+
+	// Each input must identify one external package; duplicate entries cannot select different content.
+	// Content matching is deferred to suite loading, where all selected models are available.
+	const inputPackages = new Set<string>();
+	for (const dependency of model.dependencyModels) {
+		if (dependency.packageName === packageName || inputPackages.has(dependency.packageName)) {
+			return failure(
+				DiagnosticCode.DependencyModel,
+				`Dependency ${packageName}: duplicate or self-referencing model input ${dependency.packageName}. Regenerate its model.`,
+			);
+		}
+		inputPackages.add(dependency.packageName);
+	}
 	if (
 		new Set(model.inputFiles.map((fingerprint) => fingerprint.file)).size !==
 		model.inputFiles.length

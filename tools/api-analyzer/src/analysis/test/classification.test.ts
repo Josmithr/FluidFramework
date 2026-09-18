@@ -111,9 +111,37 @@ describe("Merged release metadata", () => {
 		}
 	});
 
-	it("does not choose missing tags, descriptive precedence, or overload release levels", () => {
+	it("rejects distinct descriptive comments instead of choosing declaration order", () => {
+		// Keep release tags equal to isolate conflicts in summaries and ancillary descriptive blocks.
 		for (const comments of [
-			["/** First part. @public */", "/** Different text. @public */"],
+			["/** Network settings. @public */", "/** Retry settings. @public */"],
+			[
+				"/** Shared. @remarks First details. @public */",
+				"/** Shared. @remarks Other details. @public */",
+			],
+		]) {
+			for (const member of [false, true]) {
+				// General syntax and missing-tag opt-outs must not authorize ambiguous merged documentation.
+				const result = createAnalysisContext(
+					mergedReleaseFacts(
+						member ? "PropertySignature" : "InterfaceDeclaration",
+						comments,
+						member,
+					),
+					{ rules: { requireReleaseLevel: false, validateTsdocSyntax: false } },
+				);
+				assert.equal(result.ok, false);
+				assert.equal(result.diagnostics[0]?.code, "documentation-merge-conflict");
+				assert.match(result.diagnostics[0]?.message ?? "", /Settings/);
+				assert.match(result.diagnostics[0]?.message ?? "", /part-0\.d\.ts/);
+				assert.match(result.diagnostics[0]?.message ?? "", /part-1\.d\.ts/);
+			}
+		}
+	});
+
+	it("does not assign missing tags or treat absent descriptions and overloads as conflicts", () => {
+		for (const comments of [
+			["/** Shared description. @public */", "/** Shared description. @public */"],
 			[undefined, "/** @public */"],
 			["/** Literal `@internal` is not metadata. @public */", "/** @public */"],
 		]) {

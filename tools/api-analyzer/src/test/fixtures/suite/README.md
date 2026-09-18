@@ -2,6 +2,9 @@
 
 [suite.test.ts](../../suite.test.ts) copies these declaration inputs into temporary installed-package layouts.
 It generates dependency models through the public API before analyzing consumers.
+The transitive freshness test uses these same inputs in a three-package chain.
+Regenerating only the leaf model must invalidate inherited content stored in the intermediate model.
+Reformatting model JSON without changing its content must remain valid.
 Package manifests, TypeScript project configurations, and intentional artifact corruption are test-owned runtime data.
 Tests do not update accepted baselines or modify production package inputs.
 

@@ -16,11 +16,17 @@ import { DiagnosticCode, failure, type Result } from "../analysis-types/result.j
 import { freezeData } from "../utilities/freezeData.js";
 
 /**
- * A selected callable signature and its review metadata.
+ * Review metadata and a syntax fragment for a selected signature or declaration item.
  */
 export interface ReviewSignature {
 	/**
-	 * The compiler-printed call-signature declaration, without a function name or body.
+	 * The compiler-derived syntax fragment rendered for this item.
+	 *
+	 * @remarks
+	 * For a top-level function signature, contains the parameter list and return type without the function name,
+	 * such as `(value: string): string;`.
+	 * For a container member, contains the complete member declaration, such as `readonly value: string;`.
+	 * Namespace, atomic declaration, and container-header records use an empty string because their syntax is stored separately.
 	 */
 	readonly text: string;
 
@@ -36,12 +42,20 @@ export interface ReviewSignature {
 
 	/**
 	 * The classified release level, or `undefined` for a permitted untagged signature.
+	 *
+	 * @remarks
+	 * Comes from the item's original metadata, not release tags in inherited documentation.
+	 * An undefined value produces no release annotation; it does not mean that the item is internal.
 	 */
 	readonly releaseLevel: ReleaseLevel | undefined;
 
 	/**
 	 * Recognized tags available for presentation, including release tags and block tags such as `@deprecated`.
+	 *
+	 * @remarks
 	 * Sorted and deduplicated. Block tags come from the local comment, not inherited content.
+	 * Stores tag names, not their descriptive text. For example, a deprecation message is not included.
+	 * Availability does not imply display: {@link ReviewPresentationOptions} controls which tags are rendered.
 	 */
 	readonly modifierTags: readonly string[];
 }
@@ -51,7 +65,33 @@ export interface ReviewSignature {
  */
 export interface ReviewNamespace extends ReviewSignature {
 	/**
+	 * The identifier of an enclosing namespace that this entry aliases.
+	 *
+	 * @remarks
+	 * The renderer emits the alias instead of expanding the target's exports again.
+	 * This prevents infinite expansion for recursive namespace exports.
+	 *
+	 * @defaultValue Omitted for ordinary namespace declarations; their exports are rendered recursively.
+	 *
+	 * @example Recursive namespace alias
+	 * The report record for `self` sets `reference` to the identifier of `Operations`.
+	 * The renderer emits the alias shown below instead of expanding `Operations` again.
+	 *
+	 * ```typescript
+	 * export namespace Operations {
+	 *     export import self = Operations;
+	 * }
+	 * ```
+	 */
+	readonly reference?: ApiItemId;
+
+	/**
 	 * Selected nested bindings in canonical export order.
+	 *
+	 * @remarks
+	 * Sorted by exported name. Only bindings that survive selection are included.
+	 * Empty when {@link ReviewNamespace.reference} is present because the target is represented by an alias.
+	 * An ordinary namespace can also have an empty array when none of its nested bindings are selected.
 	 */
 	readonly exports: readonly ReviewExport[];
 }
@@ -67,6 +107,11 @@ export interface ReviewStatement extends ReviewSignature, DeclarationStatementFa
 export interface ReviewContainer extends ReviewStatement {
 	/**
 	 * Selected member syntax with effective documentation status and original annotations.
+	 *
+	 * @remarks
+	 * Can include inherited effective members as well as declared constructors, static members, and accessors.
+	 * Each item's text is a complete member declaration, not a standalone function signature.
+	 * Members are selected independently; selecting the container does not include all its members.
 	 */
 	readonly members: readonly ReviewSignature[];
 }
@@ -83,6 +128,11 @@ export interface ReviewExport {
 
 	/**
 	 * Selected atomic declaration syntax and metadata.
+	 *
+	 * @remarks
+	 * Represents a variable or type alias whose compiler-derived syntax surrounds the name chosen by the renderer.
+	 * This is an alternative to namespace, container, or callable-signature output, not an additional declaration.
+	 *
 	 * @defaultValue Omitted for functions, namespaces, and containers.
 	 */
 	readonly statement?: ReviewStatement;
@@ -94,22 +144,57 @@ export interface ReviewExport {
 	readonly container?: ReviewContainer;
 
 	/**
-	 * The original declaration identity, used to emit shared alias targets once. Not rendered.
+	 * The identifier of the declaration targeted by this exported binding.
+	 *
+	 * @remarks
+	 * Multiple exported names can share this identifier.
+	 * Within one namespace scope, the renderer groups those bindings and emits their shared declaration once.
+	 * The identifier is not rendered and is not the exported name.
 	 */
 	readonly declarationId: ApiItemId;
 
 	/**
 	 * The compiler's declaration name, used as a local name when it is not directly exported.
+	 *
+	 * @remarks
+	 * Can differ from {@link ReviewExport.name} when the declaration is exported under an alias.
+	 * The renderer can replace or suffix this name to avoid missing names, default-export names, or collisions.
+	 * This field therefore does not guarantee the local name in the rendered report.
 	 */
 	readonly declarationName: string;
 
 	/**
 	 * The exported name, not the implementation symbol's name.
+	 *
+	 * @example Multiple names for one declaration
+	 * These exports produce two records with the same `declarationId` and `declarationName` (`original`).
+	 * Their `name` values are `original` and `renamed`.
+	 *
+	 * ```typescript
+	 * declare function original(): void;
+	 * export { original, original as renamed };
+	 * ```
 	 */
 	readonly name: string;
 
 	/**
 	 * Whether this binding is exposed only through type-only export paths.
+	 *
+	 * @remarks
+	 * Describes the export path, not whether the underlying declaration has a runtime value.
+	 * A false value does not make an interface available as a value.
+	 * Different bindings of the same declaration can have different values for this property.
+	 *
+	 * @example Value and type-only aliases
+	 * The `Widget` binding has `typeOnly: false`; the `WidgetType` binding has `typeOnly: true`.
+	 * Both bindings target the same class declaration.
+	 *
+	 * ```typescript
+	 * declare class Widget {}
+	 * export { Widget };
+	 * // The alias exposes the type, not the constructor value.
+	 * export type { Widget as WidgetType };
+	 * ```
 	 */
 	readonly typeOnly: boolean;
 
@@ -118,6 +203,8 @@ export interface ReviewExport {
 	 *
 	 * @remarks
 	 * Order is significant for overload resolution. Do not sort by signature text or identifier.
+	 * Contains only callable overloads that survive selection.
+	 * Empty when this binding uses the namespace, statement, or container representation instead.
 	 */
 	readonly signatures: readonly ReviewSignature[];
 }
@@ -137,11 +224,19 @@ export interface ReviewReport {
 
 	/**
 	 * The selection name used as the review identity, independent of physical entrypoint paths.
+	 *
+	 * @remarks
+	 * A report for the `browser` entrypoint with a selection named `public` has the surface name `public`.
+	 * This is the label rendered in the report, not the key used to look up the entrypoint in prepared data.
 	 */
 	readonly surface: string;
 
 	/**
-	 * Selected bindings sorted by exported name. Empty when no overloads are selected.
+	 * Selected bindings sorted by exported name.
+	 *
+	 * @remarks
+	 * Each record represents an exported name, so aliases of one declaration remain separate records.
+	 * Empty when no exported bindings survive selection, including non-callable declarations.
 	 */
 	readonly exports: readonly ReviewExport[];
 }
@@ -152,6 +247,10 @@ export interface ReviewReport {
 interface PreparedSignature extends ReviewSignature {
 	/**
 	 * Original documentation input identity, removed from selected records.
+	 *
+	 * @remarks
+	 * Matches the classification record used for selection.
+	 * Overloads and members can have selection identifiers different from their containing declaration's identifier.
 	 */
 	readonly id: ApiItemId;
 }
@@ -160,6 +259,17 @@ interface PreparedSignature extends ReviewSignature {
  * A namespace with identities retained throughout its export tree.
  */
 interface PreparedNamespace extends PreparedSignature {
+	/**
+	 * The identifier of an enclosing namespace represented by this alias.
+	 *
+	 * @remarks
+	 * Has the same meaning as {@link ReviewNamespace.reference}, before report selection.
+	 * When present, exports is empty and preparation does not expand the target namespace again.
+	 *
+	 * @defaultValue Omitted for namespace declarations that are expanded normally.
+	 */
+	readonly reference?: ApiItemId;
+
 	/**
 	 * Complete nested bindings before selection.
 	 */
@@ -176,7 +286,12 @@ interface PreparedStatement extends PreparedSignature, DeclarationStatementFact 
  */
 interface PreparedContainer extends PreparedStatement {
 	/**
-	 * Complete member records in extraction order.
+	 * Complete declared and effective member records before selection.
+	 *
+	 * @remarks
+	 * Declared syntax records come first, followed by effective members not already represented by those records.
+	 * This avoids emitting an accessor both as declared syntax and as an effective property.
+	 * The array is not a single source-order list across inherited and local declarations.
 	 */
 	readonly members: readonly PreparedSignature[];
 }
@@ -220,7 +335,11 @@ interface PreparedSurface {
 	readonly exports: readonly PreparedExport[];
 
 	/**
-	 * The first unsupported export in input order, or undefined for a supported surface.
+	 * An explanation of the first unsupported declaration form encountered while preparing this surface.
+	 *
+	 * @remarks
+	 * Undefined means that no unsupported form was found.
+	 * When present, report generation fails even if the requested selection would exclude the unsupported declaration.
 	 */
 	readonly unsupported: string | undefined;
 }
@@ -239,11 +358,20 @@ export interface PreparedReviewData {
 
 	/**
 	 * Original metadata used to validate each new selection request.
+	 *
+	 * @remarks
+	 * Retains the complete classification rather than the result of a previous report selection.
+	 * Different reports can therefore apply independent selections to the same prepared data.
 	 */
 	readonly classification: ApiClassification;
 
 	/**
 	 * Complete report records, with unsupported output forms recorded once per surface.
+	 *
+	 * @remarks
+	 * Keys are configured entrypoint names, such as `browser` or `node`, not selection names such as `public`.
+	 * Values contain records before release-level and tag filtering.
+	 * The map is constructed once and is not modified when reports are requested.
 	 */
 	readonly surfaces: ReadonlyMap<string, PreparedSurface>;
 }
@@ -288,7 +416,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 		);
 		signatures.set(item.id, {
 			id: item.id,
-			text: item.callSignatureText,
+			text: item.normalized.callSignatureText,
 			documented: documentation.documented,
 			releaseLevel: metadata.releaseLevel,
 			modifierTags: [
@@ -348,17 +476,21 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 					declaration.documentationContext !== undefined &&
 					declaration.declarations.every((source) => source.kind === "ModuleDeclaration")
 				) {
-					if (active.has(declaration.id)) {
-						unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}: recursive namespace export ${binding.name} requires an alias reference representation.`;
-					} else {
-						namespace = {
-							...prepareItem(declaration.id, ""),
-							exports: prepareEntries(
-								declaration.exports,
-								new Set([...active, declaration.id]),
-							),
-						};
-					}
+					// Stop only cycles on this path. Other export paths can still expand the same namespace.
+					// Retain the target metadata so selection treats a recursive alias like its namespace.
+					namespace = active.has(declaration.id)
+						? {
+								...prepareItem(declaration.id, ""),
+								reference: declaration.id,
+								exports: [],
+							}
+						: {
+								...prepareItem(declaration.id, ""),
+								exports: prepareEntries(
+									declaration.exports,
+									new Set([...active, declaration.id]),
+								),
+							};
 				}
 				let container: PreparedExport["container"];
 				const statement =
@@ -442,8 +574,11 @@ function prepareContainer(
 				),
 			),
 	);
+
+	// Printable headers do not establish comment ownership. Reject unsupported contexts before joining metadata.
 	if (
 		!syntax.supported ||
+		!documentation.has(declaration.id) ||
 		(declaration.memberView === "partial" && syntax.kind !== "enum") ||
 		effectiveMembers.some(
 			(member) => member.signatures.length === 0 && !documentation.has(member.id),
@@ -458,7 +593,7 @@ function prepareContainer(
 				? member.signatures.map((signature) =>
 						prepareItem(
 							signature.id,
-							`${member.name}${member.optional ? "?" : ""}${signature.callSignatureText}`,
+							`${member.name}${member.optional ? "?" : ""}${signature.normalized.callSignatureText}`,
 						),
 					)
 				: [
@@ -575,6 +710,11 @@ export function createReviewReport(
 export interface ReviewPresentationOptions {
 	/**
 	 * Whether classified release tags appear in report comments.
+	 *
+	 * @remarks
+	 * A false value hides these annotations without changing classification or selection.
+	 * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.
+	 *
 	 * @defaultValue `true`
 	 */
 	readonly includeReleaseTags?: boolean;
@@ -585,12 +725,28 @@ export interface ReviewPresentationOptions {
 	 * @remarks
 	 * Names are matched exactly against report metadata. Unknown or absent names display nothing.
 	 * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.
+	 *
 	 * @defaultValue No additional tags.
+	 *
+	 * @example Show deprecation annotations without release annotations
+	 * These settings display `@deprecated` when present in an item's metadata and hide release tags.
+	 * They do not change which APIs are selected or display the deprecation message itself.
+	 *
+	 * ```typescript
+	 * const options = {
+	 *     includeReleaseTags: false,
+	 *     additionalTags: ["@deprecated"],
+	 * };
+	 * ```
 	 */
 	readonly additionalTags?: readonly string[];
 
 	/**
 	 * Whether items without descriptive documentation receive an `(undocumented)` annotation.
+	 *
+	 * @remarks
+	 * A false value suppresses the notice without changing {@link ReviewSignature.documented} or documentation validation.
+	 *
 	 * @defaultValue `true`
 	 */
 	readonly includeUndocumentedNotice?: boolean;
@@ -628,7 +784,7 @@ export function renderReviewReport(
 	report: ReviewReport,
 	options: ReviewPresentationOptions = {},
 ): string {
-	const body = renderDeclarationText(report.exports, options);
+	const body = renderDeclarationText(report.exports, options, new Map());
 	const fence = "`".repeat(
 		Math.max(3, ...(body.match(/`+/g) ?? []).map((run) => run.length + 1)),
 	);
@@ -650,11 +806,13 @@ export function renderReviewReport(
  * Renders selected declarations within one lexical namespace without Markdown framing.
  * @param exports - Selected exported bindings in canonical order.
  * @param options - Annotation presentation settings.
+ * @param enclosing - Rendered names of enclosing namespace identities for recursive alias references.
  * @returns Declaration-oriented text, including required exported aliases.
  */
 function renderDeclarationText(
 	exports: readonly ReviewExport[],
 	options: ReviewPresentationOptions,
+	enclosing: ReadonlyMap<ApiItemId, string>,
 ): string {
 	const levels: Readonly<Record<ReleaseLevel, string>> = {
 		[ReleaseLevel.Public]: "public",
@@ -694,6 +852,20 @@ function renderDeclarationText(
 	for (const group of groups.values()) {
 		const binding = group[0];
 		assert(binding !== undefined, "Report export groups must not be empty.");
+		if (binding.namespace?.reference !== undefined) {
+			// An enclosing declaration can have a generated local name; its source name is not sufficient.
+			const referencedName = enclosing.get(binding.namespace.reference);
+			assert(
+				referencedName !== undefined,
+				"Recursive namespace aliases must refer to an enclosing rendered namespace.",
+			);
+
+			// Keep cycles as aliases, not nested declarations. Selection already removed excluded targets.
+			for (const exported of group) {
+				aliases.push(`export import ${exported.name} = ${referencedName};`);
+			}
+			continue;
+		}
 		const direct = group.find(
 			(item) =>
 				!item.typeOnly && item.name === item.declarationName && item.name !== "default",
@@ -711,7 +883,12 @@ function renderDeclarationText(
 		}
 		usedNames.add(localName);
 		if (binding.namespace !== undefined) {
-			const nested = renderDeclarationText(binding.namespace.exports, options)
+			// Extend names only for this nested scope so sibling namespaces cannot inherit each other's bindings.
+			const nested = renderDeclarationText(
+				binding.namespace.exports,
+				options,
+				new Map([...enclosing, [binding.declarationId, localName]]),
+			)
 				.split("\n")
 				.map((line) => (line.length > 0 ? `    ${line}` : ""))
 				.join("\n");

@@ -45,6 +45,8 @@ const graph: CompletedAnalysis = freezeData({
 						id: "signature",
 						callSignatureText: "(): string;",
 						functionTypeText: "() => string",
+						reduced: { callSignatureText: "(): string;", functionTypeText: "() => string" },
+						normalized: { callSignatureText: "(): string;", functionTypeText: "() => string" },
 						documentation: undefined,
 					},
 				],
@@ -88,6 +90,33 @@ describe("Report generation from completed data", () => {
 		assert.equal(renderReviewReport(result.value).includes("(undocumented)"), false);
 		assert.equal(JSON.stringify(graph), before);
 		assert.equal(Object.isFrozen(result.value.exports), true);
+	});
+
+	it("renders normalized syntax without replacing effective facts or selection identities", () => {
+		// Deliberately differ from the normalized form to detect accidental use of identity text in reports.
+		const input = freezeData({
+			...graph,
+			facts: {
+				...graph.facts,
+				declarations: graph.facts.declarations.map((declaration) => ({
+					...declaration,
+					signatures: declaration.signatures.map((signature) => ({
+						...signature,
+						callSignatureText: "(): ReturnType<typeof helper>;",
+						functionTypeText: "() => ReturnType<typeof helper>",
+					})),
+				})),
+			},
+		});
+		const before = JSON.stringify(input);
+		const report = createReviewReport(prepareReviewReport(input), ".", {
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert.equal(report.ok, true);
+		assert.match(renderReviewReport(report.value), /export function value\(\): string;/);
+		assert.equal(JSON.stringify(input), before);
+		assert.equal(input.facts.declarations[0]?.signatures[0]?.id, "signature");
 	});
 
 	it("applies independent selections to the same prepared records", () => {

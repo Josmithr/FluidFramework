@@ -46,6 +46,14 @@ export enum DiagnosticCode {
 	DocumentationTsdoc = "documentation-tsdoc",
 
 	/**
+	 * Parts of a merged non-overloaded API supply different nonempty descriptive documentation.
+	 *
+	 * @remarks
+	 * Make their descriptions agree rather than relying on source declaration order.
+	 */
+	DocumentationMergeConflict = "documentation-merge-conflict",
+
+	/**
 	 * A documentation inheritance reference or API link target failed validation.
 	 *
 	 * @remarks

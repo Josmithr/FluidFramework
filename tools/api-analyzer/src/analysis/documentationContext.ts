@@ -5,6 +5,7 @@ import {
 	TSDocParser,
 	type DocNode,
 	type TSDocConfiguration,
+	type DocComment,
 } from "@microsoft/tsdoc";
 import { classifyApiItems, validateMergedReleaseLevels } from "./classification.js";
 import type {
@@ -260,8 +261,9 @@ export function apiLinkNodes(node: DocNode): readonly DocLinkTag[] {
  * Owns declaration and signature identity validation for the downstream pipeline.
  * Builds classification and its lookup index from the same original inputs.
  * Uses signature lookup context for package ownership, or the original declaration when no lookup is needed.
- * Includes effective callable signatures, single-declaration properties, and separately documented declaration members.
- * Does not merge property and signature comments or choose precedence for merged declarations.
+ * Includes effective callable signatures, supported property comments, and separately documented declaration members.
+ * Does not copy property comments to signatures or choose precedence between differing merged comments.
+ * Accepts merged interfaces and properties only when extraction establishes matching comments and lookup results.
  * Rejects conflicting explicit release tags on merged non-overloaded declarations and members.
  * Untagged parts do not supply an implicit release level; callable overloads remain separate inputs.
  * Heritage comparison views are not separate receiving APIs and are not classified again.
@@ -270,7 +272,7 @@ export function apiLinkNodes(node: DocNode): readonly DocLinkTag[] {
  * @param options - Shared classification and reference settings. Omit for standard tags, enabled classification rules, and no optional reference checks.
  * @param extractedComments - Parsed comments reused without copying nodes. Omit to parse all inputs during context creation.
  * @param dependencies - Validated dependency models whose metadata is retained for reference checks. Omit for an empty dependency list.
- * @returns The indexed analysis or configuration, merged-release consistency, and classification diagnostics.
+ * @returns The indexed analysis, or diagnostics for invalid configuration, classification, or documentation.
  * @throws If declaration or documentation input identities are duplicated or an original location is missing.
  */
 export function createAnalysisContext(
@@ -335,7 +337,7 @@ export function createAnalysisContext(
 		for (const member of declaration.members) {
 			const source = member.declarations[0];
 			if (
-				member.declarations.length !== 1 ||
+				(member.declarations.length !== 1 && member.documentationContext === undefined) ||
 				(source?.kind !== "PropertyDeclaration" && source?.kind !== "PropertySignature")
 			) {
 				continue;
@@ -359,11 +361,15 @@ export function createAnalysisContext(
 		return parsed;
 	}
 
-	// Merged declarations may not have a selectable documentation input yet, but their
-	// explicit release metadata must agree before any analysis can report success.
+	// Release consistency is required even for unsupported merges. Validate it before rejecting
+	// ambiguous documentation requests so authors receive the actionable tag-conflict diagnostic first.
 	const merged = validateMergedReleaseLevels(facts, parsed.value.configuration);
 	if (!merged.ok) {
 		return merged;
+	}
+	const mergedReferences = validateUnresolvedMergedComments(facts, parsed.value.configuration);
+	if (!mergedReferences.ok) {
+		return mergedReferences;
 	}
 	const classification = classifyApiItems(parsed.value);
 	return classification.ok
@@ -385,4 +391,119 @@ export function createAnalysisContext(
 				},
 			}
 		: classification;
+}
+
+/**
+ * Rejects conflicting descriptions and unsupported references in merged original comments.
+ *
+ * @remarks
+ * Checks merged items that do not have a supported documentation context, excluding callable overloads.
+ * Malformed comments cannot be compared safely, so this check does not use the general syntax-validation opt-out.
+ *
+ * @param facts - Detached declarations with each part's original comment retained.
+ * @param configuration - Validated modifier vocabulary for this invocation.
+ * @returns Success, or the first diagnostic for conflicting descriptions, unsupported references, or malformed comments.
+ */
+function validateUnresolvedMergedComments(
+	facts: AnalysisFacts,
+	configuration: TSDocConfiguration,
+): Result<void> {
+	const parser = new TSDocParser(configuration);
+	for (const declaration of facts.declarations) {
+		for (const item of [declaration, ...declaration.members]) {
+			// Completed contexts already prove agreement. Overloads keep separate comments for each signature.
+			if (
+				item.documentationContext !== undefined ||
+				item.declarations.length < 2 ||
+				item.declarations.every(
+					(source) =>
+						source.kind === "FunctionDeclaration" ||
+						source.kind === "MethodDeclaration" ||
+						source.kind === "MethodSignature",
+				)
+			) {
+				continue;
+			}
+			const descriptions = new Map<string, string[]>();
+			const emptyDescription = describeMergedComment(
+				parser.parseString("/** */").docComment,
+				parser,
+			);
+			const parsedSources = [];
+			for (const source of item.declarations) {
+				if (source.documentation === undefined) {
+					continue;
+				}
+
+				// Comparing malformed comments could hide differences, even when general syntax checks are disabled.
+				const parsed = parser.parseString(source.documentation);
+				if (parsed.log.messages.length > 0) {
+					return failure(
+						DiagnosticCode.DocumentationTsdoc,
+						`Merged API ${declaration.name}/${item.name} at ${source.packageName}/${source.file}:${source.start}: correct the TSDoc comment: ${parsed.log.messages.map((message) => message.text).join("; ")}`,
+					);
+				}
+				parsedSources.push({ source, comment: parsed.docComment });
+				const description = describeMergedComment(parsed.docComment, parser);
+
+				// An absent description or a tag-only comment does not compete with descriptive content.
+				if (description !== emptyDescription) {
+					const locations = descriptions.get(description) ?? [];
+					locations.push(`${source.packageName}/${source.file}:${source.start}`);
+					descriptions.set(description, locations);
+				}
+			}
+
+			// Declaration order must not decide which of several distinct descriptions survives.
+			if (descriptions.size > 1) {
+				return failure(
+					DiagnosticCode.DocumentationMergeConflict,
+					`Merged API ${declaration.name}/${item.name}: descriptive comments differ across ${[...descriptions.values()].flat().join("; ")}. Make the descriptions agree; declaration order does not select documentation.`,
+				);
+			}
+			for (const { source, comment } of parsedSources) {
+				// A missing merged context is not proof that its comments have no references.
+				if (comment.inheritDocTag !== undefined || apiLinkNodes(comment).length > 0) {
+					return failure(
+						DiagnosticCode.DocumentationUnsupported,
+						`Merged API ${declaration.name}/${item.name} at ${source.packageName}/${source.file}:${source.start}: original documentation references do not have one supported context. Make the merged comments and reference targets agree, or supply local documentation without ambiguous references.`,
+					);
+				}
+			}
+		}
+	}
+	return { ok: true, value: undefined };
+}
+
+/**
+ * Prints the descriptive sections of a parsed comment for comparison.
+ *
+ * @remarks
+ * Uses the documentation parser and printer to normalize comment framing.
+ * Excludes modifier tags, private remarks, and inheritance requests without changing the original comment nodes.
+ *
+ * @param comment - An original parsed comment whose nodes are not modified.
+ * @param parser - Parser with this invocation's tag vocabulary.
+ * @returns TSDoc text containing the summary and descriptive blocks, including parameter, example, and see-also blocks.
+ */
+function describeMergedComment(comment: DocComment, parser: TSDocParser): string {
+	// Use the official parser and printer to normalize framing without interpreting raw comment text.
+	const description = parser.parseString("/** */").docComment;
+
+	// Copy only descriptive sections. Modifier tags, private remarks, and inheritance requests are not descriptions.
+	// Reuse the parsed nodes for printing without changing the original comments or their source locations.
+	description.summarySection = comment.summarySection;
+	description.remarksBlock = comment.remarksBlock;
+	description.returnsBlock = comment.returnsBlock;
+	description.deprecatedBlock = comment.deprecatedBlock;
+	for (const parameter of comment.params) {
+		description.params.add(parameter);
+	}
+	for (const parameter of comment.typeParams) {
+		description.typeParams.add(parameter);
+	}
+	for (const block of [...comment.seeBlocks, ...comment.customBlocks]) {
+		description.appendCustomBlock(block);
+	}
+	return description.emitAsTsdoc();
 }

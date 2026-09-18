@@ -359,9 +359,13 @@ Direct tests check helper behavior, independent caches, repeated collection, and
 
 ### Stage 2. Deliver a review and validation workflow
 
-Latest implementation progress (2026-09-17):
+Latest implementation progress (2026-09-18):
 
+- Signature facts now retain the exact original declaration and location, effective identity text, compiler-reduced alternatives, and alias-preserving normalized alternatives. Reports consume normalized callable text. Compiler utilities are identified through default-library metadata; user aliases, parameter shape, predicates, and assertions are preserved. Both supported input and consumer compilers verify the fixture, and the dependency-alias regression and unchanged inherited-report snapshots now pass together. This does not establish complete recursive type normalization or declaration rollups.
 - Agreed merged-release policy: distinct explicit release tags on parts of the same merged non-overloaded API produce `classification-release-conflict`; developers must make the tags agree. Validation now checks original declaration and repeated-property comments before successful analysis. Untagged parts do not imply a tag, descriptive comment precedence remains open, and callable overloads retain independent release levels.
+- Matching merged interfaces and repeated property comments now retain shared documentation contexts when original comments and lookup outcomes agree. Interface headers must also match; all original source records remain retained. Native TS6/TS7 fixtures verify combined member selection and rejection of identical comment text with different lexical link targets.
+- Local API links now resolve named namespace and instance member paths. Numeric local link selectors and static/instance ambiguities remain unsupported.
+- Dependency artifacts now record canonical content fingerprints of selected model inputs. The three-package suite regression rejects stale intermediate inherited content after a leaf model changes and verifies regeneration recovery and stability under JSON reformatting.
 - Effective method and property comments support original-scope lookup, conservative automatic inheritance, explicit method/property chains, and per-section provenance.
 - Selected reports include single-declaration classes and interfaces, callable properties, declared constructors and statics, enums, type aliases, variables, and namespaces. TS6- and TS7-built fixtures match checked-in report snapshots.
 - Structured references retain source occurrences and compiler-resolved unexported targets. Configured release compatibility, directional custom-tag rules, entrypoint exposure, and explicit-inheritance visibility run independently of report selection.
@@ -371,7 +375,7 @@ Latest implementation progress (2026-09-17):
 - New compiler fixtures include ordinary inline explanations beside APIs, members, imports, and aliases. Those comments remain separate from the tested TSDoc.
 
 These results do not yet close Stage 2.
-Remaining work includes merged-declaration documentation ownership, recursive namespace aliases, complete reference-form coverage, model freshness and compatibility against installed declarations, and final requirement-by-requirement acceptance.
+Remaining work includes differing merged-declaration documentation ownership, recursive namespace aliases, complete reference-form coverage, and final requirement-by-requirement acceptance.
 Existing unsupported outcomes must not be silently reclassified as completed requirements.
 
 Current progress: The [initial classification contract and results](../api-analyzer/README.md#release-classification-and-selection-contract) cover independent callable-overload release levels, explicit custom modifier configuration, diagnostic opt-outs, and named metadata selections.

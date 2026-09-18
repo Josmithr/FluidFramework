@@ -109,6 +109,105 @@ describe("Dependency suite models", () => {
 		assert.equal(incompatible.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
 	});
 
+	it("rejects stale inherited content after a transitive model is regenerated", async () => {
+		const leafRoot = path.join(directory, "node_modules", "dependency");
+		const intermediateRoot = path.join(directory, "node_modules", "intermediate");
+		mkdirSync(intermediateRoot, { recursive: true });
+		writeFileSync(
+			path.join(intermediateRoot, "package.json"),
+			JSON.stringify({
+				name: "intermediate",
+				types: "index.d.ts",
+				dependencies: { dependency: "1.0.0" },
+			}),
+		);
+		writeFileSync(
+			path.join(intermediateRoot, "tsconfig.json"),
+			JSON.stringify({ compilerOptions: { strict: true }, files: ["index.d.ts"] }),
+		);
+		cpSync(
+			new URL("../../src/test/fixtures/suite/consumer.d.ts", import.meta.url),
+			path.join(intermediateRoot, "index.d.ts"),
+		);
+
+		// The consumer names only the intermediate package, so discovery must follow its dependency to the leaf.
+		writeFileSync(
+			path.join(directory, "package.json"),
+			JSON.stringify({ name: "consumer", dependencies: { intermediate: "1.0.0" } }),
+		);
+		const base = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+			rules: { requireReleaseLevel: false },
+		};
+
+		// Generate resolved intermediate content from the original leaf model.
+		const leaf = await analyzeAPIs({ ...base, packageName: "dependency" }, leafRoot);
+		assert.equal(leaf.ok, true, JSON.stringify(leaf));
+		writeFileSync(path.join(leafRoot, "api-model.json"), leaf.value.generateModel());
+		const intermediateConfiguration = {
+			...base,
+			packageName: "intermediate",
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+		};
+		const intermediate = await analyzeAPIs(intermediateConfiguration, intermediateRoot);
+		assert.equal(intermediate.ok, true, JSON.stringify(intermediate));
+		writeFileSync(
+			path.join(intermediateRoot, "api-model.json"),
+			intermediate.value.generateModel(),
+		);
+		const consumerConfiguration = {
+			...base,
+			packageName: "consumer",
+			suite: { packages: ["intermediate", "dependency"], modelFile: "api-model.json" },
+		};
+		const original = await analyzeAPIs(consumerConfiguration, directory);
+		assert.equal(original.ok, true, JSON.stringify(original));
+
+		// JSON layout and object-key order are not model changes; overload array order still is.
+		const reformattedLeaf = JSON.stringify(
+			JSON.parse(leaf.value.generateModel()),
+			(_key: string, value: unknown): unknown => {
+				if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+					return Object.fromEntries(Object.entries(value).reverse());
+				}
+				return value;
+			},
+			4,
+		);
+		writeFileSync(path.join(leafRoot, "api-model.json"), reformattedLeaf);
+		const reformatted = await analyzeAPIs(consumerConfiguration, directory);
+		assert.equal(reformatted.ok, true, JSON.stringify(reformatted));
+
+		// Rebuilding only the leaf must not validate stale content copied into the intermediate artifact.
+		const leafFile = path.join(leafRoot, "index.d.ts");
+		writeFileSync(
+			leafFile,
+			readFileSync(leafFile, "utf8").replace(
+				"Source documentation.",
+				"Updated source documentation.",
+			),
+		);
+		const rebuiltLeaf = await analyzeAPIs({ ...base, packageName: "dependency" }, leafRoot);
+		assert.equal(rebuiltLeaf.ok, true);
+		writeFileSync(path.join(leafRoot, "api-model.json"), rebuiltLeaf.value.generateModel());
+		const stale = await analyzeAPIs(consumerConfiguration, directory);
+		assert.equal(stale.ok, false);
+		assert.equal(stale.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+		assert.match(stale.diagnostics[0]?.message ?? "", /intermediate/);
+		assert.match(stale.diagnostics[0]?.message ?? "", /dependency/);
+
+		// The intermediate source did not change, but its copied documentation and model-input hash must be refreshed.
+		const rebuiltIntermediate = await analyzeAPIs(intermediateConfiguration, intermediateRoot);
+		assert.equal(rebuiltIntermediate.ok, true);
+		writeFileSync(
+			path.join(intermediateRoot, "api-model.json"),
+			rebuiltIntermediate.value.generateModel(),
+		);
+		const fresh = await analyzeAPIs(consumerConfiguration, directory);
+		assert.equal(fresh.ok, true, JSON.stringify(fresh));
+	});
+
 	it("resolves explicit and automatic dependency documentation with original link origins", async () => {
 		const root = path.join(directory, "node_modules", "dependency");
 		const dependency = await analyzeAPIs(
@@ -332,6 +431,82 @@ describe("Dependency suite models", () => {
 		const link = await analyzeAPIs(configuration, directory);
 		assert.equal(link.ok, false);
 		assert.equal(link.diagnostics[0]?.code, DiagnosticCode.DocumentationLinkPolicy);
+
+		// Import expressions must not bypass stability checks or require a consumer re-export.
+		cpSync(
+			new URL("../../src/test/fixtures/suite/import-types.d.ts", import.meta.url),
+			path.join(directory, "index.d.ts"),
+		);
+		const importType = await analyzeAPIs(
+			{
+				...configuration,
+				referencePolicies: { releaseCompatibility: true, entrypointExposure: true },
+			},
+			directory,
+		);
+		assert.equal(importType.ok, false);
+		assert.equal(importType.diagnostics[0]?.code, DiagnosticCode.ReferencePolicy);
+		assert.match(importType.diagnostics[0]?.message ?? "", /Preview/);
+
+		// Disable only release compatibility to prove that exposure checks do not require a dependency re-export.
+		const permittedImportType = await analyzeAPIs(
+			{
+				...configuration,
+				referencePolicies: { releaseCompatibility: false, entrypointExposure: true },
+			},
+			directory,
+		);
+		assert.equal(permittedImportType.ok, true, JSON.stringify(permittedImportType));
+	});
+
+	it("preserves dependency type aliases without requiring consumer re-exports", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		const base = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...base, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const source = readFileSync(
+			new URL("../../src/test/fixtures/suite/alias-consumer.d.ts", import.meta.url),
+			"utf8",
+		);
+		for (const reexport of [false, true]) {
+			// Both variants must remain usable; exposure checks apply only to same-package targets.
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				reexport
+					? source
+					: source.replace('export type { AliasContract } from "dependency";', ""),
+			);
+			const result = await analyzeAPIs(
+				{
+					...base,
+					packageName: "consumer",
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+					referencePolicies: { entrypointExposure: true, releaseCompatibility: true },
+				},
+				directory,
+			);
+			assert.equal(result.ok, true, JSON.stringify(result));
+			const report = result.value.generateReport(".", {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert.equal(report.ok, true);
+			assert.match(report.value, /accept\(value: AliasContract<string>\): void;/);
+			assert.match(report.value, /computed\(value: AliasContract<string>\): void;/);
+			assert.equal(report.value.includes("as AliasContract"), reexport);
+
+			// Using a dependency alias does not make it a consumer export; only an explicit re-export does.
+			const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+			assert.equal(model.ok, true, JSON.stringify(model));
+			assert.equal(
+				model.value.exports.some((entry) => entry.path.join(".") === "AliasContract"),
+				reexport,
+			);
+		}
 	});
 
 	it("detects real Node/browser export-condition divergence without accepting a baseline", async () => {

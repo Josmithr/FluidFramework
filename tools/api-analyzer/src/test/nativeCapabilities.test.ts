@@ -515,6 +515,145 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			console.log(`Effective readonly type: ${printed.trim()}`);
 		});
 
+		// Keep original input, effective type text, and output normalization independently inspectable.
+		it("retains original and resolved signature views without sacrificing report names", () => {
+			const locations: LocationContext = {
+				configuration: { packageName: "example", packageRoot: directory },
+				packageCache: new Map(),
+			};
+			const source = project.program.getSourceFile(
+				path.join(directory, "declarations/signature-views.d.ts"),
+			);
+			assert(source !== undefined);
+			const module = project.checker.getSymbolAtLocation(source);
+			assert(module !== undefined);
+			const views = new Map(
+				project.checker
+					.getExportsOfModule(module)
+					.filter((symbol) => (symbol.flags & SymbolFlags.Function) !== 0)
+					.map((symbol) => {
+						const type = project.checker.getTypeOfSymbol(symbol);
+						assert(type !== undefined);
+						const signature = extractSignatures(project, type, symbol.name, locations)[0];
+						assert(signature !== undefined);
+						return [symbol.name, signature] as const;
+					}),
+			);
+			const computed = views.get("computed");
+			assert(computed !== undefined);
+			assert.match(computed.source?.text ?? "", /Parameters<typeof helper>\[0]/);
+			assert.match(computed.callSignatureText, /Parameters<typeof helper>\[0]/);
+			assert.equal(computed.reduced.callSignatureText, "(value: string): string;");
+			assert.equal(computed.normalized.callSignatureText, "(value: string): string;");
+			assert.equal(views.get("named")?.reduced.callSignatureText, "(value: string): string;");
+			assert.equal(views.get("named")?.normalized.callSignatureText, "(value: Label): Label;");
+			assert.equal(
+				views.get("optional")?.normalized.callSignatureText,
+				"(value?: string | null): void;",
+			);
+			assert.match(
+				views.get("tuple")?.normalized.callSignatureText ?? "",
+				/first: string, second\?: number/,
+			);
+			assert.match(
+				views.get("genericRest")?.normalized.callSignatureText ?? "",
+				/\.{3}args: Args/,
+			);
+			assert.match(
+				views.get("genericReturn")?.normalized.callSignatureText ?? "",
+				/Value\["value"]/,
+			);
+			assert.equal(
+				views.get("receiver")?.normalized.callSignatureText,
+				"(this: View, value: string): string;",
+			);
+			assert.equal(
+				views.get("predicate")?.reduced.callSignatureText,
+				"(value: unknown): value is View;",
+			);
+			assert.equal(
+				views.get("assertion")?.reduced.callSignatureText,
+				"(value: unknown): asserts value is View;",
+			);
+			assert.equal(
+				views.get("present")?.reduced.callSignatureText,
+				"(value: unknown): asserts value;",
+			);
+			assert.equal(views.get("branded")?.reduced.callSignatureText, "(value: Token): Token;");
+			assert.equal(
+				views.get("shadow")?.normalized.callSignatureText,
+				"(value: Pick<string>): Pick<string>;",
+			);
+			assert.match(views.get("mapped")?.normalized.callSignatureText ?? "", /Value/);
+			assert.equal(computed.source?.packageName, "example");
+			assert.equal(computed.source?.file, "declarations/signature-views.d.ts");
+			assert.deepEqual(JSON.parse(JSON.stringify(computed)), computed);
+
+			// Original declarations retain generic parameters even when the receiving view substitutes them.
+			const membersSource = project.program.getSourceFile(
+				path.join(directory, "declarations/member-documentation.d.ts"),
+			);
+			assert(membersSource !== undefined);
+			const membersModule = project.checker.getSymbolAtLocation(membersSource);
+			assert(membersModule !== undefined);
+			const derived = project.checker
+				.getExportsOfModule(membersModule)
+				.find((symbol) => symbol.name === "DocumentedDerived");
+			assert(derived !== undefined);
+			const forward = extractMembers(
+				project,
+				locations,
+				project.checker.getDeclaredTypeOfSymbol(derived),
+				"derived",
+			).find((member) => member.name === "forward")?.signatures[0];
+			assert(forward !== undefined);
+			assert.match(forward.source?.text ?? "", /forward\(value: Value\): Value/);
+			assert.equal(forward.normalized.callSignatureText, "(value: string): string;");
+
+			// All required named types remain in scope. Generated signatures use only detached strings.
+			const definitions =
+				"export type Label = string;\nexport interface View { value: string; }\nexport type Token = string & { readonly brand: 'Token' };\nexport type Pick<Value> = { value: Value };\n";
+			for (const view of ["normalized", "reduced"] as const) {
+				writeFileSync(
+					path.join(directory, `signature-${view}.d.ts`),
+					definitions +
+						[...views]
+							.map(
+								([name, signature]) =>
+									`export declare function ${name}${signature[view].callSignatureText}`,
+							)
+							.join("\n"),
+				);
+			}
+			cpSync(
+				new URL("../../src/test/fixtures/consumer/signatureViews.ts", import.meta.url),
+				path.join(directory, "signature-consumer.ts"),
+			);
+			writeFileSync(
+				path.join(directory, "signature-consumer.json"),
+				JSON.stringify({
+					compilerOptions: {
+						target: "ES2022",
+						module: "NodeNext",
+						strict: true,
+						types: [],
+						noEmit: true,
+					},
+					files: ["signature-consumer.ts"],
+				}),
+			);
+			for (const consumerCompiler of ["typescript6", "typescript"]) {
+				const compilerDirectory = path.dirname(
+					require.resolve(`${consumerCompiler}/package.json`),
+				);
+				execFileSync(
+					process.execPath,
+					[path.join(compilerDirectory, "bin/tsc"), "-p", "signature-consumer.json"],
+					{ cwd: directory, stdio: "pipe", timeout: 15000 },
+				);
+			}
+		});
+
 		// Design requirement: W5; baseline for declaration generation.
 		it("printed complete declarations compile with both consumer compilers", () => {
 			for (const name of ["api", "index"]) {
@@ -1032,8 +1171,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						/DocumentedMerged\.shared/,
 					);
 
-					// Align only the conflicting tags. Different descriptive comments remain separate source records.
-					const facts = {
+					// Aligned tags alone do not resolve competing descriptions.
+					const correctedTags = {
 						...correctedInterface,
 						declarations: correctedInterface.declarations.map((declaration) =>
 							declaration.name === "DocumentedMerged"
@@ -1044,6 +1183,44 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 											declarations: member.declarations.map((source) => ({
 												...source,
 												documentation: source.documentation?.replace("@beta", "@public"),
+											})),
+										})),
+									}
+								: declaration,
+						),
+					};
+
+					const conflictingDescriptions = createAnalysisContext(correctedTags, {
+						rules: { requireReleaseLevel: false },
+					});
+					assert.equal(conflictingDescriptions.ok, false);
+					assert.equal(
+						conflictingDescriptions.diagnostics[0]?.code,
+						DiagnosticCode.DocumentationMergeConflict,
+					);
+
+					// Preserve both source records while aligning only the detached descriptions used for completion.
+					const facts = {
+						...correctedTags,
+						declarations: correctedTags.declarations.map((declaration) =>
+							declaration.name === "DocumentedMerged"
+								? {
+										...declaration,
+										declarations: declaration.declarations.map((source) => ({
+											...source,
+											documentation: source.documentation?.replace(
+												"Second declaration.",
+												"First declaration.",
+											),
+										})),
+										members: declaration.members.map((member) => ({
+											...member,
+											declarations: member.declarations.map((source) => ({
+												...source,
+												documentation: source.documentation?.replace(
+													"Second member declaration.",
+													"First member declaration.",
+												),
 											})),
 										})),
 									}
@@ -1401,6 +1578,20 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("rejects merged comments whose identical links resolve in different scopes", async () => {
+				// Both link targets exist. Failure must come from their different identities, not an unresolved name.
+				const configuration = {
+					packageName: "example",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "declarations/merged-scope-augmentation.d.ts" }],
+				};
+				const result = await analyzeAPIs(configuration, directory);
+				assert.equal(result.ok, false);
+				assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+				assert.match(result.diagnostics[0]?.message ?? "", /SharedSettings/);
+				assert.equal("value" in result, false);
+			});
+
 			it("renders selected class and interface members after compiler disposal", () => {
 				const configuration = success(
 					resolveConfiguration(
@@ -1432,10 +1623,34 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(text.includes("export namespace Operations {"), true, text);
 					assert.equal(text.includes("export function visible(): void;"), true, text);
 					assert.equal(text.includes("function hidden()"), false, text);
+
+					// Cycles remain aliases, while excluding a namespace also excludes its recursive bindings.
+					assert.equal(text.includes("export import self = Operations;"), true, text);
+					assert.equal(text.includes("HiddenOperations"), false, text);
+
+					// Merge repeated members in the report without discarding either original source record.
+					assert.equal(text.includes("export interface Settings {"), true, text);
+					assert.equal(text.includes("endpoint: string;"), true, text);
+					assert.equal(text.includes("internalTimeout"), false, text);
+					assert.equal(text.split("endpoint: string;").length - 1, 1);
+					assert.equal(
+						facts.declarations.find((item) => item.name === "Settings")?.declarations.length,
+						2,
+					);
 					assertSnapshot(text, "declarations.public.md");
 					const encoded = encodeDependencyModel(completed);
 					const model = success(decodeDependencyModel(encoded, "example"));
 					assert.equal(Object.isFrozen(model.apis), true);
+
+					// Serialization must retain links to declarations and members, not just their printed comment text.
+					const aliasDocumentation = model.apis.find(
+						(item) => item.name === "ValueName",
+					)?.documentation;
+					assert(aliasDocumentation !== undefined);
+					assert.deepEqual(
+						aliasDocumentation.links.map((link) => link.reference),
+						["Store", "Operations.visible", "Implementation.operation", "Store.value"],
+					);
 					assert.equal(
 						model.exports.some(
 							(entry) => entry.path.join(".") === "TypeImplementation" && entry.typeOnly,
@@ -1835,7 +2050,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const callable = target("convert");
 				const callableType = project.checker.getTypeOfSymbol(callable);
 				assert(callableType !== undefined);
-				const result = extractSignatures(project, callableType, "owner");
+				const result = extractSignatures(project, callableType, "owner", locations);
 				assert.equal(result.length, 2);
 				assert.equal(new Set(result.map((signature) => signature.id)).size, 2);
 				assert(result.every((signature) => signature.id.startsWith("owner:")));

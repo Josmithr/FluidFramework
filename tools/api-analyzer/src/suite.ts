@@ -5,7 +5,10 @@ import { z } from "zod";
 import type { EffectiveConfiguration } from "./analysis-types/configuration.js";
 import type { DependencyModel } from "./analysis-types/dependencyModel.js";
 import { DiagnosticCode, failure, type Result } from "./analysis-types/result.js";
-import { decodeDependencyModel } from "./model-generation/dependencyModel.js";
+import {
+	decodeDependencyModel,
+	fingerprintDependencyModel,
+} from "./model-generation/dependencyModel.js";
 import { freezeData } from "./utilities/freezeData.js";
 
 const manifestSchema = z.object({
@@ -47,8 +50,11 @@ export function loadDependencyModels(
 ): Result<readonly DependencyModel[]> {
 	const suite = configuration.suite;
 	if (suite === undefined) {
+		// Analysis without a suite must not read dependency manifests or model files.
 		return { ok: true, value: [] };
 	}
+
+	// Start from the analyzed package to discover dependencies, but do not load its own model.
 	const pending = [configuration.packageRoot];
 	const visited = new Set<string>();
 	const selected = new Map<string, SelectedDependency>();
@@ -58,6 +64,8 @@ export function loadDependencyModels(
 		if (root === undefined) {
 			break;
 		}
+
+		// Different symlink paths can reach the same installation. Canonical paths also stop cycles.
 		const canonical = realpathSync(root);
 		if (visited.has(canonical)) {
 			continue;
@@ -72,11 +80,14 @@ export function loadDependencyModels(
 			root !== configuration.packageRoot &&
 			suite.packages.some((pattern) => path.posix.matchesGlob(name, pattern))
 		) {
+			// One package can satisfy multiple selectors. Record each match for the final coverage check.
 			for (const pattern of suite.packages) {
 				if (path.posix.matchesGlob(name, pattern)) {
 					matched.add(pattern);
 				}
 			}
+
+			// Model references use package names, so two selected installations would be ambiguous.
 			const previous = selected.get(name);
 			if (previous && previous.root !== canonical) {
 				return failure(
@@ -84,18 +95,24 @@ export function loadDependencyModels(
 					`Dependency ${name}: multiple installed package roots match the suite. Use one unambiguous dependency version before analysis.`,
 				);
 			}
+
+			// Validate every selected model, even when no analyzed API references the package.
 			const decoded = loadSelectedModel(root, name, suite.modelFile);
 			if (!decoded.ok) {
 				return decoded;
 			}
 			selected.set(name, { root: canonical, model: decoded.value });
 		}
+
+		// Unselected packages can lead to selected transitive dependencies, so continue through them.
+		// Reverse the sorted names because the stack pops the last entry; this makes discovery deterministic.
 		for (const dependency of Object.keys({
 			...manifest.value.dependencies,
 			...manifest.value.peerDependencies,
 		})
 			.sort()
 			.reverse()) {
+			// Reject path components that could make installation lookup escape the package-name boundary.
 			if (
 				!/^(?:@[\w.-]+\/)?[\w.-]+$/.test(dependency) ||
 				dependency === "." ||
@@ -112,6 +129,7 @@ export function loadDependencyModels(
 			} else if (
 				suite.packages.some((pattern) => path.posix.matchesGlob(dependency, pattern))
 			) {
+				// Missing unselected packages do not block discovery, but selected packages are required inputs.
 				return failure(
 					DiagnosticCode.DependencyModel,
 					`Dependency ${dependency}: selected package is not installed. Install and build it before analysis.`,
@@ -119,6 +137,8 @@ export function loadDependencyModels(
 			}
 		}
 	}
+
+	// Reject unmatched selectors instead of silently analyzing a smaller suite than requested.
 	const unmatched = suite.packages.find((pattern) => !matched.has(pattern));
 	if (unmatched !== undefined) {
 		return failure(
@@ -126,11 +146,22 @@ export function loadDependencyModels(
 			`Suite selector ${unmatched} matches no installed direct, transitive, or peer dependency.`,
 		);
 	}
+
+	// Cross-model checks need the complete selection and must not depend on discovery order.
+	// Current source files alone do not prove freshness: inherited documentation can come from stale model inputs.
 	const models = [...selected.values()].map((entry) => entry.model);
+	const fresh = validateModelInputs(models);
+	if (!fresh.ok) {
+		return fresh;
+	}
+
+	// Each external API identifier must belong to its declared package in the selected models.
 	const references = validateSuiteReferences(models);
 	if (!references.ok) {
 		return references;
 	}
+
+	// Keep the result immutable and its order independent of the installed dependency graph.
 	return freezeData({
 		ok: true,
 		value: models.sort((left, right) =>
@@ -232,6 +263,28 @@ function validateInstalledInputs(root: string, model: DependencyModel): Result<v
 				DiagnosticCode.DependencyModel,
 				`Dependency ${model.packageName}: model is stale for ${fingerprint.file}. Regenerate it from the installed declarations before analysis.`,
 			);
+		}
+	}
+	return { ok: true, value: undefined };
+}
+
+/**
+ * Rejects models generated from different selected dependency content, including inherited documentation.
+ * @param models - Selected models whose own recorded source files are current.
+ * @returns Success or the first absent or stale model-input diagnostic.
+ */
+function validateModelInputs(models: readonly DependencyModel[]): Result<void> {
+	const fingerprints = new Map(
+		models.map((model) => [model.packageName, fingerprintDependencyModel(model)]),
+	);
+	for (const model of models) {
+		for (const dependency of model.dependencyModels) {
+			if (fingerprints.get(dependency.packageName) !== dependency.sha256) {
+				return failure(
+					DiagnosticCode.DependencyModel,
+					`Dependency ${model.packageName}: its model was generated from missing or different ${dependency.packageName} model content. Select the required dependency model and regenerate ${model.packageName} after its dependencies.`,
+				);
+			}
 		}
 	}
 	return { ok: true, value: undefined };

@@ -52,12 +52,28 @@ const facts: AnalysisFacts = {
 					id: "text",
 					callSignatureText: "(value: string): string;",
 					functionTypeText: "(value: string) => string",
+					reduced: {
+						callSignatureText: "(value: string): string;",
+						functionTypeText: "(value: string) => string",
+					},
+					normalized: {
+						callSignatureText: "(value: string): string;",
+						functionTypeText: "(value: string) => string",
+					},
 					documentation: "/** @public @partner */",
 				},
 				{
 					id: "number",
 					callSignatureText: "(value: number): number;",
 					functionTypeText: "(value: number) => number",
+					reduced: {
+						callSignatureText: "(value: number): number;",
+						functionTypeText: "(value: number) => number",
+					},
+					normalized: {
+						callSignatureText: "(value: number): number;",
+						functionTypeText: "(value: number) => number",
+					},
 					documentation: "/** @internal */",
 				},
 			],
@@ -575,6 +591,10 @@ describe("Review report generation", () => {
 											...signature,
 											functionTypeText: "(value: boolean) => boolean",
 											callSignatureText: "(value: boolean): boolean;",
+											normalized: {
+												callSignatureText: "(value: boolean): boolean;",
+												functionTypeText: "(value: boolean) => boolean",
+											},
 										})),
 									})),
 								},
