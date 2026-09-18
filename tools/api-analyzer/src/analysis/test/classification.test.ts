@@ -12,7 +12,194 @@ import {
 } from "../../analysis-types/classification.js";
 import { DiagnosticCode } from "../../analysis-types/result.js";
 import { assertAssertionError } from "../../test/assertionUtils.js";
-import type { AnalysisFacts, SourceDeclarationFact } from "../../analysis-types/facts.js";
+import type {
+	AnalysisFacts,
+	DeclarationFact,
+	SourceDeclarationFact,
+} from "../../analysis-types/facts.js";
+
+/**
+ * Creates a container and a separately retained property with original ownership.
+ * @param containerKind - The container declaration form to classify.
+ * @param containerTag - Original container documentation, or undefined when absent.
+ * @param memberTag - Original member documentation, including absent and tag-only comments.
+ * @returns Detached inputs whose identifiers and source ownership do not depend on input order.
+ */
+function createContainerFacts(
+	containerKind: string,
+	containerTag: string | undefined,
+	memberTag: string | undefined,
+): AnalysisFacts {
+	const origin = { packageName: "example", file: "container.d.ts", start: 0 };
+	const container: DeclarationFact = {
+		id: "container",
+		name: "Container",
+		type: "",
+		declarations: [{ ...origin, kind: containerKind, text: "", documentation: containerTag }],
+		baseDeclarations: [],
+		implementedDeclarations: [],
+		heritage: [],
+		memberView: "complete",
+		limitations: [],
+		signatures: [],
+		members: [],
+		exports: [],
+		documentationContext: { origin, links: [] },
+	};
+	const member: DeclarationFact = {
+		...container,
+		id: "member",
+		name: "value",
+		declarations: [
+			{ ...origin, start: 20, kind: "PropertySignature", text: "", documentation: memberTag },
+		],
+		documentationContext: {
+			origin: { ...origin, start: 20 },
+			links: [],
+			container: "container",
+		},
+	};
+	return {
+		packageName: "example",
+		compilerVersion: "test",
+		surfaces: [],
+		declarations: [member, container],
+	};
+}
+
+describe("Container release metadata", () => {
+	it("inherits an untagged member's release without copying other container tags", () => {
+		for (const kind of [
+			"ClassDeclaration",
+			"InterfaceDeclaration",
+			"EnumDeclaration",
+			"ModuleDeclaration",
+		]) {
+			for (const documentation of [undefined, "/** */", "/** Local description. @sealed */"]) {
+				const facts = createContainerFacts(kind, "/** @beta @legacy */", documentation);
+				const before = JSON.stringify(facts);
+				const result = createAnalysisContext(facts, { customModifierTags: ["@legacy"] });
+				assert.equal(result.ok, true, JSON.stringify(result));
+				const member = result.value.metadata.get("member");
+				assert.equal(member?.releaseLevel, ReleaseLevel.Beta);
+				assert.equal(member?.modifierTags.includes("@legacy"), false);
+				assert.equal(result.value.items.get("member")?.documentation, documentation);
+				assert.equal(JSON.stringify(facts), before);
+			}
+		}
+	});
+
+	it("rejects explicit mismatches in both directions even when optional rules are disabled", () => {
+		for (const container of ["public", "beta", "alpha", "internal"]) {
+			for (const member of ["public", "beta", "alpha", "internal"]) {
+				const result = createAnalysisContext(
+					createContainerFacts(
+						"ClassDeclaration",
+						`/** @${container} */`,
+						`/** @${member} */`,
+					),
+					{ rules: { requireReleaseLevel: false, validateTsdocSyntax: false } },
+				);
+				assert.equal(result.ok, container === member, JSON.stringify(result));
+				if (!result.ok) {
+					assert.equal(result.diagnostics[0]?.code, "classification-container-mismatch");
+					assert.match(result.diagnostics[0]?.message ?? "", /Container/);
+					assert.match(result.diagnostics[0]?.message ?? "", /container\.d\.ts:20/);
+					assert.equal("value" in result, false);
+				}
+			}
+		}
+	});
+
+	it("does not invent a release level for an untagged root container", () => {
+		const facts = createContainerFacts("InterfaceDeclaration", undefined, undefined);
+		const required = createAnalysisContext(facts);
+		assert.equal(required.ok, false);
+		const optional = createAnalysisContext(facts, { rules: { requireReleaseLevel: false } });
+		assert.equal(optional.ok, true);
+		assert.equal(optional.value.metadata.get("member")?.releaseLevel, undefined);
+	});
+
+	it("resolves nested ownership and reports one mismatch for repeated inherited views", () => {
+		const facts = createContainerFacts("ModuleDeclaration", "/** @public */", undefined);
+		const [member, container] = facts.declarations;
+		assert(member !== undefined && container !== undefined);
+		const nested: DeclarationFact = {
+			...container,
+			id: "nested",
+			name: "Nested",
+			declarations: container.declarations.map((source) => ({
+				...source,
+				start: 10,
+				documentation: undefined,
+			})),
+			documentationContext: {
+				origin: { packageName: "example", file: "container.d.ts", start: 10 },
+				links: [],
+				container: container.id,
+			},
+		};
+		assert(member.documentationContext !== undefined);
+		const local: DeclarationFact = {
+			...member,
+			documentationContext: { ...member.documentationContext, container: nested.id },
+		};
+		const resolved = createAnalysisContext({
+			...facts,
+			declarations: [local, nested, container],
+		});
+		assert.equal(resolved.ok, true, JSON.stringify(resolved));
+		assert.equal(resolved.value.metadata.get("member")?.releaseLevel, ReleaseLevel.Public);
+		assert.equal(resolved.value.metadata.get("nested")?.releaseLevel, ReleaseLevel.Public);
+
+		// Two effective identities retain one original member location; validate the original tag only once.
+		const conflicting = {
+			...local,
+			declarations: local.declarations.map((source) => ({
+				...source,
+				documentation: "/** @beta */",
+			})),
+		};
+		const result = createAnalysisContext({
+			...facts,
+			declarations: [conflicting, { ...conflicting, id: "inherited-view" }, nested, container],
+		});
+		assert.equal(result.ok, false);
+		assert.equal(
+			result.diagnostics.filter(
+				(diagnostic) => diagnostic.code === DiagnosticCode.ClassificationContainerMismatch,
+			).length,
+			1,
+		);
+	});
+
+	it("does not infer an untagged container's level from an explicitly tagged member", () => {
+		const result = createAnalysisContext(
+			createContainerFacts("ClassDeclaration", undefined, "/** @public */"),
+			{ rules: { requireReleaseLevel: false } },
+		);
+		assert.equal(result.ok, false);
+		assert.equal(result.diagnostics[0]?.code, DiagnosticCode.ClassificationContainerMismatch);
+	});
+
+	it("checks namespace aliases without treating their target as a newly declared member", () => {
+		const facts = createContainerFacts("ModuleDeclaration", "/** @public */", "/** @beta */");
+		const [member, container] = facts.declarations;
+		assert(member !== undefined && container !== undefined);
+		const source = member.declarations[0];
+		assert(source !== undefined);
+		const aliased: AnalysisFacts = {
+			...facts,
+			declarations: [
+				{ ...member, documentationContext: { origin: source, links: [] } },
+				{ ...container, exports: [{ name: "alias", target: member.id, typeOnly: false }] },
+			],
+		};
+		const result = createAnalysisContext(aliased);
+		assert.equal(result.ok, false);
+		assert.equal(result.diagnostics[0]?.code, DiagnosticCode.ClassificationContainerMismatch);
+	});
+});
 
 /**
  * Creates detached facts for a merged interface or an overloaded callable without compiler access.

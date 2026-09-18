@@ -101,6 +101,10 @@ export interface ClassificationRules {
 	/**
 	 * Whether a missing release level fails classification.
 	 *
+	 * @remarks
+	 * Container members first inherit a missing level from their declaring container.
+	 * Disabling this rule permits unresolved levels but never permits an explicit container/member mismatch.
+	 *
 	 * @defaultValue `true`
 	 */
 	readonly requireReleaseLevel?: boolean;
@@ -159,9 +163,11 @@ export interface ApiItemMetadata {
 	readonly id: ApiItemId;
 
 	/**
-	 * The declared release level, or `undefined` when missing and permitted by policy.
+	 * The effective release level, or `undefined` when missing and permitted by policy.
 	 *
 	 * @remarks
+	 * An untagged member inherits its declaring container's level, including through nested containers.
+	 * This does not copy descriptive documentation or reclassify a member against an inherited view's receiver.
 	 * JSON serialization omits this property when its value is `undefined`.
 	 * Check absence explicitly; {@link ReleaseLevel.Public} has the numeric value zero.
 	 */
@@ -169,6 +175,10 @@ export interface ApiItemMetadata {
 
 	/**
 	 * Recognized modifier names, including release tags, deduplicated and sorted.
+	 *
+	 * @remarks
+	 * Includes an inherited container release tag when the member has no explicit release tag.
+	 * Other modifier tags remain local; container custom tags are not copied to members.
 	 */
 	readonly modifierTags: readonly string[];
 }

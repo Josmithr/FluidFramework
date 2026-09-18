@@ -119,6 +119,82 @@ describe("Report generation from completed data", () => {
 		assert.equal(input.facts.declarations[0]?.signatures[0]?.id, "signature");
 	});
 
+	it("keeps all members and nested exports when a container is selected", () => {
+		const metadata = { documented: true, releaseLevel: ReleaseLevel.Public, modifierTags: [] };
+		const member = {
+			...metadata,
+			id: "member",
+			text: "value: string;",
+			modifierTags: ["@omit"],
+		};
+		const prepared = {
+			packageName: "example",
+			classification: {
+				modifierTags: ["@selected", "@omit"],
+				items: [
+					{ id: "namespace", releaseLevel: ReleaseLevel.Public, modifierTags: ["@selected"] },
+					{ id: "class", releaseLevel: ReleaseLevel.Public, modifierTags: ["@omit"] },
+					{ id: "member", releaseLevel: ReleaseLevel.Public, modifierTags: ["@omit"] },
+				],
+			},
+			surfaces: new Map([
+				[
+					".",
+					{
+						unsupported: undefined,
+						exports: [
+							{
+								declarationId: "namespace",
+								declarationName: "Group",
+								name: "Group",
+								typeOnly: false,
+								signatures: [],
+								namespace: {
+									...metadata,
+									id: "namespace",
+									text: "",
+									exports: [
+										{
+											declarationId: "class",
+											declarationName: "Child",
+											name: "Child",
+											typeOnly: false,
+											signatures: [],
+											container: {
+												...metadata,
+												id: "class",
+												text: "",
+												prefix: "class ",
+												suffix: "",
+												members: [member],
+											},
+										},
+									],
+								},
+							},
+						],
+					},
+				],
+			]),
+		};
+		const selected = createReviewReport(prepared, ".", {
+			name: "selected",
+			releaseLevels: [ReleaseLevel.Public],
+			requireTags: ["@selected"],
+			excludeTags: ["@omit"],
+		});
+		assert.equal(selected.ok, true);
+		assert.match(renderReviewReport(selected.value), /class Child/);
+		assert.match(renderReviewReport(selected.value), /value: string/);
+		const excluded = createReviewReport(prepared, ".", {
+			name: "excluded",
+			releaseLevels: [ReleaseLevel.Public],
+			excludeTags: ["@selected"],
+		});
+		assert.equal(excluded.ok, true);
+		assert.deepEqual(excluded.value.exports, []);
+	});
+
 	it("applies independent selections to the same prepared records", () => {
 		const prepared = prepareReviewReport(graph);
 		const publicSelection = { name: "public", releaseLevels: [ReleaseLevel.Public] };

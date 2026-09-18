@@ -2025,7 +2025,10 @@ function extractContainerSyntax(
 			declaredMembers: node.members.filter(needsDeclaredMemberRecord).map((member) => {
 				// Remove trivia only on the printing clone; lookup still uses the original member node.
 				const printed = compiler.emitter.printNode(getSynthesizedDeepClone(member)).trim();
-				const memberId = `${id}:declared:${createHash("sha256").update(printed).digest("hex")}`;
+
+				// Declaration emit erases private constructor parameters. Keep each original comment distinct even when syntax is identical.
+				const occurrence = member.kind === SyntaxKind.Constructor ? `:${member.pos}` : "";
+				const memberId = `${id}:declared:${createHash("sha256").update(printed).digest("hex")}${occurrence}`;
 				return createDeclaredMemberRecord(
 					compiler,
 					locations,
@@ -2236,6 +2239,7 @@ function createReferenceContext(
 	id: ApiItemId,
 	documentation: string | undefined,
 ): DocumentationReferenceContext {
+	const container = collectDeclaringContainer(compiler, locations, state, node);
 	let source = node;
 	while (!isSourceFile(source)) {
 		source = source.parent;
@@ -2261,11 +2265,53 @@ function createReferenceContext(
 					true,
 				);
 	return {
+		...(container === undefined ? {} : { container }),
 		origin: { packageName: location.packageName, file: location.file, start: location.start },
 		typeReferences: collectDeclarationReferences(compiler, locations, state, node, location),
 		links,
 		...(inheritance === undefined ? {} : { inheritance }),
 	};
+}
+
+/**
+ * Retains the original lexical container, not the receiver of an inherited member view.
+ * @param compiler - Active compiler services.
+ * @param locations - Package ownership information.
+ * @param state - Declaration collection with reserved identities for recursive extraction.
+ * @param node - Original node that owns the documentation input.
+ * @returns The closest class, interface, enum, or namespace identifier, or undefined at module scope.
+ * @throws If a named container cannot be resolved by the compiler.
+ */
+function collectDeclaringContainer(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	node: Node,
+): ApiItemId | undefined {
+	let parent = node.parent;
+	while (parent !== undefined && !isSourceFile(parent)) {
+		if (
+			isClassDeclaration(parent) ||
+			isInterfaceDeclaration(parent) ||
+			isEnumDeclaration(parent) ||
+			isModuleDeclaration(parent)
+		) {
+			// A source-file module does not impose one release level on all its top-level exports.
+			if (parent.name === undefined) {
+				return undefined;
+			}
+			const symbol = compiler.checker.getSymbolAtLocation(parent.name);
+			assert(symbol !== undefined, "Named containers must have compiler symbols.");
+			return collect(
+				compiler,
+				locations,
+				state,
+				resolveSymbolTarget(compiler.checker, symbol),
+			);
+		}
+		parent = parent.parent;
+	}
+	return undefined;
 }
 
 /**

@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import {
 	releaseLevels,
 	releaseLevelTags,
@@ -6,8 +7,13 @@ import {
 	type ApiItemDocumentation,
 } from "../analysis-types/classification.js";
 import { TSDocParser, TSDocTagSyntaxKind, type TSDocConfiguration } from "@microsoft/tsdoc";
-import type { DocumentationContext } from "./documentationContext.js";
-import type { AnalysisFacts, SourceDeclarationFact } from "../analysis-types/facts.js";
+import type { DocumentationContext, ParsedDocumentationItem } from "./documentationContext.js";
+import type {
+	AnalysisFacts,
+	ApiItemId,
+	Origin,
+	SourceDeclarationFact,
+} from "../analysis-types/facts.js";
 import {
 	DiagnosticCode,
 	reportFailure,
@@ -119,6 +125,26 @@ function validateMergedReleaseGroup(
 }
 
 /**
+ * Original ownership and diagnostic context for a container member.
+ */
+export interface ContainerReleaseContext {
+	/**
+	 * The declaring container's classification identifier, not an inherited view's receiver.
+	 */
+	readonly id: ApiItemId;
+
+	/**
+	 * The container and member names used to locate a mismatch without reading opaque identifiers.
+	 */
+	readonly name: string;
+
+	/**
+	 * Original member location, shared by effective views of the same source declaration.
+	 */
+	readonly source: Origin;
+}
+
+/**
  * Classifies original parsed documentation in an invocation-owned context.
  *
  * @remarks
@@ -131,18 +157,68 @@ function validateMergedReleaseGroup(
  * Context creation validates identities before this operation.
  *
  * @param context - Original parsed comments with their shared vocabulary and classification rules.
+ * @param containers - Original ownership and locations for container members. Omit for independent top-level items.
  * @returns Classified metadata or diagnostics.
  * @throws If processing fails unexpectedly.
  */
 export function classifyApiItems(
 	context: DocumentationContext<ApiItemDocumentation>,
+	containers: ReadonlyMap<ApiItemId, ContainerReleaseContext> = new Map(),
 ): Result<ApiClassification> {
 	const { configuration, rules } = context;
 	const diagnostics: AnalyzerDiagnostic[] = [];
+	const classified = collectOriginalMetadata(
+		context.items.values(),
+		configuration,
+		rules.validateTsdocSyntax !== false,
+		diagnostics,
+	);
+	const resolved = resolveContainerReleases(
+		classified,
+		containers,
+		rules.requireReleaseLevel !== false,
+		diagnostics,
+	);
+
+	// Report collected item errors without returning classifications for any item in the batch.
+	if (diagnostics.length > 0) {
+		return freezeData({ ok: false, diagnostics });
+	}
+	return freezeData({
+		ok: true,
+		value: {
+			items: resolved.sort((left, right) =>
+				left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+			),
+
+			// Include all configured modifier names so selection can validate tags absent from these items.
+			modifierTags: configuration.tagDefinitions
+				.filter((tag) => tag.syntaxKind === TSDocTagSyntaxKind.ModifierTag)
+				.map((tag) => tag.tagName)
+				.sort(),
+		},
+	});
+}
+
+/**
+ * Extracts explicit metadata from original comments before resolving container release levels.
+ *
+ * @param items - Parsed documentation inputs in their original order.
+ * @param configuration - Vocabulary used to recognize canonical modifier names.
+ * @param validateSyntax - Whether parser diagnostics are included. Release conflicts always produce diagnostics.
+ * @param diagnostics - Invocation-owned array to which syntax and explicit-tag conflicts are appended in input order.
+ * @returns New metadata records without inferred release levels, including records with reported conflicts.
+ */
+function collectOriginalMetadata(
+	items: Iterable<ParsedDocumentationItem<ApiItemDocumentation>>,
+	configuration: TSDocConfiguration,
+	validateSyntax: boolean,
+	diagnostics: AnalyzerDiagnostic[],
+): ApiItemMetadata[] {
 	const classified: ApiItemMetadata[] = [];
-	for (const item of context.items.values()) {
+	for (const item of items) {
 		const { parsed } = item;
-		if (rules.validateTsdocSyntax !== false) {
+		if (validateSyntax) {
 			for (const message of parsed?.log.messages ?? []) {
 				diagnostics.push({
 					code: DiagnosticCode.ClassificationTsdoc,
@@ -172,31 +248,171 @@ export function classifyApiItems(
 				code: DiagnosticCode.ClassificationReleaseConflict,
 				message: `${item.id}: Conflicting release levels ${levels.map((level) => releaseLevelTags[level]).join(", ")}. Specify one release level for this item.`,
 			});
-		} else if (levels.length === 0 && rules.requireReleaseLevel !== false) {
-			diagnostics.push({
-				code: DiagnosticCode.ClassificationReleaseMissing,
-				message: `${item.id}: Missing release level. Add a release tag or disable requireReleaseLevel.`,
-			});
 		}
 		classified.push({ id: item.id, releaseLevel: levels[0], modifierTags });
 	}
+	return classified;
+}
 
-	// Report collected item errors without returning classifications for any item in the batch.
-	if (diagnostics.length > 0) {
-		return freezeData({ ok: false, diagnostics });
+/**
+ * Resolves effective release metadata in declaring-container order without changing original records.
+ *
+ * @param classified - Explicit metadata in input order.
+ * @param containers - Original ownership and diagnostic locations indexed by member identifier.
+ * @param requireReleaseLevel - Whether an unresolved effective level produces a missing-release diagnostic.
+ * @param diagnostics - Invocation-owned array to which ownership and effective-release errors are appended.
+ * @returns Effective metadata in input order, including records with reported validation errors.
+ * @throws If declaring-container relationships contain a cycle.
+ */
+function resolveContainerReleases(
+	classified: readonly ApiItemMetadata[],
+	containers: ReadonlyMap<ApiItemId, ContainerReleaseContext>,
+	requireReleaseLevel: boolean,
+	diagnostics: AnalyzerDiagnostic[],
+): ApiItemMetadata[] {
+	// Classify parents first regardless of extraction order. Only release metadata is inherited.
+	const original = new Map(classified.map((item) => [item.id, item]));
+	const effective = new Map<ApiItemId, ApiItemMetadata>();
+	const active = new Set<ApiItemId>();
+	const validatedSources = new Set<string>();
+
+	/**
+	 * Resolves a declaring container before applying a member's release metadata.
+	 * @param item - Original metadata for this input.
+	 * @returns Metadata with an inherited release level when the local tag is absent.
+	 */
+	function resolveRelease(item: ApiItemMetadata): ApiItemMetadata {
+		const existing = effective.get(item.id);
+		if (existing !== undefined) {
+			return existing;
+		}
+		if (active.has(item.id)) {
+			assert.fail("Declaring-container relationships must not contain cycles.");
+		}
+		active.add(item.id);
+		const container = containers.get(item.id);
+		const ownerId = container?.id;
+		const owner = ownerId === undefined ? undefined : original.get(ownerId);
+		if (ownerId !== undefined && owner === undefined) {
+			diagnostics.push({
+				code: DiagnosticCode.DocumentationUnsupported,
+				message: `API ${item.id}: declaring container ${ownerId} has no supported classification context.`,
+			});
+		}
+		const parent = owner === undefined ? undefined : resolveRelease(owner);
+		if (container !== undefined) {
+			validateContainerRelease(item, container, parent, validatedSources, diagnostics);
+		}
+		const releaseLevel = item.releaseLevel ?? parent?.releaseLevel;
+		const result = {
+			...item,
+			releaseLevel,
+			modifierTags:
+				releaseLevel !== undefined && item.releaseLevel === undefined
+					? [...item.modifierTags, releaseLevelTags[releaseLevel]].sort()
+					: item.modifierTags,
+		};
+		if (releaseLevel === undefined && requireReleaseLevel) {
+			diagnostics.push({
+				code: DiagnosticCode.ClassificationReleaseMissing,
+				message: `${item.id}: Missing release level. Tag the declaring container or this top-level API, or disable requireReleaseLevel.`,
+			});
+		}
+		active.delete(item.id);
+		effective.set(item.id, result);
+		return result;
 	}
-	return freezeData({
-		ok: true,
-		value: {
-			items: classified.sort((left, right) =>
-				left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
-			),
+	return classified.map(resolveRelease);
+}
 
-			// Include all configured modifier names so selection can validate tags absent from these items.
-			modifierTags: configuration.tagDefinitions
-				.filter((tag) => tag.syntaxKind === TSDocTagSyntaxKind.ModifierTag)
-				.map((tag) => tag.tagName)
-				.sort(),
-		},
-	});
+/**
+ * Validates explicit member metadata once per original source and release level.
+ *
+ * @param item - Original member metadata before container inheritance.
+ * @param container - Declaring owner and original member location for diagnostics.
+ * @param parent - Effective owner metadata, or undefined when the owner has no supported context.
+ * @param validatedSources - Invocation-owned set updated to record each checked source and explicit level.
+ * @param diagnostics - Invocation-owned array to which a mismatch is appended when present.
+ */
+function validateContainerRelease(
+	item: ApiItemMetadata,
+	container: ContainerReleaseContext,
+	parent: ApiItemMetadata | undefined,
+	validatedSources: Set<string>,
+	diagnostics: AnalyzerDiagnostic[],
+): void {
+	const sourceKey = JSON.stringify([
+		container.id,
+		container.source.packageName,
+		container.source.file,
+		container.source.start,
+		item.releaseLevel,
+	]);
+	if (
+		parent !== undefined &&
+		!validatedSources.has(sourceKey) &&
+		item.releaseLevel !== undefined &&
+		item.releaseLevel !== parent.releaseLevel
+	) {
+		diagnostics.push({
+			code: DiagnosticCode.ClassificationContainerMismatch,
+			message: `API ${container.name} at ${container.source.packageName}/${container.source.file}:${container.source.start}: release ${releaseLevelTags[item.releaseLevel]} differs from declaring container ${container.id} (${parent.releaseLevel === undefined ? "untagged" : releaseLevelTags[parent.releaseLevel]}). Match the container's release tag or omit the member tag.`,
+		});
+	}
+
+	// Reuse validation only for views with the same source and explicit metadata.
+	validatedSources.add(sourceKey);
+}
+
+/**
+ * Checks namespace export targets without changing the target's original declaration ownership.
+ * @param facts - Declarations and alias-preserving namespace exports.
+ * @param classification - Completed effective release metadata.
+ * @returns Success or the first mismatched or unsupported namespace export.
+ */
+export function validateNamespaceReleases(
+	facts: AnalysisFacts,
+	classification: ApiClassification,
+): Result {
+	const declarations = new Map(
+		facts.declarations.map((declaration) => [declaration.id, declaration]),
+	);
+	const metadata = new Map(classification.items.map((item) => [item.id, item]));
+	for (const declaration of facts.declarations) {
+		if (!declaration.declarations.some((source) => source.kind === "ModuleDeclaration")) {
+			continue;
+		}
+		const container = metadata.get(declaration.id);
+		if (container === undefined) {
+			continue;
+		}
+		for (const binding of declaration.exports) {
+			const target = declarations.get(binding.target);
+			assert(target !== undefined, "Namespace exports must retain their target declarations.");
+			const targets = metadata.has(target.id)
+				? [target.id]
+				: target.signatures.map((signature) => signature.id);
+			if (targets.length === 0) {
+				return reportFailure(
+					DiagnosticCode.DocumentationUnsupported,
+					`Namespace ${declaration.name}, export ${binding.name}: target ${target.name} has no supported release metadata. Use a supported declaration form before generating a container output.`,
+				);
+			}
+			for (const id of targets) {
+				const member = metadata.get(id);
+				assert(
+					member !== undefined,
+					"Supported export targets must have classification metadata.",
+				);
+				if (member.releaseLevel !== container.releaseLevel) {
+					const source = declaration.declarations[0];
+					return reportFailure(
+						DiagnosticCode.ClassificationContainerMismatch,
+						`Namespace ${declaration.name}, export ${binding.name} at ${source?.packageName}/${source?.file}:${source?.start}: target ${target.name} has a different release level. Match the namespace's release level or move the export outside it.`,
+					);
+				}
+			}
+		}
+	}
+	return { ok: true };
 }

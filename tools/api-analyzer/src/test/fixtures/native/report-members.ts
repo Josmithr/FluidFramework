@@ -1,33 +1,33 @@
 /*
- * Exercises class and interface review output with independent member selection.
+ * Exercises class and interface review output with atomic container selection.
  * Inherited content changes documentation status without changing local release metadata.
  */
 
 /** Contract for stored values. @public */
-// The report must retain generic constraints and defaults while selecting members independently.
+// The report must retain generic constraints, defaults, and all members of a selected interface.
 export interface Store<Value extends string = string> {
 	/** The stored value. @public */
 	// Keep readonly property syntax and the containing type's parameter name.
 	readonly value: Value;
-	/** Optional count. @beta */
-	// Public-only reports must omit this property without affecting the containing interface.
+	/** Optional count. @public */
+	// Optional properties remain part of the selected container.
 	count?: number;
 	/** Optional callback. @public */
 	// This comment belongs to the property, not its unnamed function-type signature.
 	callback?: (value: Value) => void;
 	/** String lookup. @public */
-	// Keep this overload and its compiler order when the internal overload is excluded.
+	// Keep both overloads and their compiler order with the containing interface.
 	lookup(value: string): Value;
-	/** Numeric lookup. @internal */
-	// Excluding this overload must not remove the public overload with the same name.
+	/** Numeric lookup. @public */
+	// Member overloads share the interface release level and cannot be trimmed independently.
 	lookup(value: number): Value;
 }
 
-/** Source class. @internal */
+/** Source class. @public */
 // The unexported class supplies a documented member without becoming a report export.
 declare class Base {
 	/** Base operation. @public */
-	// Member metadata stays public even though the containing class is internal.
+	// The member agrees with its original declaring class.
 	operation(value: string): string;
 }
 
@@ -77,14 +77,14 @@ export interface Settings {
  *
  * @public
  */
-// This part has the same header and comment, but contributes an independently filtered member.
+// This part has the same header and comment and contributes another retained member.
 export interface Settings {
 	/**
-	 * Internal setting.
+	 * Timeout setting.
 	 *
-	 * @internal
+	 * @public
 	 */
-	// The public report must omit this member without discarding the merged interface.
+	// The name does not imply a different release level; the report must retain this member.
 	internalTimeout: number;
 	/**
 	 * Public setting.
@@ -96,13 +96,13 @@ export interface Settings {
 }
 
 /** Public mode. @public */
-// Enum members have independent release metadata and retain their explicit values.
+// Enum members agree with the enum release metadata and retain all explicit values.
 export declare enum Mode {
 	/** Visible mode. @public */
 	// Keep the member value in the public report.
 	Visible = 1,
-	/** Hidden mode. @internal */
-	// Filtering this member must not remove the enum itself.
+	/** Alternate mode. @public */
+	// This member cannot be filtered independently of its enum.
 	Hidden = 2,
 }
 
@@ -118,15 +118,15 @@ export declare const performance: number;
 export type { Implementation as TypeImplementation };
 
 /** Grouped operations. @public */
-// Nested exports must use the same selection rules as top-level exports.
+// Nested exports remain with their selected namespace instead of applying filters independently.
 export declare namespace Operations {
 	// An alias back to this namespace must remain a reference rather than expanding forever.
 	export import self = Operations;
 	/** Visible operation. @public */
 	// Keep a public nested declaration with its namespace export syntax.
 	export function visible(): void;
-	/** Hidden operation. @internal */
-	// Exclude the nested API without discarding the selected namespace.
+	/** Additional operation. @public */
+	// Keep every exported operation when its namespace is selected.
 	export function hidden(): void;
 }
 

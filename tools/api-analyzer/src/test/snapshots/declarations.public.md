@@ -21,10 +21,15 @@ export class Implementation extends Base {
 export enum Mode {
     // @public
     Visible = 1,
+    // @public
+    Hidden = 2,
 }
 
 // @public
 export namespace Operations {
+    // @public
+    export function hidden(): void;
+
     // @public
     export function visible(): void;
 
@@ -35,6 +40,8 @@ export namespace Operations {
 export interface Settings {
     // @public
     endpoint: string;
+    // @public
+    internalTimeout: number;
 }
 
 // @public
@@ -42,7 +49,11 @@ export interface Store<Value extends string = string> {
     // @public
     callback?: ((value: Value) => void) | undefined;
     // @public
+    count?: number | undefined;
+    // @public
     lookup(value: string): Value;
+    // @public
+    lookup(value: number): Value;
     // @public
     readonly value: Value;
 }

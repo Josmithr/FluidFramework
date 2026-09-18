@@ -69,7 +69,7 @@ export declare class DocumentedClass extends DocumentedClassBase {
 	convert(value: string): string;
 }
 
-/** Hidden root contract. @internal */
+/** Hidden root contract. @public */
 // Unexported bases must be collected for reference resolution without becoming entrypoint exports.
 interface HiddenRoot<Value> {
 	/** Root operation. @public */
@@ -92,7 +92,7 @@ export declare class DocumentedImplementation
 	root(value: string): string;
 }
 
-/** Implementation-only contract. @internal */
+/** Implementation-only contract. @public */
 interface HiddenImplementationOnly<Value> {
 	/** Implementation-only operation. @public */
 	root(value: Value): Value;
@@ -135,6 +135,10 @@ export declare class RenamedImplementation implements HiddenRoot<string> {
 }
 
 // A single source isolates the overloaded-receiver and unconstrained-type rejection cases below.
+/**
+ * A public source container.
+ * @public
+ */
 interface SingleCallContract {
 	/** Single source. @public */
 	operation(value: string): string;
@@ -147,6 +151,10 @@ export declare class OverloadedReceiver implements SingleCallContract {
 }
 
 // Distinct overload comments must not be combined into documentation for a single receiving signature.
+/**
+ * A public overload container.
+ * @public
+ */
 interface OverloadedSource {
 	/** String source. @public */
 	operation(value: string): string;
@@ -178,6 +186,10 @@ export declare class EmptyImplementation implements HiddenRoot<string> {
 	root(value: string): string;
 }
 
+/**
+ * A public receiver whose local comment suppresses documentation inheritance.
+ * @public
+ */
 export declare class TagOnlyImplementation implements HiddenRoot<string> {
 	/** @public */
 	// Tag-only local TSDoc also suppresses automatic content inheritance.

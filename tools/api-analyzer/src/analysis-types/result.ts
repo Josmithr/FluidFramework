@@ -17,6 +17,15 @@
 // - Roll-up generation
 export enum DiagnosticCode {
 	/**
+	 * A member or namespace export has a different release level from its declaring container.
+	 *
+	 * @remarks
+	 * Use the container's release tag, omit the member tag to inherit it, or move the API outside the container.
+	 * Container consistency cannot be disabled in V1.
+	 */
+	ClassificationContainerMismatch = "classification-container-mismatch",
+
+	/**
 	 * A selected dependency model is missing, incompatible, or structurally invalid.
 	 */
 	DependencyModel = "dependency-model",

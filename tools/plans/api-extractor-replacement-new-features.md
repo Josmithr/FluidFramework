@@ -181,7 +181,7 @@ Related requirements: W3, W7.
 
 ### F4. Function overloads with different release levels should be supported
 
-Required result: Function overloads must be able to declare different release levels.
+Required result: Standalone function overloads must be able to declare different release levels.
 Surface selection and validation must respect each callable overload's release level.
 The implementation signature must not require a release tag because consumers cannot call it directly.
 
@@ -205,10 +205,14 @@ Verify that each surface contains the selected overloads, that the implementatio
 Check API references against the release level of the overload that contains them.
 Add an internal overload and generate complete, public, and beta outputs.
 Verify that the complete output includes the internal overload, that public and beta outputs exclude it, and that the non-internal overloads retain their own release levels and remain available in the selected surfaces.
-Mixing internal and non-internal overloads must not itself produce a validation error unless an explicitly configured repository policy prohibits the combination.
+Mixing internal and non-internal standalone function overloads must not itself produce a validation error unless an explicitly configured repository policy prohibits the combination.
 This requirement does not depend on whether API Extractor currently supports the case.
 
-Resolved decision: Mixed `@internal` and non-internal overloads must be supported. Each callable overload is classified and filtered independently. Repository-specific restrictions on combinations may be enforced through configurable validation, not a built-in prohibition.
+Resolved decision: Mixed `@internal` and non-internal standalone function overloads must be supported. Each callable overload is classified and filtered independently. Repository-specific restrictions on combinations may be enforced through configurable validation, not a built-in prohibition.
+Scope clarification agreed on 2026-09-18: independent selection applies to standalone functions, not members of an atomic container.
+V1 requires every selected class, interface, enum, or namespace to retain its members, including static members and constructors.
+Contained overloads remain supported but must satisfy the container's release-level rules and must not be trimmed independently by release-level or custom-tag filters.
+See the [member compatibility decision](../api-analyzer/TODOs.md#member-compatibility).
 All F4 questions listed during this requirements discussion are resolved.
 
 Related requirements: W1, W2, W4, W5, W7.

@@ -61,7 +61,7 @@ export interface ReviewSignature {
 }
 
 /**
- * A selected namespace with independently selected exports and original annotations.
+ * A selected namespace with its complete export tree and original annotations.
  */
 export interface ReviewNamespace extends ReviewSignature {
 	/**
@@ -89,9 +89,9 @@ export interface ReviewNamespace extends ReviewSignature {
 	 * Selected nested bindings in canonical export order.
 	 *
 	 * @remarks
-	 * Sorted by exported name. Only bindings that survive selection are included.
+	 * Sorted by exported name. Selecting the namespace retains every supported exported binding.
 	 * Empty when {@link ReviewNamespace.reference} is present because the target is represented by an alias.
-	 * An ordinary namespace can also have an empty array when none of its nested bindings are selected.
+	 * An ordinary namespace can also have an empty array when it exports no bindings.
 	 */
 	readonly exports: readonly ReviewExport[];
 }
@@ -102,7 +102,7 @@ export interface ReviewNamespace extends ReviewSignature {
 export interface ReviewStatement extends ReviewSignature, DeclarationStatementFact {}
 
 /**
- * A selected container header and independently selected member declarations.
+ * A selected container header and its complete supported member declarations.
  */
 export interface ReviewContainer extends ReviewStatement {
 	/**
@@ -111,17 +111,17 @@ export interface ReviewContainer extends ReviewStatement {
 	 * @remarks
 	 * Can include inherited effective members as well as declared constructors, static members, and accessors.
 	 * Each item's text is a complete member declaration, not a standalone function signature.
-	 * Members are selected independently; selecting the container does not include all its members.
+	 * Selecting the container retains all these members, regardless of their custom tags or inherited release levels.
 	 */
 	readonly members: readonly ReviewSignature[];
 }
 
 /**
- * An exported declaration binding with independently selected members or overloads.
+ * An exported declaration binding with complete container contents or selected standalone overloads.
  */
 export interface ReviewExport {
 	/**
-	 * Independently selected nested namespace exports and original namespace metadata.
+	 * Complete nested namespace exports and effective namespace metadata.
 	 * @defaultValue Omitted for non-namespace declarations.
 	 */
 	readonly namespace?: ReviewNamespace;
@@ -282,7 +282,7 @@ interface PreparedNamespace extends PreparedSignature {
 interface PreparedStatement extends PreparedSignature, DeclarationStatementFact {}
 
 /**
- * Container syntax with member identities retained for independent selection.
+ * Container syntax with member identities retained for metadata lookup.
  */
 interface PreparedContainer extends PreparedStatement {
 	/**
@@ -314,7 +314,7 @@ interface PreparedExport
 	readonly statement?: PreparedStatement;
 
 	/**
-	 * Container and member identities retained for independent selection.
+	 * Container and member identities retained for classification and metadata lookup.
 	 * @defaultValue Omitted for non-container or unsupported container records.
 	 */
 	readonly container?: PreparedContainer;
@@ -617,7 +617,7 @@ function prepareContainer(
  *
  * @param prepared - Shared inputs produced once by report preparation.
  * @param entrypoint - Configured entrypoint name to report.
- * @param selection - Caller-supplied release levels and tag filters, validated for each report.
+ * @param selection - Caller-supplied filters applied to top-level bindings and standalone overloads. Selected containers retain all contents.
  * @returns A frozen report or diagnostics for an invalid selection or unknown entrypoint.
  * @throws If the entrypoint contains unsupported declaration forms.
  */
@@ -646,47 +646,51 @@ export function createReviewReport(
 	/**
 	 * Selects a namespace tree without changing the shared prepared records.
 	 * @param entries - Complete bindings at one namespace level.
+	 * @param retainAll - Whether a selected containing namespace requires every nested binding.
 	 * @returns Selected records with internal selection identities removed from their items.
 	 */
-	function selectEntries(entries: readonly PreparedExport[]): ReviewExport[] {
+	function selectEntries(
+		entries: readonly PreparedExport[],
+		retainAll: boolean,
+	): ReviewExport[] {
 		const exports: ReviewExport[] = [];
 		for (const entry of entries) {
 			if (entry.namespace !== undefined) {
-				if (selectedIds.has(entry.namespace.id)) {
+				if (retainAll || selectedIds.has(entry.namespace.id)) {
 					const { id: _id, exports: nested, ...namespace } = entry.namespace;
 					exports.push({
 						...entry,
-						namespace: { ...namespace, exports: selectEntries(nested) },
+						namespace: { ...namespace, exports: selectEntries(nested, true) },
 						signatures: [],
 					});
 				}
 				continue;
 			}
 			if (entry.statement !== undefined) {
-				if (selectedIds.has(entry.statement.id)) {
+				if (retainAll || selectedIds.has(entry.statement.id)) {
 					const { id: _id, ...statement } = entry.statement;
 					exports.push({ ...entry, statement, signatures: [] });
 				}
 				continue;
 			}
 			if (entry.container !== undefined) {
-				if (selectedIds.has(entry.container.id)) {
+				if (retainAll || selectedIds.has(entry.container.id)) {
 					const { id: _id, members, ...container } = entry.container;
 					exports.push({
 						...entry,
 						signatures: [],
 						container: {
 							...container,
-							members: members
-								.filter((member) => selectedIds.has(member.id))
-								.map(({ id: _memberId, ...member }) => member),
+
+							// Container selection is atomic, including custom-tag and inherited-member differences.
+							members: members.map(({ id: _memberId, ...member }) => member),
 						},
 					});
 				}
 				continue;
 			}
 			const signatures = entry.signatures
-				.filter((signature) => selectedIds.has(signature.id))
+				.filter((signature) => retainAll || selectedIds.has(signature.id))
 				.map(({ id: _id, ...signature }) => signature);
 			if (signatures.length > 0) {
 				exports.push({ ...entry, signatures });
@@ -699,7 +703,7 @@ export function createReviewReport(
 		value: {
 			packageName,
 			surface: selection.name,
-			exports: selectEntries(surface.exports),
+			exports: selectEntries(surface.exports, false),
 		},
 	});
 }

@@ -9,7 +9,8 @@ Publication remains a separate decision.
 
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
-Reports support functions, single-declaration classes and interfaces, property and callable member selection, declared constructors and static members, enums, type aliases, variables, and namespaces.
+Reports support standalone function selection and complete selected classes, interfaces, enums, and namespaces, including constructors and static members.
+Type aliases and variables remain selectable as atomic declarations.
 Matching interface merges and repeated property comments also participate in classification, reports, and dependency models.
 Differing merged documentation, recursive namespace aliases, complete type-reference extraction, and some explicit reference forms still need acceptance work.
 These limitations prevent closing Stage 2; the implemented checks do not waive the remaining gates.
@@ -134,9 +135,9 @@ The adapter removes null and undefined from the member type before requesting ca
 Non-callable members have an empty signature array. Callable properties retain comments from their signature declarations, not copied property comments.
 Signature identifiers use the effective member as their owner and retain the limitations documented on `SignatureFact.id`.
 Analysis classifies each effective callable signature from its original comment.
-Release-tag requirements apply to untagged methods and supported non-callable properties as well as standalone functions.
-An enclosing class or interface tag does not supply a missing member tag.
-This does not define classification rules for a whole class or interface.
+Untagged methods and properties inherit the effective release level of their declaring container.
+An explicit member level must equal that container's level; both more-public and less-public mismatches fail.
+This does not inherit descriptive documentation or other custom tags.
 
 Both input compilers verify overload selection, inherited generic signatures, optional methods, callable properties, and frozen facts after session closure and JSON serialization.
 Effective callable signatures retain original-scope lookup contexts when their signature declarations are inspectable.
@@ -148,6 +149,50 @@ Declared constructors, static members, accessors, and signature declarations ret
 Automatic accessor inheritance, merged-property precedence, and broader explicit reference forms remain incomplete.
 Heritage comparison views do not receive lookup contexts or separate classification.
 Conservative ancestor matching is described below.
+
+### Container compatibility
+
+V1 treats classes, interfaces, enums, and namespaces as atomic selection units.
+Selecting a container retains its complete supported member set, including constructors, static members, accessors, call/construct/index signatures, namespace exports, and nested containers.
+Neither release-level filters nor custom-tag filters run independently on those retained members.
+A member's matching tag does not select an otherwise excluded container.
+Standalone overloads remain independently selectable; contained overloads remain together with their container.
+
+The analyzer rejects explicit member/container release mismatches with `classification-container-mismatch`, including when missing-tag or syntax checks are disabled.
+An untagged member inherits its declaring container's effective level recursively.
+An untagged root remains untagged when missing levels are permitted; an explicitly tagged child does not assign a level to its parent and is a mismatch in that case.
+Custom tags and source comments remain local and unchanged.
+Serialized dependency metadata includes the effective inherited release level.
+
+The following class gives its untagged constructor, static factory, and property the class's public release level:
+
+```typescript
+/**
+ * A public client whose members remain together.
+ * @public
+ */
+export declare class Client {
+	private constructor();
+	static create(): Client;
+	value: string;
+}
+```
+
+The private constructor stays private; language accessibility is independent of release classification.
+Private constructor overloads can emit identical signatures after parameter types are erased.
+Their provisional declared-member identifiers include source positions to preserve each original comment for validation.
+
+Inherited member views retain their original declaring container and release metadata.
+Validation reuses the original member source rather than checking its tag against each receiving type.
+Local overrides are validated against their own declaring container.
+A selected beta type can therefore retain inherited public members without reclassifying or removing them.
+Namespace aliases must expose targets with the namespace's release level; aliasing does not change the target's original ownership.
+
+These checks do not disable configured reference/exposure policies or make partial member extraction complete.
+The [container fixture](src/test/fixtures/native/container-members.ts) covers complete output and original ownership with both supported input compilers.
+Pure tests cover release-level pairs, nested ownership, untagged roots, repeated inherited views, and custom-tag selections.
+Later declaration rollups must follow the same selection invariant; rollups are not implemented by this change.
+Additional selection flexibility remains a [post-V1 investigation](../plans/api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
 
 ### Original and resolved signature text
 

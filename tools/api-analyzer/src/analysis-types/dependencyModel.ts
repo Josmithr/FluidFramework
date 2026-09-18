@@ -46,7 +46,10 @@ export interface DependencyApi {
 	readonly typeParameters?: readonly string[];
 
 	/**
-	 * Original release and custom-tag classification, not reclassified inherited content.
+	 * Effective release and local custom-tag classification, not reclassified inherited documentation.
+	 *
+	 * @remarks
+	 * Includes the declaring container's release level for an originally untagged member.
 	 */
 	readonly metadata: ApiItemMetadata;
 

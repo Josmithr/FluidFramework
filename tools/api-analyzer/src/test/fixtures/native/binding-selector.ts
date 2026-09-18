@@ -12,6 +12,10 @@ export declare function base(value: string): string;
 // The explicit selector chooses the overload whose parameter name and shape match the receiver.
 export declare function derived(value: string): string;
 
+/**
+ * The public method source container.
+ * @public
+ */
 export interface MethodSource {
 	/** Number method. @public */
 	// Only the second overload supplies the link that must survive both inheritance steps.
@@ -20,6 +24,10 @@ export interface MethodSource {
 	operation(value: string): string;
 }
 
+/**
+ * The public method redirect container.
+ * @public
+ */
 export interface MethodRedirect {
 	/** {@inheritDoc MethodSource.(operation:2)} @public */
 	// A terminal numeric selector resolves an interface method, not a standalone function.

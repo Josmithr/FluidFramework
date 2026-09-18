@@ -44,6 +44,24 @@ Ambiguous or unproven automatic sources leave documentation absent. Explicit num
 Acceptance: automatic inheritance selects a demonstrably compatible source without guessing, or leaves documentation absent when no confident selection is possible.
 This item is not a Stage 2 exit requirement and does not defer non-overloaded automatic inheritance or explicit numeric selector support.
 
+## Flexible container member selection
+
+Status: open; explicitly deferred beyond V1 by the 2026-09-18 container decision.
+
+V1 must keep selected containers intact, including namespace exports, static class members, and constructor signatures.
+Implementing that rule remains required work in the [member compatibility TODO](../api-analyzer/TODOs.md#member-compatibility); this follow-up does not defer it.
+Investigate whether a later version can permit different member release levels or independent member selection with a clear compatibility contract.
+No namespace or static-member exception is approved for V1.
+
+- Evaluate assignability of instance types, constructor/static types, and namespace values obtained through `typeof` across different selected surfaces.
+- Define the effects of release-level and custom-tag filters on complete container shapes, inherited members, local overrides, and nested containers.
+- Preserve constructor accessibility, overload resolution, and required reference targets. Removing a constructor must not accidentally permit a new construction pattern.
+- Specify diagnostics, configuration, and dependency-model requirements before introducing any exception.
+- Verify reports, models, and declaration rollups against mixed-surface consumer examples with both supported compiler versions.
+
+Outcome: document whether additional flexibility is justified and which compatibility guarantees it can preserve.
+Any implementation requires an approved design; this item is not a commitment to permit partial container selection.
+
 ## Upstream TypeScript reports
 
 Status: open; follow-up to the [Stage 0 findings](../api-analyzer/README.md#stage-0-results).

@@ -7,7 +7,12 @@ import {
 	type TSDocConfiguration,
 	type DocComment,
 } from "@microsoft/tsdoc";
-import { classifyApiItems, validateMergedReleaseLevels } from "./classification.js";
+import {
+	classifyApiItems,
+	validateMergedReleaseLevels,
+	validateNamespaceReleases,
+	type ContainerReleaseContext,
+} from "./classification.js";
 import type {
 	ApiClassification,
 	ApiItemDocumentation,
@@ -151,6 +156,7 @@ export interface AnalysisContext extends DocumentationContext<AnalysisDocumentat
 
 	/**
 	 * Frozen classification derived from the original comments before inheritance.
+	 * Includes declaring-container release inheritance, but not descriptive documentation inheritance.
 	 */
 	readonly classification: ApiClassification;
 
@@ -265,6 +271,7 @@ export function collectApiLinkNodes(node: DocNode): readonly DocLinkTag[] {
  * Does not copy property comments to signatures or choose precedence between differing merged comments.
  * Accepts merged interfaces and properties only when extraction establishes matching comments and lookup results.
  * Rejects conflicting explicit release tags on merged non-overloaded declarations and members.
+ * Applies declaring-container release inheritance and rejects mismatches before reference validation.
  * Untagged parts do not supply an implicit release level; callable overloads remain separate inputs.
  * Heritage comparison views are not separate receiving APIs and are not classified again.
  *
@@ -281,76 +288,7 @@ export function createAnalysisContext(
 	extractedComments?: ExtractedComments,
 	dependencies: readonly DependencyModel[] = [],
 ): Result<AnalysisContext> {
-	const declarations = new Map<ApiItemId, DeclarationFact>();
-	const inputs: AnalysisDocumentationInput[] = [];
-	for (const declaration of facts.declarations) {
-		assert(
-			!declarations.has(declaration.id),
-			"Declaration facts must have distinct identities.",
-		);
-		declarations.set(declaration.id, declaration);
-		for (const declaredMember of declaration.container?.declaredMembers ?? []) {
-			inputs.push({
-				id: declaredMember.id,
-				declaration,
-				declaredMember,
-				documentation: declaredMember.documentation,
-				packageName: declaredMember.packageName,
-			});
-		}
-		if (declaration.documentationContext !== undefined) {
-			inputs.push({
-				id: declaration.id,
-				documentation: declaration.declarations[0]?.documentation,
-				packageName: declaration.documentationContext.origin.packageName,
-				declaration,
-			});
-		}
-
-		// Effective signatures have view-specific identities but retain their original comment scope.
-		const callables = [
-			...(declaration.documentationContext === undefined
-				? declaration.signatures.map((signature) => ({ signature, member: undefined }))
-				: []),
-			...declaration.members.flatMap((member) =>
-				member.documentationContext === undefined
-					? member.signatures.map((signature) => ({ signature, member }))
-					: [],
-			),
-		];
-		for (const { signature, member } of callables) {
-			const origin =
-				signature.documentationContext?.origin ?? (member ?? declaration).declarations[0];
-			assert(
-				origin !== undefined,
-				"Signature facts must retain an original declaration location.",
-			);
-			inputs.push({
-				id: signature.id,
-				documentation: signature.documentation,
-				packageName: origin.packageName,
-				declaration,
-				signature,
-				...(member === undefined ? {} : { member }),
-			});
-		}
-		for (const member of declaration.members) {
-			const source = member.declarations[0];
-			if (
-				(member.declarations.length !== 1 && member.documentationContext === undefined) ||
-				(source?.kind !== "PropertyDeclaration" && source?.kind !== "PropertySignature")
-			) {
-				continue;
-			}
-			inputs.push({
-				id: member.id,
-				documentation: source.documentation,
-				packageName: source.packageName,
-				declaration,
-				member,
-			});
-		}
-	}
+	const { declarations, inputs } = indexAnalysisInputs(facts.declarations);
 	const parsed = createDocumentationContext(
 		inputs,
 		options,
@@ -371,26 +309,185 @@ export function createAnalysisContext(
 	if (!mergedReferences.ok) {
 		return mergedReferences;
 	}
-	const classification = classifyApiItems(parsed.value);
-	return classification.ok
-		? {
-				ok: true,
-				value: {
-					...parsed.value,
-					referencePolicies: options.referencePolicies ?? {},
-					facts,
-					dependencies,
-					declarations,
-					classification: classification.value,
-					metadata: new Map([
-						...classification.value.items.map((item) => [item.id, item] as const),
-						...dependencies.flatMap((model) =>
-							model.apis.map((api) => [api.id, api.metadata] as const),
-						),
-					]),
-				},
-			}
-		: classification;
+	const containers = collectContainerReleaseContexts(inputs, declarations);
+	const classification = classifyApiItems(parsed.value, containers);
+	if (!classification.ok) {
+		return classification;
+	}
+	const namespaceReleases = validateNamespaceReleases(facts, classification.value);
+	if (!namespaceReleases.ok) {
+		return namespaceReleases;
+	}
+	return {
+		ok: true,
+		value: {
+			...parsed.value,
+			referencePolicies: options.referencePolicies ?? {},
+			facts,
+			dependencies,
+			declarations,
+			classification: classification.value,
+			metadata: new Map([
+				...classification.value.items.map((item) => [item.id, item] as const),
+				...dependencies.flatMap((model) =>
+					model.apis.map((api) => [api.id, api.metadata] as const),
+				),
+			]),
+		},
+	};
+}
+
+/**
+ * Indexed declaration facts and the ordered original comments selected for analysis.
+ */
+interface IndexedAnalysisInputs {
+	/**
+	 * Original declarations indexed by unique identifier, without copying their contents.
+	 */
+	readonly declarations: ReadonlyMap<ApiItemId, DeclarationFact>;
+
+	/**
+	 * Documentation inputs in declaration order, retaining original fact references.
+	 */
+	readonly inputs: readonly AnalysisDocumentationInput[];
+}
+
+/**
+ * Validates declaration identities while collecting the original documentation inputs.
+ *
+ * @param facts - Declarations in extraction order.
+ * @returns A new declaration index and documentation input array without mutating the facts.
+ * @throws If declaration identifiers repeat or a callable has no original location.
+ */
+function indexAnalysisInputs(facts: readonly DeclarationFact[]): IndexedAnalysisInputs {
+	const declarations = new Map<ApiItemId, DeclarationFact>();
+	const inputs: AnalysisDocumentationInput[] = [];
+	for (const declaration of facts) {
+		assert(
+			!declarations.has(declaration.id),
+			"Declaration facts must have distinct identities.",
+		);
+		declarations.set(declaration.id, declaration);
+		inputs.push(...collectDeclarationDocumentationInputs(declaration));
+	}
+	return { declarations, inputs };
+}
+
+/**
+ * Collects comments owned by a declaration, its declared members, and its effective members.
+ *
+ * @remarks
+ * Preserves the input order: declared members, the declaration itself, callables, then properties.
+ * Property comments remain property inputs instead of being copied to callable signatures.
+ *
+ * @param declaration - Immutable facts for one declaration and its member views.
+ * @returns New input records that retain the original fact objects and comment strings.
+ * @throws If a callable has no original declaration location.
+ */
+function collectDeclarationDocumentationInputs(
+	declaration: DeclarationFact,
+): AnalysisDocumentationInput[] {
+	const inputs: AnalysisDocumentationInput[] = (
+		declaration.container?.declaredMembers ?? []
+	).map((declaredMember) => ({
+		id: declaredMember.id,
+		declaration,
+		declaredMember,
+		documentation: declaredMember.documentation,
+		packageName: declaredMember.packageName,
+	}));
+	if (declaration.documentationContext !== undefined) {
+		inputs.push({
+			id: declaration.id,
+			documentation: declaration.declarations[0]?.documentation,
+			packageName: declaration.documentationContext.origin.packageName,
+			declaration,
+		});
+	}
+	inputs.push(...collectCallableDocumentationInputs(declaration));
+	for (const member of declaration.members) {
+		const source = member.declarations[0];
+		if (
+			(member.declarations.length !== 1 && member.documentationContext === undefined) ||
+			(source?.kind !== "PropertyDeclaration" && source?.kind !== "PropertySignature")
+		) {
+			continue;
+		}
+		inputs.push({
+			id: member.id,
+			documentation: source.documentation,
+			packageName: source.packageName,
+			declaration,
+			member,
+		});
+	}
+	return inputs;
+}
+
+/**
+ * Collects signature-owned comments without duplicating declaration or property-owned documentation.
+ *
+ * @param declaration - Declaration and effective members whose call signatures are inspected.
+ * @returns Inputs in declaration-signature order followed by effective member-signature order.
+ * @throws If neither a signature context nor its original declaration supplies a location.
+ */
+function collectCallableDocumentationInputs(
+	declaration: DeclarationFact,
+): AnalysisDocumentationInput[] {
+	// Effective signatures have view-specific identities but retain their original comment scope.
+	const callables = [
+		...(declaration.documentationContext === undefined
+			? declaration.signatures.map((signature) => ({ signature, member: undefined }))
+			: []),
+		...declaration.members.flatMap((member) =>
+			member.documentationContext === undefined
+				? member.signatures.map((signature) => ({ signature, member }))
+				: [],
+		),
+	];
+	return callables.map(({ signature, member }) => {
+		const origin =
+			signature.documentationContext?.origin ?? (member ?? declaration).declarations[0];
+		assert(
+			origin !== undefined,
+			"Signature facts must retain an original declaration location.",
+		);
+		return {
+			id: signature.id,
+			documentation: signature.documentation,
+			packageName: origin.packageName,
+			declaration,
+			signature,
+			...(member === undefined ? {} : { member }),
+		};
+	});
+}
+
+/**
+ * Indexes original container ownership and diagnostic locations for release classification.
+ *
+ * @param inputs - Original documentation inputs in collection order.
+ * @param declarations - Complete declaration index used to obtain container names.
+ * @returns A new ownership map, excluding inputs without a recorded declaring container.
+ */
+function collectContainerReleaseContexts(
+	inputs: readonly AnalysisDocumentationInput[],
+	declarations: ReadonlyMap<ApiItemId, DeclarationFact>,
+): ReadonlyMap<ApiItemId, ContainerReleaseContext> {
+	const containers = new Map<ApiItemId, ContainerReleaseContext>();
+	for (const item of inputs) {
+		const context = (item.signature ?? item.declaredMember ?? item.member ?? item.declaration)
+			.documentationContext;
+		if (context?.container !== undefined) {
+			const owner = declarations.get(context.container);
+			containers.set(item.id, {
+				id: context.container,
+				name: `${owner?.name ?? context.container}.${item.member?.name ?? item.declaredMember?.kind ?? item.declaration.name}`,
+				source: context.origin,
+			});
+		}
+	}
+	return containers;
 }
 
 /**

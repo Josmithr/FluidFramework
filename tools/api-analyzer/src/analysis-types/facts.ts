@@ -524,6 +524,18 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
  */
 export interface DocumentationReferenceContext {
 	/**
+	 * The original class, interface, enum, or namespace that declares this API.
+	 *
+	 * @remarks
+	 * Used for release-level inheritance and container validation, not descriptive documentation inheritance.
+	 * Inherited member views retain the declaring container rather than the receiving type.
+	 * Source-file modules are entrypoints, not atomic containers.
+	 *
+	 * @defaultValue Omitted for APIs without a declaring container.
+	 */
+	readonly container?: ApiItemId;
+
+	/**
 	 * Compiler-resolved declaration references in this API's type syntax.
 	 *
 	 * @remarks
@@ -991,6 +1003,8 @@ export interface DeclaredMemberFact extends SourceDeclarationFact {
 	 *
 	 * @remarks
 	 * Class and interface member identities use the printed declaration; enum member identities use the printed name.
+	 * Constructor identities also include their source position because private overload parameters can be erased during declaration emit.
+	 * These identities are provisional and can change when the input text moves.
 	 * This is not an effective {@link MemberFact.id}.
 	 * Use source locations to recognize when declared and effective records describe the same original member.
 	 */

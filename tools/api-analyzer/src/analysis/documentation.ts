@@ -1065,7 +1065,7 @@ function resolveDocumentationItem(
 		documentation:
 			item.documentation === undefined && targetId === undefined
 				? undefined
-				: comment.emitAsTsdoc(),
+				: comment.emitAsTsdoc() || "/** */",
 		inheritedFrom,
 		links: links.value,
 	};

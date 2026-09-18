@@ -1011,7 +1011,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.deepEqual(contract.implementedDeclarations, []);
 					assert.equal(
 						contract.declarations[0]?.documentation,
-						"/** Implementation-only contract. @internal */",
+						"/** Implementation-only contract. @public */",
 					);
 					assert.equal(
 						contract.members.find((entry) => entry.name === "root")?.signatures[0]
@@ -1091,7 +1091,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert(hidden !== undefined);
 					assert.equal(
 						hidden.declarations[0]?.documentation,
-						"/** Hidden root contract. @internal */",
+						"/** Hidden root contract. @public */",
 					);
 					assert.equal(facts.declarations.filter((entry) => entry.id === hidden.id).length, 1);
 					assert.equal(
@@ -1203,36 +1203,38 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						DiagnosticCode.DocumentationMergeConflict,
 					);
 
-					// Preserve both source records while aligning only the detached descriptions used for completion.
+					// Preserve merged source records, but exclude the unrelated mixed-release type used only by extraction tests.
 					const facts = {
 						...correctedTags,
-						declarations: correctedTags.declarations.map((declaration) =>
-							declaration.name === "DocumentedMerged"
-								? {
-										...declaration,
-										declarations: declaration.declarations.map((source) => ({
-											...source,
-											documentation: source.documentation?.replace(
-												"Second declaration.",
-												"First declaration.",
-											),
-										})),
-										members: declaration.members.map((member) => ({
-											...member,
-											declarations: member.declarations.map((source) => ({
+						declarations: correctedTags.declarations
+							.filter((declaration) => declaration.name !== "DocumentedDerived")
+							.map((declaration) =>
+								declaration.name === "DocumentedMerged"
+									? {
+											...declaration,
+											declarations: declaration.declarations.map((source) => ({
 												...source,
 												documentation: source.documentation?.replace(
-													"Second member declaration.",
-													"First member declaration.",
+													"Second declaration.",
+													"First declaration.",
 												),
 											})),
-										})),
-									}
-								: declaration,
-						),
+											members: declaration.members.map((member) => ({
+												...member,
+												declarations: member.declarations.map((source) => ({
+													...source,
+													documentation: source.documentation?.replace(
+														"Second member declaration.",
+														"First member declaration.",
+													),
+												})),
+											})),
+										}
+									: declaration,
+							),
 					};
 
-					// The untagged automatic link receiver is checked separately for missing release metadata.
+					// Check the automatic receiver separately to verify container release inheritance before link validation.
 					const supported = {
 						...facts,
 						declarations: facts.declarations.filter(
@@ -1274,7 +1276,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							?.releaseLevel,
 						ReleaseLevel.Beta,
 					);
-					assert.equal(context.metadata.get(property.id)?.releaseLevel, ReleaseLevel.Public);
+					assert.equal(context.metadata.get(property.id)?.releaseLevel, ReleaseLevel.Beta);
 					const redirect = facts.declarations.find((item) => item.name === "PropertyRedirect")
 						?.members[0];
 					assert(redirect !== undefined);
@@ -1319,34 +1321,38 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert(property.documentationContext !== undefined);
 					for (const [documentation, expected] of [
 						[
-							"/** Property without release metadata. */",
-							DiagnosticCode.ClassificationReleaseMissing,
+							"/** Property with incompatible release metadata. @internal */",
+							DiagnosticCode.ClassificationContainerMismatch,
 						],
-						["/** See {@link missing}. @public */", DiagnosticCode.DocumentationReference],
-						["/** {@inheritDoc missing} @public */", DiagnosticCode.DocumentationReference],
+						["/** See {@link missing}. @beta */", DiagnosticCode.DocumentationReference],
+						["/** {@inheritDoc missing} @beta */", DiagnosticCode.DocumentationReference],
 					] as const) {
-						const input = createAnalysisContext({
-							...facts,
-							surfaces: [],
-							declarations: [
-								{
-									...scoped,
-									heritage: [],
-									baseDeclarations: [],
-									members: [
-										{
-											...property,
-											declarations: [{ ...propertySource, documentation }],
-											documentationContext: {
-												...property.documentationContext,
-												inheritance: { reference: "missing", status: "not-found" },
-												links: [{ reference: "missing", status: "not-found" }],
+						const input = createAnalysisContext(
+							{
+								...facts,
+								surfaces: [],
+								declarations: [
+									...facts.declarations.filter((item) => item.id !== scoped.id),
+									{
+										...scoped,
+										heritage: [],
+										baseDeclarations: [],
+										members: [
+											{
+												...property,
+												declarations: [{ ...propertySource, documentation }],
+												documentationContext: {
+													...property.documentationContext,
+													inheritance: { reference: "missing", status: "not-found" },
+													links: [{ reference: "missing", status: "not-found" }],
+												},
 											},
-										},
-									],
-								},
-							],
-						});
+										],
+									},
+								],
+							},
+							{ rules: { requireReleaseLevel: false } },
+						);
 						const invalidProperty = input.ok ? completeAnalysis(input.value) : input;
 						assert.equal(invalidProperty.ok, false, documentation);
 						assert.equal(invalidProperty.diagnostics[0]?.code, expected, documentation);
@@ -1369,10 +1375,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							context.metadata.get(link.targetSignature)?.releaseLevel,
 							ReleaseLevel.Beta,
 						);
-						assert.equal(
-							context.metadata.get(signature.id)?.releaseLevel,
-							ReleaseLevel.Public,
-						);
+						assert.equal(context.metadata.get(signature.id)?.releaseLevel, ReleaseLevel.Beta);
 					}
 					for (const [owner, method, expected] of [
 						["DocumentedClass", "convert", true],
@@ -1433,12 +1436,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						assert(method !== undefined, entry.name);
 						assert.equal(method.documented, entry.name === "DocumentedClass", entry.name);
 					}
-					const missingLevel = completeAnalysis(createTestAnalysisContext(facts));
-					assert.equal(missingLevel.ok, false);
-					assert.equal(
-						missingLevel.diagnostics[0]?.code,
-						DiagnosticCode.DocumentationConfiguration,
-					);
+					const inheritedLevel = completeAnalysis(createTestAnalysisContext(facts));
+					assert.equal(inheritedLevel.ok, true, JSON.stringify(inheritedLevel));
 					const invalid = {
 						...supported,
 						declarations: supported.declarations.map((declaration) =>
@@ -1453,7 +1452,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 															assert(signature.documentationContext !== undefined);
 															return {
 																...signature,
-																documentation: "/** See {@link missing}. @public */",
+																documentation: "/** See {@link missing}. @beta */",
 																documentationContext: {
 																	...signature.documentationContext,
 																	links: [
@@ -1599,6 +1598,149 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.equal("value" in result, false);
 			});
 
+			it("inherits container releases and retains complete selected containers", async () => {
+				const result = await analyzeAPIs(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/container-members.d.ts" }],
+						customModifierTags: ["@selected", "@omit"],
+					},
+					directory,
+				);
+				assert.equal(result.ok, true, JSON.stringify(result));
+				const report = result.value.generateReport(".", {
+					name: "selected",
+					releaseLevels: [ReleaseLevel.Public],
+					requireTags: ["@selected"],
+					excludeTags: ["@omit"],
+				});
+				assert.equal(report.ok, true, JSON.stringify(report));
+				for (const text of [
+					"private constructor",
+					"static create",
+					"value: string",
+					"method(value: string)",
+					"method(value: number)",
+					"new (value: string)",
+					"[key: string]",
+					"Second = 2",
+					"namespace Nested",
+					"function operation",
+					"class Child",
+					"export import self = WholeNamespace",
+				]) {
+					assert.equal(report.value.includes(text), true, `${text}\n${report.value}`);
+				}
+				const beta = result.value.generateReport(".", {
+					name: "beta",
+					releaseLevels: [ReleaseLevel.Beta],
+				});
+				assert.equal(beta.ok, true);
+				assert.match(beta.value, /inherited: string/);
+				assert.equal(beta.value.includes("WholeClass"), false);
+				const publicReport = result.value.generateReport(".", {
+					name: "public",
+					releaseLevels: [ReleaseLevel.Public],
+				});
+				assert.equal(publicReport.ok, true);
+				assert.match(publicReport.value, /standalone\(value: string\)/);
+				assert.equal(publicReport.value.includes("standalone(value: number)"), false);
+
+				// Model consumers receive effective release metadata, not copied custom tags or invented comments.
+				const model = decodeDependencyModel(result.value.generateModel(), "example");
+				assert.equal(model.ok, true, JSON.stringify(model));
+				const derived = model.value.apis.find((item) => item.name === "DerivedContainer");
+				assert(derived !== undefined);
+				assert.equal(
+					model.value.apis.find(
+						(item) => item.declarationId === derived.id && item.name === "inherited",
+					)?.metadata.releaseLevel,
+					ReleaseLevel.Public,
+				);
+				assert.equal(
+					model.value.apis.find(
+						(item) => item.declarationId === derived.id && item.name === "local",
+					)?.metadata.releaseLevel,
+					ReleaseLevel.Beta,
+				);
+				const whole = model.value.apis.find((item) => item.name === "WholeClass");
+				assert(whole !== undefined);
+				const value = model.value.apis.find(
+					(item) => item.declarationId === whole.id && item.name === "value",
+				);
+				assert(value !== undefined);
+				assert.equal(value.metadata.releaseLevel, ReleaseLevel.Public);
+				assert.equal(value.metadata.modifierTags.includes("@selected"), false);
+				assert.equal(value.metadata.modifierTags.includes("@omit"), true);
+			});
+
+			it("rejects local container mismatches across member forms without an opt-out", async () => {
+				const source = readFileSync(
+					path.join(directory, "declarations/container-members.d.ts"),
+					"utf8",
+				);
+				const file = path.join(directory, "declarations/container-mismatch.d.ts");
+				try {
+					for (const member of [
+						"private constructor();",
+						"static create(): WholeClass;",
+						"get label(): string;",
+						"method(value: number): number;",
+						"(value: string): string;",
+						"new (value: string): WholeClass;",
+						"[key: string]: unknown;",
+						"Second = 2",
+						"function operation(): void;",
+						"class Child {",
+					]) {
+						// Change only the closest member comment in a temporary declaration; the checked-in fixture stays valid.
+						const line = source
+							.split("\n")
+							.find((text) => text.trim().replace(/,$/, "") === member);
+						assert(line !== undefined, member);
+						writeFileSync(file, source.replace(line, `/** @beta */\n${line}`));
+						const result = await analyzeAPIs(
+							{
+								packageName: "example",
+								project: "tsconfig.json",
+								entrypoints: [{ name: ".", path: "declarations/container-mismatch.d.ts" }],
+								customModifierTags: ["@selected", "@omit"],
+								rules: { requireReleaseLevel: false, validateTsdocSyntax: false },
+							},
+							directory,
+						);
+						assert.equal(result.ok, false, member);
+						assert.equal(
+							result.diagnostics[0]?.code,
+							DiagnosticCode.ClassificationContainerMismatch,
+							JSON.stringify(result),
+						);
+						assert.match(result.diagnostics[0]?.message ?? "", /container-mismatch\.d\.ts/);
+					}
+					writeFileSync(
+						file,
+						source.replace("local: string;", "/** @public */\ninherited: string;"),
+					);
+					const override = await analyzeAPIs(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/container-mismatch.d.ts" }],
+							customModifierTags: ["@selected", "@omit"],
+						},
+						directory,
+					);
+					assert.equal(override.ok, false);
+					assert.equal(
+						override.diagnostics[0]?.code,
+						DiagnosticCode.ClassificationContainerMismatch,
+					);
+				} finally {
+					rmSync(file, { force: true });
+				}
+			});
+
 			it("renders selected class and interface members after compiler disposal", () => {
 				const configuration = getSuccessValue(
 					resolveConfiguration(
@@ -1629,7 +1771,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const text = renderReviewReport(report);
 					assert.equal(text.includes("export namespace Operations {"), true, text);
 					assert.equal(text.includes("export function visible(): void;"), true, text);
-					assert.equal(text.includes("function hidden()"), false, text);
+					assert.equal(text.includes("function hidden()"), true, text);
 
 					// Cycles remain aliases, while excluding a namespace also excludes its recursive bindings.
 					assert.equal(text.includes("export import self = Operations;"), true, text);
@@ -1638,7 +1780,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					// Merge repeated members in the report without discarding either original source record.
 					assert.equal(text.includes("export interface Settings {"), true, text);
 					assert.equal(text.includes("endpoint: string;"), true, text);
-					assert.equal(text.includes("internalTimeout"), false, text);
+					assert.equal(text.includes("internalTimeout"), true, text);
 					assert.equal(text.split("endpoint: string;").length - 1, 1);
 					assert.equal(
 						facts.declarations.find((item) => item.name === "Settings")?.declarations.length,
@@ -1689,8 +1831,8 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					);
 					assert.equal(text.includes("readonly value: Value;"), true);
 					assert.equal(text.includes("lookup(value: string): Value;"), true);
-					assert.equal(text.includes("lookup(value: number)"), false);
-					assert.equal(text.includes("count?"), false);
+					assert.equal(text.includes("lookup(value: number)"), true);
+					assert.equal(text.includes("count?"), true);
 					assert.equal(
 						text.includes("callback?: ((value: Value) => void) | undefined;"),
 						true,
@@ -1708,7 +1850,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assert.equal(text.includes('export const version: "v1";'), true, text);
 					assert.equal(text.includes("export enum Mode"), true, text);
 					assert.equal(text.includes("Visible = 1"), true, text);
-					assert.equal(text.includes("Hidden = 2"), false, text);
+					assert.equal(text.includes("Hidden = 2"), true, text);
 					assert.equal(text.includes("performance"), false, text);
 					assert.equal(
 						text.includes("export type { Implementation as TypeImplementation };"),
