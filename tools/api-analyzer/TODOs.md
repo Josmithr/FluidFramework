@@ -77,6 +77,8 @@ See [TSDoc's documentation](https://tsdoc.org/pages/tags/label/) for more detail
 
 While the design hasn't been finalized, I think it would be reasonable to add support for it here and allow references to be expressed in terms of labels.
 
+If there are any cases where TSDoc's reference syntax can't disambiguate between declarations correctly, we can document this as the mechanism to make docs linkable.
+
 ## (Long-term) End-to-end test configurations
 
 Once we have most of the code working, we should add some comprehensive end-to-end test suites that cover sample repo configurations.
