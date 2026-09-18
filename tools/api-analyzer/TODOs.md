@@ -56,6 +56,13 @@ But does this actually work? Do we get sufficient information from the `.d.ts` f
 
 And what would the end-user implications of this be?
 
+## (Future stage) Copy comments to generated rollup files
+
+TSDoc comments should be preserved in the generated rollup files.
+Eventually, we will want to add the ability to transform the docs that end up here and in other derived artifacts (see [](#long-term-doc-transformations)).
+
+For v1, we should copy as-is, but we should strip `@privateRemarks` blocks out. These comments are meant for local developers only.
+
 ## (Long-term) Add support for `{@label}`
 
 TSDoc has an experimental tag definition that allows users to annotate their APIs with unique labels that can be used to more easily disambiguate references.
