@@ -82,7 +82,7 @@ import {
 } from "./contextUtils.js";
 
 /**
- * Checks the type-only consumer against original declarations and isolated rendered report modules.
+ * Checks a declaration consumer against original declarations and isolated rendered report modules.
  *
  * @remarks
  * Uses both consumer compilers and removes its temporary files on success or failure.
@@ -90,23 +90,27 @@ import {
  *
  * @param directory - Temporary fixture project containing emitted declarations.
  * @param reports - Report Markdown keyed by the module basename expected by the consumer.
+ * @param consumer - Consumer fixture basename. Defaults to the type-only fixture.
+ * @param supportingModules - Extra original declaration modules. Defaults to the report-members fixture.
  * @throws If a report has no unique code block or either consumer compilation fails.
  */
-function validateTypeOnlyConsumers(
+function validateReportConsumers(
 	directory: string,
 	reports: ReadonlyMap<string, string>,
+	consumer = "typeOnlyValues",
+	supportingModules: readonly string[] = ["report-members"],
 ): void {
 	const consumerDirectory = path.join(directory, "type-only-consumer");
 	mkdirSync(consumerDirectory);
 	try {
-		for (const name of ["report-members", ...reports.keys()]) {
+		for (const name of [...supportingModules, ...reports.keys()]) {
 			cpSync(
 				path.join(directory, `declarations/${name}.d.ts`),
 				path.join(consumerDirectory, `${name}.d.ts`),
 			);
 		}
 		cpSync(
-			new URL("../../src/test/fixtures/consumer/typeOnlyValues.ts", import.meta.url),
+			new URL(`../../src/test/fixtures/consumer/${consumer}.ts`, import.meta.url),
 			path.join(consumerDirectory, "consumer.ts"),
 		);
 		writeFileSync(
@@ -141,7 +145,7 @@ function validateTypeOnlyConsumers(
 					[path.join(compilerDirectory, "bin/tsc"), "-p", "tsconfig.json"],
 					{
 						cwd: consumerDirectory,
-						stdio: "pipe",
+						stdio: "inherit",
 						timeout: 15000,
 					},
 				);
@@ -411,9 +415,13 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				[path.join(compilerDirectory, "bin/tsc"), "-p", "build.json"],
 				{
 					cwd: directory,
-					stdio: "pipe",
+					stdio: "inherit",
 					timeout: 15000,
 				},
+			);
+			cpSync(
+				new URL("../../src/test/fixtures/native/ambient-modules.d.ts", import.meta.url),
+				path.join(directory, "declarations/ambient-modules.d.ts"),
 			);
 			const configFileName = path.join(directory, "tsconfig.json");
 			writeFileSync(
@@ -1499,6 +1507,117 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("retains effective named references through inherited generic members", () => {
+				const configuration = getSuccessValue(
+					resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/effective-references.d.ts" }],
+						},
+						directory,
+					),
+				);
+				const adapter = createNativeAdapter();
+				try {
+					const facts = getSuccessValue(adapter.analyze(configuration));
+					adapter.close();
+					const preview = facts.declarations.find((item) => item.name === "Preview");
+					const derived = facts.declarations.find((item) => item.name === "Derived");
+					assert(preview !== undefined && derived !== undefined);
+					for (const member of derived.members) {
+						const context =
+							member.documentationContext ?? member.signatures[0]?.documentationContext;
+						assert(
+							context?.typeReferences?.some((reference) => reference.target === preview.id) ===
+								true,
+							member.name,
+						);
+					}
+					const result = completeAnalysis(
+						createTestAnalysisContext(facts, {
+							referencePolicies: {
+								releaseCompatibility: true,
+								entrypointExposure: true,
+								directional: [
+									{
+										name: "no-public-to-beta",
+										source: { releaseLevels: [ReleaseLevel.Public] },
+										target: { releaseLevels: [ReleaseLevel.Beta] },
+									},
+								],
+							},
+						}),
+					);
+					assert.equal(result.ok, true, JSON.stringify(result));
+					const model = getSuccessValue(
+						decodeDependencyModel(encodeDependencyModel(result.value), "example"),
+					);
+					for (const member of derived.members) {
+						const identities =
+							member.documentationContext === undefined
+								? member.signatures.map((signature) => signature.id)
+								: [member.id];
+						for (const id of identities) {
+							assert.equal(
+								model.apis.find((item) => item.id === id)?.metadata.releaseLevel,
+								ReleaseLevel.Public,
+							);
+						}
+					}
+					const report = renderReviewReport(
+						getSuccessValue(
+							createReviewReport(prepareReviewReport(result.value), ".", {
+								name: "beta",
+								releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
+							}),
+						),
+					);
+					assert.match(report, /get\(\): Preview \| undefined/);
+					assert.match(report, /nested: readonly Preview\[]/);
+					const source = facts.declarations.find((item) => item.name === "Base");
+					assert(source !== undefined);
+					for (const owner of [source, derived]) {
+						const invalid = {
+							...facts,
+							declarations: facts.declarations.map((declaration) =>
+								declaration.id === owner.id
+									? {
+											...declaration,
+											members: declaration.members.map((member) =>
+												member.documentationContext === undefined
+													? member
+													: {
+															...member,
+															documentationContext: {
+																...member.documentationContext,
+																container: source.id,
+																typeReferences: [
+																	{
+																		target: preview.id,
+																		text: "Preview",
+																		origin: member.documentationContext.origin,
+																	},
+																],
+															},
+														},
+											),
+										}
+									: declaration,
+							),
+						};
+						const checked = completeAnalysis(
+							createTestAnalysisContext(invalid, {
+								referencePolicies: { releaseCompatibility: true },
+							}),
+						);
+						assert.equal(checked.ok, owner === derived);
+					}
+				} finally {
+					adapter.close();
+				}
+			});
+
 			it("retains unexported declaration references after compiler disposal", () => {
 				const configuration = getSuccessValue(
 					resolveConfiguration(
@@ -1777,6 +1896,46 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("resolves package API links in their original scope without item classification", async () => {
+				const file = path.join(directory, "declarations/package-links.d.ts");
+				const original =
+					"/**\n * See {@link Alias.(operation:static)}, {@link example#ReferenceSource.(operation:instance)}, {@link (overloaded:1)}, and {@link https://example.com}.\n * @packageDocumentation\n */\nimport { ReferenceSource as Alias, overloaded } from './reference-selectors.js';\nexport {};";
+				try {
+					writeFileSync(file, original);
+					const configuration = {
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/reference-selectors.d.ts" }],
+					};
+					const analysis = getSuccessValue(await analyzeAPIs(configuration, directory));
+					const model = getSuccessValue(
+						decodeDependencyModel(analysis.generateModel(), "example"),
+					);
+					assert.equal(model.packageDocumentation?.links.length, 3);
+					assert.notEqual(
+						model.packageDocumentation?.links[0]?.targetSignature,
+						model.packageDocumentation?.links[1]?.targetSignature,
+					);
+					assert(
+						model.packageDocumentation?.links.every(
+							(link) => link.origin.file === "declarations/package-links.d.ts",
+						) === true,
+					);
+					for (const [reference, code] of [
+						["(overloaded:2)", DiagnosticCode.DocumentationLinkPolicy],
+						["(overloaded:3)", DiagnosticCode.DocumentationReference],
+						["missing", DiagnosticCode.DocumentationReference],
+					] as const) {
+						writeFileSync(file, original.replace("(overloaded:1)", reference));
+						const result = await analyzeAPIs(configuration, directory);
+						assert.equal(result.ok, false);
+						assert.equal(result.diagnostics[0]?.code, code, JSON.stringify(result));
+					}
+				} finally {
+					rmSync(file, { force: true });
+				}
+			});
+
 			it("rejects misplaced, duplicate, and invalid package comments", async () => {
 				const file = path.join(directory, "declarations/package-overview.d.ts");
 				const duplicate = path.join(directory, "declarations/package-overview-copy.d.ts");
@@ -1805,7 +1964,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						],
 						[
 							original.replace("Package-wide overview.", "See {@link ReferenceSource}."),
-							DiagnosticCode.DocumentationUnsupported,
+							DiagnosticCode.DocumentationReference,
 						],
 						[
 							"/**\n * {@inheritDoc ReferenceSource}\n * @packageDocumentation\n */\nexport {};",
@@ -2129,6 +2288,52 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				);
 			});
 
+			it("deduplicates merged inheritance requests before resolving their original scopes", async () => {
+				const file = path.join(directory, "declarations/merged-scope.d.ts");
+				const augmentation = path.join(
+					directory,
+					"declarations/merged-scope-augmentation.d.ts",
+				);
+				const original = readFileSync(file, "utf8");
+				const augmented = readFileSync(augmentation, "utf8");
+				const comment = "/** Shared description. See {@link localTarget}. @public */";
+				const configuration = {
+					packageName: "example",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "declarations/merged-scope-augmentation.d.ts" }],
+					referencePolicies: { inheritanceVisibility: true },
+				};
+				try {
+					writeFileSync(
+						file,
+						`${original.replace(comment, "/** {@inheritDoc LocalSource} @public */")}\n/** First source. @public */\nexport interface LocalSource {}\n`,
+					);
+					const duplicate = `${augmented.replace(comment, "/** {@inheritDoc LocalSource} @public */")}\n/** Second source. @internal */\nexport interface LocalSource {}\n`;
+					writeFileSync(augmentation, duplicate);
+					const result = getSuccessValue(await analyzeAPIs(configuration, directory));
+					const model = getSuccessValue(
+						decodeDependencyModel(result.generateModel(), "example"),
+					);
+					const settings = model.apis.find((item) => item.name === "SharedSettings");
+					assert.match(settings?.documentation.documentation ?? "", /First source/);
+					assert.doesNotMatch(settings?.documentation.documentation ?? "", /Second source/);
+					assert.equal(settings?.documentation.inheritedFrom.length, 1);
+					writeFileSync(
+						augmentation,
+						`${duplicate.replace(
+							"{@inheritDoc LocalSource} @public",
+							"{@inheritDoc OtherSource} @public",
+						)}\nexport type { LocalSource as OtherSource };\n`,
+					);
+					const invalid = await analyzeAPIs(configuration, directory);
+					assert.equal(invalid.ok, false);
+					assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.ReferencePolicy);
+				} finally {
+					writeFileSync(file, original);
+					writeFileSync(augmentation, augmented);
+				}
+			});
+
 			it("retains distinct merged descriptions with each link's original scope", async () => {
 				const file = path.join(directory, "declarations/merged-scope-augmentation.d.ts");
 				const original = readFileSync(file, "utf8");
@@ -2170,6 +2375,40 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("inherits same-kind declaration documentation without changing shape", async () => {
+				const result = getSuccessValue(
+					await analyzeAPIs(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/declaration-inheritance.d.ts" }],
+						},
+						directory,
+					),
+				);
+				const model = getSuccessValue(
+					decodeDependencyModel(result.generateModel(), "example"),
+				);
+				for (const [name, description] of [
+					["ReceiverClass", "Class description"],
+					["ReceiverAlias", "Alias description"],
+					["receiverConstant", "Constant description"],
+					["ReceiverEnum", "Enum description"],
+					["ReceiverNamespace", "Namespace description"],
+				]) {
+					assert.match(
+						model.apis.find((item) => item.name === name)?.documentation.documentation ?? "",
+						new RegExp(description ?? ""),
+					);
+				}
+				const report = getSuccessValue(
+					result.generateReport(".", { name: "public", releaseLevels: [ReleaseLevel.Public] }),
+				);
+				assert(report.includes("other: Value"));
+				assert(report.includes("receiverConstant: number"));
+				assert(report.includes("Two = 2"));
+			});
+
 			it("inherits documentation from merged interfaces and repeated properties", async () => {
 				const analysis = getSuccessValue(
 					await analyzeAPIs(
@@ -2209,12 +2448,74 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.equal(property.documentation.inheritedFrom.length, 1);
 				assert.equal(property.metadata.releaseLevel, ReleaseLevel.Public);
 				assert.equal(property.metadata.modifierTags.includes("@legacy"), false);
+				const combined = model.apis.find((item) => item.name === "CombinedSettings");
+				assert(combined !== undefined);
+				const combinedText = combined.documentation.documentation ?? "";
+				assert.match(combinedText, /First source description/);
+				assert.match(combinedText, /Additional source description/);
+				assert.equal(combinedText.split("First source description").length, 2);
+				assert.equal(combined.documentation.inheritedFrom.length, 2);
+				assert.equal(combined.documentation.links.length, 2);
+				assert.equal(combined.metadata.modifierTags.includes("@legacy"), false);
+				assert.match(combinedText, /Local combined description/);
+				assert.match(combinedText, /Local combined example/);
+				assert.doesNotMatch(combinedText, /Source-only|source-only/);
+				assert(
+					combinedText.indexOf("First source description") <
+						combinedText.indexOf("Additional source description"),
+				);
+				assert.match(combinedText, /Additional value documentation/);
+				assert.equal(
+					combined.documentation.sections?.filter((section) => section.section === "summary")
+						.length,
+					3,
+				);
+				const chain = model.apis.find((item) => item.name === "CombinedChain");
+				assert.match(chain?.documentation.documentation ?? "", /Local combined description/);
+				assert.equal(
+					chain?.documentation.sections?.filter((section) => section.section === "summary")
+						.length,
+					3,
+				);
+				assert.doesNotMatch(analysis.generateModel(), /documentation-contribution:/);
+				const combinedProperty = model.apis.find(
+					(item) => item.declarationId === combined.id && item.name === "value",
+				);
+				assert.match(
+					combinedProperty?.documentation.documentation ?? "",
+					/Additional property description/,
+				);
+				assert.match(
+					combinedProperty?.documentation.documentation ?? "",
+					/Second property description/,
+				);
 			});
 
 			it("rejects invalid merged inheritance shapes, selectors, requests, and cycles", async () => {
 				const file = path.join(directory, "declarations/merged-inheritance.d.ts");
 				const original = readFileSync(file, "utf8");
 				const cases = [
+					{
+						text: `${original.replace(
+							"Additional source description. See {@link destination}.",
+							"Additional source description. See {@link internalDestination}.",
+						)}\n/** @internal */\nexport declare function internalDestination(): void;\n`,
+						code: DiagnosticCode.DocumentationLinkPolicy,
+					},
+					{
+						text: original.replace(
+							"{@inheritDoc AdditionalSettings}",
+							"{@inheritDoc missingSettings}",
+						),
+						code: DiagnosticCode.DocumentationReference,
+					},
+					{
+						text: original.replace(
+							"{@inheritDoc AdditionalSettings}",
+							"{@inheritDoc CombinedChain}",
+						),
+						code: DiagnosticCode.DocumentationCycle,
+					},
 					{
 						text: original.replaceAll(
 							"ReceivingSettings<Value>",
@@ -2248,7 +2549,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							"{@inheritDoc SourceSettings.value}",
 							"{@inheritDoc ReceivingSettings.value}",
 						),
-						code: DiagnosticCode.DocumentationUnsupported,
+						code: DiagnosticCode.DocumentationCycle,
 					},
 					{
 						text: original.replace(
@@ -2422,6 +2723,122 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("retains type, value, callable and namespace facets of compound symbols", async () => {
+				const analysis = getSuccessValue(
+					await analyzeAPIs(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/compound-merges.d.ts" }],
+						},
+						directory,
+					),
+				);
+				const report = getSuccessValue(
+					analysis.generateReport(".", {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					}),
+				);
+				for (const text of [
+					"interface Contract",
+					"const Contract",
+					"function Factory(value: string)",
+					"namespace Factory",
+					"class Widget",
+					"label: string",
+					"namespace Widget",
+					"function create()",
+					"interface Shape",
+					"namespace Shape",
+					"enum Mode",
+					"namespace Mode",
+				]) {
+					assert(report.includes(text), report);
+				}
+				const model = getSuccessValue(
+					decodeDependencyModel(analysis.generateModel(), "example"),
+				);
+				assert(model.exports.some((item) => item.path.join(".") === "Factory.version"));
+				assert(model.exports.some((item) => item.path.join(".") === "Widget.create"));
+				assert(report.includes("extends Left, Right"), report);
+				assert(report.includes("Extended<Value extends string = string>"), report);
+				assert(report.includes("(value: number): number"), report);
+				validateReportConsumers(
+					directory,
+					new Map([["compound-merges", report]]),
+					"compoundMerges",
+					[],
+				);
+			});
+
+			it("merges string-literal ambient modules through namespace and direct exports", async () => {
+				const analysis = getSuccessValue(
+					await analyzeAPIs(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/ambient-entry.d.ts" }],
+						},
+						directory,
+					),
+				);
+				const report = getSuccessValue(
+					analysis.generateReport(".", {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					}),
+				);
+				const model = getSuccessValue(
+					decodeDependencyModel(analysis.generateModel(), "example"),
+				);
+				const namespace = model.apis.find((item) => item.kind === "ModuleDeclaration");
+				assert(namespace !== undefined);
+				assert.match(
+					namespace.documentation.documentation ?? "",
+					/First ambient contribution/,
+				);
+				assert.match(
+					namespace.documentation.documentation ?? "",
+					/Second ambient contribution/,
+				);
+				assert.equal(namespace.documentation.links.length, 2);
+				assert(model.exports.some((item) => item.path.join(".") === "Tools.Settings"));
+				assert(model.exports.some((item) => item.path.join(".") === "ToolsAgain.update"));
+				validateReportConsumers(
+					directory,
+					new Map([["ambient-entry", report]]),
+					"ambientModules",
+					["ambient-modules"],
+				);
+			});
+
+			it("rejects conflicting release levels across compound facets", async () => {
+				const file = path.join(directory, "declarations/compound-merges.d.ts");
+				const original = readFileSync(file, "utf8");
+				try {
+					writeFileSync(
+						file,
+						original.replace("Numeric factory.\n * @public", "Numeric factory.\n * @internal"),
+					);
+					const result = await analyzeAPIs(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/compound-merges.d.ts" }],
+						},
+						directory,
+					);
+					assert.equal(result.ok, false);
+					assert.equal(
+						result.diagnostics[0]?.code,
+						DiagnosticCode.ClassificationReleaseConflict,
+					);
+				} finally {
+					writeFileSync(file, original);
+				}
+			});
+
 			it("combines namespace declarations and retains their complete nested exports", async () => {
 				const analysis = getSuccessValue(
 					await analyzeAPIs(
@@ -2483,7 +2900,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.match(report, /export { Services as RenamedServices }/);
 			});
 
-			it("rejects conflicting namespace metadata and unsupported compound merges", async () => {
+			it("rejects conflicting namespace metadata", async () => {
 				const file = path.join(directory, "declarations/merged-namespace.d.ts");
 				const original = readFileSync(file, "utf8");
 				const cases = [
@@ -2497,10 +2914,6 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					{
 						text: original.replace("* @omit", "* @omit\n * @internal"),
 						code: DiagnosticCode.ClassificationContainerMismatch,
-					},
-					{
-						text: `${original}\n/**\n * Compound interface contribution.\n * @public\n */\nexport interface Services { value: string; }\n`,
-						code: DiagnosticCode.DocumentationUnsupported,
 					},
 				];
 				try {
@@ -2577,7 +2990,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.match(report, /export type { Mode as ChainedMode }/);
 				assert.match(report, /export type { version as chainedVersion }/);
 
-				validateTypeOnlyConsumers(
+				validateReportConsumers(
 					directory,
 					new Map([
 						[

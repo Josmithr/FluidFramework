@@ -106,6 +106,22 @@ export interface ReviewStatement extends ReviewSignature, DeclarationStatementFa
  */
 export interface ReviewContainer extends ReviewStatement {
 	/**
+	 * Separate interface syntax for call and construct signatures merged with a class.
+	 * @defaultValue Omitted for containers that can render all members in one declaration.
+	 */
+	readonly augmentation?: {
+		/**
+		 * Interface type parameters and heritage after the shared declaration name.
+		 */
+		readonly suffix: string;
+
+		/**
+		 * Call and construct signatures that cannot be placed in the class body.
+		 */
+		readonly members: readonly ReviewSignature[];
+	};
+
+	/**
 	 * Selected member syntax with effective documentation status and original annotations.
 	 *
 	 * @remarks
@@ -292,6 +308,12 @@ interface PreparedStatement extends PreparedSignature, DeclarationStatementFact 
  */
 interface PreparedContainer extends PreparedStatement {
 	/**
+	 * Atomic interface augmentation already joined with original member metadata.
+	 * @defaultValue Omitted when the class has no callable or constructable interface augmentation.
+	 */
+	readonly augmentation?: NonNullable<ReviewContainer["augmentation"]>;
+
+	/**
 	 * Complete declared and effective member records before selection.
 	 *
 	 * @remarks
@@ -411,7 +433,10 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 	// Capture effective content after inheritance, but keep the original tags for annotations.
 	const signatures = new Map<ApiItemId, PreparedSignature>();
 	for (const item of facts.declarations.flatMap((declaration) => [
-		...(declaration.documentationContext === undefined ? declaration.signatures : []),
+		...(declaration.documentationContext === undefined ||
+		declaration.declarations.some((source) => source.kind === "FunctionDeclaration")
+			? declaration.signatures
+			: []),
 		...declaration.members.flatMap((member) =>
 			member.documentationContext === undefined ? member.signatures : [],
 		),
@@ -486,7 +511,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 				let namespace: PreparedExport["namespace"];
 				if (
 					declaration.documentationContext !== undefined &&
-					declaration.declarations.every((source) => source.kind === "ModuleDeclaration")
+					declaration.declarations.some((source) => source.kind === "ModuleDeclaration")
 				) {
 					// Stop only cycles on this path. Other export paths can still expand the same namespace.
 					// Retain the target metadata so selection treats a recursive alias like its namespace.
@@ -537,7 +562,8 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 					declarationName: declaration.name,
 					name: binding.name,
 					typeOnly: binding.typeOnly,
-					signatures: (declaration.documentationContext === undefined
+					signatures: (declaration.documentationContext === undefined ||
+					declaration.declarations.some((source) => source.kind === "FunctionDeclaration")
 						? declaration.signatures
 						: []
 					).map((signature) => {
@@ -598,15 +624,28 @@ function prepareContainer(
 	if (
 		!syntax.supported ||
 		!documentation.has(declaration.id) ||
-		(declaration.memberView === "partial" && syntax.kind !== "enum") ||
+		(declaration.memberView === "partial" &&
+			syntax.kind !== "enum" &&
+			(declaration.limitations.length === 0 ||
+				declaration.limitations.some(
+					(limitation) => limitation.code !== DiagnosticCode.MemberExpansionOutsideSuite,
+				))) ||
 		effectiveMembers.some(
 			(member) => member.signatures.length === 0 && !documentation.has(member.id),
 		)
 	) {
 		return undefined;
 	}
+	const augmentationMembers =
+		syntax.interfaceSuffix === undefined
+			? []
+			: syntax.declaredMembers.filter(
+					(member) => member.kind === "CallSignature" || member.kind === "ConstructSignature",
+				);
 	const members = [
-		...syntax.declaredMembers.map((member) => prepareItem(member.id, member.printed)),
+		...syntax.declaredMembers
+			.filter((member) => !augmentationMembers.includes(member))
+			.map((member) => prepareItem(member.id, member.printed)),
 		...effectiveMembers.flatMap((member) =>
 			member.signatures.length > 0 && member.documentationContext === undefined
 				? member.signatures.map((signature) =>
@@ -627,6 +666,17 @@ function prepareContainer(
 		...prepareItem(declaration.id, ""),
 		prefix: syntax.prefix,
 		suffix: syntax.suffix,
+		...(syntax.interfaceSuffix === undefined
+			? {}
+			: {
+					augmentation: {
+						suffix: syntax.interfaceSuffix,
+						members: augmentationMembers.map((member) => {
+							const { id: _id, ...prepared } = prepareItem(member.id, member.printed);
+							return prepared;
+						}),
+					},
+				}),
 		members,
 	};
 }
@@ -680,7 +730,9 @@ export function createReviewReport(
 					exports.push({
 						...entry,
 						namespace: { ...namespace, exports: selectEntries(nested, true) },
-						signatures: [],
+						signatures: entry.signatures.map(
+							({ id: _signatureId, ...signature }) => signature,
+						),
 					});
 				}
 				continue;
@@ -905,6 +957,11 @@ function renderDeclarationText(
 		if (direct === undefined) {
 			if (!localName || localName === "default") {
 				localName = "apiFunction";
+			} else if (!/^[$A-Z_a-z][\w$]*$/.test(localName)) {
+				localName =
+					/^[$A-Z_a-z][\w$]*$/.test(binding.name) && binding.name !== "default"
+						? binding.name
+						: "apiFunction";
 			}
 			const baseName = localName;
 			let suffix = 1;
@@ -913,6 +970,9 @@ function renderDeclarationText(
 			}
 		}
 		usedNames.add(localName);
+		const declarationPrefix =
+			direct === undefined ? (enclosing.size === 0 ? "declare " : "") : "export ";
+		let namespaceDeclaration: string | undefined;
 		if (binding.namespace !== undefined) {
 			// Extend names only for this nested scope so sibling namespaces cannot inherit each other's bindings.
 			const nested = renderDeclarationText(
@@ -923,14 +983,12 @@ function renderDeclarationText(
 				.split("\n")
 				.map((line) => (line.length > 0 ? `    ${line}` : ""))
 				.join("\n");
-			declarations.push(
-				`${renderAnnotation(binding.namespace)}${direct === undefined ? "declare" : "export"} namespace ${localName} {\n${nested}\n}`,
-			);
+			namespaceDeclaration = `${renderAnnotation(binding.namespace)}${declarationPrefix}namespace ${localName} {\n${nested}\n}`;
 		}
 		if (binding.statement !== undefined) {
 			const statement = binding.statement;
 			declarations.push(
-				`${renderAnnotation(statement)}${direct === undefined ? "declare" : "export"} ${statement.prefix}${localName}${statement.suffix}`,
+				`${renderAnnotation(statement)}${declarationPrefix}${statement.prefix}${localName}${statement.suffix}`,
 			);
 		}
 		if (binding.container !== undefined) {
@@ -944,14 +1002,30 @@ function renderDeclarationText(
 				)
 				.join("\n");
 			declarations.push(
-				`${renderAnnotation(container)}${direct === undefined ? "declare" : "export"} ${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
+				`${renderAnnotation(container)}${declarationPrefix}${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
 			);
+			if (container.augmentation !== undefined) {
+				const augmentationText = container.augmentation.members
+					.map((member) =>
+						`${renderAnnotation(member)}${member.text}`
+							.split("\n")
+							.map((line) => `    ${line}`)
+							.join("\n"),
+					)
+					.join("\n");
+				declarations.push(
+					`${renderAnnotation(container)}${declarationPrefix}interface ${localName}${container.augmentation.suffix} {\n${augmentationText}\n}`,
+				);
+			}
 		}
 		for (const signature of binding.signatures) {
 			const comment = renderAnnotation(signature);
 			declarations.push(
-				`${comment}${direct === undefined ? "declare" : "export"} function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
+				`${comment}${declarationPrefix}function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
 			);
+		}
+		if (namespaceDeclaration !== undefined) {
+			declarations.push(namespaceDeclaration);
 		}
 		for (const exported of group) {
 			if (exported !== direct) {

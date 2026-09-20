@@ -115,7 +115,7 @@ function resolveDirectionalRules(
 }
 
 /**
- * Checks each retained type-reference occurrence in original diagnostic order.
+ * Checks locally declared type references in original diagnostic order, without revalidating inherited member views.
  * @param context - Detached facts and original metadata.
  * @param directional - Enabled rules resolved to identity sets.
  * @param exposure - Precomputed entrypoint exposure; empty when that policy is disabled.
@@ -128,6 +128,14 @@ function validateTypeReferences(
 ): Result {
 	for (const item of context.items.values()) {
 		const original = item.signature ?? item.declaredMember ?? item.member ?? item.declaration;
+		const container = original.documentationContext?.container;
+		if (
+			item.member !== undefined &&
+			container !== undefined &&
+			container !== item.declaration.id
+		) {
+			continue;
+		}
 		for (const reference of original.documentationContext?.typeReferences ?? []) {
 			const target = context.declarations.get(reference.target);
 			assert(

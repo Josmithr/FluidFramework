@@ -260,6 +260,22 @@ export function collectApiLinkNodes(node: DocNode): readonly DocLinkTag[] {
 }
 
 /**
+ * Collects labels from original parsed documentation without copying inherited labels.
+ * @param node - Original comment node.
+ * @returns Distinct label names in documentation order.
+ */
+export function collectDocumentationLabels(node: DocNode): readonly string[] {
+	const own =
+		"tagName" in node &&
+		node.tagName === "@label" &&
+		"tagContent" in node &&
+		typeof node.tagContent === "string"
+			? [node.tagContent.trim()]
+			: [];
+	return [...new Set([...own, ...node.getChildNodes().flatMap(collectDocumentationLabels)])];
+}
+
+/**
  * Indexes immutable facts and prepares supported original declaration and member comments.
  *
  * @remarks
@@ -437,7 +453,8 @@ function collectCallableDocumentationInputs(
 ): AnalysisDocumentationInput[] {
 	// Effective signatures have view-specific identities but retain their original comment scope.
 	const callables = [
-		...(declaration.documentationContext === undefined
+		...(declaration.documentationContext === undefined ||
+		declaration.declarations.some((source) => source.kind === "FunctionDeclaration")
 			? declaration.signatures.map((signature) => ({ signature, member: undefined }))
 			: []),
 		...declaration.members.flatMap((member) =>
@@ -544,7 +561,7 @@ function validateUnresolvedMergedComments(
 				if (comment.inheritDocTag !== undefined || collectApiLinkNodes(comment).length > 0) {
 					return reportFailure(
 						DiagnosticCode.DocumentationUnsupported,
-						`Merged API ${declaration.name}/${item.name} at ${source.packageName}/${source.file}:${source.start}: this declaration form or its inheritance requests cannot be combined into a supported documentation context. Use a supported declaration form and at most one distinct inheritance request.`,
+						`Merged API ${declaration.name}/${item.name} at ${source.packageName}/${source.file}:${source.start}: this declaration form has no supported documentation context. Use a supported declaration form so each original reference can be resolved.`,
 					);
 				}
 			}

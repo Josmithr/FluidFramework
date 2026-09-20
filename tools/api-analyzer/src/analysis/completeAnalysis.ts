@@ -16,11 +16,14 @@ import {
 	createDocumentationContext,
 	type AnalysisContext,
 	type ParsedDocumentationItem,
+	type AnalysisDocumentationInput,
 } from "./documentationContext.js";
+import type { ApiItemId, DocumentationReferenceContext } from "../analysis-types/facts.js";
 import {
 	bindAutomaticDocumentationReferences,
 	bindDocumentationLinks,
 	bindDocumentationReferences,
+	bindPackageDocumentation,
 	resolveDocumentation,
 } from "./documentation.js";
 import { freezeData } from "../utilities/freezeData.js";
@@ -38,14 +41,19 @@ import { validateReferencePolicies } from "./referencePolicy.js";
  * Selected dependency documentation retains resolved link and section origins without repeating target resolution.
  * Supported interface, property, and named namespace merges retain combined content and original link origins.
  * Explicit interface and property inheritance includes supported merged receivers and targets.
- * Broader structural merges and multiple distinct inheritance requests remain pending.
+ * Merged comments deduplicate original contributions, resolve each retained request, then combine content.
  *
  * @param context - Original indexed facts, parsed comments, and classification from one invocation.
  * @returns A completed graph, or documentation diagnostics without partial graph data.
  * @throws If lookup data or bindings violate internal invariants.
  */
 export function completeAnalysis(context: AnalysisContext): Result<CompletedAnalysis> {
-	for (const item of context.items.values()) {
+	const expanded = expandMergedDocumentation(context);
+	if (!expanded.ok) {
+		return expanded;
+	}
+	const bindingContext = expanded.value.context;
+	for (const item of bindingContext.items.values()) {
 		if (
 			item.packageName !== context.facts.packageName &&
 			(item.originalLinks.length > 0 || item.parsed.docComment.inheritDocTag !== undefined) &&
@@ -57,17 +65,27 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 			);
 		}
 	}
-	const inheritance = bindDocumentationReferences(context);
+	const inheritance = bindDocumentationReferences(bindingContext);
 	if (!inheritance.ok) {
 		return inheritance;
 	}
-	const references = validateReferencePolicies(context, inheritance.value);
+	const references = validateReferencePolicies(
+		context,
+		inheritance.value.map((binding) => ({
+			...binding,
+			source: expanded.value.owners.get(binding.source) ?? binding.source,
+		})),
+	);
 	if (!references.ok) {
 		return references;
 	}
-	const links = bindDocumentationLinks(context);
+	const links = bindDocumentationLinks(bindingContext);
 	if (!links.ok) {
 		return links;
+	}
+	const packageDocumentation = bindPackageDocumentation(context);
+	if (!packageDocumentation.ok) {
+		return packageDocumentation;
 	}
 	const dependencyApis = context.dependencies.flatMap((model) => model.apis);
 	const dependencies = new Map(dependencyApis.map((api) => [api.id, api.documentation]));
@@ -89,12 +107,13 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 	const resolutionContext = {
 		...context,
 		items: new Map<string, ParsedDocumentationItem<DocumentationInput>>([
-			...context.items,
+			...bindingContext.items,
 			...dependencyContext.value.items,
 		]),
 	};
 	const documentation = resolveDocumentation(resolutionContext, inheritance.value, {
-		linkValidation: { bindings: links.value, metadata: context.metadata },
+		linkValidation: { bindings: links.value, metadata: bindingContext.metadata },
+		mergedInputs: expanded.value.mergedInputs,
 		automaticInheritance: createAutomaticMemberBindings(context),
 		dependencies,
 		packages: new Set([
@@ -111,23 +130,152 @@ export function completeAnalysis(context: AnalysisContext): Result<CompletedAnal
 		ok: true,
 		value: {
 			facts: context.facts,
+			...(packageDocumentation.value === undefined
+				? {}
+				: { packageDocumentation: packageDocumentation.value }),
 			dependencies: context.dependencies,
 			classification: context.classification,
-			documentation: documentation.value.map((resolved) => {
-				const dependency = dependencies.get(resolved.id);
-				if (dependency !== undefined) {
-					return dependency;
-				}
-				const original = context.items.get(resolved.id);
-				assert(original !== undefined, "Resolved documentation must have an original input.");
-				return {
-					...resolved,
-					documented: hasDocumentationContent(original.parsed.docComment),
-					originalBlockTags: [...original.originalBlockTags],
-				};
-			}),
+			documentation: documentation.value
+				.filter((resolved) => !expanded.value.owners.has(resolved.id))
+				.map((resolved) => {
+					const dependency = dependencies.get(resolved.id);
+					if (dependency !== undefined) {
+						return dependency;
+					}
+					const original = context.items.get(resolved.id);
+					assert(
+						original !== undefined,
+						"Resolved documentation must have an original input.",
+					);
+					return {
+						...resolved,
+						links: resolved.links.map((link) => ({
+							...link,
+							source: expanded.value.owners.get(link.source) ?? link.source,
+						})),
+						sections:
+							resolved.sections?.map((section) => ({
+								...section,
+								source: expanded.value.owners.get(section.source) ?? section.source,
+							})) ?? [],
+						inheritedFrom: [
+							...new Set(
+								resolved.inheritedFrom.filter((id) => !expanded.value.owners.has(id)),
+							),
+						],
+						documented: hasDocumentationContent(original.parsed.docComment),
+						originalBlockTags: [...original.originalBlockTags],
+					};
+				}),
 		},
 	});
+}
+
+/**
+ * Creates private resolution inputs for deduplicated merged-comment contributions.
+ * Classification remains owned by the original API; temporary identities never enter emitted facts or models.
+ *
+ * @param context - Original analysis and classification for the invocation.
+ * @returns Extended binding context and ordered contribution ownership, or documentation syntax diagnostics.
+ */
+function expandMergedDocumentation(context: AnalysisContext): Result<{
+	readonly context: AnalysisContext;
+	readonly mergedInputs: ReadonlyMap<ApiItemId, readonly ApiItemId[]>;
+	readonly owners: ReadonlyMap<ApiItemId, ApiItemId>;
+}> {
+	const inputs: AnalysisDocumentationInput[] = [];
+	const owners = new Map<ApiItemId, ApiItemId>();
+	const mergedInputs = new Map<ApiItemId, readonly ApiItemId[]>();
+	const metadata = new Map(context.metadata);
+	for (const item of context.items.values()) {
+		if (context.dependencies.some((model) => model.apis.some((api) => api.id === item.id))) {
+			continue;
+		}
+		const original = item.signature ?? item.declaredMember ?? item.member ?? item.declaration;
+		const contributions = original.documentationContext?.contributions;
+		if (contributions === undefined) {
+			continue;
+		}
+		const ids = contributions.map((contribution, index) => {
+			const id = `documentation-contribution:${JSON.stringify([item.id, index])}`;
+			assert(
+				!context.items.has(id),
+				"Contribution identities must not collide with API identities.",
+			);
+			owners.set(id, item.id);
+			const classification = context.metadata.get(item.id);
+			assert(
+				classification !== undefined,
+				"Merged documentation must retain original classification.",
+			);
+			metadata.set(id, { ...classification, id });
+			inputs.push(createContributionInput(item, id, contribution));
+			return id;
+		});
+		mergedInputs.set(item.id, ids);
+	}
+	const standard = new TSDocConfiguration();
+	const parsed = createDocumentationContext(inputs, {
+		rules: context.rules,
+		customModifierTags: context.configuration.tagDefinitions
+			.filter((tag) => standard.tryGetTagDefinition(tag.tagName) === undefined)
+			.map((tag) => tag.tagName),
+	});
+	if (!parsed.ok) {
+		return parsed;
+	}
+	if (!parsed.value.validation.ok) {
+		return parsed.value.validation;
+	}
+	return {
+		ok: true,
+		value: {
+			context: {
+				...context,
+				metadata,
+				items: new Map([...context.items, ...parsed.value.items]),
+			},
+			mergedInputs,
+			owners,
+		},
+	};
+}
+
+/**
+ * Associates one original contribution with the owning declaration shape and its private resolution identity.
+ * @param item - Original API input whose classification and declaration shape are reused.
+ * @param id - Private contribution identity.
+ * @param contribution - Original comment and compiler lookup facts.
+ * @returns A resolution input without changing original facts.
+ */
+function createContributionInput(
+	item: AnalysisDocumentationInput,
+	id: ApiItemId,
+	contribution: DocumentationReferenceContext,
+): AnalysisDocumentationInput {
+	assert(
+		item.signature === undefined,
+		"Merged comments belong to declarations or properties, not independent callable overloads.",
+	);
+	const input = {
+		...item,
+		id,
+		documentation: contribution.documentation,
+		packageName: contribution.origin.packageName,
+	};
+	if (item.declaredMember !== undefined) {
+		return {
+			...input,
+			declaredMember: { ...item.declaredMember, id, documentationContext: contribution },
+		};
+	}
+	if (item.member !== undefined) {
+		return { ...input, member: { ...item.member, id, documentationContext: contribution } };
+	}
+	return {
+		...input,
+		declaration: { ...item.declaration, documentationContext: contribution },
+	};
 }
 
 /**

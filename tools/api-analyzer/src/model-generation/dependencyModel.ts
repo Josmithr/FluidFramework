@@ -9,7 +9,10 @@ import {
 	TSDocTagDefinition,
 	TSDocTagSyntaxKind,
 } from "@microsoft/tsdoc";
-import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
+import type {
+	CompletedAnalysis,
+	CompletedPackageDocumentation,
+} from "../analysis-types/completedGraph.js";
 import type {
 	DependencyApi,
 	DependencyExport,
@@ -18,6 +21,7 @@ import type {
 import type { ApiItemId, DeclarationFact, Origin } from "../analysis-types/facts.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
+import { ReleaseLevel } from "../analysis-types/classification.js";
 
 const originSchema = z.strictObject({
 	packageName: z.string().min(1),
@@ -65,7 +69,11 @@ const modelSchema = z.strictObject({
 	packageName: z.string().min(1),
 	modifierTags: z.array(z.string()),
 	packageDocumentation: z
-		.strictObject({ origin: originSchema, documentation: z.string() })
+		.strictObject({
+			origin: originSchema,
+			documentation: z.string(),
+			links: z.array(linkSchema.omit({ source: true })),
+		})
 		.optional(),
 	inputFiles: z
 		.array(
@@ -98,6 +106,8 @@ const modelSchema = z.strictObject({
 				declarationId: z.string(),
 				name: z.string(),
 				kind: z.string(),
+				declarationKinds: z.array(z.string().min(1)).min(1),
+				labels: z.array(z.string()).refine((labels) => new Set(labels).size === labels.length),
 				origin: originSchema,
 				parameters: z
 					.array(
@@ -117,6 +127,12 @@ const modelSchema = z.strictObject({
 				metadata: metadataSchema,
 				documentation: documentationSchema,
 			})
+			.refine(
+				(api) =>
+					api.declarationKinds.includes(api.kind) &&
+					new Set(api.declarationKinds).size === api.declarationKinds.length,
+				"Declaration kinds must include the original kind without duplicates.",
+			)
 			.transform(({ parameters, typeParameters, ...api }) => ({
 				...api,
 				...(parameters === undefined ? {} : { parameters }),
@@ -131,10 +147,12 @@ const modelSchema = z.strictObject({
 				typeOnly: z.boolean(),
 				items: z.array(z.string()).min(1),
 				memberKind: z.enum(["static", "instance"]).optional(),
+				symbolId: z.string().optional(),
 				referencePath: z.array(z.string()).min(1).optional(),
 			})
-			.transform(({ memberKind, referencePath, ...entry }) => ({
+			.transform(({ memberKind, referencePath, symbolId, ...entry }) => ({
 				...entry,
+				...(symbolId === undefined ? {} : { symbolId }),
 				...(memberKind === undefined ? {} : { memberKind }),
 				...(referencePath === undefined ? {} : { referencePath }),
 			})),
@@ -155,16 +173,22 @@ export function encodeDependencyModel(graph: CompletedAnalysis): string {
 	);
 	const { apis, owners } = collectModelApis(graph);
 	const exports = collectModelExports(graph);
-	const external = collectExternalReferences(graph.facts.packageName, apis, exports, owners);
+	const external = collectExternalReferences(
+		graph.facts.packageName,
+		apis,
+		exports,
+		owners,
+		graph.packageDocumentation,
+	);
 	const model: DependencyModel = {
 		format: "api-analyzer-documentation",
 		version: 1,
 		identityVersion: 1,
 		compilerVersion: graph.facts.compilerVersion,
 		packageName: graph.facts.packageName,
-		...(graph.facts.packageDocumentation === undefined
+		...(graph.packageDocumentation === undefined
 			? {}
-			: { packageDocumentation: graph.facts.packageDocumentation }),
+			: { packageDocumentation: graph.packageDocumentation }),
 		inputFiles: graph.facts.inputFiles,
 
 		// The selected suite is a validated analysis input, even when no retained API references a package.
@@ -253,7 +277,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 		name: string,
 		kind: string,
 		origin: Origin,
-		context?: Pick<DependencyApi, "parameters" | "typeParameters">,
+		context?: Partial<Pick<DependencyApi, "parameters" | "typeParameters" | "labels">>,
 	): void {
 		const owner = declaration.declarations[0]?.packageName;
 		assert(
@@ -271,6 +295,11 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 			declarationId: declaration.id,
 			name,
 			kind,
+			labels: context?.labels ?? [],
+			declarationKinds:
+				id === declaration.id
+					? [...new Set(declaration.declarations.map((source) => source.kind))]
+					: [kind],
 			origin,
 			...(context?.parameters === undefined ? {} : { parameters: context.parameters }),
 			...(context?.typeParameters === undefined
@@ -315,6 +344,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 				member.name,
 				memberSource.kind,
 				member.documentationContext?.origin ?? memberSource,
+				member.documentationContext,
 			);
 			for (const signature of member.signatures) {
 				add(
@@ -334,6 +364,7 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 				declaration.name,
 				member.kind,
 				member.documentationContext.origin,
+				member.documentationContext,
 			);
 		}
 	}
@@ -374,7 +405,17 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 			"Model export targets must have retained declaration facts.",
 		);
 		const items = metadata.has(id)
-			? [id]
+			? [
+					id,
+					...(declaration.container?.declaredMembers ?? [])
+						.filter((member) => member.kind === "Constructor" && metadata.has(member.id))
+						.map((member) => member.id),
+					...(declaration.declarations.some((source) => source.kind === "FunctionDeclaration")
+						? declaration.signatures
+								.filter((signature) => metadata.has(signature.id))
+								.map((signature) => signature.id)
+						: []),
+				]
 			: declaration.signatures
 					.filter((signature) => metadata.has(signature.id))
 					.map((signature) => signature.id);
@@ -384,6 +425,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 				entrypoint,
 				path,
 				items,
+				...(declaration.symbolId === undefined ? {} : { symbolId: declaration.symbolId }),
 				typeOnly,
 				...(memberKind === undefined ? {} : { memberKind }),
 				...(referencePath === undefined ? {} : { referencePath }),
@@ -401,7 +443,8 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 			if (memberItems.length > 0) {
 				exports.push({
 					entrypoint,
-					path: [...path, member.name],
+					path: [...path, member.referenceName ?? member.name],
+					...(member.symbolId === undefined ? {} : { symbolId: member.symbolId }),
 					items: memberItems,
 					typeOnly,
 					memberKind: "instance",
@@ -457,13 +500,16 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
  * Collects identities referenced by exports, inherited content, links, and section provenance.
  * @param apis - Local API records.
  * @param exports - Exported target paths.
+ * @param packageDocumentation - Package-owned link targets. Omit when package documentation is absent.
  * @returns Referenced identities in validation order, including repeated occurrences.
  */
 function collectReferencedApiIds(
 	apis: readonly DependencyApi[],
 	exports: readonly DependencyExport[],
+	packageDocumentation?: CompletedPackageDocumentation,
 ): ApiItemId[] {
 	return [
+		...(packageDocumentation?.links.map((link) => link.targetSignature) ?? []),
 		...exports.flatMap((entry) => entry.items),
 		...apis.flatMap((api) => [
 			...api.documentation.inheritedFrom,
@@ -479,6 +525,7 @@ function collectReferencedApiIds(
  * @param apis - Classified local API records.
  * @param exports - Export paths that can reference dependency APIs.
  * @param owners - Package ownership for all retained identities.
+ * @param packageDocumentation - Package-owned link targets. Omit when package documentation is absent.
  * @returns Unique external references sorted by identity.
  * @throws If a referenced identity has no known external owner.
  */
@@ -487,10 +534,11 @@ function collectExternalReferences(
 	apis: readonly DependencyApi[],
 	exports: readonly DependencyExport[],
 	owners: ReadonlyMap<ApiItemId, string>,
+	packageDocumentation?: CompletedPackageDocumentation,
 ): DependencyModel["external"] {
 	const known = new Set(apis.map((api) => api.id));
 	const external = new Map<ApiItemId, string>();
-	for (const id of collectReferencedApiIds(apis, exports)) {
+	for (const id of collectReferencedApiIds(apis, exports, packageDocumentation)) {
 		if (known.has(id)) {
 			continue;
 		}
@@ -638,9 +686,11 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 			}
 		}
 	}
-	const missing = collectReferencedApiIds(model.apis, model.exports).find(
-		(id) => !ids.has(id),
-	);
+	const missing = collectReferencedApiIds(
+		model.apis,
+		model.exports,
+		model.packageDocumentation,
+	).find((id) => !ids.has(id));
 	if (missing !== undefined) {
 		return reportFailure(
 			DiagnosticCode.DependencyModel,
@@ -717,7 +767,9 @@ function validateModelDocumentation(model: DependencyModel): Result {
 			}
 		}
 		if (
-			api.kind === "InterfaceDeclaration" && api.parameters === undefined
+			["InterfaceDeclaration", "ClassDeclaration", "TypeAliasDeclaration"].includes(
+				api.kind,
+			) && api.parameters === undefined
 				? api.typeParameters === undefined
 				: (api.parameters === undefined) !== (api.typeParameters === undefined)
 		) {
@@ -756,7 +808,24 @@ function validatePackageModelDocumentation(
 		comment.params.count > 0 ||
 		comment.typeParams.count > 0 ||
 		comment.returnsBlock !== undefined ||
-		collectCommentReferences(comment).length > 0 ||
+		collectCommentReferences(comment).length !== documentation.links.length ||
+		collectCommentReferences(comment).some(
+			(reference, index) =>
+				reference !== documentation.links[index]?.reference ||
+				documentation.links[index]?.linkIndex !== index,
+		) ||
+		documentation.links.some((link) => {
+			const target = model.apis.find((api) => api.id === link.targetSignature);
+			return (
+				link.origin.packageName !== model.packageName ||
+				link.origin.file !== documentation.origin.file ||
+				link.origin.start !== documentation.origin.start ||
+				(target !== undefined &&
+					(target.declarationId !== link.target ||
+						target.metadata.releaseLevel === undefined ||
+						target.metadata.releaseLevel === ReleaseLevel.Internal))
+			);
+		}) ||
 		["@public", "@beta", "@alpha", "@internal"].some((tag) =>
 			comment.modifierTagSet.hasTagName(tag),
 		)

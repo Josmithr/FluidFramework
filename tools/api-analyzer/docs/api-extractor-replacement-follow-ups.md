@@ -49,7 +49,8 @@ This item is not a Stage 2 exit requirement and does not defer non-overloaded au
 Status: open; explicitly deferred beyond V1 by the 2026-09-18 container decision.
 
 V1 must keep selected containers intact, including namespace exports, static class members, and constructor signatures.
-Implementing that rule remains required work in the [member compatibility TODO](../TODOs.md#member-compatibility); this follow-up does not defer it.
+That rule is implemented and tested for the supported report and analysis forms; see the [Stage 2 acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist).
+Declaration-rollup selection remains Stage 4 work, not part of this optional follow-up.
 Investigate whether a later version can permit different member release levels or independent member selection with a clear compatibility contract.
 No namespace or static-member exception is approved for V1.
 
@@ -74,6 +75,43 @@ Status: open; follow-up to the [Stage 0 findings](../README.md#stage-0-results).
 
 No upstream bug has been filed as part of this tracked follow-up.
 The declaration-generation capability gate remains in the implementation plan. Deferring upstream reporting does not resolve that gate.
+
+## Verify and report the TSDoc unnamed-selector mismatch
+
+Status: open; requested on 2026-09-20.
+This task tracks verification and upstream reporting, not an approved reduction in TSDoc support.
+
+The official [label documentation](https://tsdoc.org/pages/tags/label/) shows references such as `Interface.(:CALL)` for labeled unnamed members.
+The pinned `@microsoft/tsdoc` 0.16.0 parser reports `tsdoc-reference-missing-identifier` for this form.
+The documentation also says the notation is not finalized, so confirm the specification before classifying this as a parser defect.
+
+1. Check the current specification, documentation examples, and linked declaration-reference discussion to confirm whether unnamed label selectors are supported or still proposed.
+2. Reproduce the behavior with a standalone `new TSDocParser().parseString("/** {@link Interface.(:CALL)} */")` call on both 0.16.0 and the latest published TSDoc version. Record versions, diagnostics, and parsed output without changing this project's dependency merely to prepare the report.
+3. Check [existing TSDoc issues](https://github.com/microsoft/tsdoc/issues). If the specification supports the syntax and the current parser rejects it, file a parser bug or add the reproduction to an existing issue. Include the specification reference, minimal input, expected parse, and actual diagnostic.
+4. If the example describes proposed or obsolete syntax instead, record that finding and request clarification or a documentation correction where appropriate. Do not label it a confirmed parser bug.
+5. Link the upstream outcome to the [parser-capability regression](../src/analysis/test/documentation.test.ts) and the [Stage 2 conformance notes](api-extractor-replacement-implementation-plan.md#remaining-stage-2-decisions).
+
+Acceptance: record the verified specification status and an upstream issue link, or the evidence that no parser bug should be filed.
+No external issue has been filed as part of adding this task.
+Reporting the mismatch does not itself implement unnamed-target resolution or close the conformance requirement.
+
+## Consider module-based documentation references
+
+Status: open investigation; explicitly deferred from Stage 2 by the 2026-09-20 decision.
+Current analysis must reject whole-module targets and import paths without a package name in TSDoc links and inheritance requests, including package comments and nested symbol references.
+
+Examples currently forbidden are `{@link my-package#}`, `{@link my-package/widgets#}`, `{@link ./widgets#Widget}`, and `{@link ./widgets#}`.
+Named package exports such as `{@link my-package#Widget}` and `{@link my-package/widgets#Widget}` remain supported under existing suite and visibility rules.
+This restriction does not affect TypeScript imports or links through named namespaces.
+
+- Evaluate whether module-level documentation destinations or source-relative API links provide sufficient value to add support.
+- Define module-target identities without inventing API release metadata. Keep the single package-owned `@packageDocumentation` comment independent from entrypoints.
+- Resolve relative paths from the original comment's source file using the compiler's resolution settings, retaining that scope through re-exports and inheritance.
+- Specify applicable suite boundaries, diagnostics, and portable model data before changing the rejection behavior.
+- Cover local and dependency-model references, module and named targets, nested symbol keys, missing paths, re-exports, and existing named package links.
+
+Outcome: record a support recommendation and its compatibility requirements.
+This investigation does not commit to implementation, block Stage 2 closure, or waive the requirement to reject these forms today.
 
 ## Support user TSDoc configuration files
 
@@ -114,7 +152,7 @@ This investigation does not defer the required automatic-inheritance or suite-re
 
 ## Required package documentation support
 
-Status: single-package ownership and initial extraction, validation, model retention, and report output are implemented; package-level API reference resolution remains open.
+Status: single-package ownership, extraction, validation, link resolution, model retention, and report output are implemented for the supported reference forms.
 
 The agreed contract is one package-owned comment, separate from all entrypoints.
 Extraction scans package-owned compiler inputs and excludes the comment from API-item metadata.
@@ -124,8 +162,12 @@ Facts and dependency models retain the original comment and location; all entryp
 TS6/TS7 emission tests, absent and multi-entrypoint tests, a report snapshot, and suite ownership/freshness tests cover these paths.
 No missing-comment annotation is emitted.
 
-Remaining required work: resolve API declaration links in package comments with original-scope lookup and define their applicable reference policies without inventing API-item classification for the package.
-Those references currently produce an explicit unsupported-feature diagnostic; URL links are supported.
+API declaration links retain original-scope lookup, selected overload identities, and local or selected-dependency targets.
+The package remains outside API-item classification.
+The approved package-link rule permits non-internal targets and rejects internal targets, like ordinary non-internal API documentation.
+Unclassified targets remain invalid because their visibility cannot be established.
+There is no package-specific visibility override.
+URL links are supported without network validation.
 Complete portable documentation models remain part of Stage 3.
 
 ## Configurable report presentation

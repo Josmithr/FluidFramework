@@ -9,14 +9,18 @@ References to `bundledPackages` describe the upstream reproductions; they do not
 
 ## Verification status
 
-All entries below are pending implementation and verification tests in the replacement library.
+Stage 2 review and validation evidence is summarized in the [current acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist).
+F4 and B1/B2/B6 have report-level and policy regressions; F1/F2/F3 have the analysis and dependency-model coverage needed for effective review documentation.
+Complete portable model and declaration-rollup obligations remain open at their assigned stages.
+Passing the Stage 2 subset does not close requirements that also cover those later outputs.
 Open questions identify acceptance details that still need agreement.
 The linked issue descriptions were inspected, but their reproductions have not been run as part of this requirements work.
 Upstream issue closure does not establish that the replacement handles the case correctly.
 Before closing an entry, link its passing regression tests and verify the applicable behavior with both TypeScript 6 and TypeScript 7.
 These versions identify the package build and declaration-consumption test configurations. One TypeScript 7 analysis engine using TypeScript 7 semantics may serve both, as permitted by W4; record the analysis engine separately.
 
-The [Stage 0 results](../README.md#stage-0-results) and [native capability tests](../src/test/nativeCapabilities.test.ts) provide preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
+The following paragraphs record historical Stage 0 and initial Stage 1/2 checkpoints, not the latest verification status.
+The [Stage 0 results](../README.md#stage-0-results) and [native capability tests](../src/test/nativeCapabilities.test.ts) initially provided preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
 They do not implement the required artifacts or reproduce the full cross-package regressions. All F1-F4 and B1-B6 entries remain open.
 The [Stage 1 session tests](../src/test/session.test.ts) check facts that contain no compiler objects.
 They cover aliases, chained type-only exports, inherited members, overload identifiers, and diagnostics for incomplete member expansion.
@@ -210,7 +214,7 @@ Resolved decision: Mixed `@internal` and non-internal standalone function overlo
 Scope clarification agreed on 2026-09-18: independent selection applies to standalone functions, not members of an atomic container.
 V1 requires every selected class, interface, enum, or namespace to retain its members, including static members and constructors.
 Contained overloads remain supported but must satisfy the container's release-level rules and must not be trimmed independently by release-level or custom-tag filters.
-See the [member compatibility decision](../TODOs.md#member-compatibility).
+See the [atomic-container decision](api-extractor-replacement-implementation-plan.md#3-atomic-compound-functionnamespace-apis) and the [merged-declaration investigation](../TODOs.md#merged-declarations).
 All F4 questions listed during this requirements discussion are resolved.
 
 Related requirements: W1, W2, W4, W5, W7.

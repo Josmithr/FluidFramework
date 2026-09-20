@@ -63,6 +63,41 @@ But does this actually work? Do we get sufficient information from the `.d.ts` f
 
 And what would the end-user implications of this be?
 
+The same question applies to a function merged with a namespace.
+For example, a public callable and public namespace could also have a beta overload:
+
+```typescript
+/**
+ * Converts text.
+ * @public
+ */
+export declare function convert(value: string): string;
+
+/**
+ * Converts a preview numeric input.
+ * @beta
+ */
+export declare function convert(value: number): number;
+
+/**
+ * Conversion utilities.
+ * @public
+ */
+export declare namespace convert {
+	/**
+	 * Utility version.
+	 */
+	export const version: "v1";
+}
+```
+
+The current analyzer rejects this example because explicit release tags on merged declarations must agree.
+This is the approved V1 behavior; standalone overloads without the namespace remain independently selectable.
+Future support would require trimming the merged declarations by release level.
+Investigate a public output containing the string overload and namespace, and a beta output also containing the number overload.
+Check `typeof convert`, overload ordering, namespace member references, and type-only re-exports in both outputs.
+This is part of the [future container-selection investigation](docs/api-extractor-replacement-follow-ups.md#flexible-container-member-selection), not an exception to the current atomic-container rule.
+
 ## (Future stage) Copy comments to generated rollup files
 
 TSDoc comments should be preserved in the generated rollup files.
@@ -70,12 +105,16 @@ Eventually, we will want to add the ability to transform the docs that end up he
 
 For v1, we should copy as-is, but we should strip `@privateRemarks` blocks out. These comments are meant for local developers only.
 
-## (Long-term) Add support for `{@label}`
+## TSDoc reference conformance
 
 TSDoc has an experimental tag definition that allows users to annotate their APIs with unique labels that can be used to more easily disambiguate references.
 See [TSDoc's documentation](https://tsdoc.org/pages/tags/label/) for more details.
 
-While the design hasn't been finalized, I think it would be reasonable to add support for it here and allow references to be expressed in terms of labels.
+The 2026-09-20 decision requires support for TSDoc reference syntax, including labels; this is no longer a deferred feature.
+Named label selectors, explicit constructors, quoted names, enum members, and unique-symbol members are implemented locally and through selected dependency models.
+The official parser currently rejects the documented unnamed `Interface.(:LABEL)` form.
+Track the parser mismatch in the [Stage 2 conformance notes](docs/api-extractor-replacement-implementation-plan.md#remaining-stage-2-decisions).
+The later 2026-09-20 decision forbids module-based references for now; possible support belongs to the [module-reference investigation](docs/api-extractor-replacement-follow-ups.md#consider-module-based-documentation-references), not Stage 2 implementation.
 
 If there are any cases where TSDoc's reference syntax can't disambiguate between declarations correctly, we can document this as the mechanism to make docs linkable.
 

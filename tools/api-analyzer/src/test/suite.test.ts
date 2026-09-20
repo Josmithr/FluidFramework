@@ -40,6 +40,177 @@ describe("Dependency suite models", () => {
 	});
 	afterEach(() => rmSync(directory, { recursive: true, force: true }));
 
+	it("forbids module-based references while preserving named package exports", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		writeFileSync(
+			path.join(root, "index.d.ts"),
+			"/**\n * Target documentation.\n * @public\n */\nexport declare function target(): void;\n",
+		);
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs(
+			{
+				...common,
+				packageName: "dependency",
+				entrypoints: [...common.entrypoints, { name: "./widgets", path: "index.d.ts" }],
+			},
+			root,
+		);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const configuration = {
+			...common,
+			packageName: "consumer",
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+		};
+		for (const reference of [
+			"consumer#",
+			"dependency#",
+			"dependency/widgets#",
+			"./widgets#",
+			"./widgets#target",
+			"../widgets#target",
+			"dependency#Target.[./keys#token]",
+			"dependency#target",
+			"dependency/widgets#target",
+		]) {
+			const permitted =
+				reference === "dependency#target" || reference === "dependency/widgets#target";
+			for (const comment of [
+				`/**\n * See {@link ${reference}}.\n * @public\n */\nexport declare function receiver(): void;`,
+				`/**\n * {@inheritDoc ${reference}}\n * @public\n */\nexport declare function receiver(): void;`,
+				`/**\n * See {@link ${reference}}.\n * @packageDocumentation\n */\nexport {};`,
+			]) {
+				writeFileSync(path.join(directory, "index.d.ts"), comment);
+				const result = await analyzeAPIs(configuration, directory);
+				assert.equal(result.ok, permitted, JSON.stringify({ reference, result }));
+				if (!result.ok) {
+					assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationUnsupported);
+					assert.match(
+						result.diagnostics[0]?.message ?? "",
+						/Module-based documentation references are forbidden/,
+					);
+					assert.equal("value" in result, false);
+				}
+			}
+		}
+	});
+
+	it("keeps outside-suite and standard-library member graphs opaque", async () => {
+		writeFileSync(
+			path.join(directory, "node_modules", "dependency", "index.d.ts"),
+			`export interface External<Value> {
+				value: Value;
+				name: string;
+			}`,
+		);
+		writeFileSync(
+			path.join(directory, "index.d.ts"),
+			`import type { External } from "dependency";
+			/**
+			 * Preview data.
+			 * @beta
+			 */
+			export interface Preview { text: string; }
+			/**
+			 * Local view of a foreign base.
+			 * @beta
+			 */
+			export interface ExternalView extends External<Preview> {
+				/**
+				 * Local override.
+				 */
+				name: "local";
+			}
+			/**
+			 * Foreign alias.
+			 * @beta
+			 */
+			export type ExternalAlias = External<Preview>;
+			/**
+			 * Named standard-library collection.
+			 * @public
+			 */
+			export interface NamedLabels extends ReadonlyArray<string> {
+				name: string;
+			}`,
+		);
+		const result = await analyzeAPIs(
+			{
+				packageName: "consumer",
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+				referencePolicies: { releaseCompatibility: true },
+			},
+			directory,
+		);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const report = result.value.generateReport(".", {
+			name: "all",
+			releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
+		});
+		assert.equal(report.ok, true, JSON.stringify(report));
+		assert.match(report.value, /ExternalView extends External<Preview>/);
+		assert.match(report.value, /name: "local"/);
+		assert.match(report.value, /NamedLabels extends ReadonlyArray<string>/);
+		assert.doesNotMatch(report.value, /value:|map\(/);
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		assert(model.value.apis.every((item) => item.origin.packageName === "consumer"));
+		const configuration = {
+			packageName: "consumer",
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+			referencePolicies: { releaseCompatibility: true },
+		};
+		const consumerFile = path.join(directory, "index.d.ts");
+		const original = readFileSync(consumerFile, "utf8");
+		for (const invalid of [
+			original.replace(
+				"* Local view of a foreign base.\n\t\t\t * @beta",
+				"* Local view of a foreign base.\n\t\t\t * @public",
+			),
+			original.replace("* Local override.", "* Local override.\n\t\t\t\t * @public"),
+		]) {
+			writeFileSync(consumerFile, invalid);
+			const checked = await analyzeAPIs(configuration, directory);
+			assert.equal(checked.ok, false);
+			assert(
+				checked.diagnostics.some(
+					(diagnostic) =>
+						diagnostic.code === DiagnosticCode.ReferencePolicy ||
+						diagnostic.code === DiagnosticCode.ClassificationContainerMismatch,
+				),
+			);
+		}
+		writeFileSync(consumerFile, original);
+		const root = path.join(directory, "node_modules", "dependency");
+		const dependencyFile = path.join(root, "index.d.ts");
+		writeFileSync(
+			dependencyFile,
+			`/**\n * External contract.\n * @public\n */\n${readFileSync(dependencyFile, "utf8")}`,
+		);
+		const dependency = await analyzeAPIs(
+			{ ...configuration, packageName: "dependency" },
+			root,
+		);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const selected = await analyzeAPIs(
+			{ ...configuration, suite: { packages: ["dep*"], modelFile: "api-model.json" } },
+			directory,
+		);
+		assert.equal(selected.ok, true, JSON.stringify(selected));
+		const selectedReport = selected.value.generateReport(".", {
+			name: "all",
+			releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
+		});
+		assert.equal(selectedReport.ok, true, JSON.stringify(selectedReport));
+		assert.match(selectedReport.value, /value: Preview/);
+	});
+
 	it("keeps package documentation local and rejects stale or malformed package records", async () => {
 		const root = path.join(directory, "node_modules", "dependency");
 		const original = readFileSync(
@@ -146,6 +317,236 @@ describe("Dependency suite models", () => {
 		const stale = await analyzeAPIs(configuration, directory);
 		assert.equal(stale.ok, false);
 		assert.equal(stale.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+	});
+
+	it("resolves package links through dependency models and validates stored targets", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		const file = path.join(directory, "index.d.ts");
+		const text =
+			"/**\n * See {@link dependency#source} and {@link alias}.\n * @packageDocumentation\n */\nimport { target as alias } from 'dependency';\nexport {};";
+		writeFileSync(file, text);
+		const configuration = {
+			...common,
+			packageName: "consumer",
+			suite: { packages: ["dependency"], modelFile: "api-model.json" },
+		};
+		const result = await analyzeAPIs(configuration, directory);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		const documentation = model.value.packageDocumentation;
+		assert(documentation !== undefined);
+		assert.equal(documentation.links.length, 2);
+		assert(
+			documentation.links.every((link) =>
+				model.value.external.some((external) => external.id === link.targetSignature),
+			),
+		);
+		for (const links of [
+			[],
+			documentation.links.map((link) => ({ ...link, targetSignature: "missing" })),
+			documentation.links.map((link) => ({ ...link, linkIndex: 9 })),
+		]) {
+			const invalid = decodeDependencyModel(
+				JSON.stringify({ ...model.value, packageDocumentation: { ...documentation, links } }),
+				"consumer",
+			);
+			assert.equal(invalid.ok, false);
+		}
+		writeFileSync(file, text.replace("dependency#source", "dependency#internalSource"));
+		const internal = await analyzeAPIs(configuration, directory);
+		assert.equal(internal.ok, false);
+		assert.equal(internal.diagnostics[0]?.code, DiagnosticCode.DocumentationLinkPolicy);
+
+		const intermediate = path.join(directory, "node_modules", "consumer");
+		mkdirSync(intermediate);
+		writeFileSync(
+			path.join(intermediate, "package.json"),
+			JSON.stringify({
+				name: "consumer",
+				types: "index.d.ts",
+				dependencies: { dependency: "1.0.0" },
+			}),
+		);
+		writeFileSync(path.join(intermediate, "index.d.ts"), text);
+		const modelFile = path.join(intermediate, "api-model.json");
+		writeFileSync(modelFile, result.value.generateModel());
+		writeFileSync(
+			path.join(directory, "package.json"),
+			JSON.stringify({
+				name: "downstream",
+				dependencies: { consumer: "1.0.0", dependency: "1.0.0" },
+			}),
+		);
+		writeFileSync(file, "export {};");
+		const downstream = {
+			...common,
+			packageName: "downstream",
+			suite: { packages: ["consumer", "dependency"], modelFile: "api-model.json" },
+		};
+		const accepted = await analyzeAPIs(downstream, directory);
+		assert.equal(accepted.ok, true, JSON.stringify(accepted));
+		writeFileSync(
+			modelFile,
+			JSON.stringify({
+				...model.value,
+				packageDocumentation: {
+					...documentation,
+					links: documentation.links.map((link) => ({ ...link, target: "wrong-declaration" })),
+				},
+			}),
+		);
+		const inconsistent = await analyzeAPIs(downstream, directory);
+		assert.equal(inconsistent.ok, false);
+		assert.equal(inconsistent.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+	});
+
+	it("preserves compound declaration targets and callable selectors in models", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/native/compound-merges.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		cpSync(
+			new URL("../../src/test/fixtures/suite/compound-consumer.d.ts", import.meta.url),
+			path.join(directory, "index.d.ts"),
+		);
+		const result = await analyzeAPIs(
+			{
+				...common,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		assert.match(
+			model.value.apis.find((item) => item.name === "copy")?.documentation.documentation ?? "",
+			/Callable factory/,
+		);
+		const links = model.value.apis.find((item) => item.name === "links")?.documentation.links;
+		assert.equal(links?.length, 3);
+		assert.notEqual(links?.[0]?.targetSignature, links?.[1]?.targetSignature);
+	});
+
+	it("inherits merged ambient module documentation from a selected model", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/native/ambient-entry.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		cpSync(
+			new URL("../../src/test/fixtures/native/ambient-modules.d.ts", import.meta.url),
+			path.join(root, "ambient-modules.d.ts"),
+		);
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		writeFileSync(
+			path.join(directory, "index.d.ts"),
+			`
+			/**
+			 * {@inheritDoc dependency#Tools}
+			 * @public
+			 */
+			export declare namespace Copied { const version: "v1"; }
+		`,
+		);
+		const result = await analyzeAPIs(
+			{
+				...common,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		const copied = model.value.apis.find((item) => item.name === "Copied");
+		assert.match(copied?.documentation.documentation ?? "", /Second ambient contribution/);
+		assert.equal(copied?.documentation.links.length, 2);
+		assert(
+			copied.documentation.links.every((link) => link.origin.packageName === "dependency"),
+		);
+		const file = path.join(root, "ambient-modules.d.ts");
+		writeFileSync(
+			file,
+			readFileSync(file, "utf8").replace(
+				"Second ambient contribution. See {@link update}.\n * @public",
+				"Second ambient contribution. See {@link update}.\n * @beta",
+			),
+		);
+		const conflict = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+		assert.equal(conflict.ok, false);
+		assert.equal(conflict.diagnostics[0]?.code, DiagnosticCode.ClassificationReleaseConflict);
+	});
+
+	it("inherits same-kind declarations from selected dependency models", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		const original = readFileSync(
+			new URL("../../src/test/fixtures/native/declaration-inheritance.ts", import.meta.url),
+			"utf8",
+		);
+		writeFileSync(path.join(root, "index.d.ts"), original);
+		const common = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+		assert.equal(dependency.ok, true, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		writeFileSync(
+			path.join(directory, "index.d.ts"),
+			original.replaceAll("{@inheritDoc ", "{@inheritDoc dependency#"),
+		);
+		const result = await analyzeAPIs(
+			{
+				...common,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert.equal(result.ok, true, JSON.stringify(result));
+		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert.equal(model.ok, true, JSON.stringify(model));
+		for (const name of [
+			"ReceiverClass",
+			"ReceiverAlias",
+			"receiverConstant",
+			"ReceiverEnum",
+			"ReceiverNamespace",
+		]) {
+			const documentation: DependencyApi["documentation"] | undefined = model.value.apis.find(
+				(item) => item.name === name,
+			)?.documentation;
+			assert(documentation !== undefined);
+			assert.equal(
+				documentation.sections?.find((section) => section.section === "summary")?.packageName,
+				"dependency",
+			);
+		}
 	});
 
 	it("rejects missing and incompatible selected models even when unused", async () => {
@@ -551,6 +952,27 @@ describe("Dependency suite models", () => {
 				"dependency",
 			);
 		}
+		for (const name of ["MultiSource", "FromMerged"]) {
+			const receiver: DependencyApi | undefined = model.value.apis.find(
+				(item) => item.name === name,
+			);
+			assert(receiver !== undefined);
+			assert.match(
+				receiver.documentation.documentation ?? "",
+				/Additional source description/,
+			);
+			assert.match(receiver.documentation.documentation ?? "", /First source description/);
+			assert.equal(receiver.documentation.links.length, 2);
+			assert(
+				receiver.documentation.links.every((link) => link.origin.packageName === "dependency"),
+			);
+			assert.equal(
+				receiver.documentation.sections?.filter((section) => section.section === "summary")
+					.length,
+				name === "MultiSource" ? 2 : 3,
+			);
+		}
+		assert.doesNotMatch(result.value.generateModel(), /documentation-contribution:/);
 		assert.match(
 			model.value.apis.find((item) => item.name === "value")?.documentation.documentation ??
 				"",
@@ -637,11 +1059,58 @@ describe("Dependency suite models", () => {
 				"",
 			/Operation retained through recursive aliases/,
 		);
+		assert.equal(
+			model.value.apis.find((api) => api.name === "kindLinks")?.documentation.links.length,
+			7,
+		);
+		assert.equal(
+			model.value.apis.find((api) => api.name === "fullSyntaxLinks")?.documentation.links
+				.length,
+			8,
+		);
+		assert.match(
+			model.value.apis.find((api) => api.name === "fromLabel")?.documentation.documentation ??
+				"",
+			/Text overload/,
+		);
+		assert.deepEqual(model.value.apis.find((api) => api.name === "fromLabel")?.labels, []);
+		assert.match(
+			model.value.apis.find((api) => api.name === "CopiedContract")?.documentation
+				.documentation ?? "",
+			/Selector contract/,
+		);
 
 		// Successfully resolving a model target must not bypass ambiguity, range, or visibility checks.
 		const consumerFile = path.join(directory, "index.d.ts");
 		const original = readFileSync(consumerFile, "utf8");
 		for (const [from, to, expected] of [
+			["(Selected:SELECTED)", "(Selected:MISSING)", DiagnosticCode.DocumentationReference],
+			[
+				"Selected.(read:TEXT)",
+				"Selected.(read:MISSING)",
+				DiagnosticCode.DocumentationReference,
+			],
+			["[dependency#token]", "[dependency#version]", DiagnosticCode.DocumentationReference],
+			[
+				"(Selected:constructor)",
+				"(ReferenceSource:constructor)",
+				DiagnosticCode.DocumentationReference,
+			],
+			[
+				"dependency#(ReferenceSource:class)",
+				"dependency#(ReferenceSource:interface)",
+				DiagnosticCode.DocumentationReference,
+			],
+			[
+				"dependency#(Group:namespace)",
+				"dependency#(Group:class)",
+				DiagnosticCode.DocumentationReference,
+			],
+			[
+				"dependency#(fromStatic:function)",
+				"dependency#(fromStatic:type)",
+				DiagnosticCode.DocumentationReference,
+			],
 			[
 				"dependency#(overloaded:1)",
 				"dependency#(overloaded:2)",
@@ -677,6 +1146,29 @@ describe("Dependency suite models", () => {
 		}
 		const produced = decodeDependencyModel(dependency.value.generateModel(), "dependency");
 		assert.equal(produced.ok, true);
+		assert.equal(
+			decodeDependencyModel(
+				JSON.stringify({
+					...produced.value,
+					apis: produced.value.apis.map((api) => ({ ...api, declarationKinds: [] })),
+				}),
+				"dependency",
+			).ok,
+			false,
+		);
+		assert.equal(
+			decodeDependencyModel(
+				JSON.stringify({
+					...produced.value,
+					apis: produced.value.apis.map((api) => ({
+						...api,
+						declarationKinds: ["WrongKind"],
+					})),
+				}),
+				"dependency",
+			).ok,
+			false,
+		);
 		const alias = produced.value.exports.find((entry) => entry.referencePath !== undefined);
 		assert(alias !== undefined);
 
@@ -692,6 +1184,16 @@ describe("Dependency suite models", () => {
 		// Reverse compiler overload order without changing either signature's stable identity.
 		const producerFile = path.join(root, "index.d.ts");
 		const producer = readFileSync(producerFile, "utf8");
+		for (const changed of [
+			producer.replace("{@label NUMBER}", "{@label TEXT}"),
+			producer.replace("constructor();", "constructor();\nconstructor(value: string);"),
+			producer.replace("(Selected:SELECTED).(read:TEXT)", "(Selected:MISSING).(read:TEXT)"),
+		]) {
+			writeFileSync(producerFile, changed);
+			const rejected = await analyzeAPIs({ ...base, packageName: "dependency" }, root);
+			assert.equal(rejected.ok, false);
+			assert.equal(rejected.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
+		}
 		const publicStart = producer.indexOf("/**\n * Public overload documentation.");
 		const internalStart = producer.indexOf("/**\n * Internal overload documentation.");
 		const afterOverloads = producer.indexOf("/**\n * Links to", internalStart);

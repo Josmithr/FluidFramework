@@ -454,8 +454,18 @@ describe("One-shot API analysis and adapter facts", () => {
 			...configuration,
 			entrypoints: [{ name: ".", path: path.join(directory, "src/environment.ts") }],
 		};
-		const node = adapter.analyze(settings);
-		const browser = adapter.analyze({ ...settings, project: browserProject });
+		const outside = adapter.analyze(settings);
+		assert(outside.ok);
+		assert.equal(outside.value.declarations[0]?.memberView, "partial");
+		assert.equal(
+			outside.value.declarations[0]?.limitations[0]?.code,
+			DiagnosticCode.MemberExpansionOutsideSuite,
+		);
+		assert.equal(outside.value.declarations[0]?.members.length, 0);
+		const node = adapter.analyze(settings, undefined, ["dependency"]);
+		const browser = adapter.analyze({ ...settings, project: browserProject }, undefined, [
+			"dependency",
+		]);
 		assert(node.ok && browser.ok, JSON.stringify({ node, browser }));
 		assert.equal(node.value.declarations[0]?.members[0]?.type, '"node"');
 		assert.equal(browser.value.declarations[0]?.members[0]?.type, '"browser"');
@@ -466,7 +476,9 @@ describe("One-shot API analysis and adapter facts", () => {
 		);
 		adapter.close();
 		adapter = createNativeAdapter();
-		const updated = adapter.analyze({ ...settings, project: browserProject });
+		const updated = adapter.analyze({ ...settings, project: browserProject }, undefined, [
+			"dependency",
+		]);
 		assert(updated.ok);
 		assert.equal(updated.value.declarations[0]?.members[0]?.type, '"updated"');
 	});

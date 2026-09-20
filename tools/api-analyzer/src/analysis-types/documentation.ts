@@ -136,6 +136,12 @@ export interface DocumentationLinkValidation {
  */
 export interface DocumentationResolutionOptions {
 	/**
+	 * Ordered, deduplicated contribution input identities resolved before merging into one API comment.
+	 * @defaultValue Omitted when every API has one resolution input.
+	 */
+	readonly mergedInputs?: ReadonlyMap<ApiItemId, readonly ApiItemId[]>;
+
+	/**
 	 * Validated resolved dependency comments, which must not repeat semantic resolution.
 	 * @defaultValue Omitted; resolution starts with no cached dependency results.
 	 */
@@ -172,7 +178,8 @@ export interface DocumentationResolutionOptions {
  */
 export interface ResolvedDocumentation extends DocumentationInput {
 	/**
-	 * Original input identity for each resolved descriptive or retained local block.
+	 * Original input identities for each resolved descriptive or retained local block.
+	 * A combined section can retain multiple source records with the same section name.
 	 * @defaultValue Omitted when provenance was not supplied by an internal input.
 	 * Resolver outputs populate this field; model decoding requires explicit section records.
 	 */

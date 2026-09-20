@@ -3,6 +3,7 @@
 [nativeCapabilities.test.ts](../../nativeCapabilities.test.ts) copies these files and the shared inputs into the same temporary `src` directory.
 TypeScript 6.0.3 and TypeScript 7.0.2 each emit declarations from that project.
 TypeScript 7.0.2 analyzes both sets of declarations.
+The ambient-module declaration-file input is type-checked by both producers and copied unchanged beside emitted declarations.
 Generated declarations stay in the temporary project and are removed after the suite.
 
 ## Inheritance boundaries
@@ -51,7 +52,11 @@ Do not treat current unsupported outcomes as permanent limitations.
 - [type-only-values.ts](type-only-values.ts) and [type-only-forward.ts](type-only-forward.ts) expose the report fixture's enum and constant through value aliases, type-only aliases, ordinary forwarding, and type-only star exports. Both consumer compilers check the emitted inputs and isolated report code blocks with [typeOnlyValues.ts](../consumer/typeOnlyValues.ts).
 - [container-members.ts](container-members.ts) verifies declaring-container release inheritance, nested namespace selection, inherited public members in a beta receiver, constructor overloads, accessor pairs, and call/construct/index signatures. Temporary mutations add mismatched member tags to verify unconditional rejection without modifying the checked-in fixture.
 - [merged-scope.ts](merged-scope.ts) and [merged-scope-augmentation.ts](merged-scope-augmentation.ts) contribute identical interface comments from different lexical scopes. Identical content keeps the first occurrence's link target. Temporary test mutations supply distinct descriptions to verify that both original targets are retained and validated.
-- [merged-inheritance.ts](merged-inheritance.ts) supplies generic merged interfaces and repeated properties for explicit inheritance. Tests retain combined descriptions and link provenance without copying custom tags, and reject renamed parameters, wrong target kinds, numeric selectors, distinct requests, and cycles.
+- [merged-inheritance.ts](merged-inheritance.ts) supplies generic merged interfaces and repeated properties for explicit inheritance. Tests deduplicate original requests, resolve retained sources, and combine their content and provenance without copying target-only tags. They cover local contributions, multi-source chains, model round trips, missing targets, wrong kinds, incompatible parameters, policy failures, and cycles.
+- [declaration-inheritance.ts](declaration-inheritance.ts) checks same-kind class, type-alias, variable, enum, and namespace inheritance without changing receiver declarations, including generic documentation and opaque compiler-library aliases.
+- [compound-merges.ts](compound-merges.ts) combines interface/constants, callable namespaces, callable and constructable generic class/interface augmentation, enum/namespace and repeated enums, merged interface heritage/defaults/signatures, type-only aliases, and sibling namespace cycles. Original and report-rendered declarations are checked by both consumer compilers with [compoundMerges.ts](../consumer/compoundMerges.ts).
+- [ambient-modules.d.ts](ambient-modules.d.ts) declares repeated string-literal modules; [ambient-entry.ts](ambient-entry.ts) exposes their merged APIs through namespace aliases and direct exports. Tests check original-scope links, combined documentation, dependency-model inheritance, release conflicts, and [consumer compatibility](../consumer/ambientModules.ts).
+- [effective-references.ts](effective-references.ts) verifies named targets introduced by generic substitution in properties, returns, tuples, dictionaries, callbacks, and conditional types after compiler disposal.
 - [merged-namespace.ts](merged-namespace.ts) contributes named and nested namespace parts with distinct documentation, a recursive alias, and custom-tagged members. Reports and models retain complete exports; temporary mutations verify release conflicts and unsupported compound merges.
 - [type-references.ts](type-references.ts) retains separate parameter and return reference occurrences to an unexported beta and legacy target for independent release, directional, and entrypoint-exposure policies.
 - [signature-views.ts](signature-views.ts) distinguishes original declarations, effective signature text, reduced types, and selectively normalized output. It covers compiler utilities, named and branded aliases, utility-name shadowing, explicit receivers, optional and rest parameters, and predicate or assertion returns.
@@ -70,7 +75,9 @@ Their detached reports match the pure report snapshots after session closure and
 
 ## Verification
 
-[reference-selectors.ts](reference-selectors.ts) checks local static/instance disambiguation, numeric links, distinct member identities, and explicit inheritance after compiler disposal.
+[reference-selectors.ts](reference-selectors.ts) checks static/instance disambiguation, numeric and label selectors, constructors, named declaration kinds, quoted names, enum members, and unique-symbol keys, including `Symbol.iterator`.
+Local and model-only tests reject wrong keys, missing or duplicate labels, and ambiguous constructors.
+The documented unnamed-selector form is a recorded parser capability limit, not an approved unsupported feature.
 The suite tests also use it as a dependency producer for model-only reference resolution.
 
 Run `pnpm build`, then `pnpm test` from the package directory for adapter, documentation, and declaration-consumer checks.

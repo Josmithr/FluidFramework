@@ -337,6 +337,9 @@ Evidence:
 ### W10. Keep repository-specific policy outside the tool
 
 The tool must conform to the [TSDoc specification](https://tsdoc.org/), including its syntax, tag semantics, and custom-tag extension rules.
+Explicit scope exception approved on 2026-09-20: reject whole-module documentation targets and import-path references without a package name for now.
+Named package-qualified API references, including configured package subpaths, remain supported.
+Potential module-based reference support is a [future investigation](api-extractor-replacement-follow-ups.md#consider-module-based-documentation-references), not a Stage 2 requirement.
 It may have built-in knowledge of tags defined by that specification, but no other tags.
 Tags outside the specification and their meanings must be supplied through configuration or extensions, not built into the tool.
 

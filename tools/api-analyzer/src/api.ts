@@ -109,7 +109,12 @@ export async function analyzeAPIs(
 			return dependencies;
 		}
 		const comments: ExtractedComments = new Map();
-		const extracted = analyzeDeclarations(configured.value, undefined, comments);
+		const extracted = analyzeDeclarations(
+			configured.value,
+			undefined,
+			comments,
+			dependencies.value.map((dependency) => dependency.packageName),
+		);
 		if (!extracted.ok) {
 			return extracted;
 		}

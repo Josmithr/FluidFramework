@@ -19,17 +19,21 @@ import {
 	getLeadingCommentRanges,
 	getTrailingCommentRanges,
 	type CallSignatureDeclaration,
+	type ComputedPropertyName,
 	type FunctionLikeDeclaration,
 	type FunctionTypeNode,
 	type MethodSignatureDeclaration,
 	type Node,
 	type SourceFile,
 	type TypeNode,
+	type TypeParameterDeclaration,
 } from "typescript/unstable/ast";
 import {
 	createFunctionTypeNode,
 	updateCallSignatureDeclaration,
 	updateParameterDeclaration,
+	updateInterfaceDeclaration,
+	createHeritageClause,
 } from "typescript/unstable/ast/factory";
 import {
 	isExportDeclaration,
@@ -57,6 +61,7 @@ import {
 	isTypeQueryNode,
 	isImportTypeNode,
 	isExpressionWithTypeArguments,
+	isComputedPropertyName,
 } from "typescript/unstable/ast/is";
 import {
 	API,
@@ -92,9 +97,14 @@ import type {
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
-import { collectApiLinkNodes, type ExtractedComments } from "./documentationContext.js";
+import {
+	collectApiLinkNodes,
+	collectDocumentationLabels,
+	type ExtractedComments,
+} from "./documentationContext.js";
 import { mergeDocumentationComments } from "./mergedDocumentation.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
+import { getDeclarationSelectorKind } from "./dependencyReferences.js";
 
 /**
  * Native compiler services used by declaration extraction and signature printing.
@@ -114,12 +124,14 @@ export interface NativeAdapter {
 	 *
 	 * @param configuration - Resolved package inputs and modifier vocabulary.
 	 * @param comments - Empty map populated with original parsed comments. Omit when the caller does not need the captured parser results.
+	 * @param suitePackages - Resolved dependency package names. Omit to analyze only the current package.
 	 * @returns Frozen facts or expected input diagnostics.
 	 * @throws If compiler queries, file access, or extraction fail unexpectedly.
 	 */
 	analyze(
 		configuration: EffectiveConfiguration,
 		comments?: ExtractedComments,
+		suitePackages?: readonly string[],
 	): Result<AnalysisFacts>;
 
 	/**
@@ -139,6 +151,7 @@ export interface NativeAdapter {
  * @param configuration - Resolved package inputs.
  * @param adapter - An adapter whose ownership transfers to this call. Defaults to a new native adapter.
  * @param comments - Empty map to receive parsed comments for context creation. Omit when the caller does not need to reuse parser results after extraction.
+ * @param suitePackages - Resolved dependency package names. Defaults to no selected dependencies.
  * @returns Detached facts or compiler input diagnostics.
  * @throws Propagates operational failures, preserving both extraction and cleanup errors when both fail.
  */
@@ -146,10 +159,11 @@ export function analyzeDeclarations(
 	configuration: EffectiveConfiguration,
 	adapter: NativeAdapter = createNativeAdapter(),
 	comments?: ExtractedComments,
+	suitePackages: readonly string[] = [],
 ): Result<AnalysisFacts> {
 	let result: Result<AnalysisFacts>;
 	try {
-		result = adapter.analyze(configuration, comments);
+		result = adapter.analyze(configuration, comments, suitePackages);
 	} catch (error) {
 		try {
 			adapter.close();
@@ -192,6 +206,7 @@ export function createNativeAdapter(): NativeAdapter {
 		 *
 		 * @param configuration - Resolved settings with absolute project and entrypoint paths.
 		 * @param comments - Empty map populated with original parsed comments; discard it on failure. Omit to keep the extraction's parser-result map private.
+		 * @param suitePackages - Resolved dependency package names. Defaults to no selected dependencies.
 		 * @returns Frozen, detached facts on success, or diagnostics for project,
 		 * compiler, or entrypoint validation failures.
 		 * @throws If compiler communication, file access, or fact extraction fails unexpectedly.
@@ -200,6 +215,7 @@ export function createNativeAdapter(): NativeAdapter {
 		analyze(
 			configuration: EffectiveConfiguration,
 			comments?: ExtractedComments,
+			suitePackages: readonly string[] = [],
 		): Result<AnalysisFacts> {
 			if (!existsSync(configuration.project)) {
 				return reportFailure(
@@ -233,7 +249,7 @@ export function createNativeAdapter(): NativeAdapter {
 
 				// TODO (Stage 2 documentation resolution): Retain general declaration and effective-member
 				// lookup contexts, including recursive instantiated ancestry, before disposing this snapshot.
-				return extractFacts(project, configuration, comments);
+				return extractFacts(project, configuration, comments, suitePackages);
 			} finally {
 				// Returned facts must not depend on handles owned by this snapshot.
 				snapshot.dispose();
@@ -274,6 +290,12 @@ export interface PackageOwner {
  * Package settings and location cache for one extraction.
  */
 export interface LocationContext {
+	/**
+	 * Resolved dependency owners whose members and type references can be expanded.
+	 * @defaultValue Omitted; only the analyzed package is in scope.
+	 */
+	readonly suitePackages?: ReadonlySet<string>;
+
 	/**
 	 * The package settings used when a manifest does not supply an owner.
 	 */
@@ -354,6 +376,7 @@ export interface CollectionState {
  * @param project - A compiler project whose diagnostics have already been checked.
  * @param configuration - Effective package, project, and entrypoint settings.
  * @param comments - Invocation-owned output map for parsed comments. Defaults to a new map.
+ * @param suitePackages - Resolved dependency package names. Defaults to no selected dependencies.
  * @returns Deeply frozen facts, or diagnostics for invalid modifier settings or entrypoints.
  * @throws If compiler queries or package metadata reads fail, an export target is unresolved,
  * or a required signature or member type cannot be extracted.
@@ -362,8 +385,13 @@ function extractFacts(
 	project: Project,
 	configuration: EffectiveConfiguration,
 	comments: ExtractedComments = new Map(),
+	suitePackages: readonly string[] = [],
 ): Result<AnalysisFacts> {
-	const locations: LocationContext = { configuration, packageCache: new Map() };
+	const locations: LocationContext = {
+		configuration,
+		packageCache: new Map(),
+		suitePackages: new Set(suitePackages),
+	};
 	const configured = createTsdocConfiguration(
 		configuration,
 		DiagnosticCode.ClassificationConfiguration,
@@ -417,6 +445,21 @@ function extractFacts(
 		name,
 		exports: collectExports(project, locations, state, moduleSymbol),
 	}));
+	let packageComment = packageDocumentation.value.documentation;
+	if (packageComment !== undefined) {
+		const source = assertDefined(
+			project.program.getSourceFile(
+				path.resolve(configuration.packageRoot, packageComment.origin.file),
+			),
+		);
+		const parsed = parser.parseString(packageComment.documentation);
+		packageComment = {
+			...packageComment,
+			references: collectLinks(parsed.docComment, (reference) =>
+				lookupReference(project, locations, state, source, source, reference, true),
+			),
+		};
+	}
 
 	// Preserve the exact analyzed inputs so consumers can reject stale dependency models without reanalysis.
 	const inputPaths = new Set(
@@ -446,9 +489,7 @@ function extractFacts(
 		ok: true,
 		value: {
 			packageName: configuration.packageName,
-			...(packageDocumentation.value.documentation === undefined
-				? {}
-				: { packageDocumentation: packageDocumentation.value.documentation }),
+			...(packageComment === undefined ? {} : { packageDocumentation: packageComment }),
 			compilerVersion: "7.0.2",
 			inputFiles,
 			surfaces,
@@ -615,12 +656,6 @@ function parsePackageDocumentation(
 			`Package ${origin.packageName}, ${origin.file}:${comment.start}: @packageDocumentation must be a leading file comment without release tags, parameter blocks, returns, or @inheritDoc.`,
 		);
 	}
-	if (collectApiLinkNodes(doc).length > 0) {
-		return reportFailure(
-			DiagnosticCode.DocumentationUnsupported,
-			`Package ${origin.packageName}, ${origin.file}:${comment.start}: API declaration links in package documentation are not supported yet. URL links are supported.`,
-		);
-	}
 	return {
 		ok: true,
 		value: { origin: { ...origin, start: comment.start }, documentation: comment.text },
@@ -736,7 +771,7 @@ export function getDeclarationId(
 		parent &&
 		!parent.declarations.some((handle) => handle.kind === SyntaxKind.SourceFile)
 	) {
-		parents.unshift(parent.name);
+		parents.unshift(getSourceSymbolName(parent));
 		parent = parent.getParent();
 	}
 	return JSON.stringify([
@@ -758,8 +793,23 @@ export function getDeclarationId(
 			: []),
 		symbol.declarations.some((handle) => handle.kind === SyntaxKind.SourceFile)
 			? "<module>"
-			: symbol.name,
+			: getSourceSymbolName(symbol),
 	]);
+}
+
+/**
+ * Retains computed member syntax instead of compiler-generated symbol names with session-specific identifiers.
+ * @param symbol - Original declaration symbol.
+ * @returns Stable source-level member syntax or the ordinary symbol name.
+ */
+function getSourceSymbolName(symbol: CompilerSymbol): string {
+	const names = symbol.declarations.flatMap((handle) => {
+		const node = handle.resolve();
+		const name =
+			node !== undefined && "name" in node ? (node.name as Node | undefined) : undefined;
+		return name !== undefined && isComputedPropertyName(name) ? [name.getText()] : [];
+	});
+	return [...new Set(names)].sort()[0] ?? symbol.name;
 }
 
 /**
@@ -1211,17 +1261,16 @@ function extractHeritageFacts(
 			for (const heritageType of clause.types) {
 				const heritageSymbol = compiler.checker.getSymbolAtLocation(heritageType.expression);
 				assert(heritageSymbol !== undefined, "The compiler must resolve a heritage target.");
+				const target = resolveSymbolTarget(compiler.checker, heritageSymbol);
+				if (!isSuiteSymbol(compiler, locations, target)) {
+					continue;
+				}
 				const instantiated = compiler.checker.getTypeAtLocation(heritageType);
 				assert(
 					instantiated !== undefined,
 					"The compiler must resolve an instantiated heritage type.",
 				);
-				const targetId = collect(
-					compiler,
-					locations,
-					state,
-					resolveSymbolTarget(compiler.checker, heritageSymbol),
-				);
+				const targetId = collect(compiler, locations, state, target);
 				const kind = clause.token === SyntaxKind.ExtendsKeyword ? "extends" : "implements";
 				const viewOwner = `heritage:${JSON.stringify([owner, kind, targetId, compiler.checker.typeToString(instantiated)])}`;
 				const viewMembers = extractMembers(compiler, locations, instantiated, viewOwner);
@@ -1521,6 +1570,10 @@ export function extractMembers(
 	}
 	return checker
 		.getPropertiesOfType(type)
+		.filter(
+			(property) =>
+				property.declarations.length === 0 || isSuiteSymbol(compiler, locations, property),
+		)
 		.map((property) => {
 			const propertyType = checker.getTypeOfSymbol(property);
 			const nodes = property.declarations
@@ -1570,9 +1623,23 @@ export function extractMembers(
 				)
 					? mergeReferenceContexts(compiler, locations, state, nodes, sourceDeclarations, id)
 					: undefined;
+			const symbolId = getMemberSymbolId(compiler, locations, property);
 			return {
 				id,
-				...(propertyContext === undefined ? {} : { documentationContext: propertyContext }),
+				referenceName: symbolId === undefined ? property.name : name,
+				...(symbolId === undefined ? {} : { symbolId }),
+				...(propertyContext === undefined || state === undefined
+					? {}
+					: {
+							documentationContext: addEffectiveTypeReferences(
+								compiler,
+								locations,
+								state,
+								propertyContext,
+								[propertyType],
+								owner,
+							),
+						}),
 				signatures:
 					callableType && state
 						? addDocumentationContexts(
@@ -1604,6 +1671,7 @@ export function extractMembers(
  * @param locations - Package settings and cache used for declaration locations.
  * @param state - Declaration tracking updated in place. Discard it if extraction throws.
  * @param moduleSymbol - The module or namespace whose exports are requested.
+ * @param namespaceOnly - Exclude class statics and synthetic exports when collecting a compound namespace. Defaults to false.
  * @returns Detached export facts sorted by exported name.
  */
 export function collectExports(
@@ -1611,10 +1679,28 @@ export function collectExports(
 	locations: LocationContext,
 	state: CollectionState,
 	moduleSymbol: CompilerSymbol,
+	namespaceOnly = false,
 ): ExportFact[] {
 	const { checker } = compiler;
 	return checker
 		.getExportsOfModule(moduleSymbol)
+		.filter(
+			(exported) =>
+				!namespaceOnly ||
+				exported.declarations.some((handle) => {
+					let node = handle.resolve()?.parent;
+					while (
+						node !== undefined &&
+						!isModuleBlock(node) &&
+						!isClassDeclaration(node) &&
+						!isEnumDeclaration(node) &&
+						!isSourceFile(node)
+					) {
+						node = node.parent;
+					}
+					return node !== undefined && isModuleBlock(node);
+				}),
+		)
 		.map((exported) => {
 			const resolved = resolveSymbolTarget(checker, exported);
 			const id = collect(compiler, locations, state, resolved);
@@ -1637,6 +1723,7 @@ export function collectExports(
  * A missing or unconfigured export path produces a not-found result; foreign qualified names use dependency models later.
  * Links and inheritance accept namespace paths, unambiguous static or instance members, and explicit member-side selectors.
  * Numeric selectors retain the declaration target; binding later selects the callable overload.
+ * Named declaration selectors validate the compiler syntax kind at each selected path component.
  * A static/instance name collision requires an explicit side and is never guessed.
  * Collects resolved targets into the supplied state, including targets that are not exported.
  * Does not validate TSDoc syntax, target compatibility, or release policies.
@@ -1649,6 +1736,7 @@ export function collectExports(
  * @param source - The source file that contains the original declaration.
  * @param reference - Parsed declaration reference. Undefined represents a target-less inheritance request and produces an unsupported lookup, not an inferred target.
  * @param allowIndexSelector - Whether this lookup accepts numeric callable selectors. Link and inheritance extraction enable them.
+ * @param collectTarget - Retain target facts for later binding. Defaults to true; symbol-key lookup only needs an identity.
  * @returns Detached lookup facts without compatibility or release-policy validation.
  * @throws If compiler queries or target collection fail unexpectedly.
  */
@@ -1660,6 +1748,7 @@ export function lookupReference(
 	source: SourceFile,
 	reference: DocDeclarationReference | undefined,
 	allowIndexSelector: boolean,
+	collectTarget = true,
 ): DocumentationReferenceLookup {
 	const { checker } = compiler;
 	const member = reference?.memberReferences[0];
@@ -1677,13 +1766,20 @@ export function lookupReference(
 			(selfQualified && state.entrypoints !== undefined)) &&
 		name !== undefined &&
 		reference.memberReferences.every((part, index) => {
-			// Symbol references do not identify a named path component supported by this lookup.
-			if (part.memberIdentifier === undefined || part.memberSymbol !== undefined) {
+			if (
+				part.memberIdentifier === undefined &&
+				(index === 0 || part.memberSymbol === undefined)
+			) {
 				return false;
 			}
 
 			return (
 				part.selector === undefined ||
+				part.selector.selectorKind === SelectorKind.Label ||
+				(part.selector.selectorKind === SelectorKind.System &&
+					part.selector.selector === "constructor") ||
+				(part.selector.selectorKind === SelectorKind.System &&
+					getDeclarationSelectorKind(part.selector.selector) !== undefined) ||
 				(allowIndexSelector &&
 					index === reference.memberReferences.length - 1 &&
 					part.selector.selectorKind === SelectorKind.Index) ||
@@ -1719,21 +1815,55 @@ export function lookupReference(
 		if (found !== undefined && !checker.isUnknownSymbol(found)) {
 			// Follow aliases before inspecting the kind of container that owns the next path component.
 			let resolved: CompilerSymbol | undefined = resolveSymbolTarget(checker, found);
-			for (const part of reference.memberReferences.slice(1)) {
+			const firstKind =
+				member?.selector?.selectorKind === SelectorKind.System
+					? getDeclarationSelectorKind(member.selector.selector)
+					: undefined;
+			if (
+				(firstKind !== undefined &&
+					!resolved.declarations.some((handle) => SyntaxKind[handle.kind] === firstKind)) ||
+				(reference.memberReferences.length > 1 &&
+					member?.selector?.selectorKind === SelectorKind.Label &&
+					!hasSymbolLabel(resolved, member.selector.selector, state))
+			) {
+				resolved = undefined;
+			}
+			for (const [pathIndex, part] of reference.memberReferences.slice(1).entries()) {
 				// A failed intermediate lookup invalidates the whole path; do not restart in outer scope.
 				if (!resolved || checker.isUnknownSymbol(resolved)) {
 					break;
 				}
 				const partName = part.memberIdentifier?.identifier;
+				const symbolLookup =
+					part.memberSymbol === undefined
+						? undefined
+						: lookupReference(
+								compiler,
+								locations,
+								state,
+								node,
+								source,
+								part.memberSymbol.symbolReference,
+								true,
+								false,
+							);
+				if (symbolLookup !== undefined && symbolLookup.status !== "resolved") {
+					return { reference: reference.emitAsTsdoc(), status: "not-found" };
+				}
 				const side =
-					part.selector?.selectorKind === SelectorKind.System
+					part.selector?.selectorKind === SelectorKind.System &&
+					["static", "instance"].includes(part.selector.selector)
 						? part.selector.selector
 						: undefined;
 				const selected: Result<CompilerSymbol | undefined> = lookupMemberSymbol(
 					checker,
 					resolved,
-					assertDefined(partName),
+					partName ?? "",
 					side,
+					symbolLookup?.status === "resolved"
+						? (property) =>
+								getMemberSymbolId(compiler, locations, property) === symbolLookup.target
+						: undefined,
 				);
 				if (!selected.ok) {
 					return { reference: reference.emitAsTsdoc(), status: "unsupported" };
@@ -1742,11 +1872,26 @@ export function lookupReference(
 				if (resolved) {
 					// Each exported path component can itself be an alias, including the final target.
 					resolved = resolveSymbolTarget(checker, resolved);
+					const kind =
+						part.selector?.selectorKind === SelectorKind.System
+							? getDeclarationSelectorKind(part.selector.selector)
+							: undefined;
+					if (
+						(kind !== undefined &&
+							!resolved.declarations.some((handle) => SyntaxKind[handle.kind] === kind)) ||
+						(pathIndex < reference.memberReferences.length - 2 &&
+							part.selector?.selectorKind === SelectorKind.Label &&
+							!hasSymbolLabel(resolved, part.selector.selector, state))
+					) {
+						resolved = undefined;
+					}
 				}
 			}
 			if (resolved && !checker.isUnknownSymbol(resolved)) {
 				// Retain the target's detached facts even when no entrypoint exports it.
-				targetId = collect(compiler, locations, state, resolved);
+				targetId = collectTarget
+					? collect(compiler, locations, state, resolved)
+					: getSymbolReferenceId(compiler, locations, resolved);
 			}
 		}
 	}
@@ -1763,11 +1908,36 @@ export function lookupReference(
 }
 
 /**
+ * Validates a label on an intermediate compiler-resolved path component.
+ * @param symbol - Resolved declaration symbol.
+ * @param label - Requested original documentation label.
+ * @param state - Invocation parser vocabulary.
+ * @returns Whether an original declaration carries the label.
+ */
+function hasSymbolLabel(
+	symbol: CompilerSymbol,
+	label: string,
+	state: CollectionState,
+): boolean {
+	const parser = state.documentation?.parser ?? new TSDocParser();
+	return symbol.declarations.some((handle) => {
+		const node = handle.resolve();
+		return (
+			node !== undefined &&
+			collectDocumentationLabels(
+				parser.parseString(getOriginalComment(node) ?? "/** */").docComment,
+			).includes(label)
+		);
+	});
+}
+
+/**
  * Looks up one path component without choosing between colliding class member sides.
  * @param checker - Active native checker.
  * @param owner - Resolved class, interface, or module symbol containing the component.
  * @param name - Parsed member identifier.
  * @param side - Explicit static or instance selector, or undefined for an unqualified component.
+ * @param matchSymbol - Matches a computed key by compiler identity. Omit to match an ordinary identifier.
  * @returns The member, undefined for a missing target, or an unsupported-path diagnostic.
  */
 function lookupMemberSymbol(
@@ -1775,17 +1945,22 @@ function lookupMemberSymbol(
 	owner: CompilerSymbol,
 	name: string,
 	side: string | undefined,
+	matchSymbol?: (symbol: CompilerSymbol) => boolean,
 ): Result<CompilerSymbol | undefined> {
 	if (owner.flags & (SymbolFlags.Class | SymbolFlags.Interface)) {
 		const staticType =
-			owner.flags & SymbolFlags.Class ? checker.getTypeOfSymbol(owner) : undefined;
+			owner.flags & (SymbolFlags.Value | SymbolFlags.Module)
+				? checker.getTypeOfSymbol(owner)
+				: undefined;
 		const staticMember =
 			staticType === undefined
 				? undefined
-				: checker.getPropertiesOfType(staticType).find((entry) => entry.name === name);
+				: checker
+						.getPropertiesOfType(staticType)
+						.find((entry) => matchSymbol?.(entry) ?? entry.name === name);
 		const instanceMember = checker
 			.getPropertiesOfType(checker.getDeclaredTypeOfSymbol(owner))
-			.find((entry) => entry.name === name);
+			.find((entry) => matchSymbol?.(entry) ?? entry.name === name);
 		if (side === undefined && staticMember !== undefined && instanceMember !== undefined) {
 			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
@@ -1814,7 +1989,79 @@ function lookupMemberSymbol(
 			value: checker.getExportsOfModule(owner).find((entry) => entry.name === name),
 		};
 	}
-	return { ok: true, value: undefined };
+	const valueType = checker.getTypeOfSymbol(owner);
+	return {
+		ok: true,
+		value:
+			valueType === undefined || side === "instance"
+				? undefined
+				: checker
+						.getPropertiesOfType(valueType)
+						.find((entry) => matchSymbol?.(entry) ?? entry.name === name),
+	};
+}
+
+/**
+ * Identifies a computed member through the compiler symbol of its key expression.
+ * @param compiler - Active compiler services.
+ * @param locations - Source ownership lookup.
+ * @param member - Property or method symbol.
+ * @returns The key declaration identity, or undefined for non-symbol names.
+ */
+function getMemberSymbolId(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	member: CompilerSymbol,
+): ApiItemId | undefined {
+	for (const handle of member.declarations) {
+		const node = handle.resolve();
+		if (
+			node !== undefined &&
+			"name" in node &&
+			node.name !== undefined &&
+			isComputedPropertyName(node.name as Node)
+		) {
+			const name = node.name as ComputedPropertyName;
+			if (
+				!(
+					(compiler.checker.getTypeAtLocation(name.expression)?.flags ?? 0) &
+					TypeFlags.UniqueESSymbol
+				)
+			) {
+				continue;
+			}
+			const symbol = compiler.checker.getSymbolAtLocation(name.expression);
+			if (symbol !== undefined) {
+				return getSymbolReferenceId(
+					compiler,
+					locations,
+					resolveSymbolTarget(compiler.checker, symbol),
+				);
+			}
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Identifies a unique-symbol declaration independently of compiler-library file versions.
+ * @param compiler - Active compiler services.
+ * @param locations - Package-relative identity context.
+ * @param symbol - Resolved key symbol.
+ * @returns A stable well-known symbol key or the package declaration identity.
+ */
+function getSymbolReferenceId(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	symbol: CompilerSymbol,
+): ApiItemId {
+	return symbol.declarations.length > 0 &&
+		symbol.declarations.every((handle) => {
+			const source = handle.resolve()?.getSourceFile();
+			return source !== undefined && compiler.program.isSourceFileDefaultLibrary(source);
+		})
+		? `well-known-symbol:${symbol.name}`
+		: getDeclarationId(locations, symbol);
 }
 
 /**
@@ -1902,14 +2149,22 @@ export function collect(
 		: symbol.flags & SymbolFlags.Type
 			? checker.getDeclaredTypeOfSymbol(symbol)
 			: checker.getTypeOfSymbol(symbol);
+	const typeSymbol = type?.getSymbol();
+	const externalType =
+		typeSymbol !== undefined &&
+		Boolean(typeSymbol.flags & (SymbolFlags.Class | SymbolFlags.Interface)) &&
+		!isSuiteSymbol(compiler, locations, typeSymbol);
 	const effectiveMembers =
-		type && !(symbol.flags & SymbolFlags.Module)
+		type &&
+		!externalType &&
+		(!(symbol.flags & SymbolFlags.Module) ||
+			Boolean(symbol.flags & (SymbolFlags.Class | SymbolFlags.Interface)))
 			? extractMembers(compiler, locations, type, id, state)
 			: [];
 	const baseDeclarations = collectBaseDeclarations(compiler, locations, state, symbol, type);
 	const namespaceExports =
 		symbol.flags & SymbolFlags.Module
-			? collectExports(compiler, locations, state, symbol)
+			? collectExports(compiler, locations, state, symbol, moduleSource === undefined)
 			: [];
 	const heritage = extractHeritageFacts(
 		compiler,
@@ -1923,6 +2178,17 @@ export function collect(
 	const implemented = heritage
 		.filter((entry) => entry.kind === "implements")
 		.map((entry) => entry.target);
+	const outsideSuite = Boolean(
+		type &&
+			(externalType ||
+				checker
+					.getPropertiesOfType(type)
+					.some(
+						(property) =>
+							property.declarations.length > 0 &&
+							!isSuiteSymbol(compiler, locations, property),
+					)),
+	);
 	const partial = Boolean(
 		type &&
 			(type.isConditionalType() ||
@@ -1941,7 +2207,6 @@ export function collect(
 	const sources = symbol.declarations.map((handle) =>
 		extractSourceDeclaration(locations, handle),
 	);
-	const source = sources[0];
 	const sourceNodes = symbol.declarations.map((handle) => handle.resolve());
 	const sourceNode = sourceNodes[0];
 	const documentationContext = extractDeclarationDocumentationContext(
@@ -1952,33 +2217,68 @@ export function collect(
 		sourceNodes,
 		id,
 	);
+	const containerIndices = sourceNodes.flatMap((node, index) =>
+		node !== undefined &&
+		(isClassDeclaration(node) || isInterfaceDeclaration(node) || isEnumDeclaration(node))
+			? [index]
+			: [],
+	);
+	const containerIndex = containerIndices[0];
 	const container =
-		sourceNode && source && sources.length === 1
-			? extractContainerSyntax(compiler, locations, state, sourceNode, source, id)
-			: mergeInterfaceContainers(compiler, locations, state, sourceNodes, sources, id);
-	const statement = extractStatementSyntax(compiler, sourceNode, type);
+		containerIndices.length === 1 && containerIndex !== undefined
+			? extractContainerSyntax(
+					compiler,
+					locations,
+					state,
+					assertDefined(sourceNodes[containerIndex]),
+					assertDefined(sources[containerIndex]),
+					id,
+				)
+			: mergeDeclarationContainers(
+					compiler,
+					locations,
+					state,
+					containerIndices.map((index) => sourceNodes[index]),
+					containerIndices.map((index) => assertDefined(sources[index])),
+					id,
+				);
+	const statementNode = sourceNodes.find(
+		(node) =>
+			node !== undefined && (isVariableDeclaration(node) || isTypeAliasDeclaration(node)),
+	);
+	const statement = extractStatementSyntax(compiler, statementNode ?? sourceNode, type);
 
 	// Publish only after recursive dependencies have been collected; active identities prevent cycles.
 	declarations.set(id, {
 		id,
+		...(getMemberSymbolId(compiler, locations, symbol) === undefined
+			? {}
+			: { symbolId: assertDefined(getMemberSymbolId(compiler, locations, symbol)) }),
 		...(documentationContext === undefined ? {} : { documentationContext }),
 		...(container === undefined ? {} : { container }),
 		...(statement === undefined ? {} : { statement }),
 		baseDeclarations,
 		heritage,
 		implementedDeclarations: implemented,
-		name: moduleSource ? getOrigin(locations, moduleSource.path, 0).file : symbol.name,
+		name: moduleSource
+			? getOrigin(locations, moduleSource.path, 0).file
+			: getSourceSymbolName(symbol),
 		declarations: sources,
 		type: type ? checker.typeToString(type, symbol.declarations[0]?.resolve()) : "",
-		memberView: partial ? "partial" : "complete",
-		limitations: partial
-			? [
-					{
-						code: DiagnosticCode.MemberExpansionIncomplete,
-						message: `Member expansion for ${symbol.name} is incomplete. Retain the original declaration and do not present this member list as complete.`,
-					},
-				]
-			: [],
+		memberView: partial || outsideSuite ? "partial" : "complete",
+		limitations:
+			partial || outsideSuite
+				? [
+						{
+							code: partial
+								? DiagnosticCode.MemberExpansionIncomplete
+								: DiagnosticCode.MemberExpansionOutsideSuite,
+							message: partial
+								? `Member expansion for ${symbol.name} is incomplete. Retain the original declaration and do not present this member list as complete.`
+								: `Member expansion for ${symbol.name} stops at types outside the suite. Retain the original type references and do not present this member list as complete.`,
+						},
+					]
+				: [],
 		members: effectiveMembers,
 		signatures: callSignatures,
 		exports: namespaceExports,
@@ -2010,18 +2310,16 @@ function collectBaseDeclarations(
 	) {
 		return [];
 	}
-	return compiler.checker.getBaseTypes(type).map((base) => {
+	return compiler.checker.getBaseTypes(type).flatMap((base) => {
 		const baseSymbol = base.getSymbol();
 		assert(
 			baseSymbol !== undefined,
 			"The compiler must resolve a declaration symbol for a base type.",
 		);
-		return collect(
-			compiler,
-			locations,
-			state,
-			resolveSymbolTarget(compiler.checker, baseSymbol),
-		);
+		const target = resolveSymbolTarget(compiler.checker, baseSymbol);
+		return isSuiteSymbol(compiler, locations, target)
+			? [collect(compiler, locations, state, target)]
+			: [];
 	});
 }
 
@@ -2048,14 +2346,19 @@ function extractDeclarationSignatures(
 		return [];
 	}
 	const facts = extractSignatures(compiler, type, id, locations);
-	const hasCallableComment = symbol.declarations.every(
+	const hasCallableComment = symbol.declarations.some(
 		(handle) =>
 			handle.kind === SyntaxKind.FunctionDeclaration ||
 			handle.kind === SyntaxKind.MethodDeclaration ||
 			handle.kind === SyntaxKind.MethodSignature,
 	);
 	return hasCallableComment
-		? addDocumentationContexts(compiler, locations, state, type, facts)
+		? addDocumentationContexts(compiler, locations, state, type, facts).map((fact) =>
+				symbol.declarations.some((handle) => handle.kind === SyntaxKind.ModuleDeclaration) &&
+				fact.documentationContext !== undefined
+					? { ...fact, documentationContext: { ...fact.documentationContext, container: id } }
+					: fact,
+			)
 		: facts;
 }
 
@@ -2064,7 +2367,7 @@ function extractDeclarationSignatures(
  *
  * @remarks
  * Merged interface, property, and named namespace comments combine content in compiler order while retaining each surviving reference's scope.
- * Namespace merges must contain only identifier-named module declarations, not compound type/value declarations.
+ * Supported compound symbols retain a shared context while each callable keeps its original parameter context.
  * Retains type-reference occurrences from every supported declaration part.
  *
  * @param compiler - Active checker and emitter.
@@ -2090,15 +2393,21 @@ function extractDeclarationDocumentationContext(
 		return undefined;
 	}
 	if (sources.length > 1) {
-		const namespace = sources.every((part) => part.kind === "ModuleDeclaration");
+		const namespace = sources.some((part) => part.kind === "ModuleDeclaration");
+		const enumeration = sources.every((part) => part.kind === "EnumDeclaration");
 		if (
 			!sourceNodes.every(
 				(node): node is Node =>
 					node !== undefined &&
 					(isInterfaceDeclaration(node) ||
+						isClassDeclaration(node) ||
+						isVariableDeclaration(node) ||
+						(enumeration && isEnumDeclaration(node)) ||
+						(namespace &&
+							(node.kind === SyntaxKind.FunctionDeclaration || isEnumDeclaration(node))) ||
 						node.kind === SyntaxKind.PropertySignature ||
 						node.kind === SyntaxKind.PropertyDeclaration ||
-						(namespace && isModuleDeclaration(node) && isIdentifier(node.name))),
+						(namespace && isModuleDeclaration(node))),
 			)
 		) {
 			return undefined;
@@ -2106,6 +2415,7 @@ function extractDeclarationDocumentationContext(
 		return mergeReferenceContexts(compiler, locations, state, sourceNodes, sources, id);
 	}
 	const supported =
+		source.kind === "EnumMember" ||
 		source.kind === "PropertyDeclaration" ||
 		source.kind === "PropertySignature" ||
 		isClassDeclaration(sourceNode) ||
@@ -2140,7 +2450,7 @@ function extractDeclarationDocumentationContext(
  * @param nodes - Available original nodes in source-record order.
  * @param sources - Nonempty original source records with the same length as nodes.
  * @param id - Documentation input identity of the effective member or declaration.
- * @returns Combined documentation with original reference origins, or `undefined` for malformed comments or distinct inheritance requests.
+ * @returns Combined metadata and original contributions for inheritance, or `undefined` for malformed comments.
  * @throws If source records are empty, do not correspond to the nodes, or compiler extraction fails unexpectedly.
  */
 function mergeReferenceContexts(
@@ -2155,13 +2465,37 @@ function mergeReferenceContexts(
 	assert(nodes.length === sources.length, "Merged nodes must correspond to source records.");
 
 	const parser = state.documentation?.parser ?? new TSDocParser();
-	const comments: ReturnType<TSDocParser["parseString"]>[] = [];
+	const comments = sources.map((source) =>
+		parser.parseString(source.documentation ?? "/** */"),
+	);
+	if (comments.some((comment) => comment.log.messages.length > 0)) {
+		return undefined;
+	}
+	const hasInheritance = comments.some(
+		(comment) => comment.docComment.inheritDocTag !== undefined,
+	);
+	const distinct = new Map<string, DocumentationReferenceContext>();
 	const links = new Map<DocLinkTag, DocumentationReferenceLookup>();
 	const inheritance = new Map<DocNode, DocumentationReferenceLookup>();
 
 	// Resolve before combining: a retained node must keep the lookup from its own declaration scope.
 	const contexts = nodes.map((node, index) => {
 		const source = assertDefined(sources[index]);
+		const parsed = assertDefined(comments[index]);
+		const text = parsed.docComment.emitAsTsdoc() || "/** */";
+		const duplicate = hasInheritance ? distinct.get(text) : undefined;
+		if (duplicate !== undefined) {
+			for (const [linkIndex, link] of collectApiLinkNodes(parsed.docComment).entries()) {
+				links.set(link, {
+					...assertDefined(duplicate.links[linkIndex]),
+					origin: duplicate.origin,
+				});
+			}
+			return {
+				...duplicate,
+				typeReferences: collectDeclarationReferences(compiler, locations, state, node, source),
+			};
+		}
 		const context = createReferenceContext(
 			compiler,
 			locations,
@@ -2170,11 +2504,11 @@ function mergeReferenceContexts(
 			source,
 			id,
 			source.documentation,
+			parsed,
 		);
-		const parsed =
-			state.documentation?.comments.get(id) ??
-			parser.parseString(source.documentation ?? "/** */");
-		comments.push(parsed);
+		if (hasInheritance) {
+			distinct.set(text, { ...context, documentation: text });
+		}
 		for (const [linkIndex, link] of collectApiLinkNodes(parsed.docComment).entries()) {
 			links.set(link, { ...assertDefined(context.links[linkIndex]), origin: context.origin });
 		}
@@ -2193,12 +2527,10 @@ function mergeReferenceContexts(
 	if (sources.length === 1) {
 		return first;
 	}
-	if (comments.some((comment) => comment.log.messages.length > 0)) {
-		return undefined;
-	}
 	const merged = mergeDocumentationComments(
 		parser,
 		comments.map((comment) => comment.docComment),
+		!hasInheritance,
 	);
 	if (merged === undefined) {
 		return undefined;
@@ -2211,6 +2543,8 @@ function mergeReferenceContexts(
 		merged.inheritDocTag === undefined ? undefined : inheritance.get(merged.inheritDocTag);
 	return {
 		...(first.container === undefined ? {} : { container: first.container }),
+		labels: collectDocumentationLabels(merged),
+		...(hasInheritance ? { contributions: [...distinct.values()] } : {}),
 		origin: first.origin,
 		...(first.typeParameters === undefined ? {} : { typeParameters: first.typeParameters }),
 		...(documentation === undefined ? {} : { documentation }),
@@ -2221,11 +2555,11 @@ function mergeReferenceContexts(
 }
 
 /**
- * Combines matching interface headers into one container description.
+ * Combines compiler-validated interface headers into one container description.
  *
  * @remarks
- * Requires supported headers with the same generic and heritage syntax; comments are combined separately.
- * Declared signatures that are not represented by effective members remain unsupported.
+ * Merges generic defaults and heritage syntax through native AST factories; comments are combined separately.
+ * Declared signatures retain their original source records and documentation contexts.
  *
  * @param compiler - Active checker and emitter.
  * @param locations - Package ownership lookup state.
@@ -2233,10 +2567,10 @@ function mergeReferenceContexts(
  * @param nodes - Original declaration nodes in source order. An undefined entry prevents merging.
  * @param sources - Original source records for the same symbol, in node order and with the same length as nodes.
  * @param id - Merged declaration identity.
- * @returns One common container header for use with effective members, or `undefined` for unsupported merges.
+ * @returns One combined container header and declared members, or `undefined` for unsupported merges.
  * @throws If a required source record is missing or compiler extraction fails unexpectedly.
  */
-function mergeInterfaceContainers(
+function mergeDeclarationContainers(
 	compiler: CompilerContext,
 	locations: LocationContext,
 	state: CollectionState,
@@ -2245,6 +2579,71 @@ function mergeInterfaceContainers(
 	id: ApiItemId,
 ): DeclarationContainerFact | undefined {
 	const source = sources[0];
+	if (
+		source !== undefined &&
+		nodes.length > 1 &&
+		nodes.every((node): node is Node => node !== undefined)
+	) {
+		const classNode = nodes.find(isClassDeclaration);
+		const enums = nodes.every(isEnumDeclaration);
+		if (
+			enums ||
+			(classNode !== undefined &&
+				nodes.every((node) => isClassDeclaration(node) || isInterfaceDeclaration(node)))
+		) {
+			const concreteContainers = nodes.map((node, index) =>
+				assertDefined(
+					extractContainerSyntax(
+						compiler,
+						locations,
+						state,
+						node,
+						assertDefined(sources[index]),
+						id,
+					),
+				),
+			);
+			const primary = assertDefined(
+				concreteContainers[enums ? 0 : nodes.indexOf(assertDefined(classNode))],
+			);
+			if (concreteContainers.some((container) => !container.supported)) {
+				return undefined;
+			}
+			const interfaceIndices = nodes.flatMap((node, index) =>
+				isInterfaceDeclaration(node) ? [index] : [],
+			);
+			const separateInterface =
+				classNode !== undefined &&
+				concreteContainers.some((container) =>
+					container.declaredMembers.some(
+						(member) =>
+							member.kind === "CallSignature" || member.kind === "ConstructSignature",
+					),
+				);
+			const interfaceContainer = separateInterface
+				? interfaceIndices.length === 1
+					? concreteContainers[assertDefined(interfaceIndices[0])]
+					: mergeDeclarationContainers(
+							compiler,
+							locations,
+							state,
+							interfaceIndices.map((index) => nodes[index]),
+							interfaceIndices.map((index) => assertDefined(sources[index])),
+							id,
+						)
+				: undefined;
+			if (separateInterface && interfaceContainer === undefined) {
+				return undefined;
+			}
+			return {
+				...primary,
+				...(interfaceContainer === undefined
+					? {}
+					: { interfaceSuffix: interfaceContainer.suffix }),
+				declaredMembers: concreteContainers.flatMap((container) => container.declaredMembers),
+			};
+		}
+	}
 
 	// Other declaration kinds require separate structural merge support.
 	if (
@@ -2271,19 +2670,45 @@ function mergeInterfaceContainers(
 	if (
 		containers.some(
 			(container) =>
-				container === undefined ||
-				!container.supported ||
-				container.prefix !== first.prefix ||
-				container.suffix !== first.suffix ||
-				container.declaredMembers.length > 0,
+				container === undefined || !container.supported || container.prefix !== first.prefix,
 		)
 	) {
-		// Distinct headers and independently declared signatures still need explicit merge semantics.
 		return undefined;
 	}
 
-	// The checker already combines effective members. Reuse only the agreed header to avoid duplicate members.
-	return first;
+	const original = assertDefined(nodes[0]);
+	const parameters: TypeParameterDeclaration[] = [];
+	for (const node of nodes) {
+		for (const [index, parameter] of (node.typeParameters ?? []).entries()) {
+			if (parameter.defaultType !== undefined || parameters[index] === undefined) {
+				parameters[index] = parameter;
+			}
+		}
+	}
+	const bases = new Map(
+		nodes.flatMap((node) =>
+			(node.heritageClauses ?? []).flatMap((clause) =>
+				clause.types.map((base) => [compiler.emitter.printNode(base), base] as const),
+			),
+		),
+	);
+	const merged = updateInterfaceDeclaration(
+		original,
+		original.modifiers,
+		original.name,
+		parameters,
+		bases.size === 0
+			? undefined
+			: [createHeritageClause(SyntaxKind.ExtendsKeyword, [...bases.values()])],
+		[],
+	);
+	const header = assertDefined(
+		extractContainerSyntax(compiler, locations, state, merged, source, id),
+	);
+	return {
+		...header,
+		declaredMembers: containers.flatMap((container) => container?.declaredMembers ?? []),
+	};
 }
 
 /**
@@ -2409,9 +2834,12 @@ function createDeclaredMemberRecord(
 	const documentation = getOriginalComment(member);
 	let staticTarget: ApiItemId | undefined;
 	if (
-		"modifiers" in member &&
-		Array.isArray(member.modifiers) &&
-		member.modifiers.some((modifier: Node) => modifier.kind === SyntaxKind.StaticKeyword) &&
+		(member.kind === SyntaxKind.EnumMember ||
+			("modifiers" in member &&
+				Array.isArray(member.modifiers) &&
+				member.modifiers.some(
+					(modifier: Node) => modifier.kind === SyntaxKind.StaticKeyword,
+				))) &&
 		"name" in member &&
 		member.name !== undefined
 	) {
@@ -2513,14 +2941,28 @@ function addDocumentationContexts(
 			return {
 				...fact,
 				documentationContext: {
-					...createReferenceContext(
+					...addEffectiveTypeReferences(
 						compiler,
 						locations,
 						state,
-						node,
-						getOrigin(locations, handle.path, node.pos),
+						createReferenceContext(
+							compiler,
+							locations,
+							state,
+							node,
+							getOrigin(locations, handle.path, node.pos),
+							fact.id,
+							fact.documentation,
+						),
+						[
+							...signature
+								.getParameters()
+								.map((_parameter, parameterIndex) =>
+									compiler.checker.getParameterType(signature, parameterIndex),
+								),
+							compiler.checker.getReturnTypeOfSignature(signature),
+						],
 						fact.id,
-						fact.documentation,
 					),
 					parameters: node.parameters.map((parameter) => ({
 						...(isIdentifier(parameter.name) ? { name: parameter.name.text } : {}),
@@ -2544,7 +2986,8 @@ function addDocumentationContexts(
  * @param location - Original package-relative location.
  * @param id - Identity of the comment input.
  * @param documentation - Original comment text, including explicit empty comments. Undefined uses an empty parser tree without adding a source comment.
- * @returns Detached reference facts, including original interface type-parameter names; parsed nodes remain private to the invocation.
+ * @param parsedComment - Original parsed comment for a deduplicated merge contribution. Omit to parse the comment here.
+ * @returns Detached reference facts, including original generic declaration parameter names; parsed nodes remain private to the invocation.
  */
 function createReferenceContext(
 	compiler: CompilerContext,
@@ -2554,15 +2997,16 @@ function createReferenceContext(
 	location: Origin,
 	id: ApiItemId,
 	documentation: string | undefined,
+	parsedComment?: ReturnType<TSDocParser["parseString"]>,
 ): DocumentationReferenceContext {
 	const container = collectDeclaringContainer(compiler, locations, state, node);
 	let source = node;
 	while (!isSourceFile(source)) {
 		source = source.parent;
 	}
-	const parsed = (state.documentation?.parser ?? new TSDocParser()).parseString(
-		documentation ?? "/** */",
-	);
+	const parsed =
+		parsedComment ??
+		(state.documentation?.parser ?? new TSDocParser()).parseString(documentation ?? "/** */");
 	state.documentation?.comments.set(id, parsed);
 	const links = collectLinks(parsed.docComment, (reference) =>
 		lookupReference(compiler, locations, state, node, source, reference, true),
@@ -2580,16 +3024,29 @@ function createReferenceContext(
 					request.declarationReference,
 					true,
 				);
-	return {
+	const context: DocumentationReferenceContext = {
+		labels: collectDocumentationLabels(parsed.docComment),
 		...(container === undefined ? {} : { container }),
 		origin: { packageName: location.packageName, file: location.file, start: location.start },
-		...(isInterfaceDeclaration(node)
+		...(isInterfaceDeclaration(node) ||
+		isClassDeclaration(node) ||
+		isTypeAliasDeclaration(node)
 			? { typeParameters: node.typeParameters?.map((parameter) => parameter.name.text) ?? [] }
 			: {}),
 		typeReferences: collectDeclarationReferences(compiler, locations, state, node, location),
 		links,
 		...(inheritance === undefined ? {} : { inheritance }),
 	};
+	return isVariableDeclaration(node)
+		? addEffectiveTypeReferences(
+				compiler,
+				locations,
+				state,
+				context,
+				[compiler.checker.getTypeAtLocation(node)],
+				id,
+			)
+		: context;
 }
 
 /**
@@ -2634,6 +3091,139 @@ function collectDeclaringContainer(
 }
 
 /**
+ * Adds named reference edges from an effective compiler type without expanding named declarations.
+ *
+ * @remarks
+ * Keeps syntax occurrences intact and appends only additional target identities. Anonymous structural,
+ * union, intersection, indexed, conditional, and instantiated argument types are traversed with compiler APIs.
+ * Compiler type identities guard recursive traversal and are never stored in returned facts.
+ *
+ * @param compiler - Active native compiler services.
+ * @param locations - Original package ownership lookup.
+ * @param state - Invocation-owned target collection.
+ * @param context - Original documentation context, including syntax references and diagnostic location.
+ * @param types - Effective types of the property or selected signature.
+ * @param owner - Receiving API identity excluded from self-reference collection.
+ * @returns A new context with additional named target references, without mutating the original.
+ */
+function addEffectiveTypeReferences(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	context: DocumentationReferenceContext,
+	types: readonly (Type | undefined)[],
+	owner: ApiItemId,
+): DocumentationReferenceContext {
+	const references = [...(context.typeReferences ?? [])];
+	const targets = new Set(references.map((reference) => reference.target));
+	const visited = new Set<number>();
+	const pending = [...types];
+	while (pending.length > 0) {
+		const type = pending.pop();
+		if (type === undefined || visited.has(type.id)) {
+			continue;
+		}
+		visited.add(type.id);
+		pending.push(...type.getAliasTypeArguments());
+		if (type.isTypeReference()) {
+			pending.push(...compiler.checker.getTypeArguments(type));
+		}
+		const symbol = type.getAliasSymbol() ?? type.getSymbol();
+		if (symbol !== undefined && symbol.declarations.length > 0) {
+			if (!isSuiteSymbol(compiler, locations, symbol)) {
+				continue;
+			}
+			if (
+				symbol.declarations.some((handle) =>
+					[
+						SyntaxKind.ClassDeclaration,
+						SyntaxKind.InterfaceDeclaration,
+						SyntaxKind.TypeAliasDeclaration,
+						SyntaxKind.EnumDeclaration,
+						SyntaxKind.FunctionDeclaration,
+						SyntaxKind.VariableDeclaration,
+					].includes(handle.kind),
+				)
+			) {
+				const target = collect(
+					compiler,
+					locations,
+					state,
+					resolveSymbolTarget(compiler.checker, symbol),
+				);
+				if (target !== owner && !targets.has(target)) {
+					targets.add(target);
+					references.push({ target, text: symbol.name, origin: context.origin });
+				}
+				continue;
+			}
+		}
+		if (type.isUnionType() || type.isIntersectionType() || type.isTemplateLiteralType()) {
+			pending.push(...type.getTypes());
+		} else if (type.isIndexedAccessType()) {
+			pending.push(type.getObjectType(), type.getIndexType());
+		} else if (type.isIndexType() || type.isStringMappingType()) {
+			pending.push(type.getTarget());
+		} else if (type.isConditionalType()) {
+			pending.push(
+				type.getCheckType(),
+				type.getExtendsType(),
+				type.getTrueType(),
+				type.getFalseType(),
+			);
+		} else if (type.isSubstitutionType()) {
+			pending.push(type.getBaseType(), type.getConstraint());
+		} else if (type.isObjectType()) {
+			pending.push(
+				...compiler.checker
+					.getPropertiesOfType(type)
+					.map((property) => compiler.checker.getTypeOfSymbol(property)),
+			);
+			for (const index of compiler.checker.getIndexInfosOfType(type)) {
+				pending.push(index.keyType, index.valueType);
+			}
+			for (const kind of [SignatureKind.Call, SignatureKind.Construct]) {
+				for (const signature of compiler.checker.getSignaturesOfType(type, kind)) {
+					pending.push(
+						compiler.checker.getReturnTypeOfSignature(signature),
+						...signature
+							.getParameters()
+							.map((_parameter, index) => compiler.checker.getParameterType(signature, index)),
+					);
+				}
+			}
+		}
+	}
+	return { ...context, typeReferences: references };
+}
+
+/**
+ * Checks whether a compiler symbol has an original declaration owned by this suite.
+ *
+ * @param compiler - Active compiler services used to recognize standard-library files.
+ * @param locations - Current package and resolved dependency owners.
+ * @param symbol - Resolved symbol whose original declarations are inspected.
+ * @returns True for a declaration in the current package or a selected dependency, excluding compiler libraries.
+ */
+function isSuiteSymbol(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	symbol: CompilerSymbol,
+): boolean {
+	return symbol.declarations.some((handle) => {
+		const source = handle.resolve()?.getSourceFile();
+		if (source === undefined || compiler.program.isSourceFileDefaultLibrary(source)) {
+			return false;
+		}
+		const owner = getOrigin(locations, handle.path, 0).packageName;
+		return (
+			owner === locations.configuration.packageName ||
+			locations.suitePackages?.has(owner) === true
+		);
+	});
+}
+
+/**
  * Captures reference identities from original type syntax without parsing printed types.
  *
  * @param compiler - Active checker and emitter.
@@ -2641,7 +3231,7 @@ function collectDeclaringContainer(
  * @param state - Shared target collection for this invocation.
  * @param node - Original declaration whose type syntax is inspected.
  * @param location - Package-relative declaration location.
- * @returns Ordered reference occurrences, excluding type parameters and standard-library targets.
+ * @returns Ordered reference occurrences, excluding type parameters and outside-suite targets.
  */
 function collectDeclarationReferences(
 	compiler: CompilerContext,
@@ -2673,12 +3263,7 @@ function collectDeclarationReferences(
 				const resolved = resolveSymbolTarget(compiler.checker, symbol);
 				if (
 					!(resolved.flags & SymbolFlags.TypeParameter) &&
-					resolved.declarations.length > 0 &&
-					!resolved.declarations.every((handle) => {
-						// Native library files belong to a platform package, not necessarily the typescript wrapper.
-						const source = handle.resolve()?.getSourceFile();
-						return source !== undefined && compiler.program.isSourceFileDefaultLibrary(source);
-					})
+					isSuiteSymbol(compiler, locations, resolved)
 				) {
 					references.push({
 						// Include the module path in import-type diagnostics so the target is unambiguous.

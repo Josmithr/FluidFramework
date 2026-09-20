@@ -209,6 +209,11 @@ export enum DiagnosticCode {
 	MemberExpansionIncomplete = "member-expansion-incomplete",
 
 	/**
+	 * Members owned outside the selected suite remain represented by their original type references.
+	 */
+	MemberExpansionOutsideSuite = "member-expansion-outside-suite",
+
+	/**
 	 * A custom modifier tag definition is invalid or duplicates an existing definition.
 	 *
 	 * @remarks

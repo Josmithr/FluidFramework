@@ -114,6 +114,22 @@ function createLinkFacts(declarations: readonly DeclarationFact[]): AnalysisFact
 }
 
 describe("Merged documentation", () => {
+	it("records the official parser limitation for documented unnamed label references", () => {
+		const parser = new TSDocParser();
+		for (const reference of [
+			"Selected.(read:TEXT)",
+			"(Selected:constructor)",
+			"Selected.([token]:SYMBOL)",
+		]) {
+			assert.deepEqual(parser.parseString(`/** {@link ${reference}} */`).log.messages, []);
+		}
+		const unnamed = parser.parseString("/** {@link Unnamed.(:CALL)} */");
+		assert.deepEqual(
+			unnamed.log.messages.map((message) => message.messageId),
+			["tsdoc-reference-missing-identifier"],
+		);
+	});
+
 	it("combines block contributions without repeating identical tags or mutating originals", () => {
 		const parser = new TSDocParser();
 		const comments = ["First", "Second", "First"].map(
@@ -1112,12 +1128,13 @@ describe("Explicit documentation inheritance", () => {
 		}
 	});
 
-	it("rejects malformed and nonnumeric explicit inheritance selectors", () => {
+	it("validates numeric and declaration-kind explicit inheritance selectors", () => {
 		for (const reference of [
 			"(target:0)",
 			"(target:-1)",
 			"(target:1.5)",
 			"(target:function)",
+			"(target:constructor)",
 		]) {
 			const target = createFunctionFact("target", "/** Target. @public */", []);
 			const receiver = createFunctionFact(
@@ -1147,8 +1164,8 @@ describe("Explicit documentation inheritance", () => {
 					{},
 				),
 			);
-			assert.equal(result.ok, false, reference);
-			assert.equal("value" in result, false);
+			assert.equal(result.ok, reference === "(target:function)", reference);
+			assert.equal("value" in result, reference === "(target:function)");
 		}
 	});
 

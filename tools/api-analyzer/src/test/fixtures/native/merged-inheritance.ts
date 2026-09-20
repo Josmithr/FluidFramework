@@ -55,3 +55,58 @@ export interface ReceivingSettings<Value> {
  * @public
  */
 export declare function destination(): void;
+
+/**
+ * Additional source description. See {@link destination}.
+ * @typeParam Value - Additional value documentation.
+ * @example Additional source-only example.
+ * @deprecated Source-only deprecation.
+ * @public
+ */
+export interface AdditionalSettings<Value> {
+	/**
+	 * Additional property description.
+	 */
+	value: string;
+}
+
+/**
+ * {@inheritDoc SourceSettings}
+ * @public
+ */
+export interface CombinedSettings<Value> {
+	/**
+	 * {@inheritDoc SourceSettings.value}
+	 */
+	value: string;
+}
+
+/**
+ * {@inheritDoc AdditionalSettings}
+ * @public
+ */
+export interface CombinedSettings<Value> {
+	/**
+	 * {@inheritDoc AdditionalSettings.value}
+	 */
+	value: string;
+}
+
+/**
+ * {@inheritDoc SourceSettings}
+ * @public
+ */
+export interface CombinedSettings<Value> {}
+
+/**
+ * Local combined description.
+ * @example Local combined example.
+ * @public
+ */
+export interface CombinedSettings<Value> {}
+
+/**
+ * {@inheritDoc CombinedSettings}
+ * @public
+ */
+export interface CombinedChain<Value> { value: string; }

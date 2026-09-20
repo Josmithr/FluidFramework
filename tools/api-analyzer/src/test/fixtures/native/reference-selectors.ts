@@ -65,3 +65,95 @@ export declare namespace Group {
 	// Models must represent this as a finite alias rather than unrolling every possible path.
 	export import self = Group;
 }
+
+/**
+ * Selector contract.
+ * @public
+ */
+export interface Contract { value: string; }
+/**
+ * Selector alias.
+ * @public
+ */
+export type Text = string;
+/**
+ * Selector value.
+ * @public
+ */
+export declare const version: "v1";
+/**
+ * Selector enumeration.
+ * @public
+ */
+export declare enum Mode { First }
+/**
+ * See {@link (ReferenceSource:class)}, {@link (Contract:interface)}, {@link (Text:type)},
+ * {@link (version:variable)}, {@link (Mode:enum)}, {@link (Group:namespace).(run:function)},
+ * and {@link (fromStatic:function)}.
+ * @public
+ */
+export declare function kindLinks(): void;
+
+/**
+ * Symbol key used for a computed API member.
+ * @public
+ */
+export declare const token: unique symbol;
+
+/**
+ * All declaration-reference member forms. {@label SELECTED}
+ * @public
+ */
+export declare class Selected {
+	/**
+	 * Creates a selected value. {@label CREATE}
+	 */
+	constructor();
+	/**
+	 * Text overload. {@label TEXT}
+	 */
+	read(value: string): string;
+	/**
+	 * Numeric overload. {@label NUMBER}
+	 */
+	read(value: number): number;
+	/**
+	 * Symbol method. {@label SYMBOL}
+	 */
+	[token](): string;
+	/**
+	 * Iteration method.
+	 */
+	[Symbol.iterator](): Iterator<string>;
+	/**
+	 * Quoted property.
+	 */
+	"first-name": string;
+}
+
+/**
+ * Unnamed declarations selected through labels.
+ * @public
+ */
+export interface Unnamed {
+	/**
+	 * String index. {@label STRING_INDEX}
+	 */
+	[key: string]: unknown;
+	/**
+	 * Call signature. {@label CALL}
+	 */
+	(value: string): string;
+	/**
+	 * Construct signature. {@label CONSTRUCT}
+	 */
+	new(value: number): Selected;
+}
+
+/**
+ * See {@link (Selected:constructor)}, {@link Selected.(read:TEXT)},
+ * {@link Selected.([token]:SYMBOL)}, {@link Selected."first-name"}, {@link (Selected:CREATE)},
+ * {@link Selected.[Symbol.iterator]}, {@link Mode.First}, and {@link (Selected:SELECTED).(read:TEXT)}.
+ * @public
+ */
+export declare function fullSyntaxLinks(): void;

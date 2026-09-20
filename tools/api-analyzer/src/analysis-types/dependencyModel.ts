@@ -1,12 +1,9 @@
 import type { ApiItemMetadata } from "./classification.js";
-import type { CompletedDocumentation } from "./completedGraph.js";
 import type {
-	ApiItemId,
-	FunctionParameterFact,
-	Origin,
-	InputFileFact,
-	PackageDocumentationFact,
-} from "./facts.js";
+	CompletedDocumentation,
+	CompletedPackageDocumentation,
+} from "./completedGraph.js";
+import type { ApiItemId, FunctionParameterFact, Origin, InputFileFact } from "./facts.js";
 
 /**
  * A versioned documentation target supplied by a dependency package.
@@ -33,6 +30,17 @@ export interface DependencyApi {
 	readonly kind: string;
 
 	/**
+	 * Original syntax kinds contributing to this documentation input, deduplicated in declaration order.
+	 * Compound declarations retain every kind so named TSDoc selectors can validate their requested facet.
+	 */
+	readonly declarationKinds: readonly string[];
+
+	/**
+	 * Labels attached to original documentation, excluding inherited labels.
+	 */
+	readonly labels: readonly string[];
+
+	/**
 	 * Original comment location, unchanged by inheritance or re-exports.
 	 */
 	readonly origin: Origin;
@@ -45,9 +53,9 @@ export interface DependencyApi {
 	readonly parameters?: readonly FunctionParameterFact[];
 
 	/**
-	 * Original callable or interface type-parameter names in declaration order.
+	 * Original callable, class, interface, or type-alias type-parameter names in declaration order.
 	 * @defaultValue Omitted for other non-callable forms or unavailable parameter contexts.
-	 * An empty array means that a supported callable or interface declares no type parameters.
+	 * An empty array means that a supported declaration declares no type parameters.
 	 */
 	readonly typeParameters?: readonly string[];
 
@@ -69,6 +77,12 @@ export interface DependencyApi {
  * An exported target path; callable targets retain overload order.
  */
 export interface DependencyExport {
+	/**
+	 * Unique symbol declaration used as this member's key.
+	 * @defaultValue Omitted for ordinary exported names.
+	 */
+	readonly symbolId?: ApiItemId;
+
 	/**
 	 * The class or interface member side for this terminal path component.
 	 * @defaultValue Omitted for top-level and namespace exports.
@@ -101,6 +115,7 @@ export interface DependencyExport {
 
 	/**
 	 * Documentation input identities in compiler overload order for callable targets.
+	 * Compound functions prepend their declaration identity; numeric selection uses the following callable identities.
 	 */
 	readonly items: readonly ApiItemId[];
 }
@@ -151,7 +166,7 @@ export interface DependencyModel {
 	 * The owning package's documentation, separate from API records and entrypoint exports.
 	 * @defaultValue Omitted when the package has no package documentation comment.
 	 */
-	readonly packageDocumentation?: PackageDocumentationFact;
+	readonly packageDocumentation?: CompletedPackageDocumentation;
 
 	/**
 	 * Format discriminator checked before interpreting artifact records.

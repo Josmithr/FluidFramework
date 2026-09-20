@@ -28,3 +28,13 @@ Both supported input compilers emit the declarations, and both consumer compiler
 Positive checks use enum types and constant type queries.
 Negative checks require value use of type-only aliases to remain an error through direct exports, ordinary forwarding, and type-only star exports.
 The report-rendered modules are isolated, self-contained test cases, not general declaration rollups.
+
+## Compound declarations
+
+[compoundMerges.ts](compoundMerges.ts) verifies type/value facets, callable overloads, class and enum namespaces, callable and constructable class/interface augmentation, repeated enums, merged generic interface headers, and sibling namespace cycles.
+The native tests compile it against originals and isolated report blocks with both supported consumer compilers.
+Negative uses ensure that namespace merging does not widen call signatures or restore value access to type-only exports.
+
+[ambientModules.ts](ambientModules.ts) verifies merged ambient-module interfaces and functions exposed through namespace aliases and direct exports.
+It checks both emitted entrypoints and isolated report blocks with the ambient declarations available as a supporting input.
+Missing members from either interface contribution remain consumer errors.

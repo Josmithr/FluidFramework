@@ -6,12 +6,16 @@ API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](AP
 The reusable public session has been removed in favor of `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
 The initial implementation completes existing callable classification and documentation validation before success and closes the compiler connection before returning.
 The completed analysis exposes effective configuration, API counts, selected declaration reports, and versioned dependency-model generation.
-Stage 2 remains open for remaining declaration ownership, reference coverage, and model compatibility acceptance; declaration rollups remain incomplete.
+The Stage 2 review and validation implementation now covers the structural merge gaps and named declaration selectors identified in the acceptance audit.
+Both resolution-scope decisions are approved: follow TSDoc reference syntax, and deduplicate, resolve, then merge inherited documentation.
+The later 2026-09-20 decision explicitly excludes module-based references for now; named package-qualified APIs remain supported.
+Stage 2 remains open for the [TSDoc conformance limitations](#remaining-stage-2-decisions); successful tests do not waive them.
+Complete portable documentation models remain Stage 3, and declaration rollups remain Stage 4.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](Architecture-Proposal.md).
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
-Analysis completion now owns documentation resolution and returns a frozen graph for the currently supported callable scope.
+Analysis completion owns documentation resolution and returns a frozen graph for the supported declaration and member scope.
 Reporting consumes that graph without compiler or parser access.
 The model layer now owns versioned encoding, decoding, and artifact validation; rollups and broader graph completeness remain pending.
 `good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
@@ -58,7 +62,7 @@ An implementation blocker must produce a documented decision request, not an una
 - Provide a Node.js-compatible TypeScript API. A CLI is optional, not part of the initial required delivery.
 - ESM-only support is acceptable. Preserve Node, browser, and custom resolution conditions for supported entrypoints.
 - Keep Fluid tags, package scopes, surface names, and policy meanings outside the generic implementation.
-- V1 selects classes, interfaces, enums, and namespaces as whole containers. Neither release-level nor custom-tag selection may trim their members, including constructors and static members. Explicit member release levels must equal the declaring container's effective level; untagged members inherit that level. This rule has no V1 opt-out. Validate local overrides against their declaring container and reuse completed base-member validation. Standalone overload selection remains independent. See the [implementation TODO](../TODOs.md#member-compatibility) and [future flexibility investigation](api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
+- V1 selects classes, interfaces, enums, and namespaces as whole containers. Neither release-level nor custom-tag selection may trim their members, including constructors and static members. Explicit member release levels must equal the declaring container's effective level; untagged members inherit that level. This rule has no V1 opt-out. Validate local overrides against their declaring container and reuse completed base-member validation. Standalone overload selection remains independent. See the [compound-container decision](#3-atomic-compound-functionnamespace-apis) and [future flexibility investigation](api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
 - Follow documentation-driven development, test-driven development, and functional programming principles throughout this project.
 - Preserve all W1-W11 requirements, F1-F4 capabilities, and B1-B6 regression obligations. Staged delivery does not make later requirements optional.
 
@@ -360,7 +364,10 @@ Direct tests check helper behavior, independent caches, repeated collection, and
 
 ### Stage 2. Deliver a review and validation workflow
 
-Latest implementation progress (2026-09-18):
+Historical implementation progress through 2026-09-18:
+
+These bullets describe individual increments, not the current remaining work.
+Use the acceptance audit below for current status.
 
 - Validation-only operations now use `Result` without a payload type and return `{ ok: true }`. Explicit payload types retain a required `value`, including undefined and union payloads. Type-level and runtime tests verify narrowing, failure propagation, and baseline result shapes.
 - A package-wide function-name audit replaced noun-style implementation and test helpers with verb phrases through semantic renames. Compiler fixture API names remain unchanged because they are test inputs.
@@ -385,29 +392,297 @@ Latest implementation progress (2026-09-18):
 - Real Node/browser compiler contexts verify conditional-export parity without baseline writes. A core-utils pilot uses built comparison declarations and a configured legacy policy.
 - New compiler fixtures include ordinary inline explanations beside APIs, members, imports, and aliases. Those comments remain separate from the tested TSDoc.
 
+Latest continuation adds original-scope package API links with model and cross-model integrity validation, compound type/value/namespace reports, same-kind declaration inheritance, and effective compiler-type reference edges.
+Compound and type-only report fragments compile with TS6 and TS7 consumers for both producer compilers.
+Merged interfaces now combine heritage clauses, type-parameter defaults, and declared call signatures using native AST factories.
+
 These results do not yet close Stage 2.
-Remaining work includes broader structural merges, declaration and type-reference coverage, package-documentation reference resolution, and final requirement-by-requirement acceptance.
+The remaining TSDoc conformance limitations and approved policy decisions are recorded below.
 Existing unsupported outcomes must not be silently reclassified as completed requirements.
 
 #### Current acceptance checklist
 
-Use this checklist as current status; the increment history below is not a list of remaining implementation tasks.
+Acceptance audit updated on 2026-09-19.
+The linked tests cover the implemented Stage 2 contracts; later-stage output and migration requirements remain separate.
 
-| Acceptance area | Current evidence | Remaining work |
+| Exit obligation | Evidence and checked outcome | Disposition |
 | --- | --- | --- |
-| Effective member documentation and original scope | Pure documentation tests and TS6/TS7 native fixtures cover explicit chains, local suppression, non-overloaded automatic matches, and merged link provenance. Merged interface/property inheritance also works through suite models. | Broader structural merges and multiple distinct inheritance requests remain unsupported. |
-| Release and custom-tag contracts | Container tests enforce atomic selection, original declaring-container inheritance, explicit mismatch rejection, and independent standalone overload selection. Merged custom modifiers form a deduplicated union. | Verify these contracts across the remaining structural merge forms. |
-| Local and suite reference selectors | [Native selector fixture](../src/test/fixtures/native/reference-selectors.ts) and [suite consumer](../src/test/fixtures/suite/selectors-consumer.d.ts) cover numeric links, static/instance paths, internal-target rejection, and reordering. [Self-reference fixtures](../src/test/fixtures/native/self-references.ts) cover configured package surfaces and dependency re-exports. | Other selector forms and broader non-callable inheritance need acceptance decisions or implementation. |
-| Recursive namespace aliases | Reports retain finite aliases; dependency models use validated enclosing-path back-references. Native and suite tests cover aliases through repeated and nested namespace declarations. | Complete broader alias and compound type/value declaration coverage across the required input forms. |
-| Suite artifacts and freshness | Direct, transitive, peer, unused-model, malformed-model, and inherited-content freshness regressions pass. | Complete model semantic coverage is not established by shape validation alone; full portable models remain Stage 3. |
-| W2 reference policies | Local/dependency syntax references, unexported targets, import types, directional rules, and policy opt-outs have regression tests. Package-comment ownership, presence, syntax, placement, and invalid-tag diagnostics are covered. | Audit effective/inferred type-reference edges and implement package-comment API links; current syntax extraction is not a complete semantic type graph. |
-| W1/W4 reports and regressions | Snapshot, alias, type-only class/function/enum/constant, built-in shadow, conditional Node/browser parity, and core-utils pilot tests exist. Repeated namespaces retain all selected contents. | Complete compound merged-declaration acceptance coverage, then verify the combined workflow. |
+| W1 review baselines | [Report tests](../src/test/reviewReport.test.ts), [baseline tests](../src/report-generation/test/reviewBaseline.test.ts), and native snapshots cover separate selected surfaces, exact comparison, metadata changes, aliases, and stable output. Analysis and generators return data; callers own baseline writes. | Implemented. |
+| W2 local and suite validation | [Native reference tests](../src/test/nativeCapabilities.test.ts) and [suite tests](../src/test/suite.test.ts) cover unexported targets, import types, directional rules, independent opt-outs, and dependency types without consumer re-exports. Inherited views are not revalidated; original declarations and local overrides are. Outside-suite types remain opaque. | Implemented for the approved rules. |
+| W10 configurable policy | [Classification tests](../src/analysis/test/classification.test.ts), [configuration tests](../src/test/configuration.test.ts), and the [core-utils pilot](../src/test/pilot.test.ts) exercise custom modifier vocabularies and configured legacy policy without built-in Fluid tags. | Implemented; documentation-reference syntax boundaries are listed below. |
+| F4 standalone overloads | Classification, native, and report tests retain independent public/beta/internal overload selection and exclude implementation signatures. Contained and compound callable parts obey the atomic-container decision. | Implemented for review and validation; rollup output remains Stage 4. |
+| Effective documentation table | [Pure resolution tests](../src/analysis/test/documentation.test.ts) and native fixtures cover descriptive, absent, empty, tag-only, successfully inherited empty/nonempty, invalid, and cyclic outcomes. Uncertain and overloaded automatic matches remain undocumented. | Implemented within the approved conservative matching contract. |
+| Implements and original provenance | Native member fixtures and suite consumers cover compatible generic non-overloaded implementations, local-comment suppression, competing sources, original lookup scope, and unchanged receiver metadata. | Implemented; no guessed automatic source selection. |
+| Suite model prerequisites | Suite tests cover direct/transitive/peer selectors, unused missing models, shape and reference corruption, dependency fingerprints, stale inputs, resolved links, and retained section origins. | Implemented dependency documentation subset; complete portable models remain Stage 3. |
+| Local and qualified references | [Selector inputs](../src/test/fixtures/native/reference-selectors.ts), [model-only consumers](../src/test/fixtures/suite/selectors-consumer.d.ts), and self-package fixtures cover named and quoted paths, numeric and label selectors, constructors, static/instance sides, declaration kinds, symbol and enum members, recursive aliases, subpaths, ambiguity, visibility, and invocation stability. | Implemented for these forms; full TSDoc conformance remains required, with the limits listed below. |
+| Structural merges | [Compound inputs](../src/test/fixtures/native/compound-merges.ts) and [consumer](../src/test/fixtures/consumer/compoundMerges.ts) cover type/value/namespace facets, repeated enums, generic interface headers, and callable/constructable class-instance augmentation. [Ambient modules](../src/test/fixtures/native/ambient-modules.d.ts) cover repeated quoted module declarations, direct and namespace exports, original-scope links, model inheritance, and release conflicts. | Implemented; original and isolated report declarations compile with both TS6 and TS7 consumers for both producer compilers. |
+| B1 dependency aliases | Suite alias tests preserve names and identities with and without explicit consumer re-exports. | Review and dependency-model coverage implemented; complete declaration output remains Stage 4. |
+| B2 type-only exports | Native class/function/enum/constant fixtures and isolated consumer tests distinguish ordinary, type-only, forwarded, and star-export paths and reject forbidden value use. | Implemented review-output coverage. |
+| B6 built-in shadows | Native report fixtures include and exclude exported `performance` declarations without leaving excluded alias exports. | Implemented review-output coverage. |
+| Parity and repository pilot | Suite tests compare actual Node/browser resolution, including an intentional mismatch, without accepting a baseline. The core-utils pilot uses repository declarations and configured policy. | Implemented initial pilot; broad repository adoption remains later work. |
+| Detached reuse and boundaries | [Session tests](../src/test/session.test.ts) generate outputs after removing inputs; [architecture tests](../src/test/architecture.test.ts) and `good-fences` enforce layer boundaries. | Implemented; no compiler lifecycle or automatic cache added to the public API. |
+
+#### Remaining Stage 2 decisions
+
+Both questions were resolved on 2026-09-20.
+
+1. **TSDoc conformance is required, with an explicit module-reference exclusion.** References in TSDoc comments follow TSDoc selector syntax. The later 2026-09-20 decision forbids whole-module targets and source-relative import-path references for now. Constructor, declaration-kind, numeric, static/instance, and label selectors remain required. The resolver supports explicit constructors, original `{@label}` targets, quoted member names, enum members, and computed unique-symbol members locally and through dependency models. Well-known symbol keys such as `Symbol.iterator` retain their identity without importing compiler-library documentation. Missing and ambiguous targets fail, including overloaded constructors without a unique selection and duplicate labels.
+2. **Deduplicate, resolve, then merge.** Equal normalized original comment contributions retain the first occurrence and its scope. Each retained explicit inheritance request resolves before content is combined in compiler declaration order. Distinct resolved summaries and parameter blocks are combined; equal resolved contributions are deduplicated. Original classification remains unchanged, target-only tags and ancillary blocks are not inherited, and links and section sources retain provenance through local and suite chains. Cycles and invalid retained requests fail the whole analysis. Private contribution identities never enter API models or reports.
+
+Remaining conformance limit:
+
+- The official [label examples](https://tsdoc.org/pages/tags/label/) use unnamed references such as `Interface.(:CALL)`. The pinned `@microsoft/tsdoc` 0.16.0 parser rejects this form with `tsdoc-reference-missing-identifier`; an empty quoted identifier is also rejected. The examples mark the notation as provisional. The [upstream-reporting task](api-extractor-replacement-follow-ups.md#verify-and-report-the-tsdoc-unnamed-selector-mismatch) must confirm the specification and file a parser bug if warranted. If the syntax is required, supporting it needs a parser fix and analyzer target coverage. Do not invent an alternative spelling or claim support because the named-selector cases pass.
+
+Module-target and source-relative references are now deliberately forbidden, not unfinished Stage 2 support.
+Potential support is tracked in the [module-reference follow-up](api-extractor-replacement-follow-ups.md#consider-module-based-documentation-references).
+
+##### Module targets and relative import paths
+
+The earlier phrase "package-only and import-path-only references" combined two different cases.
+TSDoc's [declaration-reference contract](https://github.com/microsoft/tsdoc/blob/main/tsdoc/src/nodes/DocDeclarationReference.ts) permits an empty member path to identify a module.
+It also specifies that an import path without a package name resolves relative to the source file containing the comment.
+The pinned parser accepts all examples in this table:
+The analyzer deliberately rejects the excluded forms even though their TSDoc syntax is valid.
+
+| Reference in a TSDoc comment | Target | Analyzer status |
+| --- | --- | --- |
+| `{@link my-package#Widget}` | The named `Widget` API exported by the package's root module. | Existing named-target support, subject to configured surfaces, suite membership, and visibility rules. |
+| `{@link my-package/widgets#Widget}` | The named `Widget` API exported by a configured package subpath. | Existing named-target support under the same rules. |
+| `{@link my-package#}` | The package's root module, not an individual API declaration. | Forbidden by the current policy. |
+| `{@link my-package/widgets#}` | The package's `widgets` module, without selecting one of its exports. | Forbidden by the current policy. |
+| `{@link ./widgets#Widget}` | The named `Widget` export in a module resolved relative to the original comment's file. | Forbidden by the current policy. |
+| `{@link ./widgets#}` | That relative module itself. | Forbidden by the current policy. |
+
+For example, a comment in `src/index.ts` that uses `./widgets#Widget` refers through the neighboring `widgets` module under the project's resolution rules.
+Re-exporting the documented API from another file must not change that original relative scope.
+This is not a request to select a package subpath relative to the repository root.
+
+The shared reference binder rejects the excluded forms with `documentation-unsupported` and explains how to use a named API reference instead.
+The rule applies to `@link`, `@inheritDoc`, package comments, and nested references used as symbol keys.
+It does not affect TypeScript imports, ordinary namespace-member paths, or named package-qualified API targets.
+The [suite regression](../src/test/suite.test.ts) checks the forbidden forms and preserves both root and subpath named API references.
+Any future implementation would need original-scope resolution, module-target identity and model contracts, and missing-target tests.
+It must not add per-entrypoint `@packageDocumentation` comments: the approved single package-owned comment remains unchanged.
+
+The official [link examples](https://tsdoc.org/pages/tags/link/) are the reference for constructor, quoted-name, and symbol-member syntax.
+The existing selector and merged-inheritance fixtures cover the newly implemented forms, including first-copy scope, multiple sources, cycles, policy failures, and model-only consumers.
+
+The three known compiler capability probes remain pending at their existing stages; they are not new Stage 2 failures.
+These decisions do not reopen package-link visibility, inherited-member validation, atomic selection, or the outside-suite boundary approved below.
+
+#### Stage 2 review questions
+
+Questions are collected here at the user's request; they did not pause implementation of independent work.
+
+All four decisions below were approved on 2026-09-19.
+The examples are valid TypeScript; some intentionally fail analyzer validation to illustrate a policy choice.
+Each example is independent of the others.
+
+##### 1. Package-link visibility
+
+**Decision:** Apply the same non-internal visibility rule to package documentation: links to non-internal APIs are permitted, and links to internal APIs are not.
+Do not add a package-specific visibility override.
+
+**Current behavior:** The package has one documentation comment, separate from entrypoints and API-item classification.
+It has no release level of its own.
+Its API links nevertheless use the non-internal visibility rule: public, beta, and alpha targets are allowed; internal and unclassified targets fail.
+This rule applies before report selection, so requesting an internal-only report does not change it.
+Package links do not participate as source APIs in custom directional rules.
+
+In this example, the preview link is permitted, but the internal link causes analysis to fail:
+
+```typescript
+/**
+ * Package overview. See {@link previewFeature} and {@link traceState}.
+ *
+ * @packageDocumentation
+ */
+export {};
+
+/**
+ * Feature available for preview use.
+ * @beta
+ */
+export declare function previewFeature(): void;
+
+/**
+ * Diagnostic operation for maintainers.
+ * @internal
+ */
+export declare function traceState(): void;
+```
+
+Removing the `traceState` link makes this example pass the package-link visibility check.
+The `previewFeature` link remains valid even when a public report excludes the beta declaration.
+An unclassified target also fails link validation, even if `rules.requireReleaseLevel` is disabled: that opt-out does not establish the target's visibility.
+
+**Acceptance consequence:** Retain the local and dependency link checks and model-integrity validation.
+The package still has one comment and no synthetic release tag.
+
+##### 2. Metadata for effective inherited references
+
+**Decision:** Do not validate inherited member views again on a receiving container.
+Validate the original declarations, the receiving declaration's direct relationships, and any local overrides.
+Retain inherited members in generated artifacts with their effective types and original metadata.
+
+**Current behavior:** Inherited members retain their original declaring-container release metadata.
+The effective member type can contain new reference targets after the compiler substitutes type arguments.
+Those effective facts remain available for artifact generation, but do not introduce extra reference-policy checks on inherited members.
+No release-level reassignment or new compatibility rule is needed.
+The documentation lookup scope and source location remain original.
+
+In this example, `PreviewBox.value` has effective type `PreviewValue`, even though the original property names only `Value`:
+
+```typescript
+/**
+ * Generic public container.
+ * @public
+ */
+export interface Box<Value> {
+	/**
+	 * Stored value.
+	 */
+	value: Value;
+}
+
+/**
+ * Preview value contract.
+ * @beta
+ */
+export interface PreviewValue {
+	text: string;
+}
+
+/**
+ * Preview specialization of the public container.
+ * @beta
+ */
+export interface PreviewBox extends Box<PreviewValue> {}
+```
+
+`Box.value` inherits `@public` from `Box`.
+The inherited view `PreviewBox.value` retains that level under the agreed declaring-container rule.
+The beta `PreviewBox` declaration can refer to both the public `Box` and the beta `PreviewValue`, so this example passes with release compatibility enabled.
+The analyzer does not validate an additional public-to-beta relationship from the inherited `PreviewBox.value` view.
+Reports still include `value: PreviewValue`, and API models must retain the inherited member.
+The current dependency documentation model retains its identity, documentation, and metadata; a complete portable type model remains Stage 3.
+The [effective-reference fixture](../src/test/fixtures/native/effective-references.ts) exercises this distinction.
+
+**Acceptance consequence:** Test that inherited views survive report and model generation without repeated release, directional, or exposure checks.
+Original declarations and local overrides must still fail when they introduce a prohibited relationship.
+For example, changing `Box.value` to directly name the beta `PreviewValue` would still fail a public-to-beta release check.
+
+##### 3. Atomic compound function/namespace APIs
+
+**Decision:** Reject conflicting release tags on a merged function/namespace API, just as for other merged declarations.
+Trimming merged parts by release level is future work, not a V1 exception to atomic selection.
+
+**Current behavior:** A function and a namespace with the same compiler symbol form one compound API.
+The report retains the callable declarations and namespace exports together.
+Explicit release tags across those parts must agree; custom-tag selection cannot trim individual parts.
+Numeric documentation selectors can still identify a particular callable overload, but do not make it independently selectable in a report.
+
+This example is valid TypeScript, but its different explicit release tags cause `classification-release-conflict`:
+
+```typescript
+/**
+ * Converts text.
+ * @public
+ */
+export declare function convert(value: string): string;
+
+/**
+ * Converts a preview numeric input.
+ * @beta
+ */
+export declare function convert(value: number): number;
+
+/**
+ * Conversion utilities.
+ * @public
+ */
+export declare namespace convert {
+	/**
+	 * Utility version.
+	 */
+	export const version: "v1";
+}
+```
+
+Without the namespace declaration, these are standalone overloads and their different release levels are supported.
+With the namespace present, the current implementation treats both overloads and `version` as parts of the same atomic container.
+Changing every explicit tag to `@public` makes the release levels consistent; selecting `convert` then retains both overloads and the namespace member.
+A type such as `typeof convert` observes both the callable signatures and namespace properties, so trimming either part can change the type consumers see.
+
+This example is also recorded in the [merged-declaration TODO](../TODOs.md#merged-declarations) for future consideration.
+Future trimming must specify how selected callable signatures and namespace properties affect `typeof convert`.
+
+**Acceptance consequence:** Retain the existing compound release-conflict and complete-selection regressions in [nativeCapabilities.test.ts](../src/test/nativeCapabilities.test.ts), along with the standalone mixed-overload tests.
+
+##### 4. Compiler-library and outside-suite member expansion
+
+**Decision:** Preserve references to compiler-library types without expanding their member graphs.
+Apply the same boundary to types from any package outside the selected suite.
+The suite includes the analyzed package and dependency packages selected by the resolved suite configuration.
+An installed dependency is not automatically a suite member.
+
+**Current behavior:** An alias whose underlying named type is a compiler-library class or interface retains its original type expression.
+Its member view is marked incomplete instead of importing library members into package API classification.
+For example, this array alias remains an array alias in the report; the analyzer does not create package-owned records for its library methods:
+
+```typescript
+/**
+ * Read-only names returned by the package.
+ * @public
+ */
+export type Names = readonly string[];
+```
+
+Consumers still get `length`, `map`, iteration, and other array operations from their TypeScript libraries.
+Those operations are not removed from the TypeScript type merely because the analyzer does not materialize their members.
+Named type arguments remain relevant to reference validation even when the surrounding library declaration is not expanded.
+
+A user-defined interface that extends a library type preserves that relationship and its local members:
+
+```typescript
+/**
+ * Named collection of read-only labels.
+ * @public
+ */
+export interface NamedLabels extends ReadonlyArray<string> {
+	/**
+	 * Collection name.
+	 */
+	name: string;
+}
+```
+
+The report retains `extends ReadonlyArray<string>` and `name`, without printing inherited library members such as `length` and `map`.
+The detached member view records an outside-suite boundary instead of claiming complete expansion.
+No release tags or TSDoc compliance are required for library or outside-suite declarations encountered through type references.
+The same behavior applies to an interface extending an imported third-party base outside the suite.
+Local overrides and suite-owned type arguments remain subject to normal validation.
+Explicit documentation links and inheritance still require resolvable documentation targets; opaque type handling does not supply a missing dependency model.
+
+This does not weaken the existing requirement to expand ordinary object intersections and utility types such as `Pick`, `Omit`, and `Readonly` over supported package types.
+Those cases remain distinct from expanding the library declarations themselves.
+
+**Acceptance consequence:** Verify library and third-party bases, local overrides, suite-owned type arguments, and explicit incomplete-view reporting.
+Selecting a dependency into the suite must enable its supported member expansion and reference validation again.
+
+Callable/constructable class-instance augmentations and repeated string-literal ambient modules now have extraction, documentation, model, report, policy, and consumer coverage.
+The supported Stage 2 paths have combined acceptance evidence in the checklist above.
+Final stage closure awaits the recorded conformance limits rather than an inference from passing tests.
+Full portable models and declaration rollups remain Stages 3 and 4; the three known compiler capability probes remain pending at their existing stages.
 
 Merged-metadata decision resolved: combine recognized modifier tags from all parts and deduplicate them.
 Keep explicit release-tag conflict validation, and retain the first occurrence of identical descriptive content with its original reference scope.
 General rule: match IntelliSense where possible and record any deliberate validation differences or implementation limits.
 
 #### Increment history
+
+The following records preserve earlier implementation checkpoints.
+Their future-tense tasks and limitations are historical; the current acceptance checklist above supersedes them.
 
 Current progress: The [initial classification contract and results](../README.md#release-classification-and-selection-contract) cover independent callable-overload release levels, explicit custom modifier configuration, diagnostic opt-outs, and named metadata selections.
 `classifyApiItems` and `selectApiItems` are experimental pure APIs over explicit data. Selection reuses classified metadata without repeating compiler analysis.

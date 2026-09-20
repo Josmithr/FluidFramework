@@ -17,11 +17,13 @@ import {
  *
  * @param parser - Parser with the invocation's configured tag vocabulary.
  * @param comments - Valid original comments in compiler declaration order.
+ * @param includeInheritance - Retain a single inheritance request. Defaults to true; false builds metadata-only merge inputs before per-contribution resolution.
  * @returns Combined documentation, or undefined when distinct inheritance requests cannot be represented.
  */
 export function mergeDocumentationComments(
 	parser: TSDocParser,
 	comments: readonly DocComment[],
+	includeInheritance = true,
 ): DocComment | undefined {
 	const result = parser.parseString("/** */").docComment;
 	const summaries = new Set<string>();
@@ -33,7 +35,7 @@ export function mergeDocumentationComments(
 		for (const tag of comment.modifierTagSet.nodes) {
 			result.modifierTagSet.addTag(tag);
 		}
-		if (comment.inheritDocTag !== undefined) {
+		if (includeInheritance && comment.inheritDocTag !== undefined) {
 			const reference = comment.inheritDocTag.declarationReference?.emitAsTsdoc() ?? "";
 			if (inheritance !== undefined && reference !== inheritance) {
 				return undefined;

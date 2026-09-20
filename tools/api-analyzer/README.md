@@ -153,8 +153,13 @@ No missing-package-documentation notice is rendered when the comment is absent.
 Package documentation is not copied into the first API, classified by release level, or inherited from a dependency.
 The source scan records fingerprints for all inspected package-owned inputs, including files without exported APIs, so edits to those recorded files invalidate stale dependency models.
 
-URL links are supported, but API declaration links in package comments currently produce an unsupported-feature diagnostic.
-Reference resolution for package comments remains [required follow-up work](docs/api-extractor-replacement-follow-ups.md#required-package-documentation-support).
+API declaration links resolve in the package comment's original file scope, including imported aliases, configured self-package surfaces, and selected dependency models.
+Numeric overload and static/instance selectors use the same binding rules as item links.
+The completed package record retains link occurrences, target identities, and source locations separately from API-item metadata.
+Model decoding and suite loading validate stored target identities and occurrence order.
+URL links require no network access.
+The current conservative visibility rule permits public, beta, and alpha targets and rejects internal or unclassified targets without assigning a release tag to the package.
+Whether that package-specific rule should be configurable is recorded for [acceptance review](docs/api-extractor-replacement-implementation-plan.md#stage-2-review-questions).
 
 ### Merged release tags
 
@@ -181,16 +186,24 @@ Links in distinct retained descriptions are all validated against the resulting 
 Original source records remain unchanged.
 The combined comment's primary location is the first declaration; link and type-reference occurrences retain their own locations.
 
-Merged interface reports still require matching header syntax and the compiler's combined effective members.
-Repeated identifier-named namespace declarations use the compiler's combined export set, including nested namespaces and recursive aliases.
+Merged interface reports combine compiler-validated type parameters, defaults, heritage clauses, and declared signatures with the compiler's effective member set.
+Repeated identifier-named namespaces and string-literal ambient modules use the compiler's combined export set, including nested namespaces and recursive aliases.
 Selection retains the complete namespace even when a member does not match the namespace's custom tags.
 All explicit release tags on merged parts must agree, and member/container equality still applies.
-Differing headers, compound type/value merges, and merged declared signatures remain unsupported.
-String-literal ambient module merges and namespace-level documentation inheritance are not added by this support.
-Explicit inheritance supports merged interface and repeated-property receivers and targets.
-Each merged receiver can retain one deduplicated inheritance request; multiple distinct requests remain unsupported.
-Interface type-parameter names and order must match; documentation is not adapted to renamed parameters.
+Compound reports retain interface/constant, function/namespace, class/namespace, interface/namespace, and enum/namespace parts together.
+Namespace exports exclude synthetic class exports and statics that are already represented on the class.
+Compound functions retain declaration-level link targets plus ordered callable targets for numeric references.
+Explicit inheritance supports supported same-kind declaration receivers and targets, including merged interfaces and repeated properties.
+Merged receivers deduplicate equal original comments, resolve every retained inheritance request in its original scope, then merge resolved content in compiler declaration order.
+Equal resolved contributions keep their first occurrence; distinct summaries and parameter blocks combine without copying target-only tags or ancillary blocks.
+Links and all contributing section sources survive local and dependency-model inheritance chains.
+Invalid requests and cycles fail analysis; private contribution identities are not serialized.
+Class, interface, type-alias, and callable type-parameter names and order must match; documentation is not adapted to renamed parameters.
 Unsupported reference-bearing merges fail analysis rather than discarding their references.
+Class/interface augmentations and repeated enum declarations are supported and consumer-tested.
+Callable and constructable class-instance augmentations render a separate merged interface for their call and construct signatures, with combined generic defaults and heritage.
+Repeated ambient modules retain original-scope documentation and export identities through direct and namespace re-exports.
+Their quoted compiler names are not emitted as invalid namespace identifiers.
 
 ### Type-only enum and constant exports
 
@@ -548,7 +561,18 @@ These checks protect parameter documentation but do not establish TypeScript ass
 They do not compare parameter types, return types, generic constraints, or generic defaults.
 Package-qualified dependency paths use selected suite models.
 Self-package qualified paths use configured entrypoint exports.
-Selectors other than numeric, static, or instance remain unsupported, as do target-less inheritance requests.
+Named declaration selectors `class`, `interface`, `namespace`, `enum`, `type`, `function`, and `variable` check the requested kind against the compiler declarations or retained model kinds.
+They can constrain intermediate path components as well as the terminal target.
+A `function` selector does not choose an overload; ambiguous callable targets still require a numeric selector.
+Explicit constructor selectors, original `{@label}` selectors, quoted names, enum members, and symbol-reference paths are supported locally and through models.
+Overloaded constructors and duplicate labels require an unambiguous selection; labels are not inferred from inherited documentation.
+TSDoc selector conformance remains required, with the explicit 2026-09-20 exclusion of module-based references.
+Whole-module targets such as `my-package#` and `my-package/widgets#`, and import paths without a package name such as `./widgets#Widget`, are forbidden for now.
+The rule applies to links, inheritance requests, package comments, and nested symbol references.
+Named package APIs such as `my-package#Widget` and `my-package/widgets#Widget` remain supported, as do ordinary namespace-member paths.
+Potential module support is tracked in a [follow-up investigation](docs/api-extractor-replacement-follow-ups.md#consider-module-based-documentation-references), not as a Stage 2 requirement.
+The [remaining conformance limit](docs/api-extractor-replacement-implementation-plan.md#remaining-stage-2-decisions) concerns parser-rejected unnamed selectors.
+Target-less `@inheritDoc` still requires a confidently identifiable source; no source is guessed.
 The terminal component accepts one selector: selecting a side does not infer an overload when multiple callables remain.
 TSDoc selectors identify a specific declaration, such as an overload, within a reference.
 Classification, binding, and content resolution share parsed comments and custom modifier configuration through the analysis context.
@@ -563,12 +587,12 @@ Function reports use these bindings and resolved comments to determine documenta
 
 ### Explicit declaration inheritance
 
-Interfaces and properties can request documentation from the same supported declaration category.
+Classes, interfaces, type aliases, variables, enums, namespaces, and properties can request documentation from the same supported declaration category.
 This includes merged interfaces and repeated properties, using the combined target documentation.
 The [merged inheritance fixture](src/test/fixtures/native/merged-inheritance.ts) covers both paths with declarations emitted by TS6 and TS7.
 The [suite consumer](src/test/fixtures/suite/merged-inheritance-consumer.d.ts) covers package-qualified and imported dependency targets.
 
-Interface type-parameter names, count, and order must match.
+Class, interface, and type-alias type-parameter names, count, and order must match.
 These names are retained from compiler nodes, not parsed from printed headers.
 Property requests cannot copy callable parameter documentation.
 Numeric selectors do not apply to interface or property documentation.
@@ -577,9 +601,9 @@ The checks do not compare member types, generic constraints, or generic defaults
 Inheritance resolves the target's own requests before copying content and rejects cycles.
 Copied links and section provenance keep their original sources.
 Release levels and custom tags stay with the receiving API; they are not copied from the target.
-Dependency models retain interface type-parameter arrays even for non-generic interfaces, whose arrays are empty.
+Dependency models retain class, interface, and type-alias type-parameter arrays even for non-generic declarations, whose arrays are empty.
 Models missing those facts must be regenerated before use.
-Multiple distinct requests on a merged API and broader structural merge forms remain unsupported.
+Distinct inheritance requests on supported merged declarations resolve independently before their content is merged.
 
 ### Conservative automatic inheritance
 
@@ -1077,7 +1101,10 @@ Export records distinguish static and instance members and can reference a short
 These back-references allow paths such as `Group.self.self.run` without serializing an infinite export tree.
 The decoder checks that each back-reference points to an enclosing canonical record with the same target identities.
 Imported dependency overload references use compiler declaration order, not the identity-sorted API array.
-Regenerate experimental dependency models to obtain the newly retained member-side and recursive-path data.
+Regenerate experimental dependency models to obtain the retained member-side, recursive-path, and declaration-kind data.
+API records require a nonempty, deduplicated `declarationKinds` array that includes their primary `kind`; compound declarations retain every contributing kind.
+Records also retain original labels, and exported member paths retain unique-symbol key identities separately from printed names.
+Regenerate experimental models after these schema changes; resolved section records can contain multiple sources for one combined section.
 Dependency comments are parsed for structural validation and content copying, but their targets and inheritance chains are not resolved again.
 This artifact is not a complete portable API model and cannot restore an entire analysis or generate declaration rollups.
 The loader rejects missing or changed analyzed package files by comparing their SHA-256 hashes before consumer analysis.
@@ -1088,6 +1115,15 @@ JSON whitespace and object-key order do not affect model fingerprints; array ord
 Completeness across unsupported declaration forms and remaining reference policies still require acceptance work.
 
 ### Reference policies
+
+Reference facts retain original syntax occurrences and additional named targets discovered in effective property, variable, and callable types.
+Native compiler traversal covers anonymous object types, instantiated arguments, tuples, index signatures, callbacks, unions, intersections, indexed access, and conditional types without parsing printed types.
+Traversal stops at named declarations and outside-suite boundaries; named declarations within the suite retain their own independently validated references.
+The suite consists of the analyzed package and resolved selected dependency packages.
+Compiler-library and outside-suite types retain their original report syntax and an explicitly incomplete member view instead of classifying external members as package APIs.
+Local overrides and suite-owned type arguments remain subject to validation.
+Inherited member views retain effective types and original metadata for reports and models, but do not undergo repeated reference-policy validation on each receiving container.
+Validation checks the original declarations and the receiver's own relationships, including heritage clauses and local overrides.
 
 `referencePolicies.releaseCompatibility` rejects references from a more stable API to a less stable target.
 `entrypointExposure` checks same-package declaration targets without requiring dependency types to be re-exported by a consumer.

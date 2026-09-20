@@ -264,6 +264,18 @@ export interface SignatureFact {
  */
 export interface MemberFact {
 	/**
+	 * Compiler member identifier without TypeScript quoting or computed-name punctuation.
+	 * @defaultValue Omitted by synthetic callers; use the printed name.
+	 */
+	readonly referenceName?: string;
+
+	/**
+	 * Identity of the unique symbol used as the member name.
+	 * @defaultValue Omitted for ordinary named members.
+	 */
+	readonly symbolId?: ApiItemId;
+
+	/**
 	 * Original reference lookup facts for a property.
 	 *
 	 * @remarks
@@ -528,10 +540,23 @@ export interface UnsupportedDocumentationReference extends DocumentationReferenc
  */
 export interface DocumentationReferenceContext {
 	/**
+	 * Labels declared on this original comment, not inherited from its documentation targets.
+	 * @defaultValue Omitted when the comment declares no labels.
+	 */
+	readonly labels?: readonly string[];
+
+	/**
+	 * Distinct original comments that must resolve inheritance before their content is merged.
+	 * Entries retain compiler order and original lookup scope; equal comments keep the first occurrence.
+	 * @defaultValue Omitted when merged documentation has no inheritance requests.
+	 */
+	readonly contributions?: readonly DocumentationReferenceContext[];
+
+	/**
 	 * Original type-parameter names in declaration order for supported inheritance shapes.
 	 *
 	 * @remarks
-	 * Interface contexts retain these names without parsing their printed headers.
+	 * Class, interface, and type-alias contexts retain these names without parsing printed headers.
 	 * Signature contexts require this array separately from ordinary parameter facts.
 	 * @defaultValue Omitted for declaration forms without retained type-parameter facts.
 	 * An empty array means that a supported declaration has no type parameters.
@@ -563,8 +588,10 @@ export interface DocumentationReferenceContext {
 	 * @remarks
 	 * An empty array means extraction supplied no supported reference occurrences.
 	 * Records occurrences rather than a set of unique targets, so repeated references are retained.
-	 * Excludes type parameters and recognized compiler-library declarations.
-	 * This is not a complete graph of references in inferred or instantiated types.
+	 * Excludes type parameters and declarations outside the selected suite, including compiler libraries.
+	 * Effective compiler-type traversal adds named targets introduced by substitution or inference.
+	 * Named declarations and outside-suite boundaries are not recursively expanded into this occurrence list.
+	 * Inherited member views retain these facts for artifacts, not for repeated reference-policy validation.
 	 *
 	 * @defaultValue Omitted when reference extraction was not supplied, as in synthetic internal facts.
 	 */
@@ -767,6 +794,13 @@ export interface HeritageFact {
  */
 export interface DeclarationContainerFact {
 	/**
+	 * Type parameters and heritage for an interface merged with a callable or constructable class instance.
+	 * Call and construct signatures in declaredMembers belong in this interface, not the class body.
+	 * @defaultValue Omitted when no separate interface declaration is needed.
+	 */
+	readonly interfaceSuffix?: string;
+
+	/**
 	 * The declaration form represented by this container.
 	 */
 	readonly kind: "class" | "interface" | "enum";
@@ -851,6 +885,12 @@ export interface DeclarationStatementFact {
 // declaration targets and member references. Preserve local-comment precedence.
 // These facts must support resolution without compiler handles or parsing printed type strings.
 export interface DeclarationFact {
+	/**
+	 * Unique symbol key when this declaration is a collected computed member.
+	 * @defaultValue Omitted for declarations with ordinary names.
+	 */
+	readonly symbolId?: ApiItemId;
+
 	/**
 	 * Compiler-derived syntax around the name of an atomic type alias or variable declaration.
 	 *
@@ -1024,7 +1064,7 @@ export interface DeclarationFact {
  */
 export interface DeclaredMemberFact extends SourceDeclarationFact {
 	/**
-	 * The collected declaration identity of a named static member.
+	 * The collected declaration identity of a named static or enum member.
 	 * @defaultValue Omitted for constructors, instance members, and declarations without a name.
 	 */
 	readonly staticTarget?: ApiItemId;
@@ -1147,6 +1187,12 @@ export interface AnalysisFacts {
  * Package-owned documentation retained separately from API declaration metadata.
  */
 export interface PackageDocumentationFact {
+	/**
+	 * Original-scope lookup results for API links, in comment traversal order.
+	 * @defaultValue Omitted on internal facts without extracted lookups; valid only when there are no API links.
+	 */
+	readonly references?: readonly DocumentationReferenceLookup[];
+
 	/**
 	 * The original comment location in a package-owned compiler input.
 	 */

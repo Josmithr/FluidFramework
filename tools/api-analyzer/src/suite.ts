@@ -10,6 +10,7 @@ import {
 	fingerprintDependencyModel,
 } from "./model-generation/dependencyModel.js";
 import { freezeData } from "./utilities/freezeData.js";
+import { ReleaseLevel } from "./analysis-types/classification.js";
 
 const manifestSchema = z.object({
 	name: z.string().min(1),
@@ -296,10 +297,26 @@ function validateModelInputs(models: readonly DependencyModel[]): Result {
  * @returns Success or the first unavailable external target diagnostic.
  */
 function validateSuiteReferences(models: readonly DependencyModel[]): Result {
+	const apis = new Map(
+		models.flatMap((model) => model.apis.map((api) => [api.id, api] as const)),
+	);
 	const targets = new Map(
 		models.flatMap((model) => model.apis.map((api) => [api.id, model.packageName] as const)),
 	);
 	for (const model of models) {
+		for (const link of model.packageDocumentation?.links ?? []) {
+			const target = apis.get(link.targetSignature);
+			if (
+				target?.declarationId !== link.target ||
+				target.metadata.releaseLevel === undefined ||
+				target.metadata.releaseLevel === ReleaseLevel.Internal
+			) {
+				return reportFailure(
+					DiagnosticCode.DependencyModel,
+					`Dependency ${model.packageName}: package link ${link.reference} has an invalid or internal target in the selected suite. Regenerate the model.`,
+				);
+			}
+		}
 		for (const external of model.external) {
 			if (targets.get(external.id) !== external.packageName) {
 				return reportFailure(

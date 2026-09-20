@@ -1,3 +1,23 @@
+/**
+ * {@inheritDoc dependency#SourceSettings}
+ * @public
+ */
+export interface MultiSource<Value> { value: string; }
+/**
+ * {@inheritDoc dependency#AdditionalSettings}
+ * @public
+ */
+export interface MultiSource<Value> { value: string; }
+/**
+ * {@inheritDoc dependency#SourceSettings}
+ * @public
+ */
+export interface MultiSource<Value> {}
+/**
+ * {@inheritDoc dependency#CombinedChain}
+ * @public
+ */
+export interface FromMerged<Value> { value: string; }
 /*
  * Inherits combined interface and property documentation from selected dependency models.
  * The imported alias exercises original lexical lookup alongside package-qualified references.

@@ -8,12 +8,14 @@ import type {
 	DocumentationSectionSource,
 } from "../analysis-types/documentation.js";
 import assert from "node:assert/strict";
+import { mergeDocumentationComments } from "./mergedDocumentation.js";
 import {
 	type DocLinkTag,
 	SelectorKind,
 	type DocComment,
 	type DocNode,
 	DocParamBlock,
+	TSDocParser,
 	type DocDeclarationReference,
 } from "@microsoft/tsdoc";
 import { ReleaseLevel, type ApiItemMetadata } from "../analysis-types/classification.js";
@@ -32,8 +34,10 @@ import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
 import { resolveDependencyReference } from "./dependencyReferences.js";
 import type { DependencyApi } from "../analysis-types/dependencyModel.js";
+import type { CompletedPackageDocumentation } from "../analysis-types/completedGraph.js";
 import {
 	collectApiLinkNodes,
+	collectDocumentationLabels,
 	type AnalysisContext,
 	type DocumentationContext,
 	type ParsedDocumentationItem,
@@ -50,8 +54,8 @@ import {
  * The compiler resolves names in the original declaration scope, including imported aliases.
  *
  * Callable sources include effective method signatures; targets are functions or methods.
- * Interfaces and properties can inherit from their own declaration category, including supported merged contexts.
- * Interface type-parameter names and order must match. Numeric selectors apply only to callable documentation.
+ * Non-callable declarations can inherit from their own supported category, including merged contexts.
+ * Generic declaration type-parameter names and order must match. Numeric selectors apply only to callable documentation.
  * Targets can belong to the same original package or to selected dependency models.
  * Numeric method references use a terminal selector, such as `Base.(method:2)`.
  * Static and instance member paths are supported. Colliding names require an explicit side selector.
@@ -111,13 +115,20 @@ export function bindDocumentationReferences(
 						signature === undefined &&
 						(source.kind === "PropertyDeclaration" ||
 							source.kind === "PropertySignature" ||
-							source.kind === "InterfaceDeclaration")
+							[
+								"InterfaceDeclaration",
+								"ClassDeclaration",
+								"TypeAliasDeclaration",
+								"VariableDeclaration",
+								"EnumDeclaration",
+								"ModuleDeclaration",
+							].includes(source.kind))
 					),
 			)
 		) {
 			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
-				`Item ${id}: @inheritDoc requires a function, method, property, or supported interface. Supply local documentation for this declaration.`,
+				`Item ${id}: @inheritDoc requires a supported declaration or callable documentation context. Supply local documentation for this declaration.`,
 			);
 		}
 		const context = assertDefined(
@@ -154,6 +165,7 @@ export function bindDocumentationReferences(
 			request.declarationReference,
 			lookup,
 			origin.packageName,
+			signature !== undefined,
 		);
 		if (!dependency.ok) {
 			return dependency;
@@ -195,6 +207,17 @@ export function bindDocumentationReferences(
 				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
 					`Item ${id}: target ${lookup.reference} has no supported documentation context.`,
+				);
+			}
+			const selector = request.declarationReference?.memberReferences.at(-1)?.selector;
+			if (
+				(selector?.selectorKind === SelectorKind.Label &&
+					targetContext.labels?.includes(selector.selector) !== true) ||
+				selector?.selector === "constructor"
+			) {
+				return reportFailure(
+					DiagnosticCode.DocumentationReference,
+					`Item ${id}: selector ${selector.selector} does not identify compatible declaration documentation on ${lookup.reference}.`,
 				);
 			}
 			const targetShape = getNonCallableDocumentationShape(
@@ -299,12 +322,19 @@ function bindDependencyInheritance(
  */
 interface NonCallableDocumentationShape {
 	/**
-	 * Supported declaration category; interfaces and properties do not exchange documentation.
+	 * Supported declaration category; distinct categories do not exchange documentation.
 	 */
-	readonly kind: "interface" | "property";
+	readonly kind:
+		| "InterfaceDeclaration"
+		| "ClassDeclaration"
+		| "TypeAliasDeclaration"
+		| "VariableDeclaration"
+		| "EnumDeclaration"
+		| "ModuleDeclaration"
+		| "property";
 
 	/**
-	 * Original interface type-parameter names, or an empty array for properties.
+	 * Original type-parameter names, or an empty array for non-generic declaration categories.
 	 */
 	readonly typeParameters: readonly string[];
 }
@@ -313,7 +343,7 @@ interface NonCallableDocumentationShape {
  * Identifies supported non-callable shapes from original declaration kinds and parameter facts.
  *
  * @param kinds - Syntax kinds of every original declaration part.
- * @param typeParameters - Retained interface parameter names; undefined means no supported interface shape.
+ * @param typeParameters - Retained generic declaration parameter names; undefined means no supported generic shape.
  * @returns The supported shape, or undefined for missing or unsupported declaration facts.
  */
 function getNonCallableDocumentationShape(
@@ -323,10 +353,24 @@ function getNonCallableDocumentationShape(
 	if (kinds.length === 0) {
 		return undefined;
 	}
-	if (kinds.every((kind) => kind === "InterfaceDeclaration")) {
-		return typeParameters === undefined ? undefined : { kind: "interface", typeParameters };
+	const kind = kinds[0];
+	if (
+		(kind === "InterfaceDeclaration" ||
+			kind === "ClassDeclaration" ||
+			kind === "TypeAliasDeclaration") &&
+		kinds.every((part) => part === kind)
+	) {
+		return typeParameters === undefined ? undefined : { kind, typeParameters };
 	}
-	return kinds.every((kind) => kind === "PropertyDeclaration" || kind === "PropertySignature")
+	if (
+		(kind === "VariableDeclaration" ||
+			kind === "EnumDeclaration" ||
+			kind === "ModuleDeclaration") &&
+		kinds.every((part) => part === kind)
+	) {
+		return { kind, typeParameters: [] };
+	}
+	return kinds.every((part) => part === "PropertyDeclaration" || part === "PropertySignature")
 		? { kind: "property", typeParameters: [] }
 		: undefined;
 }
@@ -349,7 +393,7 @@ function validateNonCallableInheritance(
 	if (source === undefined || source.kind !== target?.kind) {
 		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
-			`Item ${id}: target ${reference} must have the same supported interface or non-callable property kind as the receiver.`,
+			`Item ${id}: target ${reference} must have the same supported declaration kind as the receiver.`,
 		);
 	}
 	if (
@@ -424,11 +468,13 @@ function selectCallableOverload(
 ): Result<SignatureFact> {
 	if (
 		target.declarations.length === 0 ||
+		target.signatures.length === 0 ||
 		target.declarations.some(
 			(declaration) =>
 				declaration.kind !== "FunctionDeclaration" &&
 				declaration.kind !== "MethodDeclaration" &&
-				declaration.kind !== "MethodSignature",
+				declaration.kind !== "MethodSignature" &&
+				declaration.kind !== "ModuleDeclaration",
 		)
 	) {
 		return reportFailure(
@@ -437,13 +483,29 @@ function selectCallableOverload(
 		);
 	}
 	const terminal = reference?.memberReferences.at(-1)?.selector;
+	if (terminal?.selectorKind === SelectorKind.Label) {
+		const matches = target.signatures.filter((candidate) =>
+			(
+				candidate.documentationContext?.labels ??
+				collectDocumentationLabels(
+					new TSDocParser().parseString(candidate.documentation ?? "/** */").docComment,
+				)
+			).includes(terminal.selector),
+		);
+		return matches.length === 1
+			? { ok: true, value: assertDefined(matches[0]) }
+			: reportFailure(
+					DiagnosticCode.DocumentationReference,
+					`Item ${source}: label ${terminal.selector} identifies ${matches.length} callable signatures on ${referenceText}.`,
+				);
+	}
 	const selector = terminal?.selectorKind === SelectorKind.Index ? terminal : undefined;
 	if (
 		terminal !== undefined &&
 		terminal.selectorKind !== SelectorKind.Index &&
 		!(
 			terminal.selectorKind === SelectorKind.System &&
-			["static", "instance"].includes(terminal.selector)
+			["static", "instance", "function"].includes(terminal.selector)
 		)
 	) {
 		return reportFailure(
@@ -771,6 +833,7 @@ function validateLinkSource(
  * @param lookup - Retained compiler lookup outcome for this occurrence.
  * @param linkIndex - Original occurrence index in TSDoc traversal order.
  * @param reference - Parsed link reference; undefined means no explicit selector is available.
+ * @param packageLevel - Explicit visibility baseline for package comments. Omit to use the source API's classification.
  * @returns A binding or the first lookup, target-form, package, or visibility diagnostic.
  */
 function bindLocalLink(
@@ -780,11 +843,12 @@ function bindLocalLink(
 	lookup: DocumentationReferenceLookup,
 	linkIndex: number,
 	reference: DocDeclarationReference | undefined,
+	packageLevel?: ReleaseLevel,
 ): Result<DocumentationLinkBinding> {
 	if (lookup.status === "unsupported") {
 		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
-			`Item ${source}: unsupported or ambiguous API link ${lookup.reference}. Use a named path, a numeric callable selector, or an explicit static/instance member selector. Qualified dependency paths require a selected model.`,
+			`Item ${source}: unsupported or ambiguous API link ${lookup.reference}. Use a named path with declaration-kind or static/instance selectors, or a numeric callable selector. Qualified dependency paths require a selected model.`,
 		);
 	}
 	if (lookup.status === "not-found") {
@@ -800,8 +864,28 @@ function bindLocalLink(
 	);
 
 	// Links select overload metadata without imposing inheritance's parameter-shape requirements.
-	const selected =
-		target.documentationContext === undefined
+	const terminal = reference?.memberReferences.at(-1)?.selector;
+	const special =
+		terminal?.selectorKind === SelectorKind.Label ||
+		(terminal?.selectorKind === SelectorKind.System && terminal.selector === "constructor");
+	const candidates = special
+		? [target, ...target.signatures, ...(target.container?.declaredMembers ?? [])].filter(
+				(candidate) =>
+					terminal?.selectorKind === SelectorKind.Label
+						? candidate.documentationContext?.labels?.includes(terminal.selector) === true
+						: "kind" in candidate && candidate.kind === "Constructor",
+			)
+		: [];
+	const selected = special
+		? candidates.length === 1
+			? { ok: true as const, value: assertDefined(candidates[0]) }
+			: reportFailure(
+					DiagnosticCode.DocumentationReference,
+					`Item ${source}: selector ${terminal?.selector} identifies ${candidates.length} declarations on ${lookup.reference}.`,
+				)
+		: target.documentationContext === undefined ||
+				(target.declarations.some((part) => part.kind === "FunctionDeclaration") &&
+					reference?.memberReferences.at(-1)?.selector?.selectorKind === SelectorKind.Index)
 			? selectCallableOverload(source, target, reference, lookup.reference)
 			: reference?.memberReferences.at(-1)?.selector?.selectorKind === SelectorKind.Index
 				? reportFailure(
@@ -828,10 +912,12 @@ function bindLocalLink(
 	}
 
 	// Link visibility uses original metadata, independently of whether the target appears in a report.
-	const sourceLevel = assertDefined(
-		analysis.metadata.get(source),
-		"API link sources must have original classification metadata.",
-	).releaseLevel;
+	const sourceLevel =
+		packageLevel ??
+		assertDefined(
+			analysis.metadata.get(source),
+			"API link sources must have original classification metadata.",
+		).releaseLevel;
 	const targetLevel = assertDefined(
 		analysis.metadata.get(targetSignature.id),
 		"API link targets must have original classification metadata.",
@@ -859,6 +945,94 @@ function bindLocalLink(
 			origin: { ...context.origin },
 		},
 	};
+}
+
+/**
+ * Resolves package-owned API links without assigning the package API-item metadata.
+ *
+ * @remarks
+ * Package overviews currently use the non-internal visibility rule. Target syntax and overload selection
+ * are identical to item links; source-scoped custom API rules do not classify the package.
+ *
+ * @param analysis - Detached original lookups, classified targets, and selected dependency models.
+ * @returns Completed package documentation, undefined when absent, or a reference diagnostic.
+ */
+export function bindPackageDocumentation(
+	analysis: AnalysisContext,
+): Result<CompletedPackageDocumentation | undefined> {
+	const documentation = analysis.facts.packageDocumentation;
+	if (documentation === undefined) {
+		return { ok: true, value: undefined };
+	}
+	const nodes = collectApiLinkNodes(
+		new TSDocParser(analysis.configuration).parseString(documentation.documentation)
+			.docComment,
+	);
+	const references = documentation.references ?? [];
+	assert.equal(
+		nodes.length,
+		references.length,
+		"Package API links must retain original lookup facts.",
+	);
+	const links: Omit<DocumentationLinkBinding, "source">[] = [];
+	for (const [linkIndex, lookup] of references.entries()) {
+		const reference = nodes[linkIndex]?.codeDestination;
+		assert.equal(
+			reference?.emitAsTsdoc(),
+			lookup.reference,
+			"Package link lookup order must match comment order.",
+		);
+		const dependency = resolveDependencyReference(
+			analysis,
+			reference,
+			lookup,
+			documentation.origin.packageName,
+		);
+		if (!dependency.ok) {
+			return dependency;
+		}
+		if (dependency.value === undefined) {
+			const bound = bindLocalLink(
+				analysis,
+				`Package ${analysis.facts.packageName}`,
+				{ origin: documentation.origin, links: references },
+				lookup,
+				linkIndex,
+				reference,
+				ReleaseLevel.Public,
+			);
+			if (!bound.ok) {
+				return bound;
+			}
+			const { source: _source, ...link } = bound.value;
+			links.push(link);
+		} else {
+			const target = dependency.value;
+			if (target.metadata.releaseLevel === undefined) {
+				return reportFailure(
+					DiagnosticCode.DocumentationConfiguration,
+					`Package ${analysis.facts.packageName}: link target ${lookup.reference} requires a release level.`,
+				);
+			}
+			if (target.metadata.releaseLevel === ReleaseLevel.Internal) {
+				return reportFailure(
+					DiagnosticCode.DocumentationLinkPolicy,
+					`Package ${analysis.facts.packageName}: package documentation cannot link to internal target ${lookup.reference}.`,
+				);
+			}
+			links.push({
+				linkIndex,
+				reference: lookup.reference,
+				target: target.declarationId,
+				targetSignature: target.id,
+				origin: documentation.origin,
+			});
+		}
+	}
+	return freezeData({
+		ok: true,
+		value: { origin: documentation.origin, documentation: documentation.documentation, links },
+	});
 }
 
 /**
@@ -968,6 +1142,8 @@ export function resolveDocumentation(
 	const visiting = new Set<ApiItemId>();
 	const results: ResolvedDocumentation[] = [];
 	const state: DocumentationTraversalState = {
+		parser: new TSDocParser(context.configuration),
+		mergedInputs: options.mergedInputs ?? new Map(),
 		inputs,
 		targets,
 		automaticTargets,
@@ -1012,21 +1188,29 @@ function associateDocumentationBindings(
 ): Result<{
 	readonly comments: ReadonlyMap<ApiItemId, DocComment>;
 	readonly nodesToBindings: ReadonlyMap<DocLinkTag, DocumentationLinkBinding>;
-	readonly sectionSources: ReadonlyMap<DocNode, Omit<DocumentationSectionSource, "section">>;
+	readonly sectionSources: Map<
+		DocNode,
+		readonly Omit<DocumentationSectionSource, "section">[]
+	>;
 }> {
 	const comments = new Map<ApiItemId, DocComment>();
 	const nodesToBindings = new Map<DocLinkTag, DocumentationLinkBinding>();
-	const sectionSources = new Map<DocNode, Omit<DocumentationSectionSource, "section">>();
+	const sectionSources = new Map<
+		DocNode,
+		readonly Omit<DocumentationSectionSource, "section">[]
+	>();
 	for (const item of ordered) {
 		const comment = item.parsed.docComment;
 		const dependency = options.dependencies?.get(item.id);
 		for (const section of collectDocumentationSections(comment)) {
-			const original = dependency?.sections?.find(
+			const original = dependency?.sections?.filter(
 				(entry) => entry.section === section.section,
 			);
 			sectionSources.set(
 				section.node,
-				original ?? { source: item.id, packageName: item.packageName },
+				original !== undefined && original.length > 0
+					? original
+					: [{ source: item.id, packageName: item.packageName }],
 			);
 		}
 		const linkNodes = item.originalLinks;
@@ -1090,9 +1274,22 @@ function associateDocumentationBindings(
  */
 interface DocumentationTraversalState {
 	/**
+	 * Shared vocabulary used when merging fully resolved contributions.
+	 */
+	readonly parser: TSDocParser;
+
+	/**
+	 * Ordered private contribution inputs for merged API comments.
+	 */
+	readonly mergedInputs: ReadonlyMap<ApiItemId, readonly ApiItemId[]>;
+
+	/**
 	 * Original identity associated with each section node before content copying.
 	 */
-	readonly sectionSources: ReadonlyMap<DocNode, Omit<DocumentationSectionSource, "section">>;
+	readonly sectionSources: Map<
+		DocNode,
+		readonly Omit<DocumentationSectionSource, "section">[]
+	>;
 
 	/**
 	 * Unique automatic sources for inputs without local comments.
@@ -1179,6 +1376,22 @@ function resolveDocumentationItem(
 		copyInheritedSections(comment, inherited);
 		inheritedFrom = [targetId, ...target.value.inheritedFrom];
 	}
+	const contributions = state.mergedInputs.get(id);
+	if (contributions !== undefined) {
+		const parts: DocComment[] = [];
+		const ancestors: ApiItemId[] = [];
+		for (const contribution of contributions) {
+			const part = resolveDocumentationItem(contribution, state);
+			if (!part.ok) {
+				return part;
+			}
+			parts.push(assertDefined(comments.get(contribution)));
+			ancestors.push(...part.value.inheritedFrom);
+		}
+		const merged = mergeResolvedDocumentation(state, parts);
+		Object.assign(comment, merged);
+		inheritedFrom = [...new Set(ancestors)];
+	}
 	const links = resolveEffectiveLinks(id, comment, nodesToBindings, metadata);
 	if (!links.ok) {
 		return links;
@@ -1190,13 +1403,12 @@ function resolveDocumentationItem(
 	// do not supply all information required by the portable model contract.
 	const value: ResolvedDocumentation = {
 		id: item.id,
-		sections: collectDocumentationSections(comment).map(({ section, node }) => ({
-			section,
-			...assertDefined(
+		sections: collectDocumentationSections(comment).flatMap(({ section, node }) =>
+			assertDefined(
 				state.sectionSources.get(node),
 				"Resolved sections must retain their original input identity.",
-			),
-		})),
+			).map((source) => ({ ...source, section })),
+		),
 		packageName: item.packageName,
 		documentation:
 			item.documentation === undefined && targetId === undefined
@@ -1208,6 +1420,56 @@ function resolveDocumentationItem(
 	visiting.delete(id);
 	resolved.set(id, value);
 	return { ok: true, value };
+}
+
+/**
+ * Merges resolved comments while associating retained content nodes with their original section sources.
+ * @param state - Invocation-owned parser and provenance map.
+ * @param comments - Resolved contributions in compiler order.
+ * @returns Combined documentation with unchanged original link-node identities.
+ */
+function mergeResolvedDocumentation(
+	state: DocumentationTraversalState,
+	comments: readonly DocComment[],
+): DocComment {
+	function associate(
+		current: DocNode,
+		sources: readonly Omit<DocumentationSectionSource, "section">[],
+	): void {
+		if (!state.sectionSources.has(current)) {
+			state.sectionSources.set(current, sources);
+		}
+		for (const child of current.getChildNodes()) {
+			associate(child, sources);
+		}
+	}
+	function findSources(
+		current: DocNode,
+	): readonly Omit<DocumentationSectionSource, "section">[] {
+		return state.sectionSources.get(current) ?? current.getChildNodes().flatMap(findSources);
+	}
+	for (const comment of comments) {
+		for (const { node } of collectDocumentationSections(comment)) {
+			const sources = assertDefined(state.sectionSources.get(node));
+			associate(node, sources);
+		}
+	}
+	const merged = assertDefined(mergeDocumentationComments(state.parser, comments));
+	for (const { node } of collectDocumentationSections(merged)) {
+		const sources = findSources(node);
+		const fallback = assertDefined(
+			state.sectionSources.get(assertDefined(comments[0]).summarySection),
+		);
+		state.sectionSources.set(node, [
+			...new Map(
+				(sources.length > 0 ? sources : fallback).map((source) => [
+					JSON.stringify([source.source, source.packageName]),
+					source,
+				]),
+			).values(),
+		]);
+	}
+	return merged;
 }
 
 /**
