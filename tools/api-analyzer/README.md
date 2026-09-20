@@ -7,18 +7,22 @@ Publication remains a separate decision.
 
 ## Current Stage 2 scope
 
+Stage 2 is complete as of 2026-09-20 under the accepted review and validation scope.
+The [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) retains the known parser limitation and optional investigations for after the remaining library implementation.
+Complete portable documentation models are Stage 3; declaration rollups are Stage 4.
+
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
 One optional package documentation comment is retained separately from entrypoints and API-item metadata.
 Reports support standalone function selection and complete selected classes, interfaces, enums, and namespaces, including constructors and static members.
 Type aliases and variables remain selectable as atomic declarations.
-Interface merges with matching headers, repeated properties, and repeated named namespaces also participate in classification, reports, and dependency models.
-Their documentation combines distinct descriptions and deduplicates tags while retaining each surviving reference's original scope.
-Broader structural merges, complete type-reference extraction, and some explicit reference forms still need acceptance work.
-Local and selected-dependency references support numeric callable selectors and explicit static/instance member selectors.
+Merged generic interfaces, repeated properties and enums, compound type/value/namespace declarations, callable class augmentations, and ambient modules participate in classification, reports, and dependency models.
+Their documentation deduplicates original contributions, resolves retained requests, then merges content while retaining original link and section provenance.
+Local and selected-dependency references support numeric, declaration-kind, constructor, label, and static/instance selectors, quoted names, and symbol keys.
 Self-package qualified references use configured root or subpath exports, including aliases and dependency re-exports.
 Dependency models retain finite back-references for recursive namespace aliases.
-These limitations prevent closing Stage 2; the implemented checks do not waive the remaining gates.
+Module-target and source-relative documentation references are deliberately forbidden.
+The official parser's rejection of documented unnamed selectors is an accepted, deferred limitation, not a claim of complete TSDoc support.
 
 ## Development contract
 
@@ -83,7 +87,7 @@ There is no persistent analysis cache or watch service.
 Unexpected extraction errors are propagated after cleanup; if connection cleanup also fails, an `AggregateError` retains both errors.
 The asynchronous entrypoint still blocks the Node.js event loop during synchronous compiler work.
 An active compiler call cannot be canceled.
-Broader structural merges and complete reference validation remain pending in Stage 2.
+The accepted Stage 2 declaration and reference-validation scope is implemented.
 Complete portable models and declaration rollups remain required by later stages.
 These limitations do not waive the corresponding delivery requirements.
 
@@ -347,7 +351,8 @@ Any configured missing-documentation policy can still report that absence.
 Explicit inheritance requests must resolve and validate successfully or produce diagnostics.
 The current source selector requires one distinct compatible original source across base classes and interfaces.
 It does not prioritize a class source over a distinct interface source.
-Broader member reference contexts remain pending; supported interface/property merges and class/interface reports use completed documentation.
+Supported interface/property merges and class/interface reports use completed documentation.
+Broader automatic matching for uncertain merged or accessor cases remains a deferred investigation.
 Current extraction does not copy interface documentation or change release classification.
 
 ### Instantiated heritage views
@@ -884,6 +889,9 @@ These are unsupported library capabilities, not user-input diagnostics. No parti
 surface identity, and one `ts` block containing selected declarations and explicit export statements.
 Each function is declared once, with per-overload comments. Alias and type-only exports refer to that declaration.
 A declaration used only through aliases is not accidentally exported under its implementation name.
+Local declarations can reuse their own exported names, including type-only exports, without a generated suffix.
+Names owned by different declarations remain reserved; a genuine collision uses a distinct local name and preserves the exported alias.
+Keeping an original declaration name does not turn a type-only class, enum, or constant export into a value export.
 Call-signature declaration text is printed by the compiler during analysis; the renderer does not rewrite arrow-function type strings.
 The report retains declaration identities internally to group aliases, but never prints those identities.
 
@@ -1112,7 +1120,7 @@ The model also records canonical content fingerprints of every selected dependen
 Suite loading compares those fingerprints before accepting stored inherited content, including when the consuming package does not reference it.
 After a dependency model changes, regenerate downstream models in dependency order.
 JSON whitespace and object-key order do not affect model fingerprints; array order remains significant.
-Completeness across unsupported declaration forms and remaining reference policies still require acceptance work.
+This dependency-documentation subset does not establish complete portable-model or declaration-rollup fidelity.
 
 ### Reference policies
 
@@ -1125,7 +1133,7 @@ Local overrides and suite-owned type arguments remain subject to validation.
 Inherited member views retain effective types and original metadata for reports and models, but do not undergo repeated reference-policy validation on each receiving container.
 Validation checks the original declarations and the receiver's own relationships, including heritage clauses and local overrides.
 
-`referencePolicies.releaseCompatibility` rejects references from a more stable API to a less stable target.
+`referencePolicies.releaseCompatibility` rejects locally declared references from a more-public API to a less-public target.
 `entrypointExposure` checks same-package declaration targets without requiring dependency types to be re-exported by a consumer.
 `inheritanceVisibility` rejects explicit inheritance from internal targets when the receiver is non-internal.
 These three switches default to disabled and are independent of report selection.
@@ -1141,6 +1149,35 @@ Native fixtures built with TS6 and TS7 verify detached member reports, namespace
 Suite tests verify direct, peer, and transitive model resolution, original scope through re-exports, and missing or malformed unused models.
 Separate Node/browser TypeScript projects verify real conditional-export parity without baseline writes.
 The repository pilot reads built core-utils comparison declarations and applies a configured legacy rule without changing production build integration.
+The self-report regression uses the package's emitted entrypoint, compares its complete report without writing, and checks every named export against the TypeScript AST.
+
+## Package API report
+
+The checked-in [complete API report](api-report/api-analyzer.api.md) is generated by this package's own analyzer, not API Extractor.
+The [report script](src/generateApiReport.ts) builds first and analyzes the declarations exported from [src/index.ts](src/index.ts), using [tsconfig.api-reports.json](tsconfig.api-reports.json).
+It uses every release level and no custom-tag filters, so the report covers the complete named export surface.
+Public API declarations carry explicit release tags; members inherit their declaring container's tag.
+
+Generate and review an intentional API-report update with this command:
+
+```sh
+pnpm build:api-reports
+```
+
+Check that the existing report is current without modifying it:
+
+```sh
+pnpm check:api-reports
+```
+
+Both commands compile the package before analysis and fail when analysis or report generation fails.
+Check mode also fails for a missing or stale report.
+`pnpm build` runs compilation and report generation, so it updates the report as part of the build.
+`pnpm build:tsc` compiles without updating it; `pnpm check:api-reports` uses only that compilation step before comparison.
+Run check mode before any report-generating build when checking an existing baseline.
+Tests do not update the report; the [pilot regression](src/test/pilot.test.ts) uses check mode.
+The report is a review artifact, not a declaration rollup: references to private support types can remain without their definitions.
+Complete portable type relationships and self-contained consumable declaration output remain later-stage requirements.
 
 ## Commands
 
@@ -1151,6 +1188,7 @@ pnpm install
 pnpm lint
 pnpm build
 pnpm test
+pnpm check:api-reports
 pnpm check:format
 ```
 
