@@ -37,6 +37,7 @@ declare interface ApiItemSelection {
 
 // @public
 declare interface ClassificationOptions extends TsdocOptions {
+    // Inherited from `TsdocOptions`
     readonly customModifierTags?: readonly string[] | undefined;
     readonly rules?: ClassificationRules | undefined;
 }
@@ -50,6 +51,7 @@ declare interface ClassificationRules {
 
 // @public
 declare interface Configuration extends TsdocOptions {
+    // Inherited from `TsdocOptions`
     readonly customModifierTags?: readonly string[] | undefined;
     readonly entrypoints?: readonly Entrypoint[] | undefined;
     readonly extends?: readonly Configuration[] | undefined;

@@ -10,6 +10,7 @@ import type {
 	ExportFact,
 	DeclarationFact,
 	DeclarationStatementFact,
+	DocumentationReferenceContext,
 } from "../analysis-types/facts.js";
 import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
@@ -19,6 +20,23 @@ import { freezeData } from "../utilities/freezeData.js";
  * Review metadata and a syntax fragment for a selected signature or declaration item.
  */
 export interface ReviewSignature {
+	/**
+	 * Original declaring container of an inherited member, independent of documentation inheritance.
+	 * @defaultValue Omitted for directly declared items or unavailable declaring-container metadata.
+	 */
+	readonly inheritedFrom?: {
+		/**
+		 * Name of the original declaring container, not the nearest base type.
+		 */
+		readonly name: string;
+
+		/**
+		 * Owning package when the member comes from another package.
+		 * @defaultValue Omitted for members declared in the package being reported.
+		 */
+		readonly packageName?: string;
+	};
+
 	/**
 	 * The compiler-derived syntax fragment rendered for this item.
 	 *
@@ -126,6 +144,7 @@ export interface ReviewContainer extends ReviewStatement {
 	 *
 	 * @remarks
 	 * Can include inherited effective members as well as declared constructors, static members, and accessors.
+	 * Inherited members retain their original declaring-container provenance for separate source annotations.
 	 * Each item's text is a complete member declaration, not a standalone function signature.
 	 * Selecting the container retains all these members, regardless of their custom tags or inherited release levels.
 	 */
@@ -535,7 +554,13 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 						? undefined
 						: { ...prepareItem(declaration.id, ""), ...declaration.statement };
 				if (declaration.container !== undefined) {
-					container = prepareContainer(declaration, documentationById, prepareItem);
+					container = prepareContainer(
+						declaration,
+						declarations,
+						facts.packageName,
+						documentationById,
+						prepareItem,
+					);
 					if (container === undefined) {
 						unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: container members require unsupported syntax or comment ownership.`;
 					}
@@ -597,17 +622,53 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 /**
  * Prepares supported container members without duplicating their declared and effective views.
  * @param declaration - Owning declaration with detached container syntax.
+ * @param declarations - Original declarations indexed by identity for inherited-member provenance.
+ * @param packageName - Package being reported.
  * @param documentation - Completed documentation indexed by original input identity.
  * @param prepareItem - Joins syntax with the invocation's completed metadata.
  * @returns Prepared container data, or undefined when syntax or member ownership is unsupported.
  */
 function prepareContainer(
 	declaration: DeclarationFact,
+	declarations: ReadonlyMap<ApiItemId, DeclarationFact>,
+	packageName: string,
 	documentation: ReadonlyMap<ApiItemId, CompletedAnalysis["documentation"][number]>,
 	prepareItem: (id: ApiItemId, text: string) => PreparedSignature,
 ): PreparedContainer | undefined {
 	const syntax = declaration.container;
 	assert(syntax !== undefined, "Container preparation requires detached container syntax.");
+
+	/**
+	 * Retains the original declaring container without treating inherited documentation as member inheritance.
+	 * @param id - Member or signature identity.
+	 * @param text - Effective member syntax.
+	 * @param context - Original declaration lookup context, when available.
+	 * @returns Prepared member with provenance only when another container declares it.
+	 */
+	function prepareMember(
+		id: ApiItemId,
+		text: string,
+		context: DocumentationReferenceContext | undefined,
+	): PreparedSignature {
+		const prepared = prepareItem(id, text);
+		if (context?.container === undefined || context.container === declaration.id) {
+			return prepared;
+		}
+		const source = declarations.get(context.container);
+		assert(
+			source !== undefined,
+			"Inherited members must have a collected declaring container.",
+		);
+		return {
+			...prepared,
+			inheritedFrom: {
+				name: source.name,
+				...(context.origin.packageName === packageName
+					? {}
+					: { packageName: context.origin.packageName }),
+			},
+		};
+	}
 
 	// Accessors and visibility-specific declarations can also appear in the effective member view.
 	// Keep their declared syntax once, rather than rendering a second property representation.
@@ -649,15 +710,17 @@ function prepareContainer(
 		...effectiveMembers.flatMap((member) =>
 			member.signatures.length > 0 && member.documentationContext === undefined
 				? member.signatures.map((signature) =>
-						prepareItem(
+						prepareMember(
 							signature.id,
 							`${member.name}${member.optional ? "?" : ""}${signature.normalized.callSignatureText}`,
+							signature.documentationContext,
 						),
 					)
 				: [
-						prepareItem(
+						prepareMember(
 							member.id,
 							`${member.readonly === true ? "readonly " : ""}${member.name}${member.optional ? "?" : ""}: ${member.type};`,
+							member.documentationContext,
 						),
 					],
 		),
@@ -855,6 +918,8 @@ function formatCodeSpan(text: string): string {
  * Accepts a report created by {@link createReviewReport}. Does not mutate or sort its input.
  * Uses an API Extractor-like heading, a single TypeScript block, and explicit alias exports.
  * Release annotations appear on top-level declarations and standalone overloads, not container members.
+ * Inherited members receive separate source annotations, including the owning package for cross-package inheritance.
+ * Source annotations are independent of tag and undocumented-notice settings.
  * Other member annotations follow the presentation settings. Uses LF line endings and exactly one final newline.
  * Includes the package-owned documentation comment before declarations when present, regardless of API selection.
  * Output is review text, not compilable declarations. No baseline is read or updated.
@@ -948,7 +1013,11 @@ function renderDeclarationText(
 		if (options.includeUndocumentedNotice !== false && !signature.documented) {
 			tags.push("(undocumented)");
 		}
-		return tags.length > 0 ? `// ${tags.join(" ")}\n` : "";
+		const annotation = tags.length > 0 ? `// ${tags.join(" ")}\n` : "";
+		const source = signature.inheritedFrom;
+		return source === undefined
+			? annotation
+			: `${annotation}// Inherited from ${formatCodeSpan(source.name)}${source.packageName === undefined ? "" : ` in package ${formatCodeSpan(source.packageName)}`}\n`;
 	}
 	for (const group of groups.values()) {
 		const binding = group[0];

@@ -209,6 +209,85 @@ describe("Dependency suite models", () => {
 		});
 		assert.equal(selectedReport.ok, true, JSON.stringify(selectedReport));
 		assert.match(selectedReport.value, /value: Preview/);
+		assert(
+			selectedReport.value.includes(
+				"    // Inherited from `External` in package `dependency`\n    value: Preview;",
+			),
+		);
+		assert.equal(selectedReport.value.match(/Inherited from/g)?.length, 1);
+	});
+
+	it("annotates original declaring containers for inherited members", async () => {
+		for (const kind of ["class", "interface"] as const) {
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				`// Exercises transitive member inheritance independently of inherited documentation.
+				/** Original declaring type. @public */
+				declare ${kind} Root<Value> {
+					/** Value documentation reused by a local override. */
+					readonly value: Value;
+					readonly inheritedValue: Value;
+					/** Optional callable property. @deprecated Use convert. */
+					callback?: (value: Value) => Value;
+					/** Converts a value. */
+					convert(value: Value): Value;
+					/** Converts multiple values. */
+					convert(value: readonly Value[]): readonly Value[];
+				}
+				/** Intermediate type without new declarations. @public */
+				declare ${kind} Middle<Value> extends Root<Value> {}
+				/** Public receiving type. @public */
+				declare ${kind} Leaf extends Middle<string> {
+					/** {@inheritDoc Root.value} */
+					readonly value: string;
+				}
+				export { Leaf };`,
+			);
+			const analysis = await analyzeAPIs(
+				{
+					packageName: "consumer",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "index.d.ts" }],
+				},
+				directory,
+			);
+			assert.equal(analysis.ok, true, JSON.stringify(analysis));
+			const model = analysis.value.generateModel();
+			const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+			const report = analysis.value.generateReport(".", selection);
+			assert.equal(report.ok, true, JSON.stringify(report));
+			assert(report.value.includes("    readonly value: string;"));
+			assert(
+				report.value.includes(
+					"    // Inherited from `Root`\n    readonly inheritedValue: string;",
+				),
+			);
+			assert(
+				report.value.includes(
+					"    // @deprecated\n    // Inherited from `Root`\n    callback?:",
+				),
+			);
+			assert(
+				report.value.includes("    // Inherited from `Root`\n    convert(value: string)"),
+			);
+			assert(
+				report.value.includes(
+					"    // Inherited from `Root`\n    convert(value: readonly string[])",
+				),
+			);
+			assert.equal(report.value.match(/Inherited from/g)?.length, 4);
+			assert.doesNotMatch(report.value, /Inherited from `Middle`|in package/);
+			const withoutTags = analysis.value.generateReport(".", selection, {
+				additionalTags: [],
+				includeReleaseTags: false,
+				includeUndocumentedNotice: false,
+			});
+			assert.equal(withoutTags.ok, true, JSON.stringify(withoutTags));
+			assert.equal(withoutTags.value.match(/Inherited from `Root`/g)?.length, 4);
+			assert.doesNotMatch(withoutTags.value, /@public|@deprecated|\(undocumented\)/);
+			assert.deepEqual(analysis.value.generateReport(".", selection), report);
+			assert.equal(analysis.value.generateModel(), model);
+		}
 	});
 
 	it("keeps package documentation local and rejects stale or malformed package records", async () => {

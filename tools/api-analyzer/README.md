@@ -898,6 +898,10 @@ The report retains declaration identities internally to group aliases, but never
 `ReviewPresentationOptions.includeReleaseTags` defaults to `true` for top-level declarations and standalone overloads.
 Container members omit release tags, including constructors, statics, enum values, augmentation signatures, and nested namespace exports.
 Members still show requested non-release tags and undocumented notices; their original release metadata and validation are unchanged.
+Inherited members also receive a separate `` // Inherited from `Base` `` line that names their original declaring type, not the nearest base type.
+When the declaring type belongs to another package, the line includes `` in package `package-name` ``.
+These source annotations remain visible when tag and undocumented-notice output are disabled.
+A locally declared override does not receive a source annotation, even when its documentation is inherited.
 `additionalTags` defaults to `["@sealed", "@override", "@deprecated"]` for declarations and members.
 A supplied list replaces these defaults; use `[]` to hide all additional tags, or include other recognized tags such as `@input` or `@legacy` as needed.
 Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.

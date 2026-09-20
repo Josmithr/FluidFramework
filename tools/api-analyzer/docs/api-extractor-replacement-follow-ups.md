@@ -195,6 +195,7 @@ Make it easy for users to customize report formats without reimplementing API an
 Preserve the API Extractor-like format as the default presentation.
 
 - Define a supported customization contract over detached report data. Evaluate presentation options and custom renderers before choosing an extension mechanism.
+- TODO: Add a presentation option to show or hide inherited-member source annotations, including cross-package ownership, independently of tag and undocumented-item settings.
 - Keep presentation separate from semantic policy. Changing a format must not change selected APIs, tag recognition, or validation behavior.
 - Reuse analysis and report data across formats without new compiler queries or mutation of shared inputs.
 - Document deterministic output requirements and the effect of presentation changes on review baselines. Custom rendering must not implicitly accept or update baselines.
@@ -208,3 +209,4 @@ Release tags appear by default on top-level declarations and standalone overload
 `@sealed`, `@override`, and `@deprecated` display by default on declarations and members when present.
 An explicit additional-tag list replaces those defaults; an empty list hides them.
 Undocumented-item annotations are independently configurable and default to enabled.
+Inherited-member source annotations are currently always included; their configuration is a future refinement.
