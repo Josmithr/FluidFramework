@@ -5,7 +5,7 @@
 Surface: `"complete"`
 
 ```ts
-// @public
+// @public @sealed
 declare interface APIAnalysis {
     readonly configuration: EffectiveConfiguration;
     generateModel(): string;
@@ -13,7 +13,7 @@ declare interface APIAnalysis {
     getStatistics(): APIStatistics;
 }
 
-// @public
+// @public @sealed
 declare interface APIStatistics {
     readonly declarations: number;
     readonly entrypoints: number;

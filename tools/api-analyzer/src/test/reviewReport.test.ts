@@ -691,7 +691,7 @@ describe("Review report generation", () => {
 		for (const [documentation, documented] of [
 			[undefined, false],
 			["/** */", false],
-			["/** @public @sealed @input @legacy */", false],
+			["/** @public @sealed @override @input @legacy */", false],
 			["/** Converts a value. @public */", true],
 			["/** @public\n * @remarks Explains conversion. */", true],
 			["/** @public\n * @param value - The input. */", true],
@@ -731,12 +731,30 @@ describe("Review report generation", () => {
 			);
 			assert.equal(renderReviewReport(report.value).includes("(undocumented)"), !documented);
 			const configured = renderReviewReport(report.value, {
-				additionalTags: ["@sealed", "@input", "@legacy", "@deprecated"],
+				additionalTags: ["@sealed", "@override", "@input", "@legacy", "@deprecated"],
 				includeUndocumentedNotice: false,
 			});
 			assert.equal(configured.includes("(undocumented)"), false);
-			for (const tag of ["@sealed", "@input", "@legacy", "@deprecated"]) {
-				assert.equal(renderReviewReport(report.value).includes(tag), false);
+			for (const tag of ["@sealed", "@override", "@input", "@legacy", "@deprecated"]) {
+				const present = documentation?.includes(tag) ?? false;
+				const defaultTag = ["@sealed", "@override", "@deprecated"].includes(tag);
+				assert.equal(renderReviewReport(report.value).includes(tag), defaultTag && present);
+				assert.equal(
+					renderReviewReport(report.value, {}).includes(tag),
+					defaultTag && present,
+				);
+				assert.equal(
+					renderReviewReport(report.value, { includeReleaseTags: false }).includes(tag),
+					defaultTag && present,
+				);
+				assert.equal(
+					renderReviewReport(report.value, { additionalTags: [] }).includes(tag),
+					false,
+				);
+				assert.equal(
+					renderReviewReport(report.value, { additionalTags: ["@input"] }).includes(tag),
+					tag === "@input" && present,
+				);
 				assert.equal(configured.includes(tag), documentation?.includes(tag) ?? false);
 			}
 		}

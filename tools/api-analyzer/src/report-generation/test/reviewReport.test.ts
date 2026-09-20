@@ -186,6 +186,7 @@ describe("Report generation from completed data", () => {
 		const text = renderReviewReport(report, {
 			additionalTags: ["@deprecated", "@public", "@beta"],
 		});
+		assert.equal(renderReviewReport(report), text);
 		assert.match(text, /\/\/ @public\nexport class Box/);
 		assert.match(text, /\/\/ @public\nexport interface Contract/);
 		assert.match(text, /\/\/ @public\nexport enum Mode/);

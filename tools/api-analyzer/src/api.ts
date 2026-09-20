@@ -23,6 +23,8 @@ import { loadDependencyModels } from "./suite.js";
  *
  * @remarks
  * Includes collected unexported targets. These are not counts of selected report exports.
+ *
+ * @sealed
  * @public
  */
 export interface APIStatistics {
@@ -44,6 +46,7 @@ export interface APIStatistics {
 
 /**
  * Completed analysis with no live compiler resources or source invalidation lifecycle.
+ * @sealed
  * @public
  */
 export interface APIAnalysis {
@@ -71,7 +74,7 @@ export interface APIAnalysis {
 	 *
 	 * @param entrypoint - Configured entrypoint name.
 	 * @param selection - Release levels and modifier filters for this report.
-	 * @param presentation - Report formatting settings. Omit to include release tags and undocumented notices, with no additional tags.
+	 * @param presentation - Report formatting settings. Omit to include top-level release tags, undocumented notices, and sealed, override, and deprecated annotations.
 	 * @returns Report text, or selection and entrypoint diagnostics.
 	 * @throws If the entrypoint contains unsupported declaration forms or unresolved merged ownership.
 	 */

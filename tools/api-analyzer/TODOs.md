@@ -4,6 +4,10 @@ Stage 2 is accepted on 2026-09-20.
 These investigations and the [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) are scheduled after the remaining library implementation.
 Required Stage 3 portable models and Stage 4 declaration rollups remain in the [implementation plan](docs/api-extractor-replacement-implementation-plan.md).
 
+## Ensure default tags in API reports match API-Extractor
+
+The set of tags included by default in API reports should match the defaults of `api-extractor`, including ordering.
+
 ## Audit diagnostic messages
 
 We should audit our diagnostic messages and ensure they are:

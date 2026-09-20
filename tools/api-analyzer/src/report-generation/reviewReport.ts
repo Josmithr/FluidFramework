@@ -806,8 +806,9 @@ export interface ReviewPresentationOptions {
 	 * @remarks
 	 * Names are matched exactly against report metadata. Unknown or absent names display nothing.
 	 * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.
+	 * A supplied list replaces the defaults; an empty list hides all additional tag annotations.
 	 *
-	 * @defaultValue No additional tags.
+	 * @defaultValue `["@sealed", "@override", "@deprecated"]`
 	 *
 	 * @example Show deprecation annotations without release annotations
 	 * These settings display `@deprecated` when present in an item's metadata and hide release tags.
@@ -859,7 +860,7 @@ function formatCodeSpan(text: string): string {
  * Output is review text, not compilable declarations. No baseline is read or updated.
  *
  * @param report - Detached function report in canonical export and overload order.
- * @param options - Display settings. Omit to show release tags and undocumented notices without additional tags.
+ * @param options - Display settings. Omit to show top-level release tags, undocumented notices, and sealed, override, and deprecated annotations.
  * @returns The complete Markdown report.
  * @throws If a release level violates the report model's internal contract.
  */
@@ -922,6 +923,7 @@ function renderDeclarationText(
 	const declarations: string[] = [];
 	const aliases: string[] = [];
 	const releaseTags = new Set(Object.values(levels).map((level) => `@${level}`));
+	const additionalTags = options.additionalTags ?? ["@sealed", "@override", "@deprecated"];
 
 	/**
 	 * Formats enabled metadata and documentation-status annotations for one report item.
@@ -940,7 +942,7 @@ function renderDeclarationText(
 		}
 		tags.push(
 			...signature.modifierTags.filter(
-				(tag) => !releaseTags.has(tag) && options.additionalTags?.includes(tag) === true,
+				(tag) => !releaseTags.has(tag) && additionalTags.includes(tag),
 			),
 		);
 		if (options.includeUndocumentedNotice !== false && !signature.documented) {

@@ -89,7 +89,7 @@ describe("Repository pilot", () => {
 		);
 		assert.deepEqual(declarations.sort(), names.sort());
 		assert.doesNotMatch(before, /^ +\/\/[^\n]*@(public|beta|alpha|internal)/m);
-		assert.match(before, /\/\/ @public\ndeclare interface APIAnalysis/);
+		assert.match(before, /\/\/ @public @sealed\ndeclare interface APIAnalysis/);
 		assert.equal(before.includes("// No selected exports."), false);
 	});
 

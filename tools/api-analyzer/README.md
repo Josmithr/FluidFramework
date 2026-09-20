@@ -898,7 +898,8 @@ The report retains declaration identities internally to group aliases, but never
 `ReviewPresentationOptions.includeReleaseTags` defaults to `true` for top-level declarations and standalone overloads.
 Container members omit release tags, including constructors, statics, enum values, augmentation signatures, and nested namespace exports.
 Members still show requested non-release tags and undocumented notices; their original release metadata and validation are unchanged.
-`additionalTags` defaults to an empty list. Use it to display recognized tags such as `@sealed`, `@input`, `@legacy`, or `@deprecated`.
+`additionalTags` defaults to `["@sealed", "@override", "@deprecated"]` for declarations and members.
+A supplied list replaces these defaults; use `[]` to hide all additional tags, or include other recognized tags such as `@input` or `@legacy` as needed.
 Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.
 Release tags are controlled only by `includeReleaseTags`, not `additionalTags`; adding a release tag to `additionalTags` does not restore member release annotations.
 Permitted untagged items have no release annotation.
