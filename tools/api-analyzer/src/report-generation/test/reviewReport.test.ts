@@ -71,6 +71,143 @@ const graph: CompletedAnalysis = freezeData({
 });
 
 describe("Report generation from completed data", () => {
+	it("omits member release annotations without hiding other annotations or standalone overload tags", () => {
+		const metadata = {
+			text: "",
+			documented: true,
+			releaseLevel: ReleaseLevel.Public,
+			modifierTags: ["@public"],
+		};
+		const member = {
+			...metadata,
+			documented: false,
+			modifierTags: ["@public", "@deprecated"],
+			text: "value: string;",
+		};
+		const container = {
+			...metadata,
+			prefix: "class ",
+			suffix: "",
+			members: [
+				{ ...member, text: "constructor();" },
+				{ ...member, text: "static create(): Box;" },
+				{ ...member, text: "get value(): string;" },
+			],
+		};
+		const box = {
+			declarationId: "box",
+			declarationName: "Box",
+			name: "Box",
+			typeOnly: false,
+			signatures: [],
+			container,
+		};
+		const report = {
+			packageName: "example",
+			surface: "complete",
+			exports: [
+				{
+					...box,
+					container: {
+						...container,
+						augmentation: { suffix: "", members: [{ ...member, text: "(): string;" }] },
+					},
+				},
+				{
+					declarationId: "interface",
+					declarationName: "Contract",
+					name: "Contract",
+					typeOnly: false,
+					signatures: [],
+					container: { ...container, prefix: "interface ", members: [member] },
+				},
+				{
+					declarationId: "enum",
+					declarationName: "Mode",
+					name: "Mode",
+					typeOnly: false,
+					signatures: [],
+					container: {
+						...container,
+						prefix: "enum ",
+						members: [{ ...member, text: "First = 0," }],
+					},
+				},
+				{
+					declarationId: "namespace",
+					declarationName: "Group",
+					name: "Group",
+					typeOnly: false,
+					signatures: [],
+					namespace: {
+						...metadata,
+						exports: [
+							box,
+							{
+								declarationId: "nested",
+								declarationName: "Nested",
+								name: "Nested",
+								typeOnly: false,
+								signatures: [],
+								namespace: {
+									...metadata,
+									exports: [
+										{
+											declarationId: "run",
+											declarationName: "run",
+											name: "run",
+											typeOnly: false,
+											signatures: [{ ...member, text: "(): void;" }],
+										},
+									],
+								},
+							},
+						],
+					},
+				},
+				{
+					declarationId: "overloads",
+					declarationName: "convert",
+					name: "convert",
+					typeOnly: false,
+					signatures: [
+						{ ...metadata, text: "(value: string): string;" },
+						{
+							...metadata,
+							releaseLevel: ReleaseLevel.Beta,
+							modifierTags: ["@beta"],
+							text: "(value: number): number;",
+						},
+					],
+				},
+			],
+		};
+		const before = JSON.stringify(report);
+		const text = renderReviewReport(report, {
+			additionalTags: ["@deprecated", "@public", "@beta"],
+		});
+		assert.match(text, /\/\/ @public\nexport class Box/);
+		assert.match(text, /\/\/ @public\nexport interface Contract/);
+		assert.match(text, /\/\/ @public\nexport enum Mode/);
+		assert.match(text, /\/\/ @public\nexport namespace Group/);
+		assert.match(text, /\/\/ @public\nexport function convert\(value: string\)/);
+		assert.match(text, /\/\/ @beta\nexport function convert\(value: number\)/);
+		assert.doesNotMatch(text, /^ +\/\/[^\n]*@(public|beta|alpha|internal)/m);
+		assert(text.includes("    // @deprecated (undocumented)\n    constructor"));
+		assert(text.includes("    // @deprecated (undocumented)\n    (): string"));
+		assert(
+			text.includes("        // @deprecated (undocumented)\n        export function run"),
+		);
+		assert.doesNotMatch(
+			renderReviewReport(report, {
+				includeReleaseTags: false,
+				additionalTags: ["@public", "@beta"],
+			}),
+			/@(public|beta|alpha|internal)/,
+		);
+		assert.equal(JSON.stringify(report), before);
+	});
+
 	it("reuses type-only export names without aliasing them to suffixed locals", () => {
 		const metadata = {
 			text: "",

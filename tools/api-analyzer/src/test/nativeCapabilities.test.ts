@@ -3143,8 +3143,9 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						true,
 						completeReport,
 					);
-					assert.match(text, /\/\/ @public\n {4}operation\(value: string\): string;/);
-					assert.match(text, /\/\/ @public \(undocumented\)\n {4}label: string;/);
+					assert.match(text, /\n {4}operation\(value: string\): string;/);
+					assert.match(text, /\/\/ \(undocumented\)\n {4}label: string;/);
+					assert.doesNotMatch(text, /^ +\/\/[^\n]*@(public|beta|alpha|internal)/m);
 				} finally {
 					adapter.close();
 				}

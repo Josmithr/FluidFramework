@@ -204,4 +204,5 @@ Acceptance: a consumer can produce the default report and a custom presentation 
 Tests verify unchanged input data, deterministic output, and independent baseline checks and updates.
 
 This follow-up does not defer the agreed initial options for displayed tags or undocumented-item annotations.
-Release tags appear by default; other displayed tags are configurable. Undocumented-item annotations are independently configurable and default to enabled.
+Release tags appear by default on top-level declarations and standalone overloads, not on container members.
+Other displayed tags are configurable. Undocumented-item annotations are independently configurable and default to enabled.

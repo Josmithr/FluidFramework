@@ -7,215 +7,134 @@ Surface: `"complete"`
 ```ts
 // @public
 declare interface APIAnalysis {
-    // @public
     readonly configuration: EffectiveConfiguration;
-    // @public
     generateModel(): string;
-    // @public
     generateReport(entrypoint: string, selection: ApiItemSelection, presentation?: ReviewPresentationOptions): Result<string>;
-    // @public
     getStatistics(): APIStatistics;
 }
 
 // @public
 declare interface APIStatistics {
-    // @public
     readonly declarations: number;
-    // @public
     readonly entrypoints: number;
-    // @public
     readonly signatures: number;
 }
 
 // @public
 declare interface AnalyzerDiagnostic {
-    // @public
     readonly code: DiagnosticCode;
-    // @public
     readonly message: string;
 }
 
 // @public
 declare interface ApiItemSelection {
-    // @public
     readonly excludeTags?: readonly string[] | undefined;
-    // @public
     readonly includeUntagged?: boolean | undefined;
-    // @public
     readonly name: string;
-    // @public
     readonly releaseLevels: readonly ReleaseLevel[];
-    // @public
     readonly requireTags?: readonly string[] | undefined;
 }
 
 // @public
 declare interface ClassificationOptions extends TsdocOptions {
-    // @public
     readonly customModifierTags?: readonly string[] | undefined;
-    // @public
     readonly rules?: ClassificationRules | undefined;
 }
 
 // @public
 declare interface ClassificationRules {
-    // @public
     readonly requirePackageDocumentation?: boolean | undefined;
-    // @public
     readonly requireReleaseLevel?: boolean | undefined;
-    // @public
     readonly validateTsdocSyntax?: boolean | undefined;
 }
 
 // @public
 declare interface Configuration extends TsdocOptions {
-    // @public
     readonly customModifierTags?: readonly string[] | undefined;
-    // @public
     readonly entrypoints?: readonly Entrypoint[] | undefined;
-    // @public
     readonly extends?: readonly Configuration[] | undefined;
-    // @public
     readonly packageName?: string | undefined;
-    // @public
     readonly packageRoot?: string | undefined;
-    // @public
     readonly project?: string | undefined;
-    // @public
     readonly referencePolicies?: ReferencePolicies | undefined;
-    // @public
     readonly rules?: ClassificationRules | undefined;
-    // @public
     readonly suite?: SuiteConfiguration | undefined;
 }
 
 // @public
 export enum DiagnosticCode {
-    // @public
     PackageDocumentationInvalid = "package-documentation-invalid",
-    // @public
     PackageDocumentationMissing = "package-documentation-missing",
-    // @public
     ClassificationContainerMismatch = "classification-container-mismatch",
-    // @public
     DependencyModel = "dependency-model",
-    // @public
     ReferencePolicy = "reference-policy",
-    // @public
     DocumentationConfiguration = "documentation-configuration",
-    // @public
     DocumentationTsdoc = "documentation-tsdoc",
-    // @public
     DocumentationReference = "documentation-reference",
-    // @public
     DocumentationLinkPolicy = "documentation-link-policy",
-    // @public
     DocumentationUnsupported = "documentation-unsupported",
-    // @public
     DocumentationCycle = "documentation-cycle",
-    // @public
     ReportConfiguration = "report-configuration",
-    // @public
     ConfigurationRequired = "configuration-required",
-    // @public
     ConfigurationEntrypoint = "configuration-entrypoint",
-    // @public
     DuplicateEntrypoint = "duplicate-entrypoint",
-    // @public
     ConfigurationDirectory = "configuration-directory",
-    // @public
     ConfigurationCycle = "configuration-cycle",
-    // @public
     ConfigurationInvalid = "configuration-invalid",
-    // @public
     ProjectMissing = "project-missing",
-    // @public
     CompilerDiagnostics = "compiler-diagnostics",
-    // @public
     EntrypointMissing = "entrypoint-missing",
-    // @public
     EntrypointModule = "entrypoint-module",
-    // @public
     MemberExpansionIncomplete = "member-expansion-incomplete",
-    // @public
     MemberExpansionOutsideSuite = "member-expansion-outside-suite",
-    // @public
     ClassificationConfiguration = "classification-configuration",
-    // @public
     ClassificationTsdoc = "classification-tsdoc",
-    // @public
     ClassificationReleaseConflict = "classification-release-conflict",
-    // @public
     ClassificationReleaseMissing = "classification-release-missing",
-    // @public
     SelectionConfiguration = "selection-configuration",
-    // @public
     BaselineMissing = "baseline-missing",
-    // @public
     BaselineStale = "baseline-stale",
 }
 
 // @public
 declare interface DirectionalReferenceRule {
-    // @public
     readonly enabled?: boolean | undefined;
-    // @public
     readonly name: string;
-    // @public
     readonly source: Omit<ApiItemSelection, "name">;
-    // @public
     readonly target: Omit<ApiItemSelection, "name">;
 }
 
 // @public
 declare interface EffectiveConfiguration {
-    // @public
     readonly customModifierTags: readonly string[];
-    // @public
     readonly entrypoints: readonly Entrypoint[];
-    // @public
     readonly packageName: string;
-    // @public
     readonly packageRoot: string;
-    // @public
     readonly project: string;
-    // @public
     readonly referencePolicies?: ReferencePolicies | undefined;
-    // @public
     readonly rules: ClassificationRules;
-    // @public
     readonly suite?: SuiteConfiguration | undefined;
 }
 
 // @public
 declare interface Entrypoint {
-    // @public
     readonly name: string;
-    // @public
     readonly path: string;
 }
 
 // @public
 declare interface ReferencePolicies {
-    // @public
     readonly directional?: readonly DirectionalReferenceRule[] | undefined;
-    // @public
     readonly entrypointExposure?: boolean | undefined;
-    // @public
     readonly inheritanceVisibility?: boolean | undefined;
-    // @public
     readonly releaseCompatibility?: boolean | undefined;
 }
 
 // @public
 export enum ReleaseLevel {
-    // @public
     Public = 0,
-    // @public
     Beta = 1,
-    // @public
     Alpha = 2,
-    // @public
     Internal = 3,
 }
 
@@ -228,25 +147,19 @@ declare type Result<TValue = never> = FailedResult | ([
 
 // @public
 declare interface ReviewPresentationOptions {
-    // @public
     readonly additionalTags?: readonly string[] | undefined;
-    // @public
     readonly includeReleaseTags?: boolean | undefined;
-    // @public
     readonly includeUndocumentedNotice?: boolean | undefined;
 }
 
 // @public
 declare interface SuiteConfiguration {
-    // @public
     readonly modelFile: string;
-    // @public
     readonly packages: readonly string[];
 }
 
 // @public
 declare interface TsdocOptions {
-    // @public
     readonly customModifierTags?: readonly string[] | undefined;
 }
 

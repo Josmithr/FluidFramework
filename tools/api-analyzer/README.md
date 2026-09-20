@@ -895,10 +895,13 @@ Keeping an original declaration name does not turn a type-only class, enum, or c
 Call-signature declaration text is printed by the compiler during analysis; the renderer does not rewrite arrow-function type strings.
 The report retains declaration identities internally to group aliases, but never prints those identities.
 
-`ReviewPresentationOptions.includeReleaseTags` defaults to `true`. Release tags appear first in each annotation.
+`ReviewPresentationOptions.includeReleaseTags` defaults to `true` for top-level declarations and standalone overloads.
+Container members omit release tags, including constructors, statics, enum values, augmentation signatures, and nested namespace exports.
+Members still show requested non-release tags and undocumented notices; their original release metadata and validation are unchanged.
 `additionalTags` defaults to an empty list. Use it to display recognized tags such as `@sealed`, `@input`, `@legacy`, or `@deprecated`.
 Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.
-Release tags are controlled only by `includeReleaseTags`, not `additionalTags`. Permitted untagged items have no release annotation.
+Release tags are controlled only by `includeReleaseTags`, not `additionalTags`; adding a release tag to `additionalTags` does not restore member release annotations.
+Permitted untagged items have no release annotation.
 The report builder preserves recognized modifier metadata and parsed block-tag presence for presentation.
 Analysis uses the official TSDoc parser for effective-content detection; report generation reads only completed data.
 

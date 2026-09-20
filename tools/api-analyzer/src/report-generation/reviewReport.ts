@@ -788,10 +788,12 @@ export function createReviewReport(
  */
 export interface ReviewPresentationOptions {
 	/**
-	 * Whether classified release tags appear in report comments.
+	 * Whether classified release tags appear on top-level declarations and standalone overloads.
 	 *
 	 * @remarks
 	 * A false value hides these annotations without changing classification or selection.
+	 * Container members omit release annotations, including nested namespace exports.
+	 * Other member annotations remain controlled by their respective presentation settings.
 	 * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.
 	 *
 	 * @defaultValue `true`
@@ -850,8 +852,9 @@ function formatCodeSpan(text: string): string {
  *
  * @remarks
  * Accepts a report created by {@link createReviewReport}. Does not mutate or sort its input.
- * Uses an API Extractor-like heading, a single TypeScript block, per-overload tag comments,
- * and explicit alias exports. Uses LF line endings and exactly one final newline.
+ * Uses an API Extractor-like heading, a single TypeScript block, and explicit alias exports.
+ * Release annotations appear on top-level declarations and standalone overloads, not container members.
+ * Other member annotations follow the presentation settings. Uses LF line endings and exactly one final newline.
  * Includes the package-owned documentation comment before declarations when present, regardless of API selection.
  * Output is review text, not compilable declarations. No baseline is read or updated.
  *
@@ -923,14 +926,15 @@ function renderDeclarationText(
 	/**
 	 * Formats enabled metadata and documentation-status annotations for one report item.
 	 * @param signature - Selected item with original tags and effective documentation status.
+	 * @param includeReleaseTag - Whether this item is outside a containing declaration.
 	 * @returns Comment lines, or an empty string when no annotations are enabled.
 	 */
-	function renderAnnotation(signature: ReviewSignature): string {
+	function renderAnnotation(signature: ReviewSignature, includeReleaseTag: boolean): string {
 		const tags: string[] = [];
 		if (signature.releaseLevel !== undefined) {
 			const level = levels[signature.releaseLevel];
 			assert(level !== undefined, "Review signatures must have supported release levels.");
-			if (options.includeReleaseTags !== false) {
+			if (includeReleaseTag && options.includeReleaseTags !== false) {
 				tags.push(`@${level}`);
 			}
 		}
@@ -1004,43 +1008,45 @@ function renderDeclarationText(
 				.split("\n")
 				.map((line) => (line.length > 0 ? `    ${line}` : ""))
 				.join("\n");
-			namespaceDeclaration = `${renderAnnotation(binding.namespace)}${declarationPrefix}namespace ${localName} {\n${nested}\n}`;
+			namespaceDeclaration = `${renderAnnotation(binding.namespace, enclosing.size === 0)}${declarationPrefix}namespace ${localName} {\n${nested}\n}`;
 		}
 		if (binding.statement !== undefined) {
 			const statement = binding.statement;
 			declarations.push(
-				`${renderAnnotation(statement)}${declarationPrefix}${statement.prefix}${localName}${statement.suffix}`,
+				`${renderAnnotation(statement, enclosing.size === 0)}${declarationPrefix}${statement.prefix}${localName}${statement.suffix}`,
 			);
 		}
 		if (binding.container !== undefined) {
 			const container = binding.container;
+
+			// Member release metadata remains available for validation; the container's annotation is sufficient here.
 			const memberText = container.members
 				.map((member) =>
-					`${renderAnnotation(member)}${member.text}`
+					`${renderAnnotation(member, false)}${member.text}`
 						.split("\n")
 						.map((line) => `    ${line}`)
 						.join("\n"),
 				)
 				.join("\n");
 			declarations.push(
-				`${renderAnnotation(container)}${declarationPrefix}${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
+				`${renderAnnotation(container, enclosing.size === 0)}${declarationPrefix}${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
 			);
 			if (container.augmentation !== undefined) {
 				const augmentationText = container.augmentation.members
 					.map((member) =>
-						`${renderAnnotation(member)}${member.text}`
+						`${renderAnnotation(member, false)}${member.text}`
 							.split("\n")
 							.map((line) => `    ${line}`)
 							.join("\n"),
 					)
 					.join("\n");
 				declarations.push(
-					`${renderAnnotation(container)}${declarationPrefix}interface ${localName}${container.augmentation.suffix} {\n${augmentationText}\n}`,
+					`${renderAnnotation(container, enclosing.size === 0)}${declarationPrefix}interface ${localName}${container.augmentation.suffix} {\n${augmentationText}\n}`,
 				);
 			}
 		}
 		for (const signature of binding.signatures) {
-			const comment = renderAnnotation(signature);
+			const comment = renderAnnotation(signature, enclosing.size === 0);
 			declarations.push(
 				`${comment}${declarationPrefix}function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
 			);
