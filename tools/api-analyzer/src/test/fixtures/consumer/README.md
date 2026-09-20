@@ -26,6 +26,8 @@ These checks validate callable fragments with their required named types in scop
 [typeOnlyValues.ts](typeOnlyValues.ts) checks enum and constant aliases from [type-only-values.ts](../native/type-only-values.ts) and [type-only-forward.ts](../native/type-only-forward.ts).
 Both supported input compilers emit the declarations, and both consumer compilers check each emitted and report-rendered version.
 Positive checks use enum types and constant type queries.
+Same-name type-only exports also cover a recursive interface and a class whose method returns its own type.
+The report must retain those declaration names without redundant numeric suffixes.
 Negative checks require value use of type-only aliases to remain an error through direct exports, ordinary forwarding, and type-only star exports.
 The report-rendered modules are isolated, self-contained test cases, not general declaration rollups.
 

@@ -71,6 +71,97 @@ const graph: CompletedAnalysis = freezeData({
 });
 
 describe("Report generation from completed data", () => {
+	it("reuses type-only export names without aliasing them to suffixed locals", () => {
+		const metadata = {
+			text: "",
+			documented: true,
+			releaseLevel: ReleaseLevel.Public,
+			modifierTags: [],
+		};
+
+		// Self-references and references from another type keep the original declaration name.
+		const report = renderReviewReport({
+			packageName: "example",
+			surface: "complete",
+			exports: [
+				{
+					declarationId: "item",
+					declarationName: "Item",
+					name: "Item",
+					typeOnly: true,
+					signatures: [],
+					container: {
+						...metadata,
+						prefix: "interface ",
+						suffix: "",
+						members: [{ ...metadata, text: "next?: Item;" }],
+					},
+				},
+				{
+					declarationId: "box",
+					declarationName: "Box",
+					name: "Box",
+					typeOnly: true,
+					signatures: [],
+					container: {
+						...metadata,
+						prefix: "class ",
+						suffix: "",
+						members: [{ ...metadata, text: "value: Item;" }],
+					},
+				},
+			],
+		});
+		assert.match(report, /declare interface Item {/);
+		assert.match(report, /declare class Box {/);
+		assert.match(report, /export type { Item };/);
+		assert.match(report, /export type { Box };/);
+		assert.doesNotMatch(report, /Item_1|Box_1|export class Box/);
+	});
+
+	it("reserves names belonging to other declarations before assigning local names", () => {
+		const signature = {
+			text: "(): void;",
+			documented: true,
+			releaseLevel: ReleaseLevel.Public,
+			modifierTags: [],
+		};
+
+		// Alias renders first, but the later exports already own Source and Source_1, requiring Source_2.
+		const report = renderReviewReport({
+			packageName: "example",
+			surface: "complete",
+			exports: [
+				{
+					declarationId: "aliased",
+					declarationName: "Source",
+					name: "Alias",
+					typeOnly: true,
+					signatures: [signature],
+				},
+				{
+					declarationId: "original",
+					declarationName: "Source",
+					name: "Source",
+					typeOnly: true,
+					signatures: [signature],
+				},
+				{
+					declarationId: "numbered",
+					declarationName: "Source_1",
+					name: "Source_1",
+					typeOnly: false,
+					signatures: [signature],
+				},
+			],
+		});
+		assert.match(report, /declare function Source_2\(\): void;/);
+		assert.match(report, /declare function Source\(\): void;/);
+		assert.match(report, /export function Source_1\(\): void;/);
+		assert.match(report, /export type { Source_2 as Alias };/);
+		assert.match(report, /export type { Source };/);
+	});
+
 	it("uses resolved content and original metadata without processing source comments", () => {
 		const before = JSON.stringify(graph);
 		const prepared = prepareReviewReport(graph);

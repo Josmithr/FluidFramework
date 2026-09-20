@@ -76,6 +76,18 @@ describe("Repository pilot", () => {
 				: [];
 		});
 		assert.deepEqual(reported.sort(), names.sort());
+
+		// Export coverage alone accepts Thing_1 as Thing. This collision-free surface must also keep its local names.
+		const declarations = printed.statements.flatMap((statement) =>
+			(isFunctionDeclaration(statement) ||
+				isInterfaceDeclaration(statement) ||
+				isEnumDeclaration(statement) ||
+				isTypeAliasDeclaration(statement)) &&
+			statement.name !== undefined
+				? [statement.name.text]
+				: [],
+		);
+		assert.deepEqual(declarations.sort(), names.sort());
 		assert.equal(before.includes("// No selected exports."), false);
 	});
 

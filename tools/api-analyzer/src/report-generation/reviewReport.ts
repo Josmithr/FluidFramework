@@ -888,6 +888,9 @@ export function renderReviewReport(
 
 /**
  * Renders selected declarations within one lexical namespace without Markdown framing.
+ * @remarks
+ * Reuses names owned by the same declaration; generated suffixes distinguish different declarations.
+ * Type-only exports remain explicit even when the local declaration keeps its original name.
  * @param exports - Selected exported bindings in canonical order.
  * @param options - Annotation presentation settings.
  * @param enclosing - Rendered names of enclosing namespace identities for recursive alias references.
@@ -910,7 +913,9 @@ function renderDeclarationText(
 		group.push(binding);
 		groups.set(binding.declarationId, group);
 	}
-	const usedNames = new Set(exports.map((binding) => binding.name));
+
+	// Reserve all export names before rendering so an earlier group cannot claim a later group's name.
+	const nameOwners = new Map(exports.map((binding) => [binding.name, binding.declarationId]));
 	const declarations: string[] = [];
 	const aliases: string[] = [];
 	const releaseTags = new Set(Object.values(levels).map((level) => `@${level}`));
@@ -956,6 +961,8 @@ function renderDeclarationText(
 			}
 			continue;
 		}
+
+		// Type-only bindings need explicit exports; exporting a class or enum declaration directly would expose its value.
 		const direct = group.find(
 			(item) =>
 				!item.typeOnly && item.name === item.declarationName && item.name !== "default",
@@ -972,11 +979,18 @@ function renderDeclarationText(
 			}
 			const baseName = localName;
 			let suffix = 1;
-			while (usedNames.has(localName)) {
+
+			// Sharing a name with this declaration's own export is safe; only a different owner forces a suffix.
+			while (
+				nameOwners.has(localName) &&
+				nameOwners.get(localName) !== binding.declarationId
+			) {
 				localName = `${baseName}_${suffix++}`;
 			}
 		}
-		usedNames.add(localName);
+
+		// Generated local names must also remain unavailable to subsequent declaration groups.
+		nameOwners.set(localName, binding.declarationId);
 		const declarationPrefix =
 			direct === undefined ? (enclosing.size === 0 ? "declare " : "") : "export ";
 		let namespaceDeclaration: string | undefined;

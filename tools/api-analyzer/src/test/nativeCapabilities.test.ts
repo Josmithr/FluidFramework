@@ -2958,10 +2958,14 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.deepEqual(
 					mixed.map((entry) => [entry.path[0], entry.typeOnly]),
 					[
+						["Mode", true],
+						["RecursiveItem", true],
 						["TypeMode", true],
+						["TypeOnlyBox", true],
 						["ValueMode", false],
 						["typeVersion", true],
 						["valueVersion", false],
+						["version", true],
 					],
 				);
 				assert.deepEqual(
@@ -2975,7 +2979,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const forwarded = model.exports.filter(
 					(entry) => entry.entrypoint === "./types" && entry.path.length === 1,
 				);
-				assert.equal(forwarded.length, 6);
+				assert.equal(forwarded.length, 10);
 				assert(forwarded.every((entry) => entry.typeOnly));
 				const report = getSuccessValue(
 					analysis.generateReport("./types", {
@@ -2987,6 +2991,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.match(report, /declare const version: "v1"/);
 				assert.match(report, /export type { Mode as ChainedMode }/);
 				assert.match(report, /export type { version as chainedVersion }/);
+				assert.match(report, /declare interface RecursiveItem {/);
+				assert.match(report, /declare class TypeOnlyBox {/);
+				assert.match(report, /export type { Mode };/);
+				assert.match(report, /export type { version };/);
+				assert.doesNotMatch(report, /(?:RecursiveItem|TypeOnlyBox|Mode|version)_\d/);
 
 				validateReportConsumers(
 					directory,

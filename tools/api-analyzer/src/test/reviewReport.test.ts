@@ -203,11 +203,11 @@ describe("Review report generation", () => {
 				{ ...first, name: "hyphen-name", typeOnly: true },
 			],
 		});
-		assert.equal(output.includes('declare function apiFunction_2(): "```";'), true);
-		assert.equal(output.includes('declare function apiFunction_3(): "```";'), true);
-		assert.equal(output.includes('export type { apiFunction_2 as "hyphen-name" };'), true);
-		assert.equal(output.includes("export { apiFunction_2 as apiFunction };"), true);
-		assert.equal(output.includes("export { apiFunction_3 as apiFunction_1 };"), true);
+		assert.equal(output.includes('declare function apiFunction(): "```";'), true);
+		assert.equal(output.includes('declare function apiFunction_1(): "```";'), true);
+		assert.equal(output.includes('export type { apiFunction as "hyphen-name" };'), true);
+		assert.equal(output.includes("export { apiFunction };"), true);
+		assert.equal(output.includes("export { apiFunction_1 };"), true);
 		assert.equal(output.includes('Surface: `` "`edge`" ``'), true);
 		assert.equal(output.includes("````ts\n"), true);
 		assert.equal(output.endsWith("\n````\n"), true);
