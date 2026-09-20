@@ -205,7 +205,7 @@ function validateReferenceMetadata(
 			if (sourceLevel < targetLevel) {
 				return reportFailure(
 					DiagnosticCode.ReferencePolicy,
-					`${description}: releaseCompatibility forbids a reference to a less stable API. Correct the API relationship or disable this rule.`,
+					`${description}: releaseCompatibility forbids a reference to a less-public API. Correct the API relationship or disable this rule.`,
 				);
 			}
 		}

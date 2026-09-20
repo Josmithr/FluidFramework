@@ -8,11 +8,11 @@
  * Use only for acyclic data records and arrays constructed by this package.
  * This function does not make collections such as `Map` or `Set` immutable.
  *
- * @typeParam Value - The input type, which is also the return type.
+ * @typeParam TValue - The input type, which is also the return type.
  * @param value - Data to freeze. Previously frozen objects must already have frozen children.
  * @returns The same value or object reference. Primitive values pass through unchanged.
  */
-export function freezeData<Value>(value: Value): Value {
+export function freezeData<TValue>(value: TValue): TValue {
 	if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
 		for (const child of Object.values(value)) {
 			freezeData(child);

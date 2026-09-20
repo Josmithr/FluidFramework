@@ -23,6 +23,7 @@ import { loadDependencyModels } from "./suite.js";
  *
  * @remarks
  * Includes collected unexported targets. These are not counts of selected report exports.
+ * @public
  */
 export interface APIStatistics {
 	/**
@@ -43,6 +44,7 @@ export interface APIStatistics {
 
 /**
  * Completed analysis with no live compiler resources or source invalidation lifecycle.
+ * @public
  */
 export interface APIAnalysis {
 	/**
@@ -88,12 +90,13 @@ export interface APIAnalysis {
  * during extraction. Compiler resources are released before the promise settles.
  * Changed inputs require a new invocation; no analysis cache is retained across invocations.
  * Validates supported original declaration and member comments, selected dependency models, and configured reference policies.
- * Release-tag requirements apply to each original documentation input; enclosing type tags are not substituted.
+ * Untagged members inherit their original declaring container's release level, not the receiving type's level.
  *
  * @param configuration - Package inputs and inherited settings.
  * @param workingDirectory - Absolute base for relative paths. Defaults to the process working directory.
  * @returns A completed analysis, or expected configuration and semantic diagnostics.
  * @throws Rejects on internal assertions or unexpected operational failures after resource cleanup.
+ * @public
  */
 export async function analyzeAPIs(
 	configuration: Configuration,
@@ -135,7 +138,6 @@ export async function analyzeAPIs(
 		}
 		const prepared = prepareReviewReport(completed.value);
 
-		// TODO (Stage 2 completion): Complete merged-declaration and remaining reference validation.
 		// TODO (Stages 3 and 4 outputs): Extend the dependency format to a complete portable model
 		// and retain rollup data without requiring a live compiler or repeating analysis.
 		const statistics = freezeData({

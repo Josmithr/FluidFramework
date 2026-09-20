@@ -304,7 +304,7 @@ const documentationBindingCases = [
 
 	// Parameter types match, but their names differ. Copying parameter documentation would
 	// require renaming its references, which the current binder does not support.
-	// TODO (Stage 2 parameter compatibility): Extend the renamed, optional, rest, and generic cases
+	// TODO (Future parameter adaptation): Extend the renamed, optional, rest, and generic cases
 	// with actual parameter and type-parameter documentation. Separate supported transformations
 	// from unsafe mismatches; do not change all rejection expectations to success.
 	{
@@ -339,7 +339,7 @@ const documentationBindingCases = [
 
 	// The target destructures an object instead of declaring a parameter identifier.
 	// Its property name must not be treated as a parameter name that matches the derived function.
-	// TODO (Stage 2 parameter compatibility): Add object and array binding patterns with documentation
+	// TODO (Future parameter adaptation): Add object and array binding patterns with documentation
 	// when parameter adaptation is defined. Retain failures where no unambiguous mapping exists.
 	{
 		name: "pattern",
@@ -363,8 +363,6 @@ const documentationBindingCases = [
 
 	// Lookup succeeds, but the target is a variable rather than a standalone function.
 	// Finding a symbol does not establish that its declaration form supports documentation binding.
-	// TODO (Stage 2 declaration support): Revisit this diagnostic under the cross-declaration inheritance
-	// contract. Add valid non-function inheritance cases without assuming a function can inherit from any variable.
 	{
 		name: "nonfunction",
 		reference: "base",

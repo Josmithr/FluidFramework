@@ -1,5 +1,9 @@
 # TODOs
 
+Stage 2 is accepted on 2026-09-20.
+These investigations and the [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) are scheduled after the remaining library implementation.
+Required Stage 3 portable models and Stage 4 declaration rollups remain in the [implementation plan](docs/api-extractor-replacement-implementation-plan.md).
+
 ## Audit diagnostic messages
 
 We should audit our diagnostic messages and ensure they are:

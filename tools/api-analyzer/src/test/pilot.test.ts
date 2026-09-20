@@ -1,13 +1,117 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "mocha";
+import {
+	createSourceFile,
+	ScriptTarget,
+	SyntaxKind,
+	isExportDeclaration,
+	isNamedExports,
+	isFunctionDeclaration,
+	isInterfaceDeclaration,
+	isEnumDeclaration,
+	isTypeAliasDeclaration,
+} from "typescript6";
 import { analyzeAPIs, ReleaseLevel } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
 
 describe("Repository pilot", () => {
+	it("checks the package's complete API report without rewriting the baseline", () => {
+		const root = new URL("../../", import.meta.url);
+		const reportFile = new URL("api-report/api-analyzer.api.md", root);
+		const before = readFileSync(reportFile, "utf8");
+		const modified = statSync(reportFile).mtimeMs;
+		execFileSync(
+			process.execPath,
+			[fileURLToPath(new URL("lib/generateApiReport.js", root)), "--check"],
+			{ cwd: tmpdir(), stdio: "pipe" },
+		);
+		assert.equal(readFileSync(reportFile, "utf8"), before);
+		assert.equal(statSync(reportFile).mtimeMs, modified);
+		const source = createSourceFile(
+			"index.d.ts",
+			readFileSync(new URL("lib/index.d.ts", root), "utf8"),
+			ScriptTarget.Latest,
+			true,
+		);
+		const names = source.statements.flatMap((statement) =>
+			isExportDeclaration(statement) &&
+			statement.exportClause !== undefined &&
+			isNamedExports(statement.exportClause)
+				? statement.exportClause.elements.map((element) => element.name.text)
+				: [],
+		);
+		const body = /```ts\n([\S\s]*?)\n```/.exec(before)?.[1];
+		assert(body !== undefined);
+		const printed = createSourceFile("report.d.ts", body, ScriptTarget.Latest, true);
+		const reported = printed.statements.flatMap((statement) => {
+			if (
+				isExportDeclaration(statement) &&
+				statement.exportClause !== undefined &&
+				isNamedExports(statement.exportClause)
+			) {
+				return statement.exportClause.elements.map((element) => element.name.text);
+			}
+			return (isFunctionDeclaration(statement) ||
+				isInterfaceDeclaration(statement) ||
+				isEnumDeclaration(statement) ||
+				isTypeAliasDeclaration(statement)) &&
+				statement.modifiers?.some((modifier) => modifier.kind === SyntaxKind.ExportKeyword) ===
+					true &&
+				statement.name !== undefined
+				? [statement.name.text]
+				: [];
+		});
+		assert.deepEqual(reported.sort(), names.sort());
+		assert.equal(before.includes("// No selected exports."), false);
+	});
+
+	it("rejects stale and missing self-reports without accepting changes", () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-self-report-"));
+		const root = new URL("../../", import.meta.url);
+		try {
+			cpSync(new URL("lib/", root), path.join(directory, "lib"), { recursive: true });
+			for (const name of ["package.json", "tsconfig.api-reports.json"]) {
+				cpSync(new URL(name, root), path.join(directory, name));
+			}
+			symlinkSync(
+				fileURLToPath(new URL("node_modules/", root)),
+				path.join(directory, "node_modules"),
+				"dir",
+			);
+			mkdirSync(path.join(directory, "api-report"));
+			const report = path.join(directory, "api-report/api-analyzer.api.md");
+			writeFileSync(report, "stale baseline\n");
+			const args = [path.join(directory, "lib/generateApiReport.js"), "--check"];
+			assert.throws(
+				() => execFileSync(process.execPath, args, { cwd: tmpdir(), stdio: "pipe" }),
+				/API report is stale/,
+			);
+			assert.equal(readFileSync(report, "utf8"), "stale baseline\n");
+			rmSync(report);
+			assert.throws(
+				() => execFileSync(process.execPath, args, { cwd: tmpdir(), stdio: "pipe" }),
+				/ENOENT/,
+			);
+			assert.throws(() => readFileSync(report), { code: "ENOENT" });
+		} finally {
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
 	it("analyzes core-utils declarations with configured legacy policy and detached outputs", async () => {
 		const directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-pilot-"));
 		const packageRoot = fileURLToPath(

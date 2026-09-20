@@ -8,6 +8,7 @@
  * {@link DiagnosticCode.MemberExpansionIncomplete}
  * describes a limitation in otherwise successful analysis facts.
  * Diagnostic messages provide details specific to the affected input.
+ * @public
  */
 // TODO: split this into separate types for separate conceptual operations:
 // - Configuration validation
@@ -281,6 +282,7 @@ export enum DiagnosticCode {
  *
  * @remarks
  * Can describe an operation failure or a limitation in otherwise successful analysis facts.
+ * @public
  */
 export interface AnalyzerDiagnostic {
 	/**
@@ -296,6 +298,7 @@ export interface AnalyzerDiagnostic {
 
 /**
  * The success discriminator shared by results with and without payloads.
+ * @public
  */
 interface SuccessStatus {
 	/**
@@ -308,6 +311,7 @@ interface SuccessStatus {
  * A successful operation with a required payload.
  *
  * @typeParam TValue - The produced value, including undefined when explicitly permitted.
+ * @public
  */
 export interface SuccessfulResult<TValue> extends SuccessStatus {
 	/**
@@ -318,6 +322,7 @@ export interface SuccessfulResult<TValue> extends SuccessStatus {
 
 /**
  * Failure diagnostics without a partial success value.
+ * @public
  */
 export interface FailedResult {
 	/**
@@ -351,6 +356,7 @@ export interface FailedResult {
  * const validated: Result = { ok: true };
  * const found: Result<string | undefined> = { ok: true, value: undefined };
  * ```
+ * @public
  */
 export type Result<TValue = never> =
 	| FailedResult

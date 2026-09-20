@@ -10,6 +10,7 @@ import { freezeData } from "../utilities/freezeData.js";
  * Numeric comparisons follow `Public < Beta < Alpha < Internal`.
  * Higher levels permit references to lower levels under release-level compatibility rules.
  * Selections still use explicit sets; the ordering does not add implicit inclusions.
+ * @public
  */
 export enum ReleaseLevel {
 	/**
@@ -96,6 +97,7 @@ export interface ApiItemDocumentation {
 
 /**
  * Independently configurable diagnostic rules for package documentation and API classification.
+ * @public
  */
 export interface ClassificationRules {
 	/**
@@ -154,12 +156,13 @@ export interface ClassificationRules {
 
 /**
  * Parser configuration and diagnostic policy used when creating a documentation context.
+ * @public
  */
 export interface ClassificationOptions extends TsdocOptions {
 	/**
 	 * Diagnostic overrides. Conflicting release levels always fail.
 	 *
-	 * @defaultValue All classification rules are enabled.
+	 * @defaultValue Release tags and valid TSDoc are required; package documentation is optional.
 	 */
 	readonly rules?: ClassificationRules;
 }
@@ -211,6 +214,7 @@ export interface ApiClassification {
 
 /**
  * An explicit release-level and modifier-tag selection, independent of repository policy.
+ * @public
  */
 export interface ApiItemSelection {
 	/**

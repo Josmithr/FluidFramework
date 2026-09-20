@@ -4,12 +4,14 @@
 
 API direction updated on 2026-09-17: adopt the agreed [one-shot API proposal](API-Proposal.md).
 The reusable public session has been removed in favor of `analyzeAPIs(configuration): Promise<Result<APIAnalysis>>`.
-The initial implementation completes existing callable classification and documentation validation before success and closes the compiler connection before returning.
+The implementation completes supported declaration and member classification, documentation resolution, and configured reference validation before success and closes the compiler connection before returning.
 The completed analysis exposes effective configuration, API counts, selected declaration reports, and versioned dependency-model generation.
 The Stage 2 review and validation implementation now covers the structural merge gaps and named declaration selectors identified in the acceptance audit.
 Both resolution-scope decisions are approved: follow TSDoc reference syntax, and deduplicate, resolve, then merge inherited documentation.
 The later 2026-09-20 decision explicitly excludes module-based references for now; named package-qualified APIs remain supported.
-Stage 2 remains open for the [TSDoc conformance limitations](#remaining-stage-2-decisions); successful tests do not waive them.
+Stage 2 is complete as of 2026-09-20 under the user's accepted scope, following the code/documentation audit and package self-report check.
+The user explicitly deferred the remaining follow-ups until the rest of the library is implemented, including the [unnamed-selector parser limitation](api-extractor-replacement-follow-ups.md#verify-and-report-the-tsdoc-unnamed-selector-mismatch).
+This is an accepted limitation, not an assertion of full TSDoc conformance.
 Complete portable documentation models remain Stage 3, and declaration rollups remain Stage 4.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
@@ -20,7 +22,7 @@ Reporting consumes that graph without compiler or parser access.
 The model layer now owns versioned encoding, decoding, and artifact validation; rollups and broader graph completeness remain pending.
 `good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
 
-Status: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session pass 29 focused contract tests, verified on 2026-09-15.
+Historical checkpoint: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session passed 29 focused contract tests on 2026-09-15.
 The adapter returns facts that contain no compiler objects.
 The first Stage 2 increment implements TSDoc-based release classification and configurable metadata selection, with 45 combined contract tests passing on 2026-09-15.
 The subsequent baseline-handling increment adds pure comparison, read-only file checks, and explicit updates, with 48 combined contract tests passing on 2026-09-15.
@@ -396,18 +398,22 @@ Latest continuation adds original-scope package API links with model and cross-m
 Compound and type-only report fragments compile with TS6 and TS7 consumers for both producer compilers.
 Merged interfaces now combine heritage clauses, type-parameter defaults, and declared call signatures using native AST factories.
 
-These results do not yet close Stage 2.
-The remaining TSDoc conformance limitations and approved policy decisions are recorded below.
-Existing unsupported outcomes must not be silently reclassified as completed requirements.
+Stage 2 acceptance is complete under the 2026-09-20 decisions.
+The final audit corrected public API metadata and source comments, removed obsolete Stage 2 TODOs, and retained actionable later-stage work.
+The package now generates and checks its own [complete API report](../api-report/api-analyzer.api.md) through `build:api-reports` and `check:api-reports`.
+Known limitations remain visible below and in the follow-up tracker; deferral does not mean that the unsupported behavior is implemented.
 
 #### Current acceptance checklist
 
-Acceptance audit updated on 2026-09-19.
+Acceptance audit updated on 2026-09-20.
 The linked tests cover the implemented Stage 2 contracts; later-stage output and migration requirements remain separate.
+Closure verification: 261 tests passed with three known compiler probes pending; build, report freshness, ESLint, formatting, architecture boundaries, whitespace, and touched-file editor checks passed.
+The documentation audit validated 633 production TSDoc blocks, type-checked 21 source examples, and checked 210 local links and anchors across the package and planning documents.
 
 | Exit obligation | Evidence and checked outcome | Disposition |
 | --- | --- | --- |
 | W1 review baselines | [Report tests](../src/test/reviewReport.test.ts), [baseline tests](../src/report-generation/test/reviewBaseline.test.ts), and native snapshots cover separate selected surfaces, exact comparison, metadata changes, aliases, and stable output. Analysis and generators return data; callers own baseline writes. | Implemented. |
+| Package self-report | The [build script](../src/generateApiReport.ts) analyzes emitted public declarations and produces the complete report. The [pilot test](../src/test/pilot.test.ts) checks freshness, export coverage, and no writes during checks. | Implemented; regenerate and review the report after intentional API changes. |
 | W2 local and suite validation | [Native reference tests](../src/test/nativeCapabilities.test.ts) and [suite tests](../src/test/suite.test.ts) cover unexported targets, import types, directional rules, independent opt-outs, and dependency types without consumer re-exports. Inherited views are not revalidated; original declarations and local overrides are. Outside-suite types remain opaque. | Implemented for the approved rules. |
 | W10 configurable policy | [Classification tests](../src/analysis/test/classification.test.ts), [configuration tests](../src/test/configuration.test.ts), and the [core-utils pilot](../src/test/pilot.test.ts) exercise custom modifier vocabularies and configured legacy policy without built-in Fluid tags. | Implemented; documentation-reference syntax boundaries are listed below. |
 | F4 standalone overloads | Classification, native, and report tests retain independent public/beta/internal overload selection and exclude implementation signatures. Contained and compound callable parts obey the atomic-container decision. | Implemented for review and validation; rollup output remains Stage 4. |
@@ -425,11 +431,12 @@ The linked tests cover the implemented Stage 2 contracts; later-stage output and
 #### Remaining Stage 2 decisions
 
 Both questions were resolved on 2026-09-20.
+This heading is retained for existing links; no Stage 2 policy question remains open.
 
 1. **TSDoc conformance is required, with an explicit module-reference exclusion.** References in TSDoc comments follow TSDoc selector syntax. The later 2026-09-20 decision forbids whole-module targets and source-relative import-path references for now. Constructor, declaration-kind, numeric, static/instance, and label selectors remain required. The resolver supports explicit constructors, original `{@label}` targets, quoted member names, enum members, and computed unique-symbol members locally and through dependency models. Well-known symbol keys such as `Symbol.iterator` retain their identity without importing compiler-library documentation. Missing and ambiguous targets fail, including overloaded constructors without a unique selection and duplicate labels.
 2. **Deduplicate, resolve, then merge.** Equal normalized original comment contributions retain the first occurrence and its scope. Each retained explicit inheritance request resolves before content is combined in compiler declaration order. Distinct resolved summaries and parameter blocks are combined; equal resolved contributions are deduplicated. Original classification remains unchanged, target-only tags and ancillary blocks are not inherited, and links and section sources retain provenance through local and suite chains. Cycles and invalid retained requests fail the whole analysis. Private contribution identities never enter API models or reports.
 
-Remaining conformance limit:
+Accepted conformance limitation, deferred until the remaining library implementation is complete:
 
 - The official [label examples](https://tsdoc.org/pages/tags/label/) use unnamed references such as `Interface.(:CALL)`. The pinned `@microsoft/tsdoc` 0.16.0 parser rejects this form with `tsdoc-reference-missing-identifier`; an empty quoted identifier is also rejected. The examples mark the notation as provisional. The [upstream-reporting task](api-extractor-replacement-follow-ups.md#verify-and-report-the-tsdoc-unnamed-selector-mismatch) must confirm the specification and file a parser bug if warranted. If the syntax is required, supporting it needs a parser fix and analyzer target coverage. Do not invent an alternative spelling or claim support because the named-selector cases pass.
 
@@ -672,7 +679,7 @@ Selecting a dependency into the suite must enable its supported member expansion
 
 Callable/constructable class-instance augmentations and repeated string-literal ambient modules now have extraction, documentation, model, report, policy, and consumer coverage.
 The supported Stage 2 paths have combined acceptance evidence in the checklist above.
-Final stage closure awaits the recorded conformance limits rather than an inference from passing tests.
+Stage closure records the user's explicit acceptance of the deferred follow-ups rather than inferring full feature completeness from passing tests.
 Full portable models and declaration rollups remain Stages 3 and 4; the three known compiler capability probes remain pending at their existing stages.
 
 Merged-metadata decision resolved: combine recognized modifier tags from all parts and deduplicate them.

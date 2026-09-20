@@ -24,8 +24,9 @@ export interface CompletedDocumentation extends ResolvedDocumentation {
  * @remarks
  * Contains no compiler objects, TSDoc nodes, or mutable construction indexes.
  * This internal graph is not a versioned serialized model.
- * Supported interface, property, and named namespace merges retain combined documentation and original link origins.
- * Broader structural merges and complete type-reference edges remain pending.
+ * Supported merged declarations retain resolved contributions, section provenance, and original link origins.
+ * Type-reference validation follows the configured suite boundary and does not revalidate inherited member views.
+ * Complete portable type graphs and rollup data remain Stage 3 and Stage 4 work.
  */
 export interface CompletedAnalysis {
 	/**
@@ -51,7 +52,7 @@ export interface CompletedAnalysis {
 	readonly classification: ApiClassification;
 
 	/**
-	 * Resolved callable and single-declaration non-callable property comments, links, and inheritance paths in identifier order.
+	 * Resolved declaration and member comments, links, section sources, and inheritance paths in identifier order.
 	 */
 	readonly documentation: readonly CompletedDocumentation[];
 }

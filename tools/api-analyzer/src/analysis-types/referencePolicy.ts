@@ -2,6 +2,7 @@ import type { ApiItemSelection } from "./classification.js";
 
 /**
  * A directional prohibition between independently selected source and target metadata.
+ * @public
  */
 export interface DirectionalReferenceRule {
 	/**
@@ -28,10 +29,12 @@ export interface DirectionalReferenceRule {
 
 /**
  * Independent semantic reference checks, separate from report selection.
+ * @public
  */
 export interface ReferencePolicies {
 	/**
-	 * Whether to reject type references to less stable APIs using original release metadata.
+	 * Whether to reject locally declared type references to less-public APIs using original release metadata.
+	 * Inherited effective member views are not revalidated on each receiver.
 	 * @defaultValue `false`. Release compatibility is not checked when omitted.
 	 */
 	readonly releaseCompatibility?: boolean;

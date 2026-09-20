@@ -4,6 +4,7 @@ import type { ReferencePolicies } from "./referencePolicy.js";
 
 /**
  * A named declaration entrypoint in one compiler resolution context.
+ * @public
  */
 export interface Entrypoint {
 	/**
@@ -30,6 +31,7 @@ export interface Entrypoint {
  *
  * @remarks
  * Later bases and local values override earlier values.
+ * @public
  */
 export interface Configuration extends TsdocOptions {
 	/**
@@ -115,6 +117,7 @@ export interface Configuration extends TsdocOptions {
  *
  * @remarks
  * Paths are absolute.
+ * @public
  */
 export interface EffectiveConfiguration {
 	/**
@@ -171,6 +174,7 @@ export interface EffectiveConfiguration {
 
 /**
  * Selects installed direct, transitive, and peer dependencies for documentation resolution.
+ * @public
  */
 export interface SuiteConfiguration {
 	/**

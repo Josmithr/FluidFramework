@@ -471,7 +471,7 @@ interface DocumentationReferenceLookupBase {
 	 * const unresolvedReference = "missing";
 	 * ```
 	 */
-	// TODO (Stage 2 automatic inheritance): Revisit the target-less inheritance example when implicit
+	// TODO (Future implicit inheritance): Revisit the target-less inheritance example when implicit
 	// target selection is defined. Distinguish supported requests from malformed comments;
 	// an empty reference alone must not authorize automatic inheritance.
 	readonly reference: string;
@@ -881,9 +881,6 @@ export interface DeclarationStatementFact {
  * This is not a complete serialized documentation model or a stable artifact schema.
  * A symbol can have several source declarations through declaration merging.
  */
-// TODO (Stage 2 documentation resolution): Extend signature documentation contexts to general
-// declaration targets and member references. Preserve local-comment precedence.
-// These facts must support resolution without compiler handles or parsing printed type strings.
 export interface DeclarationFact {
 	/**
 	 * Unique symbol key when this declaration is a collected computed member.
@@ -930,7 +927,7 @@ export interface DeclarationFact {
 	 * Each direct target's member view can include members inherited by that target.
 	 * This array does not contain a separately instantiated view for every ancestor.
 	 */
-	// TODO (Stage 2 documentation resolution): Retain recursive instantiated ancestry where direct
+	// TODO (Stage 3 member graphs): Retain recursive instantiated ancestry where direct
 	// matches and original-member source chains are insufficient. Never infer overload compatibility.
 	readonly heritage: readonly HeritageFact[];
 

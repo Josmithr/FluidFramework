@@ -1,6 +1,8 @@
 # `api-analyzer` API Proposal
 
-Status: API direction agreed on 2026-09-17; declaration reports and versioned dependency-model generation are implemented for the current Stage 2 subset.
+Status: API direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
+Declaration reports, versioned dependency-documentation models, and API counts are implemented.
+Complete portable models remain Stage 3; declaration rollups remain Stage 4.
 The [README](../README.md#experimental-api) describes the implemented subset and remaining limitations.
 The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
@@ -12,7 +14,7 @@ Supporting types can also be exported.
 The user calls `analyzeAPIs` with ordinary configuration to analyze one package.
 The function resolves configuration internally and completes shared analysis before returning a successful result.
 Callers do not need to call `resolveConfiguration` separately.
-The proposed return type is `Promise<Result<APIAnalysis>>`.
+The implemented return type is `Promise<Result<APIAnalysis>>`.
 
 The following example starts analysis and waits for either a completed analysis or expected validation diagnostics.
 The configuration identifies the package and the suite of dependency model artifacts to load.
@@ -27,7 +29,7 @@ const result = await analyzeAPIs(configuration);
 It represents completed analysis with private, immutable data, not a live compiler session.
 It has no `analyze`, `invalidate`, or `close` method.
 
-It should offer the following capabilities:
+The final library should offer the following capabilities; not all are implemented in Stage 2:
 
 - Generate declaration rollups for configured entrypoints.
 - Generate API model artifacts for dependency analysis and documentation generation.
@@ -61,6 +63,8 @@ Model generation uses an explicit versioned format rather than exposing the curr
 Stable identities, graph references, and format compatibility require documented contracts and tests.
 The caller controls file writes.
 Baseline acceptance remains an explicit action and must not occur as a side effect of generation.
+The development-only `build:api-reports` script exercises this contract by analyzing the package itself and writing its complete report.
+`check:api-reports` compares that same artifact without writing; neither command adds an output-writing method to `APIAnalysis`.
 
 ## Failures and execution
 

@@ -36,9 +36,9 @@ import type { DependencyModel } from "../analysis-types/dependencyModel.js";
 /**
  * An original input and its parsed comment, with metadata captured before inheritance.
  *
- * @typeParam Input - The original input record retained by this context.
+ * @typeParam TInput - The original input record retained by this context.
  */
-export type ParsedDocumentationItem<Input extends ApiItemDocumentation> = Input & {
+export type ParsedDocumentationItem<TInput extends ApiItemDocumentation> = TInput & {
 	/**
 	 * Parser output whose comment nodes may be updated once during resolution.
 	 */
@@ -74,10 +74,10 @@ export type ExtractedComments = Map<ApiItemId, ReturnType<TSDocParser["parseStri
  * Discard the working context after completion or failure.
  * Its maps and TSDoc nodes are internal mutable state, not frozen data or a portable model.
  *
- * @typeParam Input - Original records indexed by identifier.
+ * @typeParam TInput - Original records indexed by identifier.
  */
 export interface DocumentationContext<
-	Input extends ApiItemDocumentation = DocumentationInput,
+	TInput extends ApiItemDocumentation = DocumentationInput,
 > {
 	/**
 	 * Shared modifier vocabulary. Do not modify it after parsing begins.
@@ -92,7 +92,7 @@ export interface DocumentationContext<
 	/**
 	 * Distinct original inputs and their parsed comments, in input order.
 	 */
-	readonly items: ReadonlyMap<ApiItemId, ParsedDocumentationItem<Input>>;
+	readonly items: ReadonlyMap<ApiItemId, ParsedDocumentationItem<TInput>>;
 
 	/**
 	 * The first syntax failure in input order, or success when all comments parse without errors.
@@ -186,7 +186,7 @@ export interface AnalysisContextOptions extends ClassificationOptions {
  * Captures original links and block tags before resolution can replace inherited sections.
  * Syntax failures are retained in the context so classification can apply its own rule settings.
  *
- * @typeParam Input - Original input records to index.
+ * @typeParam TInput - Original input records to index.
  * @param inputs - Original comments with distinct identifiers.
  * @param options - Shared vocabulary and classification rules. Omit for standard tags and enabled classification rules.
  * @param diagnosticCode - Configuration diagnostic category. Omit to use DocumentationConfiguration.
@@ -194,20 +194,20 @@ export interface AnalysisContextOptions extends ClassificationOptions {
  * @returns A request-owned context or invalid-vocabulary diagnostics.
  * @throws If identities are duplicated, an included package name is blank, or parsing fails unexpectedly.
  */
-export function createDocumentationContext<Input extends ApiItemDocumentation>(
-	inputs: readonly Input[],
+export function createDocumentationContext<TInput extends ApiItemDocumentation>(
+	inputs: readonly TInput[],
 	options: ClassificationOptions = {},
 	diagnosticCode:
 		| DiagnosticCode.ClassificationConfiguration
 		| DiagnosticCode.DocumentationConfiguration = DiagnosticCode.DocumentationConfiguration,
 	extractedComments?: ReadonlyMap<ApiItemId, ReturnType<TSDocParser["parseString"]>>,
-): Result<DocumentationContext<Input>> {
+): Result<DocumentationContext<TInput>> {
 	const configured = createTsdocConfiguration(options, diagnosticCode);
 	if (!configured.ok) {
 		return configured;
 	}
 	const parser = new TSDocParser(configured.value);
-	const items = new Map<ApiItemId, ParsedDocumentationItem<Input>>();
+	const items = new Map<ApiItemId, ParsedDocumentationItem<TInput>>();
 	let validation: Result = { ok: true };
 	for (const input of inputs) {
 		assert(!items.has(input.id), "Documentation inputs must have distinct identities.");

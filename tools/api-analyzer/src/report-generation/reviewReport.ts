@@ -418,7 +418,7 @@ export interface PreparedReviewData {
  * Does not select APIs, query the compiler, or write files.
  * Copies report fields without changing the completed graph.
  *
- * @param graph - Immutable completed analysis for the supported callable scope.
+ * @param graph - Immutable completed analysis for supported declarations and members.
  * @returns Prepared report records without compiler or parser state.
  * @throws If facts violate internal identity or documentation invariants.
  */
@@ -547,7 +547,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 						declaration.exports.length > 0 ||
 						declaration.members.length > 0)
 				) {
-					unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: this declaration form is not supported by the function-only report builder.`;
+					unsupported ??= `Package ${facts.packageName}, entrypoint ${surface.name}, export ${binding.name}: this declaration form is not supported by report generation.`;
 				} else if (statement === undefined && namespace === undefined) {
 					assert(
 						declaration.signatures.length > 0,
@@ -784,6 +784,7 @@ export function createReviewReport(
 
 /**
  * Presentation settings that do not change classification, selection, or validation.
+ * @public
  */
 export interface ReviewPresentationOptions {
 	/**
@@ -823,7 +824,7 @@ export interface ReviewPresentationOptions {
 	 * Whether items without descriptive documentation receive an `(undocumented)` annotation.
 	 *
 	 * @remarks
-	 * A false value suppresses the notice without changing {@link ReviewSignature.documented} or documentation validation.
+	 * A false value suppresses the notice without changing effective documentation status or validation.
 	 *
 	 * @defaultValue `true`
 	 */
@@ -913,6 +914,12 @@ function renderDeclarationText(
 	const declarations: string[] = [];
 	const aliases: string[] = [];
 	const releaseTags = new Set(Object.values(levels).map((level) => `@${level}`));
+
+	/**
+	 * Formats enabled metadata and documentation-status annotations for one report item.
+	 * @param signature - Selected item with original tags and effective documentation status.
+	 * @returns Comment lines, or an empty string when no annotations are enabled.
+	 */
 	function renderAnnotation(signature: ReviewSignature): string {
 		const tags: string[] = [];
 		if (signature.releaseLevel !== undefined) {

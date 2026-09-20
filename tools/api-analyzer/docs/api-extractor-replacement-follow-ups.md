@@ -6,6 +6,9 @@ Track deferred investigations and improvements separately from the [implementati
 These items do not define delivery-stage exit criteria. Schedule them separately from the remaining plan work unless a required capability depends on them.
 The plan retains required capability gates, acceptance criteria, and implementation blockers.
 Moving an item here does not waive those requirements or mark an unresolved capability as supported.
+Scheduling decision on 2026-09-20: finish the remaining library implementation before pursuing these follow-ups.
+Stage 2 is accepted with the documented unnamed-selector parser limitation and deliberate module-reference exclusion.
+Complete portable models and declaration rollups remain required Stages 3 and 4 work in the plan, not optional follow-ups.
 
 ## Persistent analysis reuse across builds
 
@@ -78,8 +81,8 @@ The declaration-generation capability gate remains in the implementation plan. D
 
 ## Verify and report the TSDoc unnamed-selector mismatch
 
-Status: open; requested on 2026-09-20.
-This task tracks verification and upstream reporting, not an approved reduction in TSDoc support.
+Status: open; requested on 2026-09-20 and deferred until the remaining library implementation is complete.
+The user accepted this known limitation for Stage 2 closure; the task still requires verification and an upstream report if warranted.
 
 The official [label documentation](https://tsdoc.org/pages/tags/label/) shows references such as `Interface.(:CALL)` for labeled unnamed members.
 The pinned `@microsoft/tsdoc` 0.16.0 parser reports `tsdoc-reference-missing-identifier` for this form.
@@ -93,7 +96,21 @@ The documentation also says the notation is not finalized, so confirm the specif
 
 Acceptance: record the verified specification status and an upstream issue link, or the evidence that no parser bug should be filed.
 No external issue has been filed as part of adding this task.
-Reporting the mismatch does not itself implement unnamed-target resolution or close the conformance requirement.
+Reporting the mismatch does not itself implement unnamed-target resolution or establish full conformance.
+
+## Broader automatic documentation matching
+
+Status: future investigation, after the remaining library implementation.
+Current matching copies documentation only from a uniquely proven compatible non-overloaded source.
+Keep ambiguous, merged, accessor, or parameter-adaptation cases undocumented when compatibility is not established.
+
+- Investigate original-scope matching for merged members and accessors without relying on printed type text.
+- Cover recursive instantiated ancestry and competing class/interface sources without assuming declaration order is precedence.
+- Specify safe parameter and type-parameter adaptation before copying comments across renamed or destructured parameters.
+- Consider target-less `@inheritDoc` only when one source can be established without guessing; keep explicit request errors distinct from absent automatic documentation.
+
+Acceptance: any expanded behavior has compiler-backed positive and negative tests and preserves release classification, local-comment suppression, and source provenance.
+This does not reopen the explicit numeric and label selection already implemented for overloaded targets.
 
 ## Consider module-based documentation references
 

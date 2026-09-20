@@ -247,8 +247,6 @@ export function createNativeAdapter(): NativeAdapter {
 					);
 				}
 
-				// TODO (Stage 2 documentation resolution): Retain general declaration and effective-member
-				// lookup contexts, including recursive instantiated ancestry, before disposing this snapshot.
 				return extractFacts(project, configuration, comments, suitePackages);
 			} finally {
 				// Returned facts must not depend on handles owned by this snapshot.
@@ -2082,6 +2080,11 @@ export function collectLinks(
 	lookup: (reference: DocDeclarationReference) => DocumentationReferenceLookup,
 ): DocumentationReferenceLookup[] {
 	const links: DocumentationReferenceLookup[] = [];
+
+	/**
+	 * Visits parsed nodes in source order without modifying the comment tree.
+	 * @param node - Current node in the original TSDoc tree.
+	 */
 	function visit(node: DocNode): void {
 		if (node instanceof DocLinkTag && node.codeDestination !== undefined) {
 			links.push(lookup(node.codeDestination));
@@ -2247,13 +2250,12 @@ export function collect(
 			node !== undefined && (isVariableDeclaration(node) || isTypeAliasDeclaration(node)),
 	);
 	const statement = extractStatementSyntax(compiler, statementNode ?? sourceNode, type);
+	const symbolId = getMemberSymbolId(compiler, locations, symbol);
 
 	// Publish only after recursive dependencies have been collected; active identities prevent cycles.
 	declarations.set(id, {
 		id,
-		...(getMemberSymbolId(compiler, locations, symbol) === undefined
-			? {}
-			: { symbolId: assertDefined(getMemberSymbolId(compiler, locations, symbol)) }),
+		...(symbolId === undefined ? {} : { symbolId }),
 		...(documentationContext === undefined ? {} : { documentationContext }),
 		...(container === undefined ? {} : { container }),
 		...(statement === undefined ? {} : { statement }),
@@ -3241,6 +3243,11 @@ function collectDeclarationReferences(
 	location: Origin,
 ): DeclarationReferenceFact[] {
 	const references: DeclarationReferenceFact[] = [];
+
+	/**
+	 * Collects references owned by this API, excluding child APIs and implementation bodies.
+	 * @param current - Current original compiler node.
+	 */
 	function visit(current: Node): void {
 		if (current.kind === SyntaxKind.Block) {
 			return;

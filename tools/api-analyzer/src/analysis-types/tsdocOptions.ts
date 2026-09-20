@@ -4,6 +4,7 @@
  * @remarks
  * Pass the same options to classification, reference binding, and content resolution.
  * These options register modifier tags only. They do not load configuration files or disable syntax validation.
+ * @public
  */
 export interface TsdocOptions {
 	/**

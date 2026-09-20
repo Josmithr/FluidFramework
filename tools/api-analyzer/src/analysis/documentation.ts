@@ -100,8 +100,6 @@ export function bindDocumentationReferences(
 			continue;
 		}
 
-		// TODO (Stage 2 documentation references): Extend other declaration kinds after retaining
-		// the documentation shapes needed to validate their parameters and merged ownership.
 		const sources =
 			declaredMember === undefined ? (member ?? declaration).declarations : [declaredMember];
 		if (
@@ -437,7 +435,7 @@ function bindCallableInheritance(
 	if (targetContext.origin.packageName !== sourceContext.origin.packageName) {
 		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
-			`Item ${signature.id}: target ${referenceText} requires same-package callable documentation facts. Cross-package targets require future suite resolution.`,
+			`Item ${signature.id}: target ${referenceText} requires same-package callable facts or a selected dependency model. Select and build the target package's model for cross-package inheritance.`,
 		);
 	}
 	if (!haveMatchingDocumentationParameters(sourceContext, targetContext)) {
@@ -578,7 +576,7 @@ export function bindAutomaticDocumentationReferences(
 	facts: AnalysisFacts,
 	packages: ReadonlySet<string> = new Set(),
 ): readonly AutomaticDocumentationBinding[] {
-	// TODO (Stage 2 member documentation): Extend automatic matching to merged members and accessors
+	// TODO (Future automatic matching): Extend automatic matching to merged members and accessors
 	// only when the compiler establishes an unambiguous source and compatible documentation shape.
 	const declarations = new Map(facts.declarations.map((entry) => [entry.id, entry]));
 	const bindings: AutomaticDocumentationBinding[] = [];
@@ -863,36 +861,7 @@ function bindLocalLink(
 		"Documentation lookup targets must be retained in declaration facts.",
 	);
 
-	// Links select overload metadata without imposing inheritance's parameter-shape requirements.
-	const terminal = reference?.memberReferences.at(-1)?.selector;
-	const special =
-		terminal?.selectorKind === SelectorKind.Label ||
-		(terminal?.selectorKind === SelectorKind.System && terminal.selector === "constructor");
-	const candidates = special
-		? [target, ...target.signatures, ...(target.container?.declaredMembers ?? [])].filter(
-				(candidate) =>
-					terminal?.selectorKind === SelectorKind.Label
-						? candidate.documentationContext?.labels?.includes(terminal.selector) === true
-						: "kind" in candidate && candidate.kind === "Constructor",
-			)
-		: [];
-	const selected = special
-		? candidates.length === 1
-			? { ok: true as const, value: assertDefined(candidates[0]) }
-			: reportFailure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${source}: selector ${terminal?.selector} identifies ${candidates.length} declarations on ${lookup.reference}.`,
-				)
-		: target.documentationContext === undefined ||
-				(target.declarations.some((part) => part.kind === "FunctionDeclaration") &&
-					reference?.memberReferences.at(-1)?.selector?.selectorKind === SelectorKind.Index)
-			? selectCallableOverload(source, target, reference, lookup.reference)
-			: reference?.memberReferences.at(-1)?.selector?.selectorKind === SelectorKind.Index
-				? reportFailure(
-						DiagnosticCode.DocumentationReference,
-						`Item ${source}: non-callable target ${lookup.reference} does not accept an overload selector.`,
-					)
-				: { ok: true as const, value: target };
+	const selected = selectLinkTarget(source, target, reference, lookup.reference);
 	if (!selected.ok) {
 		return selected;
 	}
@@ -907,7 +876,7 @@ function bindLocalLink(
 	) {
 		return reportFailure(
 			DiagnosticCode.DocumentationUnsupported,
-			`Item ${source}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Cross-package links require future suite resolution.`,
+			`Item ${source}: target ${lookup.reference} is outside the original package ${context.origin.packageName}. Select and build its dependency model before resolving the link.`,
 		);
 	}
 
@@ -945,6 +914,57 @@ function bindLocalLink(
 			origin: { ...context.origin },
 		},
 	};
+}
+
+/**
+ * Selects target documentation without imposing inheritance's parameter-shape requirements.
+ * @param source - Receiving API identity for diagnostics.
+ * @param target - Compiler-resolved declaration and its callable or constructor facets.
+ * @param reference - Parsed reference with an optional terminal selector.
+ * @param referenceText - Original reference text for diagnostics.
+ * @returns A uniquely selected documentation record, or an invalid or ambiguous selector diagnostic.
+ */
+function selectLinkTarget(
+	source: ApiItemId,
+	target: DeclarationFact,
+	reference: DocDeclarationReference | undefined,
+	referenceText: string,
+): Result<Pick<DeclarationFact, "id" | "documentationContext">> {
+	const terminal = reference?.memberReferences.at(-1)?.selector;
+	if (
+		terminal?.selectorKind === SelectorKind.Label ||
+		(terminal?.selectorKind === SelectorKind.System && terminal.selector === "constructor")
+	) {
+		const candidates = [
+			target,
+			...target.signatures,
+			...(target.container?.declaredMembers ?? []),
+		].filter((candidate) =>
+			terminal.selectorKind === SelectorKind.Label
+				? candidate.documentationContext?.labels?.includes(terminal.selector) === true
+				: "kind" in candidate && candidate.kind === "Constructor",
+		);
+		return candidates.length === 1
+			? { ok: true, value: assertDefined(candidates[0]) }
+			: reportFailure(
+					DiagnosticCode.DocumentationReference,
+					`Item ${source}: selector ${terminal.selector} identifies ${candidates.length} declarations on ${referenceText}.`,
+				);
+	}
+	const numeric = terminal?.selectorKind === SelectorKind.Index;
+	if (
+		target.documentationContext === undefined ||
+		(numeric && target.declarations.some((part) => part.kind === "FunctionDeclaration"))
+	) {
+		return selectCallableOverload(source, target, reference, referenceText);
+	}
+	if (numeric) {
+		return reportFailure(
+			DiagnosticCode.DocumentationReference,
+			`Item ${source}: non-callable target ${referenceText} does not accept an overload selector.`,
+		);
+	}
+	return { ok: true, value: target };
 }
 
 /**
@@ -1036,7 +1056,7 @@ export function bindPackageDocumentation(
 }
 
 /**
- * Copies documentation for explicit or validated automatic inheritance within the same package.
+ * Resolves explicit or validated automatic inheritance within the package and its selected suite.
  *
  * @remarks
  * Uses the context's TSDoc nodes and the official printer without re-parsing.
@@ -1060,8 +1080,8 @@ export function bindPackageDocumentation(
  * Required missing inputs still assert where resolution needs them.
  * Automatic bindings require prior compiler compatibility and unique source selection.
  * Any local comment suppresses automatic inheritance; competing automatic targets are skipped.
- * This function does not support custom block or inline tags or cross-package links.
- * Inheritance requests for other packages produce diagnostics.
+ * Cross-package targets must be authorized and supplied as already-resolved dependency documentation.
+ * Configuration currently supports custom modifier tags, not custom block or inline tag semantics.
  * Links to URLs remain unchanged. The function does not access or validate their destinations.
  *
  * @param context - Invocation-owned parsed comments before inheritance, with validated original identities.
@@ -1231,9 +1251,6 @@ function associateDocumentationBindings(
 		if (request !== undefined) {
 			const reference = request.declarationReference;
 
-			// TODO (Stage 2 suite resolution): Look up targets in the original comment's package suite.
-			// Replace the same-package checks and apply reference policies. When loading models, check
-			// availability and compatibility for every selected dependency, including unused dependencies.
 			if (
 				reference === undefined ||
 				(reference.packageName !== undefined &&
@@ -1242,7 +1259,7 @@ function associateDocumentationBindings(
 			) {
 				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
-					`Item ${item.id}: supply an explicit same-package inheritance target. Automatic and cross-package inheritance are not supported yet.`,
+					`Item ${item.id}: supply an explicit inheritance target in the original package or an authorized suite package.`,
 				);
 			}
 			assert(
@@ -1260,7 +1277,7 @@ function associateDocumentationBindings(
 			) {
 				return reportFailure(
 					DiagnosticCode.DocumentationUnsupported,
-					`Item ${item.id}: target ${target.id} belongs to ${target.packageName}. Cross-package inheritance requires suite resolution, which is not supported yet.`,
+					`Item ${item.id}: target ${target.id} belongs to ${target.packageName}. Supply its resolved model and authorize that package in the suite.`,
 				);
 			}
 		}
@@ -1397,10 +1414,8 @@ function resolveDocumentationItem(
 		return links;
 	}
 
-	// TODO (Stage 2 provenance, Stage 3 portable models): Retain the source identifier and original
-	// declaration context for each section, including local sections. Serialize structured content
-	// and resolved link targets with versioned identifiers. Comment text and an inheritance path
-	// do not supply all information required by the portable model contract.
+	// TODO (Stage 3 portable models): Add structured content and complete type relationships to the
+	// retained section provenance and link identities; these text records cannot restore the full API graph.
 	const value: ResolvedDocumentation = {
 		id: item.id,
 		sections: collectDocumentationSections(comment).flatMap(({ section, node }) =>
@@ -1432,6 +1447,11 @@ function mergeResolvedDocumentation(
 	state: DocumentationTraversalState,
 	comments: readonly DocComment[],
 ): DocComment {
+	/**
+	 * Associates retained child nodes with their original section sources before merging containers.
+	 * @param current - Original section or descendant node.
+	 * @param sources - Provenance to use only where more specific provenance is absent.
+	 */
 	function associate(
 		current: DocNode,
 		sources: readonly Omit<DocumentationSectionSource, "section">[],
@@ -1443,6 +1463,12 @@ function mergeResolvedDocumentation(
 			associate(child, sources);
 		}
 	}
+
+	/**
+	 * Finds the source records on retained nodes within a newly merged section.
+	 * @param current - Merged section or retained descendant.
+	 * @returns Provenance in content traversal order.
+	 */
 	function findSources(
 		current: DocNode,
 	): readonly Omit<DocumentationSectionSource, "section">[] {

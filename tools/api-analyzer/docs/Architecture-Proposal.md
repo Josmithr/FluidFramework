@@ -1,15 +1,16 @@
 # `api-analyzer` Architecture Proposal
 
-Status: architecture direction agreed on 2026-09-17; the initial implemented layers have been migrated.
-`utilities`, `analysis-types`, `analysis`, and `report-generation` now have enforced boundaries.
-The completed graph covers the current callable-analysis scope; general declaration documentation, complete reference edges, and model and rollup output remain pending.
+Status: architecture direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
+`utilities`, `analysis-types`, `analysis`, `report-generation`, and `model-generation` have enforced boundaries.
+The completed graph covers supported declarations, effective members, merged documentation, suite references, and configured policies.
+The model layer implements the dependency-documentation subset; the complete portable model and rollup layer remain Stages 3 and 4.
 The [API proposal](API-Proposal.md) defines the public workflow.
 The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery stages and capability gates.
 
 ## Public workflow
 
 1. The caller passes ordinary configuration to `analyzeAPIs` and awaits `Result<APIAnalysis>`.
-2. Successful analysis returns an object that provides declaration rollup generation, API model generation, API report generation, and API statistics.
+2. Successful analysis returns an object that provides dependency-model generation, API report generation, and API statistics. The final contract also requires declaration rollup generation, scheduled for Stage 4.
 3. The caller requests outputs from that object without repeating analysis or shared validation.
 
 Compiler resources are released before analysis returns success or failure.
@@ -128,12 +129,13 @@ If official tooling cannot satisfy the boundary, record a blocker for an explici
 - Test resource cleanup on success and failure, and verify that generation works after compiler disposal.
 - Retain complete report snapshots and generated-declaration consumer checks alongside focused semantic assertions.
 
-Migration starts by defining the completed graph contract and model-reader responsibilities.
-Then move shared classification, reference resolution, and documentation validation into `analysis`.
-The initial migration moves documentation resolution into `analysis/completeAnalysis.ts` and leaves report preparation as a synchronous transformation of completed graph data.
+The initial migration defined the completed graph contract and model-reader responsibilities.
+Shared classification, reference resolution, and documentation validation now reside in `analysis`.
+Documentation completion runs in `analysis/completeAnalysis.ts`; report preparation is a synchronous transformation of completed graph data.
 Mutable extraction and documentation contexts remain private to analysis; the graph contains no compiler or parser objects.
 Existing implementations and layer tests have moved into their owning directories, while composition tests and shared fixtures remain under the source-root test directory.
-No empty model or rollup directories have been created.
-Extend the graph and introduce those layers as the corresponding delivery steps are implemented.
+The model layer owns the implemented dependency format. No empty rollup directory has been created.
+Extend the graph for the complete portable model and introduce the rollup layer at their planned stages.
 Keep the public API narrow and preserve existing validated behavior during the migration.
-The directory reorganization alone does not complete suite support, portable models, or declaration rollups.
+The package's self-report script is a root-level I/O caller of the same public analysis workflow, not a dependency from one generator into another.
+Directory boundaries alone do not establish complete portable models or declaration rollups.

@@ -9,11 +9,12 @@ References to `bundledPackages` describe the upstream reproductions; they do not
 
 ## Verification status
 
-Stage 2 review and validation evidence is summarized in the [current acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist).
+Stage 2 was accepted on 2026-09-20 with documented follow-ups deferred until the remaining library implementation is complete.
+Review and validation evidence is summarized in the [current acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist), including the package's self-generated complete report.
 F4 and B1/B2/B6 have report-level and policy regressions; F1/F2/F3 have the analysis and dependency-model coverage needed for effective review documentation.
 Complete portable model and declaration-rollup obligations remain open at their assigned stages.
 Passing the Stage 2 subset does not close requirements that also cover those later outputs.
-Open questions identify acceptance details that still need agreement.
+No Stage 2 policy question remains open; later-stage acceptance details remain attached to their respective outputs.
 The linked issue descriptions were inspected, but their reproductions have not been run as part of this requirements work.
 Upstream issue closure does not establish that the replacement handles the case correctly.
 Before closing an entry, link its passing regression tests and verify the applicable behavior with both TypeScript 6 and TypeScript 7.

@@ -337,6 +337,7 @@ Evidence:
 ### W10. Keep repository-specific policy outside the tool
 
 The tool must conform to the [TSDoc specification](https://tsdoc.org/), including its syntax, tag semantics, and custom-tag extension rules.
+Stage 2 acceptance on 2026-09-20 allows the documented unnamed-selector parser limitation to remain while the rest of the library is implemented; this does not claim the syntax is supported.
 Explicit scope exception approved on 2026-09-20: reject whole-module documentation targets and import-path references without a package name for now.
 Named package-qualified API references, including configured package subpaths, remain supported.
 Potential module-based reference support is a [future investigation](api-extractor-replacement-follow-ups.md#consider-module-based-documentation-references), not a Stage 2 requirement.
