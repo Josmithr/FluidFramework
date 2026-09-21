@@ -117,6 +117,7 @@ export interface Configuration extends TsdocOptions {
  *
  * @remarks
  * Paths are absolute.
+ * @sealed
  * @public
  */
 export interface EffectiveConfiguration {

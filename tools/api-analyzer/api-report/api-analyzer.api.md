@@ -20,7 +20,7 @@ declare interface APIStatistics {
     readonly signatures: number;
 }
 
-// @public
+// @public @sealed
 declare interface AnalyzerDiagnostic {
     readonly code: DiagnosticCode;
     readonly message: string;
@@ -61,6 +61,23 @@ declare interface Configuration extends TsdocOptions {
     readonly referencePolicies?: ReferencePolicies | undefined;
     readonly rules?: ClassificationRules | undefined;
     readonly suite?: SuiteConfiguration | undefined;
+}
+
+// @public @sealed
+declare interface DependencyModel {
+    readonly apis: readonly DependencyApi[];
+    readonly compilerVersion: string;
+    readonly dependencyModels: readonly DependencyModelInput[];
+    readonly exports: readonly DependencyExport[];
+    readonly external: readonly ExternalDependencyApi[];
+    readonly format: "api-analyzer-documentation";
+    readonly graph: ModelGraph;
+    readonly identityVersion: 1;
+    readonly inputFiles: readonly DependencyModelInputFile[];
+    readonly modifierTags: readonly string[];
+    readonly packageDocumentation?: ModelPackageDocumentation | undefined;
+    readonly packageName: string;
+    readonly version: 1;
 }
 
 // @public
@@ -106,7 +123,7 @@ declare interface DirectionalReferenceRule {
     readonly target: Omit<ApiItemSelection, "name">;
 }
 
-// @public
+// @public @sealed
 declare interface EffectiveConfiguration {
     readonly customModifierTags: readonly string[];
     readonly entrypoints: readonly Entrypoint[];
@@ -140,7 +157,7 @@ export enum ReleaseLevel {
     Internal = 3,
 }
 
-// @public
+// @public @sealed
 declare type Result<TValue = never> = FailedResult | ([
     TValue
 ] extends [
@@ -168,6 +185,15 @@ declare interface TsdocOptions {
 // @public
 export function analyzeAPIs(configuration: Configuration, workingDirectory?: string): Promise<Result<APIAnalysis>>;
 
+// @public
+export function decodeDependencyModel(text: string, packageName: string): Result<DependencyModel>;
+
+// @public
+export function decodeDependencyModels(inputs: readonly {
+    readonly packageName: string;
+    readonly text: string;
+}[]): Result<readonly DependencyModel[]>;
+
 export type { APIAnalysis };
 
 export type { APIStatistics };
@@ -181,6 +207,8 @@ export type { ClassificationOptions };
 export type { ClassificationRules };
 
 export type { Configuration };
+
+export type { DependencyModel };
 
 export type { DirectionalReferenceRule };
 

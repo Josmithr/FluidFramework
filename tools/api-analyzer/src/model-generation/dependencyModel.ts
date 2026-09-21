@@ -19,9 +19,16 @@ import type {
 	DependencyModel,
 } from "../analysis-types/dependencyModel.js";
 import type { ApiItemId, DeclarationFact, Origin } from "../analysis-types/facts.js";
+import type { ModelGraph } from "../analysis-types/modelGraph.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { ReleaseLevel } from "../analysis-types/classification.js";
+import {
+	collectModelItems,
+	createModelGraph,
+	modelGraphSchema,
+	validateModelGraph,
+} from "./modelGraph.js";
 
 const originSchema = z.strictObject({
 	packageName: z.string().min(1),
@@ -64,6 +71,7 @@ const documentationSchema = z
 const modelSchema = z.strictObject({
 	format: z.literal("api-analyzer-documentation"),
 	version: z.literal(1),
+	graph: modelGraphSchema,
 	identityVersion: z.literal(1),
 	compilerVersion: z.literal("7.0.2"),
 	packageName: z.string().min(1),
@@ -172,17 +180,32 @@ export function encodeDependencyModel(graph: CompletedAnalysis): string {
 		"Model generation requires analyzed input file fingerprints.",
 	);
 	const { apis, owners } = collectModelApis(graph);
-	const exports = collectModelExports(graph);
+
+	// Foreign shapes can point to their producer's documentation instead of copying its API records.
+	const portable = createModelGraph(
+		graph,
+		new Set([
+			...apis.map((api) => api.id),
+			...(graph.dependencies ?? []).flatMap((dependency) =>
+				dependency.apis.map((api) => api.id),
+			),
+		]),
+	);
+	const exports = collectModelExports(portable);
 	const external = collectExternalReferences(
 		graph.facts.packageName,
 		apis,
 		exports,
 		owners,
 		graph.packageDocumentation,
+		collectModelItems(portable).flatMap((item) =>
+			item.documentationId === undefined ? [] : [item.documentationId],
+		),
 	);
 	const model: DependencyModel = {
 		format: "api-analyzer-documentation",
 		version: 1,
+		graph: portable,
 		identityVersion: 1,
 		compilerVersion: graph.facts.compilerVersion,
 		packageName: graph.facts.packageName,
@@ -374,12 +397,11 @@ function collectModelApis(graph: CompletedAnalysis): CollectedModelApis {
 
 /**
  * Collects exported documentation paths while preserving aliases and callable overload order.
- * @param graph - Completed immutable analysis.
+ * @param graph - Portable graph with validated declaration and documentation references.
  * @returns Export paths in surface and declaration traversal order.
  */
-function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
-	const metadata = new Map(graph.classification.items.map((item) => [item.id, item]));
-	const declarations = new Map(graph.facts.declarations.map((item) => [item.id, item]));
+function collectModelExports(graph: ModelGraph): DependencyExport[] {
+	const declarations = new Map(graph.declarations.map((item) => [item.id, item]));
 	const exports: DependencyExport[] = [];
 
 	/**
@@ -404,21 +426,28 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 			declaration !== undefined,
 			"Model export targets must have retained declaration facts.",
 		);
-		const items = metadata.has(id)
-			? [
-					id,
-					...(declaration.container?.declaredMembers ?? [])
-						.filter((member) => member.kind === "Constructor" && metadata.has(member.id))
-						.map((member) => member.id),
-					...(declaration.declarations.some((source) => source.kind === "FunctionDeclaration")
-						? declaration.signatures
-								.filter((signature) => metadata.has(signature.id))
-								.map((signature) => signature.id)
-						: []),
-				]
-			: declaration.signatures
-					.filter((signature) => metadata.has(signature.id))
-					.map((signature) => signature.id);
+
+		// Plain functions are documented per overload; compound declarations also have a declaration record.
+		// Keep callable targets in compiler order so numeric selectors retain their meaning.
+		const items =
+			declaration.documentationId === undefined
+				? declaration.signatures
+						.filter((signature) => signature.documentationId !== undefined)
+						.map((signature) => signature.id)
+				: [
+						id,
+						...(declaration.container?.declaredMembers ?? [])
+							.filter(
+								(member) =>
+									member.source.kind === "Constructor" && member.documentationId !== undefined,
+							)
+							.map((member) => member.id),
+						...(declaration.sources.some((source) => source.kind === "FunctionDeclaration")
+							? declaration.signatures
+									.filter((signature) => signature.documentationId !== undefined)
+									.map((signature) => signature.id)
+							: []),
+					];
 		if (items.length > 0) {
 			const referencePath = active.get(id);
 			exports.push({
@@ -432,14 +461,16 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 			});
 		}
 		if (active.has(id)) {
+			// Emit the recursive alias above, then stop expanding it. Other paths may still visit this target.
 			return;
 		}
 		for (const member of declaration.members) {
-			const memberItems = metadata.has(member.id)
-				? [member.id]
-				: member.signatures
-						.filter((signature) => metadata.has(signature.id))
-						.map((signature) => signature.id);
+			const memberItems =
+				member.documentationId === undefined
+					? member.signatures
+							.filter((signature) => signature.documentationId !== undefined)
+							.map((signature) => signature.id)
+					: [member.id];
 			if (memberItems.length > 0) {
 				exports.push({
 					entrypoint,
@@ -481,7 +512,7 @@ function collectModelExports(graph: CompletedAnalysis): DependencyExport[] {
 			);
 		}
 	}
-	for (const surface of graph.facts.surfaces) {
+	for (const surface of graph.surfaces) {
 		for (const binding of surface.exports) {
 			collectExportTarget(
 				surface.name,
@@ -525,7 +556,8 @@ function collectReferencedApiIds(
  * @param apis - Classified local API records.
  * @param exports - Export paths that can reference dependency APIs.
  * @param owners - Package ownership for all retained identities.
- * @param packageDocumentation - Package-owned link targets. Omit when package documentation is absent.
+ * @param packageDocumentation - Package-owned link targets, or undefined when package documentation is absent.
+ * @param graphReferences - Documentation records referenced by portable declaration shapes.
  * @returns Unique external references sorted by identity.
  * @throws If a referenced identity has no known external owner.
  */
@@ -534,11 +566,15 @@ function collectExternalReferences(
 	apis: readonly DependencyApi[],
 	exports: readonly DependencyExport[],
 	owners: ReadonlyMap<ApiItemId, string>,
-	packageDocumentation?: CompletedPackageDocumentation,
+	packageDocumentation: CompletedPackageDocumentation | undefined,
+	graphReferences: readonly ApiItemId[],
 ): DependencyModel["external"] {
 	const known = new Set(apis.map((api) => api.id));
 	const external = new Map<ApiItemId, string>();
-	for (const id of collectReferencedApiIds(apis, exports, packageDocumentation)) {
+	for (const id of [
+		...collectReferencedApiIds(apis, exports, packageDocumentation),
+		...graphReferences,
+	]) {
 		if (known.has(id)) {
 			continue;
 		}
@@ -557,9 +593,15 @@ function collectExternalReferences(
 /**
  * Decodes and validates a dependency artifact without semantic re-resolution or compiler access.
  *
+ * @remarks
+ * Requires only artifact content, not source files or installed packages.
+ * External documentation identities remain references to other selected models.
+ * Does not restore an analysis or produce declaration rollups.
+ *
  * @param text - Serialized dependency model.
  * @param packageName - Expected owning package identity.
  * @returns Frozen validated model data or actionable format and reference-integrity diagnostics.
+ * @public
  */
 export function decodeDependencyModel(
 	text: string,
@@ -595,8 +637,63 @@ export function decodeDependencyModel(
 	if (!identities.ok) {
 		return identities;
 	}
+	const graph = validateModelGraph(
+		model.graph,
+		new Set([...model.apis, ...model.external].map((api) => api.id)),
+		packageName,
+	);
+	if (!graph.ok) {
+		return graph;
+	}
+
+	// Check the reverse relationship too: a valid graph must not leave a local API record without a shape.
+	const declarations = new Map(
+		model.graph.declarations.map((declaration) => [declaration.id, declaration]),
+	);
+	const items = new Set(
+		collectModelItems(model.graph).flatMap((item) =>
+			item.documentationId === undefined ? [] : [item.documentationId],
+		),
+	);
+	if (model.apis.some((api) => !items.has(api.id) || !declarations.has(api.declarationId))) {
+		return reportFailure(
+			DiagnosticCode.DependencyModel,
+			`Dependency ${packageName}: API records require complete declaration and member shapes. Regenerate its model.`,
+		);
+	}
+
+	// Reuse the encoder's traversal to detect missing or altered nested paths without semantic lookup.
+	// Path order is irrelevant here; each comparison key still preserves overload target order.
+	const expectedExports = collectModelExports(model.graph);
+	const actualExports = new Set(model.exports.map(getModelExportKey));
+	if (
+		expectedExports.length !== model.exports.length ||
+		expectedExports.some((entry) => !actualExports.has(getModelExportKey(entry)))
+	) {
+		return reportFailure(
+			DiagnosticCode.DependencyModel,
+			`Dependency ${packageName}: exported documentation paths or ordered targets disagree with the declaration graph. Regenerate its model.`,
+		);
+	}
 	const documentation = validateModelDocumentation(model);
 	return documentation.ok ? freezeData({ ok: true, value: model }) : documentation;
+}
+
+/**
+ * Creates a structural comparison key without depending on JSON object property order.
+ * @param entry - One exported documentation path with compiler-ordered target identities.
+ * @returns Key preserving alias, overload, member-side, and symbol semantics.
+ */
+function getModelExportKey(entry: DependencyExport): string {
+	return JSON.stringify([
+		entry.entrypoint,
+		entry.path,
+		entry.typeOnly,
+		entry.items,
+		entry.memberKind,
+		entry.symbolId,
+		entry.referencePath,
+	]);
 }
 
 /**

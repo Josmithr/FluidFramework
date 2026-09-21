@@ -3,8 +3,12 @@
 	"extends": "//",
 	"overrides": [
 		{
-			// Compiler fixtures intentionally test syntax and formatting outside product-code conventions.
-			"includes": ["**/src/test/fixtures/**"],
+			// Ignore test fixtures, snapshots, and the self-model to preserve the tooling's exact output.
+			"includes": [
+				"**/api-model/*.api.json",
+				"**/src/test/fixtures/**",
+				"**/src/test/snapshots/**"
+			],
 			"formatter": { "enabled": false },
 			"linter": { "enabled": false },
 			"assist": { "enabled": false }

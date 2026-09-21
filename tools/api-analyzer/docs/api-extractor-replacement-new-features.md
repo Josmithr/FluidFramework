@@ -12,7 +12,9 @@ References to `bundledPackages` describe the upstream reproductions; they do not
 Stage 2 was accepted on 2026-09-20 with documented follow-ups deferred until the remaining library implementation is complete.
 Review and validation evidence is summarized in the [current acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist), including the package's self-generated complete report.
 F4 and B1/B2/B6 have report-level and policy regressions; F1/F2/F3 have the analysis and dependency-model coverage needed for effective review documentation.
-Complete portable model and declaration-rollup obligations remain open at their assigned stages.
+Stage 3 model regressions now cover portable member shapes, source-free readers, and artifact-set integrity.
+The [Stage 3 acceptance audit](api-extractor-replacement-implementation-plan.md#stage-3-acceptance-audit) now includes structured excerpt tokens and source-free linked rendering for W7; final Stage 3 acceptance remains a separate review.
+Declaration-rollup obligations remain open at Stage 4; repository documentation migration remains Stage 5.
 Passing the Stage 2 subset does not close requirements that also cover those later outputs.
 No Stage 2 policy question remains open; later-stage acceptance details remain attached to their respective outputs.
 The linked issue descriptions were inspected, but their reproductions have not been run as part of this requirements work.

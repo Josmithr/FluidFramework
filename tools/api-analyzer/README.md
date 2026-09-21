@@ -5,11 +5,12 @@ It uses the official native TypeScript 7 API and includes the Stage 0 compiler c
 Its API is not stable. It does not generate production artifacts or replace API Extractor.
 Publication remains a separate decision.
 
-## Current Stage 2 scope
+## Current scope
 
 Stage 2 is complete as of 2026-09-20 under the accepted review and validation scope.
 The [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) retains the known parser limitation and optional investigations for after the remaining library implementation.
-Complete portable documentation models are Stage 3; declaration rollups are Stage 4.
+Stage 3 adds portable documentation models and source-free readers.
+Declaration rollups remain Stage 4; repository documenter and historical-artifact migration remain Stage 5.
 
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
@@ -88,7 +89,7 @@ Unexpected extraction errors are propagated after cleanup; if connection cleanup
 The asynchronous entrypoint still blocks the Node.js event loop during synchronous compiler work.
 An active compiler call cannot be canceled.
 The accepted Stage 2 declaration and reference-validation scope is implemented.
-Complete portable models and declaration rollups remain required by later stages.
+Models retain portable declaration and documentation data; declaration rollups remain required by Stage 4.
 These limitations do not waive the corresponding delivery requirements.
 
 Failure diagnostics describe only user-caused issues, including invalid input, configuration, and caller actions.
@@ -494,7 +495,8 @@ An absent or empty target comment supplies no inherited descriptive content.
 A target comment that contains only metadata tags also supplies no descriptive content.
 The output retains the distinction between absent and present local comments.
 This output format can change.
-It does not yet contain structured content or the source information for each section that a complete portable documentation model requires.
+Portable models retain this resolved TSDoc, structured link targets, and source identities for each resolved section.
+Readers can parse the resolved comment for presentation without repeating semantic lookup or inheritance.
 
 Invalid syntax, unresolved references, invalid overload selectors, parameter incompatibilities, and inheritance cycles return typed diagnostics without a partial success value.
 Missing required internal data still throws assertion errors at the point of use.
@@ -921,7 +923,7 @@ Same-package explicit inheritance, selected-suite resolution, and automatic memb
 The [Stage 2 documentation-resolution plan](docs/api-extractor-replacement-implementation-plan.md#resolve-documentation-before-report-construction) records remaining declaration and reference acceptance work.
 The resolver's automatic inheritance rule treats any local TSDoc comment, including an empty or tag-only comment, as an override.
 Versioned dependency-model loading and structural validation now run before compiler extraction.
-Complete portable-model serialization and downstream-consumer verification remain in Stage 3.
+Portable-model serialization and source-free downstream consumption are implemented.
 Disabling the annotation does not disable documentation validation or change selected APIs.
 Display settings never remove metadata from the report model and do not alter semantic policy.
 
@@ -970,7 +972,7 @@ Package exports are limited to anticipated user-facing workflows.
 `analyzeAPIs` is the only exported function, alongside `ReleaseLevel`, `DiagnosticCode`, and supporting types.
 Configuration resolution, classification, selection, documentation processing, report rendering, and baseline comparison are internal operations.
 The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, `generateReport(entrypoint, selection, presentation?)`, and `generateModel()`.
-`generateModel()` returns versioned dependency documentation as JSON with a final newline.
+`generateModel()` returns version 1 portable documentation as JSON with a final newline, independently of report selections.
 Declaration-rollup methods remain required future work; no placeholder methods are exposed.
 
 The following example analyzes a package once and generates public report text without writing a file.
@@ -1122,13 +1124,94 @@ API records require a nonempty, deduplicated `declarationKinds` array that inclu
 Records also retain original labels, and exported member paths retain unique-symbol key identities separately from printed names.
 Regenerate experimental models after these schema changes; resolved section records can contain multiple sources for one combined section.
 Dependency comments are parsed for structural validation and content copying, but their targets and inheritance chains are not resolved again.
-This artifact is not a complete portable API model and cannot restore an entire analysis or generate declaration rollups.
+The `graph` retains all collected declaration shapes, including referenced suite declarations, entrypoints, namespaces, aliases, and original source locations.
+Effective members preserve generic substitutions, optionality, readonly state, original declaring containers, and ordered callable overloads.
+Signatures retain original source plus effective, reduced, and normalized text.
+Declaration and member references store resolved targets; consumers must not infer identity from printed type text.
+Container records retain constructors, statics, accessors, enum values, and special signatures separately from effective members; source locations identify overlapping representations.
+Direct instantiated heritage views and target links preserve ancestry; receiving member views already contain transitive substitutions.
+Partial views retain their original type text and limitations and must not be presented as complete.
+The graph is not a TypeScript type algebra, a restored analysis, or a declaration rollup.
 The loader rejects missing or changed analyzed package files by comparing their SHA-256 hashes before consumer analysis.
 The model also records canonical content fingerprints of every selected dependency model used during analysis.
 Suite loading compares those fingerprints before accepting stored inherited content, including when the consuming package does not reference it.
 After a dependency model changes, regenerate downstream models in dependency order.
 JSON whitespace and object-key order do not affect model fingerprints; array order remains significant.
-This dependency-documentation subset does not establish complete portable-model or declaration-rollup fidelity.
+During initial development, `version` and `identityVersion` remain 1 even when the schema or identity rules change.
+There are no backward compatibility requirements during this period; matching version markers do not imply compatibility between development artifacts.
+Regenerate experimental artifacts in dependency order after schema or identity changes; readers still validate the current required structure and reference integrity.
+Identity rules remain tied to compiler version 7.0.2 and the analyzed inputs.
+Identifiers are opaque and stable for equivalent inputs, not guaranteed across source edits or compiler upgrades.
+
+### Source-free model readers
+
+Import `decodeDependencyModel` and `decodeDependencyModels` from `api-analyzer/model` to avoid loading compiler-backed analysis.
+The same functions and the `DependencyModel` type are also available from the main entrypoint.
+The single-model reader validates shape, documentation syntax, and internal identity integrity.
+It derives exported paths from the portable graph and rejects missing or inconsistent nested paths, member sides, aliases, and ordered targets.
+The model-set reader additionally rejects duplicate packages or API identities, missing recorded dependencies, stale dependency fingerprints, and inconsistent cross-package targets.
+Both return frozen data and perform no filesystem access or semantic reference resolution.
+Installed-suite loading reuses these checks and additionally verifies declaration input files on disk.
+Publication and retention of maintained historical documentation artifacts remain Stage 5 integration work; this experimental reader does not replace the existing published-artifact readers.
+
+The following example reads caller-supplied artifact content and lists exported names without a source checkout:
+
+```typescript
+import { decodeDependencyModels } from "api-analyzer/model";
+
+function listExports(inputs: readonly { packageName: string; text: string }[]): string[] {
+	const result = decodeDependencyModels(inputs);
+	if (!result.ok) {
+		throw new Error(result.diagnostics.map((diagnostic) => diagnostic.message).join("\n"));
+	}
+	// All recorded dependencies must be supplied, including those unused by a selected page.
+	return result.value.flatMap((model) =>
+		model.graph.surfaces.flatMap((surface) =>
+			surface.exports.map((binding) => `${model.packageName}:${surface.name}:${binding.name}`),
+		),
+	);
+}
+```
+
+Join a graph item's `documentationId` to local `apis` or the owning model identified by `external`.
+Use `graph.declarations` for types and members, `exports` for documented paths and overload selectors, and stored link targets for page links.
+Traverse namespace exports with an identity-based visited set because aliases can form cycles.
+The [suite tests](src/test/suite.test.ts) consume models in a fresh process with compiler imports blocked after the declaration input is deleted.
+The [native tests](src/test/nativeCapabilities.test.ts) verify portable inheritance, intersections, utility types, and round trips with both supported input compilers.
+The checked-in [dependency](src/test/snapshots/dependency.api.json) and [consumer](src/test/snapshots/consumer.api.json) snapshots preserve complete sample artifacts as format references.
+Tests compare them byte-for-byte and consume the pair without compiler imports.
+See the [fixture guide](src/test/fixtures/suite/README.md#portable-model-snapshots) for their coverage and update procedure.
+
+### Structured code excerpts
+
+Models retain producer-resolved reference tokens for linked code display.
+The representation takes inspiration from API Extractor's [excerpt tokens and token ranges](https://github.com/microsoft/rushstack/blob/main/libraries/api-extractor-model/src/mixins/Excerpt.ts) and [AST-based excerpt builder](https://github.com/microsoft/rushstack/blob/main/apps/api-extractor/src/generators/ExcerptBuilder.ts).
+Our implementation uses readonly data and functions, not mutable excerpt classes or long-lived builders.
+
+Each excerpt has `tokens` and a `tokenRange` with inclusive `startIndex` and exclusive `endIndex`.
+`Content` tokens carry ordinary text; `Reference` tokens also carry a resolved declaration `target` in `graph.declarations`.
+Token boundaries are presentation boundaries, not TypeScript lexical tokens.
+Readers concatenate the tokens in the range and use stored targets for links without resolving names or reading source files.
+Local type parameters, compiler-library references, and references outside the selected suite remain content rather than invented API links.
+
+`ModelSource.excerpt` preserves original source text, including comments, for declarations and separately stored constructors, accessors, static members, and special signatures.
+Each signature view supplies `callSignatureExcerpt` and `functionTypeExcerpt`, whose text exactly matches that view's existing strings.
+Effective, reduced, and normalized views retain their own tokens; reducing an alias to a primitive removes the alias reference from that view only.
+`ModelMember.typeExcerpt` supplies complete compiler-printed type syntax, which can have different whitespace from the compact `type` string.
+Use the excerpt tokens as the authoritative linked display rather than applying source offsets to a different text view.
+
+The [compiler excerpt module](src/analysis/compilerExcerpt.ts) performs lookup and printing through explicitly supplied compiler services.
+The adapter supplies the suite-membership and declaration-identity policy; the excerpt module has no dependency on adapter state or compiler lifetime management.
+Original excerpts use compiler-bound source spans.
+Generated views use scoped compiler name lookup with explicit type-parameter binders and compiler-produced import names for substituted types.
+Printing a transformed AST with temporary reference markers identifies token boundaries; exact reconstruction checks ensure that markers do not change the original output.
+Pure functions assemble token data, and the model layer validates ranges, reconstructed signature/source text, and declaration targets without semantic re-resolution.
+The [compiler excerpt boundary tests](src/analysis/test/compilerExcerpt.test.ts) verify aliases, imports, local binders, nested substitutions, reference exclusion, deterministic output, and unchanged input nodes.
+
+The native test `captures exact excerpt targets across aliases, binders, and substituted scopes` checks both input compilers and renders links in a fresh process with compiler and analysis imports blocked.
+It covers repeated and qualified names, imported aliases and import types, type/value namespace shadowing, nested and mapped binders, conditional inference, generic substitution, and declaration members.
+Decoder regressions reject missing excerpts, invalid ranges, text mismatches, and dangling targets.
+Format and identity versions remain 1 during this development change; regenerate older development artifacts.
 
 ### Reference policies
 
@@ -1157,35 +1240,70 @@ Native fixtures built with TS6 and TS7 verify detached member reports, namespace
 Suite tests verify direct, peer, and transitive model resolution, original scope through re-exports, and missing or malformed unused models.
 Separate Node/browser TypeScript projects verify real conditional-export parity without baseline writes.
 The repository pilot reads built core-utils comparison declarations and applies a configured legacy rule without changing production build integration.
-The self-report regression uses the package's emitted entrypoint, compares its complete report without writing, and checks every named export against the TypeScript AST.
+The self-artifact regressions use the package's emitted entrypoints, compare the complete report and portable model without writing, and check every named export against the TypeScript AST.
+They also check resolved model references, generation from another working directory, independent artifact selection, and read-only failures for stale or missing baselines.
 
 ## Package API report
 
 The checked-in [complete API report](api-report/api-analyzer.api.md) is generated by this package's own analyzer, not API Extractor.
-The [report script](src/generateApiReport.ts) builds first and analyzes the declarations exported from [src/index.ts](src/index.ts), using [tsconfig.api-reports.json](tsconfig.api-reports.json).
-It uses every release level and no custom-tag filters, so the report covers the complete named export surface.
+The shared [artifact script](src/generateApiArtifacts.ts) analyzes compiled declarations from [src/index.ts](src/index.ts) and [src/model.ts](src/model.ts), using [tsconfig.api-reports.json](tsconfig.api-reports.json).
+The report uses every release level and no custom-tag filters, so it covers the complete named export surface of the root entrypoint.
 Public API declarations carry explicit release tags; members inherit their declaring container's tag.
 
 Generate and review an intentional API-report update with this command:
 
 ```sh
+pnpm build:tsc
 pnpm build:api-reports
 ```
 
 Check that the existing report is current without modifying it:
 
 ```sh
+pnpm build:tsc
 pnpm check:api-reports
 ```
 
-Both commands compile the package before analysis and fail when analysis or report generation fails.
+The artifact commands require compiled declarations; they do not compile the package themselves.
+They fail when analysis or report generation fails.
 Check mode also fails for a missing or stale report.
-`pnpm build` runs compilation and report generation, so it updates the report as part of the build.
-`pnpm build:tsc` compiles without updating it; `pnpm check:api-reports` uses only that compilation step before comparison.
-Run check mode before any report-generating build when checking an existing baseline.
+`pnpm build` compiles the package and runs `pnpm build:api-artifacts`, which generates both the report and the portable model from one analysis.
+`pnpm build:tsc` compiles without updating either artifact.
+When checking existing baselines, run compilation and check commands before any artifact-generating build.
 Tests do not update the report; the [pilot regression](src/test/pilot.test.ts) uses check mode.
 The report is a review artifact, not a declaration rollup: references to private support types can remain without their definitions.
-Complete portable type relationships and self-contained consumable declaration output remain later-stage requirements.
+Portable documentation graphs retain these relationships; self-contained consumable declaration output remains a Stage 4 requirement.
+
+## Package API model
+
+This library intentionally checks in its [portable API model](api-model/api-analyzer.api.json) so model-format and content changes can be reviewed over time.
+This is an exception for the analyzer's own development and Stage 3 evaluation, not a requirement to check in generated models for other packages.
+It does not establish Stage 3 acceptance or replace the Stage 5 publication and historical-artifact work.
+
+The model includes the root and `./model` entrypoints, supporting declarations, resolved documentation, structured excerpts, and input fingerprints.
+It preserves the encoder's exact JSON output, including identities and source locations.
+Source edits can therefore change identities, locations, and fingerprints even when the schema does not change.
+The effective member and signature views can repeat source content, so the artifact is larger than the API report.
+Do not edit or reformat it by hand, and review generated changes before accepting a new baseline.
+Format and identity versions remain 1 during initial development; this baseline does not add backward compatibility guarantees.
+
+Generate only the model after compiling the package:
+
+```sh
+pnpm build:tsc
+pnpm build:api-models
+```
+
+Check the existing model without modifying it or creating a missing file:
+
+```sh
+pnpm build:tsc
+pnpm check:api-models
+```
+
+The model check fails when the baseline is missing or differs from the generated content.
+Normal tests compare the checked-in model without updating it.
+Tests that exercise write mode use temporary package copies, not the checked-in baselines.
 
 ## Commands
 
@@ -1197,6 +1315,7 @@ pnpm lint
 pnpm build
 pnpm test
 pnpm check:api-reports
+pnpm check:api-models
 pnpm check:format
 ```
 

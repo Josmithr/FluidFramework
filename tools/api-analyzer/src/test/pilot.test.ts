@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
 	cpSync,
-	mkdirSync,
+	existsSync,
 	mkdtempSync,
 	readFileSync,
 	rmSync,
@@ -29,6 +29,67 @@ import { analyzeAPIs, ReleaseLevel } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
 
 describe("Repository pilot", () => {
+	it("checks the package's portable model without rewriting the baseline", () => {
+		const root = new URL("../../", import.meta.url);
+		const modelFile = new URL("api-model/api-analyzer.api.json", root);
+		const before = readFileSync(modelFile, "utf8");
+		const modified = statSync(modelFile).mtimeMs;
+		execFileSync(
+			process.execPath,
+			[fileURLToPath(new URL("lib/generateApiArtifacts.js", root)), "--model", "--check"],
+			{ cwd: tmpdir(), stdio: "pipe" },
+		);
+		assert.equal(readFileSync(modelFile, "utf8"), before);
+		assert.equal(statSync(modelFile).mtimeMs, modified);
+		const decoded = decodeDependencyModel(before, "api-analyzer");
+		assert(decoded.ok, JSON.stringify(decoded));
+		const model = decoded.value;
+		assert.equal(model.version, 1);
+		assert.equal(model.identityVersion, 1);
+		assert.deepEqual(model.dependencyModels, []);
+		assert.deepEqual(
+			model.graph.surfaces.map((surface) => surface.name),
+			[".", "./model"],
+		);
+		for (const [entrypoint, file] of [
+			[".", "lib/index.d.ts"],
+			["./model", "lib/model.d.ts"],
+		] as const) {
+			const source = createSourceFile(
+				file,
+				readFileSync(new URL(file, root), "utf8"),
+				ScriptTarget.Latest,
+				true,
+			);
+			const names = source.statements.flatMap((statement) =>
+				isExportDeclaration(statement) &&
+				statement.exportClause !== undefined &&
+				isNamedExports(statement.exportClause)
+					? statement.exportClause.elements.map((element) => element.name.text)
+					: [],
+			);
+			const surface = model.graph.surfaces.find((current) => current.name === entrypoint);
+			assert(surface !== undefined);
+			assert.deepEqual(surface.exports.map((entry) => entry.name).sort(), names.sort());
+			assert(model.inputFiles.some((input) => input.file === file));
+		}
+		const declaration = model.graph.declarations.find(
+			(current) => current.name === "ModelDeclaration",
+		);
+		assert(declaration !== undefined);
+		const statementMember = declaration.members.find((member) => member.name === "statement");
+		assert(statementMember !== undefined);
+		const statementType = model.graph.declarations.find(
+			(current) => current.name === "ModelDeclarationStatement",
+		);
+		assert(statementType !== undefined);
+		assert(
+			statementMember.typeExcerpt.tokens.some(
+				(token) => token.kind === "Reference" && token.target === statementType.id,
+			),
+		);
+	});
+
 	it("checks the package's complete API report without rewriting the baseline", () => {
 		const root = new URL("../../", import.meta.url);
 		const reportFile = new URL("api-report/api-analyzer.api.md", root);
@@ -36,7 +97,7 @@ describe("Repository pilot", () => {
 		const modified = statSync(reportFile).mtimeMs;
 		execFileSync(
 			process.execPath,
-			[fileURLToPath(new URL("lib/generateApiReport.js", root)), "--check"],
+			[fileURLToPath(new URL("lib/generateApiArtifacts.js", root)), "--report", "--check"],
 			{ cwd: tmpdir(), stdio: "pipe" },
 		);
 		assert.equal(readFileSync(reportFile, "utf8"), before);
@@ -93,8 +154,8 @@ describe("Repository pilot", () => {
 		assert.equal(before.includes("// No selected exports."), false);
 	});
 
-	it("rejects stale and missing self-reports without accepting changes", () => {
-		const directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-self-report-"));
+	it("generates selected self-artifacts and checks them without accepting changes", () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "api-analyzer-self-artifacts-"));
 		const root = new URL("../../", import.meta.url);
 		try {
 			cpSync(new URL("lib/", root), path.join(directory, "lib"), { recursive: true });
@@ -106,21 +167,78 @@ describe("Repository pilot", () => {
 				path.join(directory, "node_modules"),
 				"dir",
 			);
-			mkdirSync(path.join(directory, "api-report"));
-			const report = path.join(directory, "api-report/api-analyzer.api.md");
-			writeFileSync(report, "stale baseline\n");
-			const args = [path.join(directory, "lib/generateApiReport.js"), "--check"];
-			assert.throws(
-				() => execFileSync(process.execPath, args, { cwd: tmpdir(), stdio: "pipe" }),
-				/API report is stale/,
+			const script = path.join(directory, "lib/generateApiArtifacts.js");
+			const artifacts = [
+				{
+					flag: "--report",
+					file: "api-report/api-analyzer.api.md",
+					error: /API report is stale/,
+				},
+				{
+					flag: "--model",
+					file: "api-model/api-analyzer.api.json",
+					error: /API model is stale/,
+				},
+			];
+			execFileSync(process.execPath, [script], { cwd: tmpdir(), stdio: "pipe" });
+			for (const artifact of artifacts) {
+				assert.equal(
+					readFileSync(path.join(directory, artifact.file), "utf8"),
+					readFileSync(new URL(artifact.file, root), "utf8"),
+				);
+			}
+			const baselineModified = artifacts.map(
+				(artifact) => statSync(path.join(directory, artifact.file)).mtimeMs,
 			);
-			assert.equal(readFileSync(report, "utf8"), "stale baseline\n");
-			rmSync(report);
-			assert.throws(
-				() => execFileSync(process.execPath, args, { cwd: tmpdir(), stdio: "pipe" }),
-				/ENOENT/,
+			execFileSync(process.execPath, [script, "--check"], { cwd: tmpdir(), stdio: "pipe" });
+			for (const args of [
+				["--unknown"],
+				["--report", "--model"],
+				["--model", "--model"],
+				["--check", "--check"],
+			]) {
+				assert.throws(
+					() =>
+						execFileSync(process.execPath, [script, ...args], {
+							cwd: tmpdir(),
+							stdio: "pipe",
+						}),
+					/Supported arguments/,
+				);
+			}
+			assert.deepEqual(
+				artifacts.map((artifact) => statSync(path.join(directory, artifact.file)).mtimeMs),
+				baselineModified,
 			);
-			assert.throws(() => readFileSync(report), { code: "ENOENT" });
+			for (const artifact of artifacts) {
+				const sibling = artifacts.find((current) => current !== artifact);
+				assert(sibling !== undefined);
+				const siblingFile = path.join(directory, sibling.file);
+				const siblingModified = statSync(siblingFile).mtimeMs;
+				execFileSync(process.execPath, [script, artifact.flag], {
+					cwd: tmpdir(),
+					stdio: "pipe",
+				});
+				assert.equal(statSync(siblingFile).mtimeMs, siblingModified);
+			}
+			for (const artifact of artifacts) {
+				const destination = path.join(directory, artifact.file);
+				writeFileSync(destination, "stale baseline\n");
+				const modified = statSync(destination).mtimeMs;
+				const args = [script, artifact.flag, "--check"];
+				assert.throws(
+					() => execFileSync(process.execPath, args, { cwd: tmpdir(), stdio: "pipe" }),
+					artifact.error,
+				);
+				assert.equal(readFileSync(destination, "utf8"), "stale baseline\n");
+				assert.equal(statSync(destination).mtimeMs, modified);
+				rmSync(path.dirname(destination), { recursive: true });
+				assert.throws(
+					() => execFileSync(process.execPath, args, { cwd: tmpdir(), stdio: "pipe" }),
+					/ENOENT/,
+				);
+				assert.equal(existsSync(path.dirname(destination)), false);
+			}
 		} finally {
 			rmSync(directory, { recursive: true, force: true });
 		}

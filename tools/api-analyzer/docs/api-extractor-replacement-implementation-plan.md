@@ -12,14 +12,14 @@ The later 2026-09-20 decision explicitly excludes module-based references for no
 Stage 2 is complete as of 2026-09-20 under the user's accepted scope, following the code/documentation audit and package self-report check.
 The user explicitly deferred the remaining follow-ups until the rest of the library is implemented, including the [unnamed-selector parser limitation](api-extractor-replacement-follow-ups.md#verify-and-report-the-tsdoc-unnamed-selector-mismatch).
 This is an accepted limitation, not an assertion of full TSDoc conformance.
-Complete portable documentation models remain Stage 3, and declaration rollups remain Stage 4.
+Stage 3 implements portable documentation models and source-free artifact readers; declaration rollups remain Stage 4.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](Architecture-Proposal.md).
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
 Analysis completion owns documentation resolution and returns a frozen graph for the supported declaration and member scope.
 Reporting consumes that graph without compiler or parser access.
-The model layer now owns versioned encoding, decoding, and artifact validation; rollups and broader graph completeness remain pending.
+The model layer owns versioned declaration/documentation encoding, decoding, and single-model and cross-model validation; rollups remain pending.
 `good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
 
 Historical checkpoint: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session passed 29 focused contract tests on 2026-09-15.
@@ -413,13 +413,13 @@ The documentation audit validated 633 production TSDoc blocks, type-checked 21 s
 | Exit obligation | Evidence and checked outcome | Disposition |
 | --- | --- | --- |
 | W1 review baselines | [Report tests](../src/test/reviewReport.test.ts), [baseline tests](../src/report-generation/test/reviewBaseline.test.ts), and native snapshots cover separate selected surfaces, exact comparison, metadata changes, aliases, and stable output. Analysis and generators return data; callers own baseline writes. | Implemented. |
-| Package self-report | The [build script](../src/generateApiReport.ts) analyzes emitted public declarations and produces the complete report. The [pilot test](../src/test/pilot.test.ts) checks freshness, export coverage, and no writes during checks. | Implemented; regenerate and review the report after intentional API changes. |
+| Package self-report | The [build script](../src/generateApiArtifacts.ts) analyzes emitted public declarations and produces the complete report. The [pilot test](../src/test/pilot.test.ts) checks freshness, export coverage, and no writes during checks. | Implemented; regenerate and review the report after intentional API changes. |
 | W2 local and suite validation | [Native reference tests](../src/test/nativeCapabilities.test.ts) and [suite tests](../src/test/suite.test.ts) cover unexported targets, import types, directional rules, independent opt-outs, and dependency types without consumer re-exports. Inherited views are not revalidated; original declarations and local overrides are. Outside-suite types remain opaque. | Implemented for the approved rules. |
 | W10 configurable policy | [Classification tests](../src/analysis/test/classification.test.ts), [configuration tests](../src/test/configuration.test.ts), and the [core-utils pilot](../src/test/pilot.test.ts) exercise custom modifier vocabularies and configured legacy policy without built-in Fluid tags. | Implemented; documentation-reference syntax boundaries are listed below. |
 | F4 standalone overloads | Classification, native, and report tests retain independent public/beta/internal overload selection and exclude implementation signatures. Contained and compound callable parts obey the atomic-container decision. | Implemented for review and validation; rollup output remains Stage 4. |
 | Effective documentation table | [Pure resolution tests](../src/analysis/test/documentation.test.ts) and native fixtures cover descriptive, absent, empty, tag-only, successfully inherited empty/nonempty, invalid, and cyclic outcomes. Uncertain and overloaded automatic matches remain undocumented. | Implemented within the approved conservative matching contract. |
 | Implements and original provenance | Native member fixtures and suite consumers cover compatible generic non-overloaded implementations, local-comment suppression, competing sources, original lookup scope, and unchanged receiver metadata. | Implemented; no guessed automatic source selection. |
-| Suite model prerequisites | Suite tests cover direct/transitive/peer selectors, unused missing models, shape and reference corruption, dependency fingerprints, stale inputs, resolved links, and retained section origins. | Implemented dependency documentation subset; complete portable models remain Stage 3. |
+| Suite model prerequisites | Suite tests cover direct/transitive/peer selectors, unused missing models, shape and reference corruption, dependency fingerprints, stale inputs, resolved links, and retained section origins. | Implemented; Stage 3 now adds portable declaration shapes and source-free model-set validation. |
 | Local and qualified references | [Selector inputs](../src/test/fixtures/native/reference-selectors.ts), [model-only consumers](../src/test/fixtures/suite/selectors-consumer.d.ts), and self-package fixtures cover named and quoted paths, numeric and label selectors, constructors, static/instance sides, declaration kinds, symbol and enum members, recursive aliases, subpaths, ambiguity, visibility, and invocation stability. | Implemented for these forms; full TSDoc conformance remains required, with the limits listed below. |
 | Structural merges | [Compound inputs](../src/test/fixtures/native/compound-merges.ts) and [consumer](../src/test/fixtures/consumer/compoundMerges.ts) cover type/value/namespace facets, repeated enums, generic interface headers, and callable/constructable class-instance augmentation. [Ambient modules](../src/test/fixtures/native/ambient-modules.d.ts) cover repeated quoted module declarations, direct and namespace exports, original-scope links, model inheritance, and release conflicts. | Implemented; original and isolated report declarations compile with both TS6 and TS7 consumers for both producer compilers. |
 | B1 dependency aliases | Suite alias tests preserve names and identities with and without explicit consumer re-exports. | Review and dependency-model coverage implemented; complete declaration output remains Stage 4. |
@@ -572,7 +572,7 @@ The inherited view `PreviewBox.value` retains that level under the agreed declar
 The beta `PreviewBox` declaration can refer to both the public `Box` and the beta `PreviewValue`, so this example passes with release compatibility enabled.
 The analyzer does not validate an additional public-to-beta relationship from the inherited `PreviewBox.value` view.
 Reports still include `value: PreviewValue`, and API models must retain the inherited member.
-The current dependency documentation model retains its identity, documentation, and metadata; a complete portable type model remains Stage 3.
+The portable model retains its identity, documentation, metadata, effective type text, and original declaring-container relationship.
 The [effective-reference fixture](../src/test/fixtures/native/effective-references.ts) exercises this distinction.
 
 **Acceptance consequence:** Test that inherited views survive report and model generation without repeated release, directional, or exposure checks.
@@ -877,6 +877,23 @@ Stage 2 takes on these semantic prerequisites; Stage 3 retains the complete port
 
 ### Stage 3. Deliver resolved documentation models
 
+Acceptance status (2026-09-21): implementation and artifact regression coverage are available, but Stage 3 is not yet accepted.
+The W7 signature-link gap now has an implementation and compiler-backed acceptance tests; final stage acceptance remains a separate review.
+
+Implemented: portable model encoding, source-free single-model and model-set readers, and portable declaration/member contracts.
+The public `api-analyzer/model` entrypoint does not import compiler-backed analysis.
+Installed-suite loading shares pure cross-model validation with the reader and retains file freshness checks at the root boundary.
+
+Implementation contract: the documentation artifact includes an explicit declaration graph for source-free readers.
+The graph retains entrypoints, aliases, declaration syntax, effective member types, ordered callable signatures, original declaring containers, heritage, type-reference targets, and partial-view limitations.
+Resolved documentation and classification remain in the existing API records; graph records reference those records rather than resolving comments again.
+Compiler-printed type and signature text is display data, not a structured TypeScript type algebra or compilable declaration rollup.
+Development policy (2026-09-21): format and identity versions remain 1 throughout initial development, including incompatible changes.
+There are no backward compatibility requirements during this period; regenerate artifacts after schema or identity changes rather than adding migrations or compatibility paths.
+Identities remain scoped to the recorded compiler version and package inputs; they do not promise stability across source edits or analysis restoration.
+Readers reject unsupported version markers, incomplete graph records, and dangling graph references even though development versions do not change.
+Model decoding requires only artifact content; installed-suite loading additionally validates input and dependency fingerprints.
+
 - Reuse Stage 2 parsing, reference validation, effective documentation, and provenance; add no separate resolver for model output.
 - Extend the dependency-model identity, loading, and compatibility contracts introduced in Stage 2 into the complete portable documentation-model contract.
 - Keep model encoding, decoding, and artifact validation together in `model-generation`; root composition owns file reads and supplies validated dependency data to analysis.
@@ -885,6 +902,47 @@ Stage 2 takes on these semantic prerequisites; Stage 3 retains the complete port
 
 Exit: W3, W7, W8, F1-F3, and B3 pass, including missing unused suite models, outside-suite links, public-to-beta links, and non-internal-to-internal rejection.
 Load and consume models without a source checkout or live compiler connection.
+
+Acceptance evidence:
+
+- [Native model regressions](../src/test/nativeCapabilities.test.ts) round-trip inherited class/interface members, generic substitutions, intersections, `Pick`, `Omit`, `Readonly`, declaration forms, and ordered overloads for TS6- and TS7-built inputs.
+- [Suite regressions](../src/test/suite.test.ts) read and render portable members and resolved inherited documentation in a new process after deleting declaration inputs, with imports of TypeScript and analysis blocked.
+- The same suite tests reject duplicate, incomplete, dangling, obsolete, and incompatible artifacts, preserve package link origins, and prove model-set order independence and dependency fingerprint validation.
+- Existing W3/F2/F3/B3 tests continue to validate missing unused suite models, outside-suite references, public-to-beta links, internal-target rejection, local comment suppression, and explicit/automatic inheritance before encoding.
+- The package build generates the checked-in [self-model](../api-model/api-analyzer.api.json) together with its API report from one analysis. This development-only source-control exception exposes model-format and content differences for review. The [pilot tests](../src/test/pilot.test.ts) verify both entrypoints, supporting-type reference tokens, and read-only freshness checks. It does not replace Stage 5 artifact publication or retention.
+
+#### Stage 3 acceptance audit
+
+| Criterion | Evidence | Status |
+| --- | --- | --- |
+| W3 / B3: validate documentation independently of report selection | [Documentation tests](../src/analysis/test/documentation.test.ts): `permits public-to-beta links independently of selection and preserves occurrences`, `enforces only the internal-target restriction across all release levels`, syntax and cycle checks; native original-scope tests exercise both input compilers. | Covered for the accepted Stage 2 reference scope. |
+| F1: portable inherited and composed member views | [Native tests](../src/test/nativeCapabilities.test.ts): `round-trips portable inherited, intersection, and utility member views` checks classes, interfaces, generic substitution, intersections, `Pick`, `Omit`, `Readonly`, and overload order. | Covered for supported member expansion; partial views retain limitations. |
+| F2: selected suite models and resolved targets | [Suite tests](../src/test/suite.test.ts): missing and incompatible unused models, transitive and peer dependencies, stale fingerprints, outside-suite targets, and model-set order independence. | Covered. |
+| F3: inherited documentation and local-comment suppression | [Documentation tests](../src/analysis/test/documentation.test.ts): `resolves automatic chains while suppressing local comments and uncertain choices`; native member completion and suite explicit/automatic inheritance tests. | Covered under accepted overload and ambiguity limits. |
+| W7: hierarchy, aliases, metadata, and documentation | Native declaration/model round trips and suite nested namespace, recursive alias, compound declaration, and cross-package re-export tests; `captures exact excerpt targets across aliases, binders, and substituted scopes` verifies occurrence-specific tokens and source-free rendering with both input compilers. | Covered for the supported declaration and display views. |
+| W8: portable artifact consumption and integrity | The [dependency](../src/test/snapshots/dependency.api.json) and [consumer](../src/test/snapshots/consumer.api.json) artifacts are exact snapshots. `consumes checked-in model snapshots without declarations or compiler imports` uses a fresh process to follow their aliases, inherited content, and original-package links. | Source-free library workflow covered; publication and historical artifact retention remain Stage 5. |
+| Incomplete artifact rejection | `rejects nested export paths that disagree with the portable member graph` rejects missing paths, renamed members, and incorrect member sides. Encoding and decoding share the portable export traversal, including ordered overload and recursive alias targets. | Decoder gap found during this audit is repaired. |
+
+#### Structured excerpt implementation
+
+W7 requires consumers to link references within displayed type expressions to the correct API items without repeating semantic resolution.
+The model now supplies readonly content/reference tokens and exclusive-end token ranges, inspired by API Extractor's structured excerpts.
+Original source excerpts retain compiler-bound spans; callable views and effective property types retain their own printed occurrences after substitution or normalization.
+Target identities are resolved in analysis and validated against the portable declaration graph during decoding.
+Source and signature excerpts must reconstruct their stored text exactly; property excerpts retain complete compiler-printed syntax independently of compact type-string whitespace.
+
+The implementation follows the functional architecture: explicit compiler dependencies at the adapter, pure token construction, local construction-only mutation, readonly data contracts, and independent model validation.
+No excerpt class, mutable public builder, or downstream compiler lookup is introduced.
+Tests were added and observed failing before each implementation slice, including import types, substitutions, lexical binders, portable fields, and separately stored member sources.
+[Pure excerpt tests](../src/analysis/test/structuredExcerpt.test.ts) cover exact reconstruction, repeated occurrences, deterministic output, empty excerpts, immutable inputs, and invalid spans.
+[Compiler excerpt boundary tests](../src/analysis/test/compilerExcerpt.test.ts) exercise original-source and generated-view capture independently of the native adapter, with injected identity policy and reference exclusion.
+[Native excerpt tests](../src/test/nativeCapabilities.test.ts) cover both input compilers and source-free linked rendering from encoded models, including malformed excerpt rejection.
+The [fixture guide](../src/test/fixtures/native/README.md#structured-excerpts) records the named and shadowed-reference scenarios.
+
+The graph deliberately stores effective member views rather than reconstructing generic instantiations downstream.
+This can duplicate syntax across receiving types; deduplicating it is an optimization, not a requirement for source-free correctness.
+Direct heritage targets preserve recursive ancestry, and receiving views preserve transitive substitutions without inferring overload compatibility.
+Stage 5 still owns documenter integration, stable website URL policies, and migration or retention of maintained historical artifacts.
 
 ### Stage 4. Deliver declarations and entrypoint capabilities
 

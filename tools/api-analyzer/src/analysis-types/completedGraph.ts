@@ -26,7 +26,7 @@ export interface CompletedDocumentation extends ResolvedDocumentation {
  * This internal graph is not a versioned serialized model.
  * Supported merged declarations retain resolved contributions, section provenance, and original link origins.
  * Type-reference validation follows the configured suite boundary and does not revalidate inherited member views.
- * Complete portable type graphs and rollup data remain Stage 3 and Stage 4 work.
+ * Model generation projects portable documentation graphs from this data; declaration rollups remain Stage 4 work.
  */
 export interface CompletedAnalysis {
 	/**

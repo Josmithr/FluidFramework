@@ -7,6 +7,8 @@
  */
 export { analyzeAPIs } from "./api.js";
 export type { APIAnalysis, APIStatistics } from "./api.js";
+export { decodeDependencyModel, decodeDependencyModels } from "./model.js";
+export type { DependencyModel } from "./model.js";
 export { ReleaseLevel } from "./analysis-types/classification.js";
 export type {
 	ApiItemSelection,

@@ -9,13 +9,20 @@
 		".": {
 			"types": "./lib/index.d.ts",
 			"import": "./lib/index.js"
+		},
+		"./model": {
+			"types": "./lib/model.d.ts",
+			"import": "./lib/model.js"
 		}
 	},
 	"scripts": {
-		"build": "npm run build:tsc && npm run build:api-reports",
-		"build:api-reports": "node lib/generateApiReport.js",
+		"build": "npm run build:tsc && npm run build:api-artifacts",
+		"build:api-artifacts": "node lib/generateApiArtifacts.js",
+		"build:api-models": "node lib/generateApiArtifacts.js --model",
+		"build:api-reports": "node lib/generateApiArtifacts.js --report",
 		"build:tsc": "tsc -p tsconfig.json",
-		"check:api-reports": "node lib/generateApiReport.js --check",
+		"check:api-models": "node lib/generateApiArtifacts.js --model --check",
+		"check:api-reports": "node lib/generateApiArtifacts.js --report --check",
 		"check:fences": "good-fences --project tsconfig.json --rootDir src",
 		"check:format": "biome check .",
 		"eslint": "eslint . --max-warnings 0",

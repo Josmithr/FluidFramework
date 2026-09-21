@@ -3,14 +3,14 @@
 Status: architecture direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
 `utilities`, `analysis-types`, `analysis`, `report-generation`, and `model-generation` have enforced boundaries.
 The completed graph covers supported declarations, effective members, merged documentation, suite references, and configured policies.
-The model layer implements the dependency-documentation subset; the complete portable model and rollup layer remain Stages 3 and 4.
+The model layer implements portable declaration and documentation graphs with source-free readers; declaration rollups remain Stage 4.
 The [API proposal](API-Proposal.md) defines the public workflow.
 The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery stages and capability gates.
 
 ## Public workflow
 
 1. The caller passes ordinary configuration to `analyzeAPIs` and awaits `Result<APIAnalysis>`.
-2. Successful analysis returns an object that provides dependency-model generation, API report generation, and API statistics. The final contract also requires declaration rollup generation, scheduled for Stage 4.
+2. Successful analysis returns an object that provides portable-model generation, API report generation, and API statistics. The final contract also requires declaration rollup generation, scheduled for Stage 4.
 3. The caller requests outputs from that object without repeating analysis or shared validation.
 
 Compiler resources are released before analysis returns success or failure.
@@ -29,6 +29,11 @@ It does not query a live compiler or repeat semantic analysis.
 **API model generation** encodes graph data in an explicit, versioned JSON format for dependency analysis and documentation tools.
 The same layer decodes artifacts and validates their format, identities, references, and completeness.
 The artifact format is not an automatic dump of internal objects.
+Format and identity markers stay at 1 during initial development; schema and identity changes have no backward compatibility requirements during this period.
+The model-only entrypoint reads caller-supplied artifact content without importing analysis or accessing files.
+Installed-suite and source-free readers share cross-model identity and content-fingerprint checks.
+Code excerpts are readonly content/reference tokens with token ranges, inspired by API Extractor's artifact concepts rather than its class architecture.
+Compiler effects stay in the analysis adapter; token assembly is functional and model validation performs no compiler lookup.
 
 **API report generation** reads the completed graph and selection criteria to produce a deterministic Markdown overview of the API surface.
 It can prepare report-specific records, but it does not classify original comments or resolve documentation references.
@@ -107,6 +112,11 @@ Keep those operations at the public composition boundary and the analysis adapte
 Transform explicit data within each layer and keep necessary mutation local to construction or traversal.
 Do not expose mutable working state to another generator or to callers.
 
+Compiler excerpt capture is isolated in [compilerExcerpt.ts](../src/analysis/compilerExcerpt.ts).
+It receives checker/emitter services and a reference-target callback; the adapter retains package ownership, identity generation, and compiler lifetime responsibilities.
+The excerpt module does not import the adapter or retain its state.
+[Boundary tests](../src/analysis/test/compilerExcerpt.test.ts) exercise it directly, while end-to-end model tests and snapshots preserve output behavior.
+
 Expected input failures return diagnostics through the public result contract.
 Internal assertions and unexpected operational failures remain exceptions, with cleanup preserving the original failure.
 Output-specific request validation remains separate from completed shared semantic validation.
@@ -135,7 +145,8 @@ Documentation completion runs in `analysis/completeAnalysis.ts`; report preparat
 Mutable extraction and documentation contexts remain private to analysis; the graph contains no compiler or parser objects.
 Existing implementations and layer tests have moved into their owning directories, while composition tests and shared fixtures remain under the source-root test directory.
 The model layer owns the implemented dependency format. No empty rollup directory has been created.
-Extend the graph for the complete portable model and introduce the rollup layer at their planned stages.
+The portable model projects this graph into versioned public data contracts; introduce the rollup layer in Stage 4.
 Keep the public API narrow and preserve existing validated behavior during the migration.
-The package's self-report script is a root-level I/O caller of the same public analysis workflow, not a dependency from one generator into another.
+The package's self-artifact script is a root-level I/O caller of the same public analysis workflow.
+It generates the checked-in report and development model from one analysis, without a dependency from one generator into another.
 Directory boundaries alone do not establish complete portable models or declaration rollups.

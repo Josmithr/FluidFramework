@@ -282,6 +282,7 @@ export enum DiagnosticCode {
  *
  * @remarks
  * Can describe an operation failure or a limitation in otherwise successful analysis facts.
+ * @sealed
  * @public
  */
 export interface AnalyzerDiagnostic {
@@ -350,12 +351,14 @@ export interface FailedResult {
  * @typeParam TValue - The value produced on success. Omit, or use `never`, for a value-less result.
  *
  * @example Validation and optional payloads
+ * These declarations describe results returned by library operations.
  * Validation success has no payload. An explicitly optional payload retains its property.
  *
  * ```typescript
- * const validated: Result = { ok: true };
- * const found: Result<string | undefined> = { ok: true, value: undefined };
+ * declare const validated: Result;
+ * declare const found: Result<string | undefined>;
  * ```
+ * @sealed
  * @public
  */
 export type Result<TValue = never> =

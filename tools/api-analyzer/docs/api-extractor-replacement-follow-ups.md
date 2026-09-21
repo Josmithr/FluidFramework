@@ -8,7 +8,7 @@ The plan retains required capability gates, acceptance criteria, and implementat
 Moving an item here does not waive those requirements or mark an unresolved capability as supported.
 Scheduling decision on 2026-09-20: finish the remaining library implementation before pursuing these follow-ups.
 Stage 2 is accepted with the documented unnamed-selector parser limitation and deliberate module-reference exclusion.
-Complete portable models and declaration rollups remain required Stages 3 and 4 work in the plan, not optional follow-ups.
+Stage 3 implements portable models; declaration rollups remain required Stage 4 work in the plan, not an optional follow-up.
 
 ## Persistent analysis reuse across builds
 
@@ -185,7 +185,7 @@ The approved package-link rule permits non-internal targets and rejects internal
 Unclassified targets remain invalid because their visibility cannot be established.
 There is no package-specific visibility override.
 URL links are supported without network validation.
-Complete portable documentation models remain part of Stage 3.
+Portable documentation models retain the package comment and resolved link records under Stage 3.
 
 ## Configurable report presentation
 

@@ -1,4 +1,5 @@
 import type { AnalyzerDiagnostic } from "./result.js";
+import type { CodeExcerpt } from "./excerpt.js";
 
 /**
  * An opaque string that identifies an API item within its owning data set.
@@ -100,6 +101,18 @@ export interface ExportFact {
  */
 export interface SignatureText {
 	/**
+	 * Structured call text with producer-resolved reference tokens.
+	 * @defaultValue Omitted on synthetic facts that did not capture excerpts.
+	 */
+	readonly callSignatureExcerpt?: CodeExcerpt;
+
+	/**
+	 * Structured arrow-function text with producer-resolved reference tokens.
+	 * @defaultValue Omitted on synthetic facts that did not capture excerpts.
+	 */
+	readonly functionTypeExcerpt?: CodeExcerpt;
+
+	/**
 	 * A call-signature declaration without a name or body, including its terminating semicolon.
 	 */
 	readonly callSignatureText: string;
@@ -113,7 +126,7 @@ export interface SignatureText {
 /**
  * A callable signature detached from the compiler snapshot.
  */
-export interface SignatureFact {
+export interface SignatureFact extends SignatureText {
 	/**
 	 * The original declaration for this particular signature, before generic substitution or type reduction.
 	 *
@@ -263,6 +276,12 @@ export interface SignatureFact {
  * Includes inherited members and compiler-resolved generic substitutions where supported.
  */
 export interface MemberFact {
+	/**
+	 * Compiler-printed effective type with resolved display references.
+	 * @defaultValue Omitted on synthetic facts without compiler excerpt capture.
+	 */
+	readonly typeExcerpt?: CodeExcerpt;
+
 	/**
 	 * Compiler member identifier without TypeScript quoting or computed-name punctuation.
 	 * @defaultValue Omitted by synthetic callers; use the printed name.
@@ -693,6 +712,12 @@ export interface SignatureDocumentationContext extends DocumentationReferenceCon
  */
 export interface SourceDeclarationFact extends Origin {
 	/**
+	 * Original source text with compiler-resolved reference tokens.
+	 * @defaultValue Omitted for synthetic sources without compiler capture.
+	 */
+	readonly excerpt?: CodeExcerpt;
+
+	/**
 	 * The closest attached TSDoc comment, including delimiters, or `undefined` if absent.
 	 *
 	 * @remarks
@@ -927,8 +952,6 @@ export interface DeclarationFact {
 	 * Each direct target's member view can include members inherited by that target.
 	 * This array does not contain a separately instantiated view for every ancestor.
 	 */
-	// TODO (Stage 3 member graphs): Retain recursive instantiated ancestry where direct
-	// matches and original-member source chains are insufficient. Never infer overload compatibility.
 	readonly heritage: readonly HeritageFact[];
 
 	/**

@@ -1,0 +1,1118 @@
+{
+  "format": "api-analyzer-documentation",
+  "version": 1,
+  "graph": {
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          {
+            "name": "AliasContract",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+            "typeOnly": true
+          },
+          {
+            "name": "Contract",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "Preview",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "internalSource",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "source",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "target",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+            "typeOnly": false
+          }
+        ]
+      }
+    ],
+    "declarations": [
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+        "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+        "references": [],
+        "name": "Contract",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 929,
+            "kind": "InterfaceDeclaration",
+            "text": "\n\n/** Generic source contract. @public */\n// Consumer implementations substitute string without replacing their own signature text.\nexport interface Contract<Value> {\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;\n}",
+            "documentation": "/** Generic source contract. @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Generic source contract. @public */\n// Consumer implementations substitute string without replacing their own signature text.\nexport interface Contract<Value> {\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;\n}"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "Contract<Value>",
+        "container": {
+          "kind": "interface",
+          "prefix": "interface ",
+          "suffix": "<Value>",
+          "supported": true,
+          "declaredMembers": []
+        },
+        "memberView": "complete",
+        "limitations": [],
+        "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "(value: Value) => Value"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "operation",
+            "referenceName": "operation",
+            "type": "(value: Value) => Value",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "dependency",
+                "file": "index.d.ts",
+                "start": 1095,
+                "kind": "MethodSignature",
+                "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;",
+                "documentation": "/** Original operation. @public */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": [
+              {
+                "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+                "documentationId": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+                "declaringContainer": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+                "references": [],
+                "source": {
+                  "packageName": "dependency",
+                  "file": "index.d.ts",
+                  "start": 1095,
+                  "kind": "MethodSignature",
+                  "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;",
+                  "documentation": "/** Original operation. @public */",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "effective": {
+                  "callSignatureText": "(value: Value): Value;",
+                  "functionTypeText": "(value: Value) => Value",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value) => Value"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "reduced": {
+                  "callSignatureText": "(value: Value): Value;",
+                  "functionTypeText": "(value: Value) => Value",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value) => Value"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "normalized": {
+                  "callSignatureText": "(value: Value): Value;",
+                  "functionTypeText": "(value: Value) => Value",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value) => Value"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+        "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+        "references": [],
+        "name": "Preview",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 754,
+            "kind": "TypeAliasDeclaration",
+            "text": "\n\n/**\n * Preview representation.\n *\n * @beta\n */\n// Import-type references must retain this release level without a named import in the consumer.\nexport type Preview = string;",
+            "documentation": "/**\n * Preview representation.\n *\n * @beta\n */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/**\n * Preview representation.\n *\n * @beta\n */\n// Import-type references must retain this release level without a named import in the consumer.\nexport type Preview = string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "string",
+        "statement": {
+          "prefix": "type ",
+          "suffix": " = string;"
+        },
+        "memberView": "partial",
+        "limitations": [
+          {
+            "code": "member-expansion-outside-suite",
+            "message": "Member expansion for Preview stops at types outside the suite. Retain the original type references and do not present this member list as complete."
+          }
+        ],
+        "members": [],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]",
+        "references": [],
+        "name": "internalSource",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 552,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Internal documentation source. @internal */\n// Used by negative link tests and the configurable explicit-inheritance visibility rule.\nexport declare function internalSource(value: string): string;",
+            "documentation": "/** Internal documentation source. @internal */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Internal documentation source. @internal */\n// Used by negative link tests and the configurable explicit-inheritance visibility rule.\nexport declare function internalSource(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 552,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Internal documentation source. @internal */\n// Used by negative link tests and the configurable explicit-inheritance visibility rule.\nexport declare function internalSource(value: string): string;",
+              "documentation": "/** Internal documentation source. @internal */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Internal documentation source. @internal */\n// Used by negative link tests and the configurable explicit-inheritance visibility rule.\nexport declare function internalSource(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]",
+        "references": [],
+        "name": "source",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 339,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;",
+            "documentation": "/** Source documentation. See {@link target}. @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 339,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;",
+              "documentation": "/** Source documentation. See {@link target}. @public */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+        "references": [],
+        "name": "target",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 181,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;",
+            "documentation": "/** Original target. @beta */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 181,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;",
+              "documentation": "/** Original target. @beta */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      }
+    ]
+  },
+  "identityVersion": 1,
+  "compilerVersion": "7.0.2",
+  "packageName": "dependency",
+  "inputFiles": [
+    {
+      "file": "index.d.ts",
+      "sha256": "6db498fb7f5b8e9353f39d09e57f14bf133ff44070211d42ff09c3835661bff8"
+    }
+  ],
+  "dependencyModels": [],
+  "modifierTags": [
+    "@alpha",
+    "@beta",
+    "@eventProperty",
+    "@experimental",
+    "@internal",
+    "@override",
+    "@packageDocumentation",
+    "@public",
+    "@readonly",
+    "@sealed",
+    "@virtual"
+  ],
+  "apis": [
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+      "declarationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+      "name": "Contract",
+      "kind": "InterfaceDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "InterfaceDeclaration"
+      ],
+      "origin": {
+        "packageName": "dependency",
+        "file": "index.d.ts",
+        "start": 929
+      },
+      "typeParameters": [
+        "Value"
+      ],
+      "metadata": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+            "packageName": "dependency",
+            "section": "summary"
+          }
+        ],
+        "packageName": "dependency",
+        "documentation": "/**\n * Generic source contract.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+      "declarationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+      "name": "Preview",
+      "kind": "TypeAliasDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "TypeAliasDeclaration"
+      ],
+      "origin": {
+        "packageName": "dependency",
+        "file": "index.d.ts",
+        "start": 754
+      },
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+        "releaseLevel": 1,
+        "modifierTags": [
+          "@beta"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]",
+            "packageName": "dependency",
+            "section": "summary"
+          }
+        ],
+        "packageName": "dependency",
+        "documentation": "/**\n * Preview representation.\n *\n * @beta\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]",
+      "name": "internalSource",
+      "kind": "FunctionDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "FunctionDeclaration"
+      ],
+      "origin": {
+        "packageName": "dependency",
+        "file": "index.d.ts",
+        "start": 552
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 3,
+        "modifierTags": [
+          "@internal"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "packageName": "dependency",
+            "section": "summary"
+          }
+        ],
+        "packageName": "dependency",
+        "documentation": "/**\n * Internal documentation source.\n *\n * @internal\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]",
+      "name": "source",
+      "kind": "FunctionDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "FunctionDeclaration"
+      ],
+      "origin": {
+        "packageName": "dependency",
+        "file": "index.d.ts",
+        "start": 339
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "packageName": "dependency",
+            "section": "summary"
+          }
+        ],
+        "packageName": "dependency",
+        "documentation": "/**\n * Source documentation. See {@link target}.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "linkIndex": 0,
+            "reference": "target",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+            "targetSignature": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "origin": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 339
+            }
+          }
+        ],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+      "name": "target",
+      "kind": "FunctionDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "FunctionDeclaration"
+      ],
+      "origin": {
+        "packageName": "dependency",
+        "file": "index.d.ts",
+        "start": 181
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 1,
+        "modifierTags": [
+          "@beta"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "packageName": "dependency",
+            "section": "summary"
+          }
+        ],
+        "packageName": "dependency",
+        "documentation": "/**\n * Original target.\n *\n * @beta\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+      "declarationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+      "name": "operation",
+      "kind": "MethodSignature",
+      "labels": [],
+      "declarationKinds": [
+        "MethodSignature"
+      ],
+      "origin": {
+        "packageName": "dependency",
+        "file": "index.d.ts",
+        "start": 1095
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+            "packageName": "dependency",
+            "section": "summary"
+          }
+        ],
+        "packageName": "dependency",
+        "documentation": "/**\n * Original operation.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    }
+  ],
+  "exports": [
+    {
+      "entrypoint": ".",
+      "path": [
+        "AliasContract"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]"
+      ],
+      "typeOnly": true
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "AliasContract",
+        "operation"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78"
+      ],
+      "typeOnly": true,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "Contract"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "Contract",
+        "operation"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "Preview"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Preview\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "internalSource"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "source"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "target"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    }
+  ],
+  "external": []
+}

@@ -1,6 +1,6 @@
 {
 	"tags": ["model-generation"],
-	"exports": ["dependencyModel"],
+	"exports": ["dependencyModel", "modelSet"],
 	"imports": ["analysis-types", "utilities"],
 	"dependencies": ["zod", "node:assert/strict", "node:crypto", "@microsoft/tsdoc"]
 }

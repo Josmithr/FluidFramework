@@ -29,6 +29,16 @@ The test's `documentationBindingCases` table records the expected binding or dia
 The TODOs beside the case table describe how to extend these expectations as support is added.
 Do not treat current unsupported outcomes as permanent limitations.
 
+## Structured excerpts
+
+[excerpt-references.ts](excerpt-references.ts) and [excerpt-base.ts](excerpt-base.ts) exercise aliases, qualified and same-named types, explicit and generated import types, type/value namespace shadowing, local generic and mapped binders, conditional inference, and cross-file generic substitution.
+They also cover linked type-alias syntax, variable declarations, constructors, accessors, static methods, and index signatures.
+Both TS6- and TS7-built declarations must produce excerpts that reconstruct the printed views and reference the intended declaration identities.
+The native test also decodes and renders those tokens in a fresh process that blocks TypeScript and analysis imports.
+[signature-views.ts](signature-views.ts) checks that normalized aliases retain reference tokens while reduced primitive types do not.
+The [compiler excerpt boundary tests](../../../analysis/test/compilerExcerpt.test.ts) also consume these fixtures directly without importing the native adapter.
+Generic names such as `Value` intentionally match package declarations in the shadowing cases; renaming those binders would change the test scenario.
+
 ## Documentation context
 
 - [inheritance.ts](inheritance.ts) supplies direct same-package inheritance and the shared resolved-comment snapshot.

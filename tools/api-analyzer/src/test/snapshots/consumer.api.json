@@ -1,0 +1,1714 @@
+{
+  "format": "api-analyzer-documentation",
+  "version": 1,
+  "graph": {
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          {
+            "name": "Implementation",
+            "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "consumer",
+            "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "dependencyAlias",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "linked",
+            "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "target",
+            "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+            "typeOnly": false
+          }
+        ]
+      }
+    ],
+    "declarations": [
+      {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+        "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+        "references": [
+          {
+            "text": "Contract",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+            "origin": {
+              "packageName": "consumer",
+              "file": "index.d.ts",
+              "start": 993
+            }
+          }
+        ],
+        "name": "Implementation",
+        "sources": [
+          {
+            "packageName": "consumer",
+            "file": "index.d.ts",
+            "start": 811,
+            "kind": "ClassDeclaration",
+            "text": "\n\n/** Public implementation. @public */\n// The source contract is not re-exported; dependency types do not require consumer re-exports.\nexport declare class Implementation implements Contract<string> {\n\t// No local TSDoc permits automatic inheritance from the dependency's resolved model.\n\toperation(value: string): string;\n}",
+            "documentation": "/** Public implementation. @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Public implementation. @public */\n// The source contract is not re-exported; dependency types do not require consumer re-exports.\nexport declare class Implementation implements "
+                },
+                {
+                  "kind": "Reference",
+                  "text": "Contract",
+                  "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]"
+                },
+                {
+                  "kind": "Content",
+                  "text": "<string> {\n\t// No local TSDoc permits automatic inheritance from the dependency's resolved model.\n\toperation(value: string): string;\n}"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 3
+              }
+            }
+          }
+        ],
+        "type": "Implementation",
+        "container": {
+          "kind": "class",
+          "prefix": "class ",
+          "suffix": " implements Contract<string>",
+          "supported": true,
+          "declaredMembers": []
+        },
+        "memberView": "complete",
+        "limitations": [],
+        "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "(value: string) => string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "operation",
+            "referenceName": "operation",
+            "type": "(value: string) => string",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "consumer",
+                "file": "index.d.ts",
+                "start": 1012,
+                "kind": "MethodDeclaration",
+                "text": "\n\t// No local TSDoc permits automatic inheritance from the dependency's resolved model.\n\toperation(value: string): string;",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n\t// No local TSDoc permits automatic inheritance from the dependency's resolved model.\n\toperation(value: string): string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": [
+              {
+                "id": "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "documentationId": "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "declaringContainer": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+                "references": [],
+                "source": {
+                  "packageName": "consumer",
+                  "file": "index.d.ts",
+                  "start": 1012,
+                  "kind": "MethodDeclaration",
+                  "text": "\n\t// No local TSDoc permits automatic inheritance from the dependency's resolved model.\n\toperation(value: string): string;",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n\t// No local TSDoc permits automatic inheritance from the dependency's resolved model.\n\toperation(value: string): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "effective": {
+                  "callSignatureText": "(value: string): string;",
+                  "functionTypeText": "(value: string) => string",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: string): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: string) => string"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "reduced": {
+                  "callSignatureText": "(value: string): string;",
+                  "functionTypeText": "(value: string) => string",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: string): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: string) => string"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "normalized": {
+                  "callSignatureText": "(value: string): string;",
+                  "functionTypeText": "(value: string) => string",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: string): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: string) => string"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [
+          "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]"
+        ],
+        "heritage": [
+          {
+            "kind": "implements",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+            "members": [
+              {
+                "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"consumer\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"index.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Implementation\\\\\\\"]\\\",\\\"implements\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"dependency\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"index.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Contract\\\\\\\"]\\\",\\\"Contract<string>\\\"]\",\"operation\"]",
+                "references": [],
+                "typeExcerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "(value: string) => string"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                },
+                "name": "operation",
+                "referenceName": "operation",
+                "type": "(value: string) => string",
+                "optional": false,
+                "readonly": false,
+                "sources": [
+                  {
+                    "packageName": "dependency",
+                    "file": "index.d.ts",
+                    "start": 1095,
+                    "kind": "MethodSignature",
+                    "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;",
+                    "documentation": "/** Original operation. @public */",
+                    "excerpt": {
+                      "tokens": [
+                        {
+                          "kind": "Content",
+                          "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;"
+                        }
+                      ],
+                      "tokenRange": {
+                        "startIndex": 0,
+                        "endIndex": 1
+                      }
+                    }
+                  }
+                ],
+                "signatures": [
+                  {
+                    "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"consumer\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"index.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Implementation\\\\\\\"]\\\",\\\"implements\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"dependency\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"index.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Contract\\\\\\\"]\\\",\\\"Contract<string>\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                    "references": [],
+                    "source": {
+                      "packageName": "dependency",
+                      "file": "index.d.ts",
+                      "start": 1095,
+                      "kind": "MethodSignature",
+                      "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;",
+                      "documentation": "/** Original operation. @public */",
+                      "excerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    },
+                    "effective": {
+                      "callSignatureText": "(value: string): string;",
+                      "functionTypeText": "(value: string) => string",
+                      "callSignatureExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(value: string): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      },
+                      "functionTypeExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(value: string) => string"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    },
+                    "reduced": {
+                      "callSignatureText": "(value: string): string;",
+                      "functionTypeText": "(value: string) => string",
+                      "callSignatureExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(value: string): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      },
+                      "functionTypeExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(value: string) => string"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    },
+                    "normalized": {
+                      "callSignatureText": "(value: string): string;",
+                      "functionTypeText": "(value: string) => string",
+                      "callSignatureExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(value: string): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      },
+                      "functionTypeExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(value: string) => string"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]",
+        "references": [],
+        "name": "consumer",
+        "sources": [
+          {
+            "packageName": "consumer",
+            "file": "index.d.ts",
+            "start": 388,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** {@inheritDoc dependency#source} @public */\n// Tests replace this qualified reference to exercise missing, internal, peer, and transitive targets.\nexport declare function consumer(value: string): string;",
+            "documentation": "/** {@inheritDoc dependency#source} @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** {@inheritDoc dependency#source} @public */\n// Tests replace this qualified reference to exercise missing, internal, peer, and transitive targets.\nexport declare function consumer(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "consumer",
+              "file": "index.d.ts",
+              "start": 388,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** {@inheritDoc dependency#source} @public */\n// Tests replace this qualified reference to exercise missing, internal, peer, and transitive targets.\nexport declare function consumer(value: string): string;",
+              "documentation": "/** {@inheritDoc dependency#source} @public */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** {@inheritDoc dependency#source} @public */\n// Tests replace this qualified reference to exercise missing, internal, peer, and transitive targets.\nexport declare function consumer(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]",
+        "references": [],
+        "name": "linked",
+        "sources": [
+          {
+            "packageName": "consumer",
+            "file": "index.d.ts",
+            "start": 596,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Links across the suite. See {@link dependency#target}. @public */\n// Public-to-beta links remain valid even when a public-only report excludes the target.\nexport declare function linked(value: string): string;",
+            "documentation": "/** Links across the suite. See {@link dependency#target}. @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Links across the suite. See {@link dependency#target}. @public */\n// Public-to-beta links remain valid even when a public-only report excludes the target.\nexport declare function linked(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "consumer",
+              "file": "index.d.ts",
+              "start": 596,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Links across the suite. See {@link dependency#target}. @public */\n// Public-to-beta links remain valid even when a public-only report excludes the target.\nexport declare function linked(value: string): string;",
+              "documentation": "/** Links across the suite. See {@link dependency#target}. @public */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Links across the suite. See {@link dependency#target}. @public */\n// Public-to-beta links remain valid even when a public-only report excludes the target.\nexport declare function linked(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+        "references": [],
+        "name": "target",
+        "sources": [
+          {
+            "packageName": "consumer",
+            "file": "index.d.ts",
+            "start": 1136,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Same-named consumer target must not replace the dependency target. @internal */\n// Resolving inherited links in consumer scope would incorrectly select this internal API.\nexport declare function target(value: string): string;",
+            "documentation": "/** Same-named consumer target must not replace the dependency target. @internal */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Same-named consumer target must not replace the dependency target. @internal */\n// Resolving inherited links in consumer scope would incorrectly select this internal API.\nexport declare function target(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "consumer",
+              "file": "index.d.ts",
+              "start": 1136,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Same-named consumer target must not replace the dependency target. @internal */\n// Resolving inherited links in consumer scope would incorrectly select this internal API.\nexport declare function target(value: string): string;",
+              "documentation": "/** Same-named consumer target must not replace the dependency target. @internal */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Same-named consumer target must not replace the dependency target. @internal */\n// Resolving inherited links in consumer scope would incorrectly select this internal API.\nexport declare function target(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+        "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+        "references": [],
+        "name": "Contract",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 929,
+            "kind": "InterfaceDeclaration",
+            "text": "\n\n/** Generic source contract. @public */\n// Consumer implementations substitute string without replacing their own signature text.\nexport interface Contract<Value> {\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;\n}",
+            "documentation": "/** Generic source contract. @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Generic source contract. @public */\n// Consumer implementations substitute string without replacing their own signature text.\nexport interface Contract<Value> {\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;\n}"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "Contract<Value>",
+        "container": {
+          "kind": "interface",
+          "prefix": "interface ",
+          "suffix": "<Value>",
+          "supported": true,
+          "declaredMembers": []
+        },
+        "memberView": "complete",
+        "limitations": [],
+        "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "(value: Value) => Value"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "operation",
+            "referenceName": "operation",
+            "type": "(value: Value) => Value",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "dependency",
+                "file": "index.d.ts",
+                "start": 1095,
+                "kind": "MethodSignature",
+                "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;",
+                "documentation": "/** Original operation. @public */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": [
+              {
+                "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+                "documentationId": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+                "declaringContainer": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+                "references": [],
+                "source": {
+                  "packageName": "dependency",
+                  "file": "index.d.ts",
+                  "start": 1095,
+                  "kind": "MethodSignature",
+                  "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;",
+                  "documentation": "/** Original operation. @public */",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n\t/** Original operation. @public */\n\t// This descriptive content supplies automatic inheritance through the selected dependency model.\n\toperation(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "effective": {
+                  "callSignatureText": "(value: Value): Value;",
+                  "functionTypeText": "(value: Value) => Value",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value) => Value"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "reduced": {
+                  "callSignatureText": "(value: Value): Value;",
+                  "functionTypeText": "(value: Value) => Value",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value) => Value"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "normalized": {
+                  "callSignatureText": "(value: Value): Value;",
+                  "functionTypeText": "(value: Value) => Value",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value): Value;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: Value) => Value"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]",
+        "references": [],
+        "name": "source",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 339,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;",
+            "documentation": "/** Source documentation. See {@link target}. @public */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 339,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;",
+              "documentation": "/** Source documentation. See {@link target}. @public */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function source(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+        "references": [],
+        "name": "target",
+        "sources": [
+          {
+            "packageName": "dependency",
+            "file": "index.d.ts",
+            "start": 181,
+            "kind": "FunctionDeclaration",
+            "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;",
+            "documentation": "/** Original target. @beta */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 181,
+              "kind": "FunctionDeclaration",
+              "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;",
+              "documentation": "/** Original target. @beta */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function target(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      }
+    ]
+  },
+  "identityVersion": 1,
+  "compilerVersion": "7.0.2",
+  "packageName": "consumer",
+  "inputFiles": [
+    {
+      "file": "index.d.ts",
+      "sha256": "73d9842764daa0bd80800336e3358b0b8f3ff1590fa6f24f441d01169f8a0130"
+    }
+  ],
+  "dependencyModels": [
+    {
+      "packageName": "dependency",
+      "sha256": "2ac2cc7beb583a0198828b23b7f70410205617857d567d3582272e21108031be"
+    }
+  ],
+  "modifierTags": [
+    "@alpha",
+    "@beta",
+    "@eventProperty",
+    "@experimental",
+    "@internal",
+    "@override",
+    "@packageDocumentation",
+    "@public",
+    "@readonly",
+    "@sealed",
+    "@virtual"
+  ],
+  "apis": [
+    {
+      "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+      "declarationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+      "name": "Implementation",
+      "kind": "ClassDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "ClassDeclaration"
+      ],
+      "origin": {
+        "packageName": "consumer",
+        "file": "index.d.ts",
+        "start": 811
+      },
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+            "packageName": "consumer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "consumer",
+        "documentation": "/**\n * Public implementation.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]",
+      "name": "consumer",
+      "kind": "FunctionDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "FunctionDeclaration"
+      ],
+      "origin": {
+        "packageName": "consumer",
+        "file": "index.d.ts",
+        "start": 388
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "section": "summary",
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "packageName": "dependency"
+          }
+        ],
+        "packageName": "consumer",
+        "documentation": "/**\n * Source documentation. See {@link target}.\n *\n * @public\n */\n",
+        "inheritedFrom": [
+          "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+        ],
+        "links": [
+          {
+            "source": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "linkIndex": 0,
+            "reference": "target",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+            "targetSignature": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "origin": {
+              "packageName": "dependency",
+              "file": "index.d.ts",
+              "start": 339
+            }
+          }
+        ],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]",
+      "name": "linked",
+      "kind": "FunctionDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "FunctionDeclaration"
+      ],
+      "origin": {
+        "packageName": "consumer",
+        "file": "index.d.ts",
+        "start": 596
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "source": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "packageName": "consumer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "consumer",
+        "documentation": "/**\n * Links across the suite. See {@link dependency#target}.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [
+          {
+            "source": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "linkIndex": 0,
+            "reference": "dependency#target",
+            "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+            "targetSignature": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "origin": {
+              "packageName": "consumer",
+              "file": "index.d.ts",
+              "start": 596
+            }
+          }
+        ],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]",
+      "name": "target",
+      "kind": "FunctionDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "FunctionDeclaration"
+      ],
+      "origin": {
+        "packageName": "consumer",
+        "file": "index.d.ts",
+        "start": 1136
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 3,
+        "modifierTags": [
+          "@internal"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "source": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "packageName": "consumer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "consumer",
+        "documentation": "/**\n * Same-named consumer target must not replace the dependency target.\n *\n * @internal\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "declarationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]",
+      "name": "operation",
+      "kind": "MethodDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "MethodDeclaration"
+      ],
+      "origin": {
+        "packageName": "consumer",
+        "file": "index.d.ts",
+        "start": 1012
+      },
+      "parameters": [
+        {
+          "name": "value",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "typeParameters": [],
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+        "sections": [
+          {
+            "section": "summary",
+            "source": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+            "packageName": "dependency"
+          }
+        ],
+        "packageName": "consumer",
+        "documentation": "/**\n * Original operation.\n */\n",
+        "inheritedFrom": [
+          "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78"
+        ],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    }
+  ],
+  "exports": [
+    {
+      "entrypoint": ".",
+      "path": [
+        "Implementation"
+      ],
+      "items": [
+        "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"Implementation\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "Implementation",
+        "operation"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"consumer\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Implementation\\\"]\",\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "consumer"
+      ],
+      "items": [
+        "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "dependencyAlias"
+      ],
+      "items": [
+        "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "linked"
+      ],
+      "items": [
+        "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "target"
+      ],
+      "items": [
+        "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    }
+  ],
+  "external": [
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"Contract\"]",
+      "packageName": "dependency"
+    },
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "packageName": "dependency"
+    },
+    {
+      "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "packageName": "dependency"
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"dependency\\\\\\\",\\\\\\\"index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"operation\"]:d9c3562c4ef0a54ace8db9b35dd54fa58226c7f2f641e021f02cb83c10e82a78",
+      "packageName": "dependency"
+    }
+  ]
+}

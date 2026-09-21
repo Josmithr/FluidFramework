@@ -29,7 +29,6 @@ import {
 	type TypeParameterDeclaration,
 } from "typescript/unstable/ast";
 import {
-	createFunctionTypeNode,
 	updateCallSignatureDeclaration,
 	updateParameterDeclaration,
 	updateInterfaceDeclaration,
@@ -91,7 +90,6 @@ import type {
 	Origin,
 	PackageDocumentationFact,
 	SignatureFact,
-	SignatureText,
 	SourceDeclarationFact,
 } from "../analysis-types/facts.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
@@ -105,6 +103,11 @@ import {
 import { mergeDocumentationComments } from "./mergedDocumentation.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 import { getDeclarationSelectorKind } from "./dependencyReferences.js";
+import {
+	createSourceExcerpt,
+	printNativeExcerpt,
+	printSignatureText,
+} from "./compilerExcerpt.js";
 
 /**
  * Native compiler services used by declaration extraction and signature printing.
@@ -1013,12 +1016,21 @@ export function extractSignatures(
 			"The compiler must materialize a call-signature declaration.",
 		);
 		const source = signature.declaration?.resolve();
-		const views = createSignatureViews(compiler, signature, declaration, source);
+		const views = createSignatureViews(compiler, signature, declaration, source, locations);
+
+		// Keep reference capture separate from identity: IDs still use the original effective function text.
 		return {
+			...printSignatureText(
+				compiler,
+				declaration,
+				source,
+				signature,
+				createExcerptTargetResolver(compiler, locations),
+			),
 			...views,
 			...(source === undefined || signature.declaration === undefined
 				? {}
-				: { source: extractSourceDeclaration(locations, signature.declaration) }),
+				: { source: extractSourceDeclaration(locations, signature.declaration, compiler) }),
 			callSignatureText: emitter.printNode(declaration).trim(),
 			id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
 			functionTypeText,
@@ -1038,6 +1050,7 @@ export function extractSignatures(
  * @param signature - Instantiated callable signature.
  * @param template - Compiler-produced call-signature syntax, including parameter and predicate shape.
  * @param scope - Original declaration scope, or undefined when no source is available.
+ * @param locations - Current package and selected dependency owners used by excerpt reference policy.
  * @returns Reduced and selectively normalized text, independent of report selection.
  * @throws If the compiler cannot materialize a required type or violates parameter-shape invariants.
  */
@@ -1046,6 +1059,7 @@ function createSignatureViews(
 	signature: Signature,
 	template: CallSignatureDeclaration,
 	scope: Node | undefined,
+	locations: LocationContext,
 ): Pick<SignatureFact, "reduced" | "normalized"> {
 	const { checker } = compiler;
 	const receiver = signature.getThisParameter();
@@ -1093,6 +1107,8 @@ function createSignatureViews(
 		reducedReturn = checker.typeToTypeNode(type, scope, NodeBuilderFlags.NoTruncation);
 		assert(reducedReturn !== undefined, "Resolved returns must have printable type nodes.");
 	}
+
+	// Preserve optional-parameter syntax and named application types; normalize only selected computed roots.
 	const normalizedParameters = template.parameters.map((parameter, index) =>
 		parameter.questionToken === undefined &&
 		isComputedSignatureType(parameter.type, compiler, scope)
@@ -1108,6 +1124,9 @@ function createSignatureViews(
 				reducedParameters,
 				reducedReturn,
 			),
+			scope,
+			signature,
+			createExcerptTargetResolver(compiler, locations),
 		),
 		normalized: printSignatureText(
 			compiler,
@@ -1119,6 +1138,9 @@ function createSignatureViews(
 					? reducedReturn
 					: template.type,
 			),
+			scope,
+			signature,
+			createExcerptTargetResolver(compiler, locations),
 		),
 	};
 }
@@ -1173,21 +1195,19 @@ function isComputedSignatureType(
 }
 
 /**
- * Prints two syntax forms from the same detached signature node without rewriting strings.
- * @param compiler - Active native emitter.
- * @param node - Call-signature syntax with its final parameter and return types.
- * @returns Matching call-signature and function-type text.
+ * Supplies suite ownership and stable identity policy to compiler excerpt capture.
+ * @param compiler - Active services for checking declaration ownership.
+ * @param locations - Current package and selected dependency owners.
+ * @returns A resolver that leaves symbols outside the selected suite unlinked.
  */
-function printSignatureText(
-	compiler: Pick<Project, "emitter">,
-	node: CallSignatureDeclaration,
-): SignatureText {
-	return {
-		callSignatureText: compiler.emitter.printNode(node).trim(),
-		functionTypeText: compiler.emitter
-			.printNode(createFunctionTypeNode(node.typeParameters, node.parameters, node.type))
-			.trim(),
-	};
+function createExcerptTargetResolver(
+	compiler: CompilerContext,
+	locations: LocationContext,
+): (symbol: CompilerSymbol) => ApiItemId | undefined {
+	return (symbol) =>
+		isSuiteSymbol(compiler, locations, symbol)
+			? getDeclarationId(locations, symbol)
+			: undefined;
 }
 
 /**
@@ -1195,14 +1215,25 @@ function printSignatureText(
  *
  * @param locations - Package settings and cache used for the original location.
  * @param handle - A compiler declaration handle from a symbol.
+ * @param compiler - Active services used to resolve original source references.
  * @returns Original location, syntax kind, source text, and the closest attached TSDoc comment.
  */
 function extractSourceDeclaration(
 	locations: LocationContext,
 	handle: CompilerSymbol["declarations"][number],
+	compiler: CompilerContext,
 ): SourceDeclarationFact {
 	const node = handle.resolve();
 	return {
+		...(node === undefined
+			? {}
+			: {
+					excerpt: createSourceExcerpt(
+						compiler,
+						node,
+						createExcerptTargetResolver(compiler, locations),
+					),
+				}),
 		...getOrigin(locations, handle.path, node?.pos ?? 0),
 		kind: SyntaxKind[handle.kind],
 		text: node?.getFullText() ?? "",
@@ -1608,7 +1639,7 @@ export function extractMembers(
 				? extractSignatures(compiler, callableType, id, locations)
 				: [];
 			const sourceDeclarations = property.declarations.map((handle) =>
-				extractSourceDeclaration(locations, handle),
+				extractSourceDeclaration(locations, handle, compiler),
 			);
 			const propertyContext =
 				state &&
@@ -1622,8 +1653,24 @@ export function extractMembers(
 					? mergeReferenceContexts(compiler, locations, state, nodes, sourceDeclarations, id)
 					: undefined;
 			const symbolId = getMemberSymbolId(compiler, locations, property);
+			const typeNode = checker.typeToTypeNode(
+				propertyType,
+				declaration,
+				NodeBuilderFlags.NoTruncation | NodeBuilderFlags.UseOnlyExternalAliasing,
+			);
 			return {
 				id,
+				...(typeNode === undefined
+					? {}
+					: {
+							typeExcerpt: printNativeExcerpt(
+								compiler,
+								typeNode,
+								declaration,
+								[propertyType],
+								createExcerptTargetResolver(compiler, locations),
+							),
+						}),
 				referenceName: symbolId === undefined ? property.name : name,
 				...(symbolId === undefined ? {} : { symbolId }),
 				...(propertyContext === undefined || state === undefined
@@ -2208,7 +2255,7 @@ export function collect(
 		id,
 	);
 	const sources = symbol.declarations.map((handle) =>
-		extractSourceDeclaration(locations, handle),
+		extractSourceDeclaration(locations, handle, compiler),
 	);
 	const sourceNodes = symbol.declarations.map((handle) => handle.resolve());
 	const sourceNode = sourceNodes[0];
@@ -2856,6 +2903,11 @@ function createDeclaredMemberRecord(
 	}
 	return {
 		...location,
+		excerpt: createSourceExcerpt(
+			compiler,
+			member,
+			createExcerptTargetResolver(compiler, locations),
+		),
 		...(staticTarget === undefined ? {} : { staticTarget }),
 		kind: SyntaxKind[member.kind],
 		text: member.getFullText(),

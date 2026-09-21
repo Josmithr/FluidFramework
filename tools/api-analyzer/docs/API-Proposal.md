@@ -1,8 +1,8 @@
 # `api-analyzer` API Proposal
 
 Status: API direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
-Declaration reports, versioned dependency-documentation models, and API counts are implemented.
-Complete portable models remain Stage 3; declaration rollups remain Stage 4.
+Declaration reports, portable documentation models, source-free readers, and API counts are implemented.
+Declaration rollups remain Stage 4.
 The [README](../README.md#experimental-api) describes the implemented subset and remaining limitations.
 The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
@@ -38,8 +38,11 @@ The final library should offer the following capabilities; not all are implement
 
 Declaration rollup generation remains required functionality.
 The initial report method and API counts are documented in the README.
-`generateModel(): string` returns the initial versioned dependency documentation artifact.
-The complete portable-model contract, rollup method signatures, and broader statistics remain to be specified.
+`generateModel(): string` returns version 1 portable declaration and documentation data.
+Format and identity versions remain 1 during initial development, with no backward compatibility requirements when their definitions change.
+`decodeDependencyModel(text, packageName)` validates one artifact; `decodeDependencyModels(inputs)` additionally validates a complete package set.
+Both readers are also exported from `api-analyzer/model`, which does not load compiler-backed analysis.
+Rollup method signatures and broader statistics remain to be specified.
 API statistics are distinct from analysis timing and cache counters.
 
 ## Completion and outputs

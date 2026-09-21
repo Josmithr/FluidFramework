@@ -5,12 +5,9 @@ import { z } from "zod";
 import type { EffectiveConfiguration } from "./analysis-types/configuration.js";
 import type { DependencyModel } from "./analysis-types/dependencyModel.js";
 import { DiagnosticCode, reportFailure, type Result } from "./analysis-types/result.js";
-import {
-	decodeDependencyModel,
-	fingerprintDependencyModel,
-} from "./model-generation/dependencyModel.js";
+import { decodeDependencyModel } from "./model-generation/dependencyModel.js";
+import { validateDependencyModels } from "./model-generation/modelSet.js";
 import { freezeData } from "./utilities/freezeData.js";
-import { ReleaseLevel } from "./analysis-types/classification.js";
 
 const manifestSchema = z.object({
 	name: z.string().min(1),
@@ -151,15 +148,9 @@ export function loadDependencyModels(
 	// Cross-model checks need the complete selection and must not depend on discovery order.
 	// Current source files alone do not prove freshness: inherited documentation can come from stale model inputs.
 	const models = [...selected.values()].map((entry) => entry.model);
-	const fresh = validateModelInputs(models);
+	const fresh = validateDependencyModels(models);
 	if (!fresh.ok) {
 		return fresh;
-	}
-
-	// Each external API identifier must belong to its declared package in the selected models.
-	const references = validateSuiteReferences(models);
-	if (!references.ok) {
-		return references;
 	}
 
 	// Keep the result immutable and its order independent of the installed dependency graph.
@@ -264,66 +255,6 @@ function validateInstalledInputs(root: string, model: DependencyModel): Result {
 				DiagnosticCode.DependencyModel,
 				`Dependency ${model.packageName}: model is stale for ${fingerprint.file}. Regenerate it from the installed declarations before analysis.`,
 			);
-		}
-	}
-	return { ok: true };
-}
-
-/**
- * Rejects models generated from different selected dependency content, including inherited documentation.
- * @param models - Selected models whose own recorded source files are current.
- * @returns Success or the first absent or stale model-input diagnostic.
- */
-function validateModelInputs(models: readonly DependencyModel[]): Result {
-	const fingerprints = new Map(
-		models.map((model) => [model.packageName, fingerprintDependencyModel(model)]),
-	);
-	for (const model of models) {
-		for (const dependency of model.dependencyModels) {
-			if (fingerprints.get(dependency.packageName) !== dependency.sha256) {
-				return reportFailure(
-					DiagnosticCode.DependencyModel,
-					`Dependency ${model.packageName}: its model was generated from missing or different ${dependency.packageName} model content. Select the required dependency model and regenerate ${model.packageName} after its dependencies.`,
-				);
-			}
-		}
-	}
-	return { ok: true };
-}
-
-/**
- * Verifies that cross-model references name APIs owned by the selected dependency package.
- * @param models - All selected models after individual validation and freshness checks.
- * @returns Success or the first unavailable external target diagnostic.
- */
-function validateSuiteReferences(models: readonly DependencyModel[]): Result {
-	const apis = new Map(
-		models.flatMap((model) => model.apis.map((api) => [api.id, api] as const)),
-	);
-	const targets = new Map(
-		models.flatMap((model) => model.apis.map((api) => [api.id, model.packageName] as const)),
-	);
-	for (const model of models) {
-		for (const link of model.packageDocumentation?.links ?? []) {
-			const target = apis.get(link.targetSignature);
-			if (
-				target?.declarationId !== link.target ||
-				target.metadata.releaseLevel === undefined ||
-				target.metadata.releaseLevel === ReleaseLevel.Internal
-			) {
-				return reportFailure(
-					DiagnosticCode.DependencyModel,
-					`Dependency ${model.packageName}: package link ${link.reference} has an invalid or internal target in the selected suite. Regenerate the model.`,
-				);
-			}
-		}
-		for (const external of model.external) {
-			if (targets.get(external.id) !== external.packageName) {
-				return reportFailure(
-					DiagnosticCode.DependencyModel,
-					`Dependency ${model.packageName}: external target ${external.id} requires a compatible selected model for ${external.packageName}. Include and rebuild the transitive suite dependency.`,
-				);
-			}
 		}
 	}
 	return { ok: true };

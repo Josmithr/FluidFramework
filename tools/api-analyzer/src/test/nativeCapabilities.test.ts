@@ -625,6 +625,30 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 			assert.equal(computed.normalized.callSignatureText, "(value: string): string;");
 			assert.equal(views.get("named")?.reduced.callSignatureText, "(value: string): string;");
 			assert.equal(views.get("named")?.normalized.callSignatureText, "(value: Label): Label;");
+			const named = views.get("named");
+			assert(named !== undefined);
+			assert("callSignatureExcerpt" in named.normalized);
+			assert("callSignatureExcerpt" in named.reduced);
+			assert.notDeepEqual(
+				named.normalized.callSignatureExcerpt,
+				named.reduced.callSignatureExcerpt,
+			);
+			const normalized = named.normalized.callSignatureExcerpt;
+			assert(normalized !== undefined);
+			assert.equal(
+				normalized.tokens.map((token) => token.text).join(""),
+				named.normalized.callSignatureText,
+			);
+			assert.deepEqual(
+				normalized.tokens
+					.filter((token) => token.kind === "Reference")
+					.map((token) => token.text),
+				["Label", "Label"],
+			);
+			assert.equal(
+				named.reduced.callSignatureExcerpt?.tokens.some((token) => token.kind === "Reference"),
+				false,
+			);
 			assert.equal(
 				views.get("optional")?.normalized.callSignatureText,
 				"(value?: string | null): void;",
@@ -1505,6 +1529,231 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 
+			it("captures exact excerpt targets across aliases, binders, and substituted scopes", async () => {
+				const configuration = getSuccessValue(
+					resolveConfiguration(
+						{
+							packageName: "example",
+							project: "tsconfig.json",
+							entrypoints: [{ name: ".", path: "declarations/excerpt-references.d.ts" }],
+						},
+						directory,
+					),
+				);
+				const adapter = createNativeAdapter();
+				try {
+					const facts = getSuccessValue(adapter.analyze(configuration));
+					adapter.close();
+
+					// Select by exported identity: the fixture contains distinct declarations named Value.
+					const getDeclaration = (name: string): AnalysisFacts["declarations"][number] => {
+						const target = facts.surfaces[0]?.exports.find(
+							(item) => item.name === name,
+						)?.target;
+						const value = facts.declarations.find((item) => item.id === target);
+						assert(value !== undefined, name);
+						return value;
+					};
+					const local = getDeclaration("Value");
+					const pairSource = getDeclaration("Pair").declarations[0];
+					assert(pairSource !== undefined && "excerpt" in pairSource);
+					const view = facts.declarations.find((item) => item.name === "View");
+					assert(view !== undefined);
+					const nestedValue = getDeclaration("Nested").exports.find(
+						(item) => item.name === "Value",
+					)?.target;
+					assert(nestedValue !== undefined);
+					for (const [name, expected] of [
+						["qualified", [local.id, nestedValue, local.id, nestedValue]],
+						["aliased", [view.id, view.id]],
+						["imported", [view.id, view.id]],
+						["shadow", [view.id]],
+						["query", [local.id]],
+						["nested", [local.id]],
+						["mapped", [local.id]],
+						["conditional", [local.id]],
+					] as const) {
+						const signature = getDeclaration(name).signatures[0];
+						assert(signature !== undefined);
+						for (const display of [signature, signature.normalized, signature.reduced]) {
+							assert(display.callSignatureExcerpt !== undefined);
+
+							// Reducing typeof Value removes that name from the text, so only the effective view links it.
+							assert.deepEqual(
+								display.callSignatureExcerpt.tokens
+									.filter((token) => token.kind === "Reference")
+									.map((token) => token.target),
+								name === "query" && display !== signature ? [] : expected,
+								name,
+							);
+							assert.equal(
+								display.callSignatureExcerpt.tokens.map((token) => token.text).join(""),
+								display.callSignatureText,
+							);
+						}
+					}
+
+					// Substitution must target the receiver's Value, not the same-named API in the base module.
+					const inherited = getDeclaration("Receiver").members.find(
+						(member) => member.name === "convert",
+					)?.signatures[0];
+					assert(inherited !== undefined);
+					assert.deepEqual(
+						inherited.normalized.callSignatureExcerpt?.tokens
+							.filter((token) => token.kind === "Reference")
+							.map((token) => token.target),
+						[local.id, local.id],
+					);
+					assert("callSignatureExcerpt" in inherited);
+					const property = getDeclaration("Receiver").members.find(
+						(member) => member.name === "item",
+					);
+					assert(property !== undefined);
+					assert("typeExcerpt" in property);
+					const boxed = getDeclaration("Receiver").members.find(
+						(member) => member.name === "boxed",
+					);
+					assert.deepEqual(
+						boxed?.typeExcerpt?.tokens
+							.filter((token) => token.kind === "Reference")
+							.map((token) => token.target),
+						[local.id],
+					);
+					const box = getDeclaration("Receiver").members.find(
+						(member) => member.name === "box",
+					)?.signatures[0];
+					assert.deepEqual(
+						box?.normalized.callSignatureExcerpt?.tokens
+							.filter((token) => token.kind === "Reference")
+							.map((token) => token.target),
+						[local.id],
+					);
+					const completed = getSuccessValue(
+						completeAnalysis(createTestAnalysisContext(facts)),
+					);
+					const encoded = encodeDependencyModel(completed);
+					const model = getSuccessValue(decodeDependencyModel(encoded, "example"));
+					const portable = model.graph.declarations.find(
+						(item) => item.id === getDeclaration("aliased").id,
+					)?.signatures[0];
+					assert(portable !== undefined);
+					assert("callSignatureExcerpt" in portable.effective);
+					assert.deepEqual(
+						portable.normalized,
+						getDeclaration("aliased").signatures[0]?.normalized,
+					);
+					const portableProperty = model.graph.declarations
+						.find((item) => item.id === getDeclaration("Receiver").id)
+						?.members.find((item) => item.name === "item");
+					assert(portableProperty !== undefined && "typeExcerpt" in portableProperty);
+					const special = model.graph.declarations.find(
+						(item) => item.id === getDeclaration("Special").id,
+					);
+					assert(special?.container !== undefined);
+					const staticTarget = getDeclaration("Special").container?.declaredMembers.find(
+						(member) => member.kind === "MethodDeclaration",
+					)?.staticTarget;
+					assert(staticTarget !== undefined);
+					assert.deepEqual(
+						getDeclaration("staticQuery")
+							.signatures[0]?.callSignatureExcerpt?.tokens.filter(
+								(token) => token.kind === "Reference",
+							)
+							.map((token) => token.target),
+						[staticTarget],
+					);
+					for (const member of special.container.declaredMembers) {
+						assert(
+							member.source.excerpt.tokens.some(
+								(token) => token.kind === "Reference" && token.target === local.id,
+							),
+							member.source.kind,
+						);
+					}
+
+					// Corrupt only excerpt data to exercise bounds, reconstruction, target, and required-field checks.
+					for (const excerpt of [
+						{
+							...portable.normalized.callSignatureExcerpt,
+							tokenRange: { startIndex: 0, endIndex: 999 },
+						},
+						{
+							...portable.normalized.callSignatureExcerpt,
+							tokenRange: { startIndex: 2, endIndex: 1 },
+						},
+						{
+							...portable.normalized.callSignatureExcerpt,
+							tokens: [{ kind: "Content", text: "wrong text" }],
+						},
+						{
+							...portable.normalized.callSignatureExcerpt,
+							tokens: portable.normalized.callSignatureExcerpt.tokens.map((token) =>
+								token.kind === "Reference" ? { ...token, target: "missing" } : token,
+							),
+						},
+						undefined,
+					]) {
+						const invalid = {
+							...model,
+							graph: {
+								...model.graph,
+								declarations: model.graph.declarations.map((item) =>
+									item.id === getDeclaration("aliased").id
+										? {
+												...item,
+												signatures: item.signatures.map((signature) => ({
+													...signature,
+													normalized: {
+														...signature.normalized,
+														callSignatureExcerpt: excerpt,
+													},
+												})),
+											}
+										: item,
+								),
+							},
+						};
+						assert.equal(decodeDependencyModel(JSON.stringify(invalid), "example").ok, false);
+					}
+
+					// A fresh process blocks compiler imports and renders links using only serialized tokens and IDs.
+					const rendered = execFileSync(
+						process.execPath,
+						[
+							"--input-type=module",
+							"--eval",
+							`
+						import assert from 'node:assert/strict';
+						import {readFileSync} from 'node:fs';
+						import {registerHooks} from 'node:module';
+						registerHooks({resolve(specifier, context, next) {
+							assert(!specifier.startsWith('typescript') && !specifier.includes('/analysis/'));
+							return next(specifier, context);
+						}});
+						const {decodeDependencyModel} = await import(${JSON.stringify(new URL("../model.js", import.meta.url).href)});
+						const decoded = decodeDependencyModel(readFileSync(0, 'utf8'), 'example');
+						assert(decoded.ok, JSON.stringify(decoded));
+						const model = decoded.value;
+						const targets = new Map(model.graph.declarations.map(item => [item.id, item]));
+						const binding = model.graph.surfaces[0].exports.find(item => item.name === 'qualified');
+						const excerpt = targets.get(binding.target).signatures[0].normalized.callSignatureExcerpt;
+						const tokens = excerpt.tokens.slice(excerpt.tokenRange.startIndex, excerpt.tokenRange.endIndex);
+						const links = tokens.filter(token => token.kind === 'Reference');
+						assert.equal(links.length, 4);
+						assert.notEqual(links[0].target, links[1].target);
+						assert(links.every(token => targets.has(token.target)));
+						console.log(tokens.map(token => token.kind === 'Reference' ? '[' + token.text + '](#' + encodeURIComponent(token.target) + ')' : token.text).join(''));
+					`,
+						],
+						{ cwd: tmpdir(), input: encoded, encoding: "utf8" },
+					);
+					assert.match(rendered, /\[Value]\(#/);
+					assert.match(rendered, /\[Nested.Value]\(#/);
+				} finally {
+					adapter.close();
+				}
+			});
+
 			it("retains effective named references through inherited generic members", () => {
 				const configuration = getSuccessValue(
 					resolveConfiguration(
@@ -1551,6 +1800,25 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					const model = getSuccessValue(
 						decodeDependencyModel(encodeDependencyModel(result.value), "example"),
 					);
+					const portableDerived = model.graph.declarations.find(
+						(item) => item.id === derived.id,
+					);
+					assert(portableDerived !== undefined);
+					const portablePreview = model.graph.declarations.find(
+						(item) => item.id === preview.id,
+					);
+					assert.equal(portablePreview?.name, "Preview");
+					for (const member of portableDerived.members) {
+						const references = [
+							...member.references,
+							...member.signatures.flatMap((signature) => signature.references),
+						];
+						assert(
+							references.some((reference) => reference.target === preview.id),
+							member.name,
+						);
+						assert.match(member.type, /Preview/);
+					}
 					for (const member of derived.members) {
 						const identities =
 							member.documentationContext === undefined
@@ -3014,6 +3282,70 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				);
 			});
 
+			it("round-trips portable inherited, intersection, and utility member views", async () => {
+				const analysis = await analyzeAPIs(
+					{
+						packageName: "example",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "declarations/api.d.ts" }],
+						rules: { requireReleaseLevel: false },
+					},
+					directory,
+				);
+				assert.equal(analysis.ok, true, JSON.stringify(analysis));
+				const encoded = analysis.value.generateModel();
+				const model = getSuccessValue(decodeDependencyModel(encoded, "example"));
+				for (const [name, types] of [
+					["Derived", { value: "string", optional: "number | undefined", count: "number" }],
+					["DerivedClass", { value: "string" }],
+					[
+						"Combined",
+						{
+							value: "string",
+							optional: "number | undefined",
+							count: "number",
+							enabled: "boolean",
+						},
+					],
+					["Selected", { value: "string", optional: "number | undefined" }],
+					["Omitted", { value: "string", optional: "number | undefined", enabled: "boolean" }],
+					["Frozen", { value: "string", optional: "number | undefined" }],
+				] as const) {
+					const declaration = model.graph.declarations.find((item) => item.name === name);
+					assert(declaration !== undefined, name);
+					assert.equal(declaration.memberView, "complete", name);
+					assert.deepEqual(
+						Object.fromEntries(
+							declaration.members.map((member) => [member.name, member.type]),
+						),
+						types,
+						name,
+					);
+					if (name === "Frozen") {
+						assert(declaration.members.every((member) => member.readonly === true));
+						assert.equal(
+							declaration.members.find((member) => member.name === "optional")?.optional,
+							true,
+						);
+					}
+				}
+				const callable = model.graph.declarations.find((item) => item.name === "convert");
+				assert.equal(callable?.signatures.length, 2);
+				assert.equal(
+					callable?.signatures[0]?.effective.callSignatureText,
+					"(value: string): string;",
+				);
+				assert.equal(
+					callable?.signatures[1]?.effective.callSignatureText,
+					"(value: number): number;",
+				);
+				assert.deepEqual(
+					getSuccessValue(decodeDependencyModel(JSON.stringify(model), "example")),
+					model,
+				);
+				assert.equal(analysis.value.generateModel(), encoded);
+			});
+
 			it("renders selected class and interface members after compiler disposal", () => {
 				const configuration = getSuccessValue(
 					resolveConfiguration(
@@ -3062,7 +3394,23 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					assertSnapshot(text, "declarations.public.md");
 					const encoded = encodeDependencyModel(completed);
 					const model = getSuccessValue(decodeDependencyModel(encoded, "example"));
+					assert.equal(model.version, 1);
 					assert.equal(Object.isFrozen(model.apis), true);
+					assert.equal(Object.isFrozen(model.graph.declarations), true);
+					const store = model.graph.declarations.find(
+						(declaration) => declaration.name === "Store",
+					);
+					assert(store !== undefined);
+					assert.equal(store.container?.suffix, "<Value extends string = string>");
+					assert.equal(store.members.find((member) => member.name === "value")?.type, "Value");
+					assert.equal(
+						store.members.find((member) => member.name === "lookup")?.signatures.length,
+						2,
+					);
+					assert.deepEqual(
+						getSuccessValue(decodeDependencyModel(JSON.stringify(model), "example")),
+						model,
+					);
 
 					// Serialization must retain links to declarations and members, not just their printed comment text.
 					const aliasDocumentation = model.apis.find(
@@ -3090,7 +3438,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					);
 					assert.equal(decodeDependencyModel(encoded, "wrong-package").ok, false);
 					assert.equal(
-						decodeDependencyModel(JSON.stringify({ ...model, version: 2 }), "example").ok,
+						decodeDependencyModel(JSON.stringify({ ...model, version: 99 }), "example").ok,
 						false,
 					);
 					assert.equal(

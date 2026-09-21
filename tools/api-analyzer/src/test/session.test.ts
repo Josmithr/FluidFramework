@@ -77,7 +77,7 @@ describe("One-shot API analysis and adapter facts", () => {
 			Object.entries(publicAPI)
 				.filter(([, value]) => typeof value === "function")
 				.map(([name]) => name),
-			["analyzeAPIs"],
+			["analyzeAPIs", "decodeDependencyModel", "decodeDependencyModels"],
 		);
 		const entrypoint = path.join(directory, "src/public.ts");
 		writeFileSync(

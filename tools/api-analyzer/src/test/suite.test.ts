@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "mocha";
 import { analyzeAPIs, DiagnosticCode, ReleaseLevel } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
+import { decodeDependencyModels } from "../model.js";
+import { assertSnapshot } from "./snapshotUtils.js";
 import { compareReviewBaseline } from "../report-generation/reviewBaseline.js";
 import type { DependencyApi } from "../analysis-types/dependencyModel.js";
 
@@ -287,6 +290,111 @@ describe("Dependency suite models", () => {
 			assert.doesNotMatch(withoutTags.value, /@public|@deprecated|\(undocumented\)/);
 			assert.deepEqual(analysis.value.generateReport(".", selection), report);
 			assert.equal(analysis.value.generateModel(), model);
+			const decoded = decodeDependencyModel(model, "consumer");
+			assert.equal(decoded.ok, true, JSON.stringify(decoded));
+			const leaf = decoded.value.graph.declarations.find(
+				(declaration) => declaration.name === "Leaf",
+			);
+			assert(leaf !== undefined);
+			const value = leaf.members.find((member) => member.name === "inheritedValue");
+			assert.equal(value?.type, "string");
+			assert(value?.declaringContainer !== undefined);
+			assert.equal(
+				decoded.value.graph.declarations.find(
+					(declaration) => declaration.id === value.declaringContainer,
+				)?.name,
+				"Root",
+			);
+			assert.equal(
+				leaf.heritage[0]?.members.find((member) => member.name === "inheritedValue")?.type,
+				"string",
+			);
+			assert.equal(
+				leaf.members.find((member) => member.name === "convert")?.signatures[0]?.normalized
+					.callSignatureText,
+				"(value: string): string;",
+			);
+
+			// Matching version markers are not sufficient: current graph structure and identities must also validate.
+			for (const invalid of [
+				{ ...decoded.value, version: 99 },
+				{ ...decoded.value, exports: [] },
+				{ ...decoded.value, identityVersion: 99 },
+				{ ...decoded.value, compilerVersion: "unsupported" },
+				{ ...decoded.value, graph: undefined },
+				{ ...decoded.value, graph: { ...decoded.value.graph, declarations: [] } },
+				{
+					...decoded.value,
+					graph: {
+						...decoded.value.graph,
+						declarations: [...decoded.value.graph.declarations, leaf],
+					},
+				},
+				{
+					...decoded.value,
+					graph: {
+						...decoded.value.graph,
+						declarations: decoded.value.graph.declarations.map((declaration) =>
+							declaration.id === leaf.id
+								? { ...declaration, baseDeclarations: ["missing"] }
+								: declaration,
+						),
+					},
+				},
+				{
+					...decoded.value,
+					graph: {
+						...decoded.value.graph,
+						declarations: decoded.value.graph.declarations.map((declaration) =>
+							declaration.id === leaf.id
+								? {
+										...declaration,
+										members: declaration.members.map((member) => ({
+											...member,
+											documentationId: "missing",
+										})),
+									}
+								: declaration,
+						),
+					},
+				},
+			]) {
+				const rejected = decodeDependencyModel(JSON.stringify(invalid), "consumer");
+				assert.equal(rejected.ok, false);
+				assert.equal(rejected.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+			}
+
+			// Remove the declaration input before rendering; decoded data must not depend on a source checkout.
+			rmSync(path.join(directory, "index.d.ts"));
+			const output = execFileSync(
+				process.execPath,
+				[
+					"--input-type=module",
+					"--eval",
+					`
+				import assert from 'node:assert/strict';
+				import { readFileSync } from 'node:fs';
+				import { registerHooks } from 'node:module';
+				registerHooks({ resolve(specifier, context, next) {
+					assert(!specifier.startsWith('typescript') && !specifier.includes('/analysis/'), specifier);
+					return next(specifier, context);
+				}});
+				const { decodeDependencyModel } = await import(${JSON.stringify(new URL("../model.js", import.meta.url).href)});
+				const result = decodeDependencyModel(readFileSync(0, 'utf8'), 'consumer');
+				assert(result.ok, JSON.stringify(result));
+				const binding = result.value.graph.surfaces[0].exports.find(entry => entry.name === 'Leaf');
+				const declaration = result.value.graph.declarations.find(entry => entry.id === binding.target);
+				const property = declaration.members.find(entry => entry.name === 'value');
+				const documentation = result.value.apis.find(entry => entry.id === property.documentationId);
+				assert(documentation.documentation.documentation.includes('Value documentation reused'));
+				assert(Object.isFrozen(declaration.members));
+				console.log('# ' + binding.name + '\\n' + declaration.members.map(member => member.name + ': ' + member.type).join('\\n'));
+			`,
+				],
+				{ cwd: directory, input: model, encoding: "utf8" },
+			);
+			assert.match(output, /# Leaf/);
+			assert.match(output, /inheritedValue: string/);
 		}
 	});
 
@@ -692,7 +800,7 @@ describe("Dependency suite models", () => {
 			assert.equal(malformed.ok, false);
 			assert.equal(malformed.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
 		}
-		writeFileSync(file, JSON.stringify({ ...JSON.parse(model), version: 2 }));
+		writeFileSync(file, JSON.stringify({ ...JSON.parse(model), version: 99 }));
 		const incompatible = await analyzeAPIs(configuration, directory);
 		assert.equal(incompatible.ok, false);
 		assert.equal(incompatible.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
@@ -752,6 +860,15 @@ describe("Dependency suite models", () => {
 		};
 		const original = await analyzeAPIs(consumerConfiguration, directory);
 		assert.equal(original.ok, true, JSON.stringify(original));
+		const inputs = [
+			{ packageName: "dependency", text: leaf.value.generateModel() },
+			{ packageName: "intermediate", text: intermediate.value.generateModel() },
+		];
+		const models = decodeDependencyModels(inputs);
+		assert.equal(models.ok, true, JSON.stringify(models));
+		assert.deepEqual(decodeDependencyModels([...inputs].reverse()), models);
+		assert.equal(decodeDependencyModels([...inputs, ...inputs]).ok, false);
+		assert.equal(decodeDependencyModels(inputs.slice(1)).ok, false);
 
 		// JSON layout and object-key order are not model changes; overload array order still is.
 		const reformattedLeaf = JSON.stringify(
@@ -779,6 +896,13 @@ describe("Dependency suite models", () => {
 		);
 		const rebuiltLeaf = await analyzeAPIs({ ...base, packageName: "dependency" }, leafRoot);
 		assert.equal(rebuiltLeaf.ok, true);
+		assert.equal(
+			decodeDependencyModels([
+				{ packageName: "dependency", text: rebuiltLeaf.value.generateModel() },
+				{ packageName: "intermediate", text: intermediate.value.generateModel() },
+			]).ok,
+			false,
+		);
 		writeFileSync(path.join(leafRoot, "api-model.json"), rebuiltLeaf.value.generateModel());
 		const stale = await analyzeAPIs(consumerConfiguration, directory);
 		assert.equal(stale.ok, false);
@@ -795,6 +919,88 @@ describe("Dependency suite models", () => {
 		);
 		const fresh = await analyzeAPIs(consumerConfiguration, directory);
 		assert.equal(fresh.ok, true, JSON.stringify(fresh));
+	});
+
+	it("consumes checked-in model snapshots without declarations or compiler imports", () => {
+		const inputs = ["dependency", "consumer"].map((packageName) => ({
+			packageName,
+			text: readFileSync(
+				new URL(`../../src/test/snapshots/${packageName}.api.json`, import.meta.url),
+				"utf8",
+			),
+		}));
+
+		// The child receives artifact text only and rejects compiler imports before loading the model reader.
+		const output = execFileSync(
+			process.execPath,
+			[
+				"--input-type=module",
+				"--eval",
+				`
+			import assert from 'node:assert/strict';
+			import { readFileSync } from 'node:fs';
+			import { registerHooks } from 'node:module';
+			registerHooks({ resolve(specifier, context, next) {
+				assert(!specifier.startsWith('typescript') && !specifier.includes('/analysis/'), specifier);
+				return next(specifier, context);
+			}});
+			const { decodeDependencyModels } = await import(${JSON.stringify(new URL("../model.js", import.meta.url).href)});
+			const inputs = JSON.parse(readFileSync(0, 'utf8'));
+			const result = decodeDependencyModels(inputs);
+			assert(result.ok, JSON.stringify(result));
+			assert.deepEqual(decodeDependencyModels([...inputs].reverse()), result);
+			const consumer = result.value.find(model => model.packageName === 'consumer');
+			const dependency = result.value.find(model => model.packageName === 'dependency');
+			const alias = consumer.exports.find(entry => entry.path.join('.') === 'dependencyAlias');
+			const target = dependency.apis.find(api => api.id === alias.items[0]);
+			assert.equal(target.name, 'source');
+			const inherited = consumer.apis.find(api => api.name === 'consumer');
+			assert(inherited.documentation.documentation.includes('Source documentation.'));
+			const link = inherited.documentation.links[0];
+			assert.equal(link.origin.packageName, 'dependency');
+			assert.equal(dependency.apis.find(api => api.id === link.targetSignature).name, 'target');
+			assert.notEqual(consumer.apis.find(api => api.name === 'target').id, link.targetSignature);
+			const implementation = consumer.graph.declarations.find(item => item.name === 'Implementation');
+			const operation = implementation.members.find(item => item.name === 'operation').signatures[0];
+			assert.equal(operation.effective.callSignatureText, '(value: string): string;');
+			assert(consumer.apis.find(api => api.id === operation.documentationId).documentation.documentation.includes('Original operation.'));
+			console.log('Resolved alias, inherited content, substituted member, and original-package link.');
+		`,
+			],
+			{ cwd: tmpdir(), input: JSON.stringify(inputs), encoding: "utf8" },
+		);
+		assert.match(output, /Resolved alias/);
+	});
+
+	it("rejects nested export paths that disagree with the portable member graph", () => {
+		const text = readFileSync(
+			new URL("../../src/test/snapshots/dependency.api.json", import.meta.url),
+			"utf8",
+		);
+		const decoded = decodeDependencyModel(text, "dependency");
+		assert.equal(decoded.ok, true, JSON.stringify(decoded));
+		const member = decoded.value.exports.find(
+			(entry) => entry.path.join(".") === "Contract.operation",
+		);
+		assert(member !== undefined);
+
+		// Each change leaves valid target IDs but makes the exported path disagree with its graph member.
+		for (const exports of [
+			decoded.value.exports.filter((entry) => entry !== member),
+			decoded.value.exports.map((entry) =>
+				entry === member ? { ...entry, path: ["Contract", "missing"] } : entry,
+			),
+			decoded.value.exports.map((entry) =>
+				entry === member ? { ...entry, memberKind: "static" as const } : entry,
+			),
+		]) {
+			const rejected = decodeDependencyModel(
+				JSON.stringify({ ...decoded.value, exports }),
+				"dependency",
+			);
+			assert.equal(rejected.ok, false, JSON.stringify(exports));
+			assert.equal(rejected.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+		}
 	});
 
 	it("resolves explicit and automatic dependency documentation with original link origins", async () => {
@@ -843,6 +1049,8 @@ describe("Dependency suite models", () => {
 				?.packageName,
 			"dependency",
 		);
+		assertSnapshot(dependency.value.generateModel(), "dependency.api.json");
+		assertSnapshot(result.value.generateModel(), "consumer.api.json");
 	});
 
 	it("resolves merged namespace exports and recursive aliases from dependency models", async () => {
@@ -892,6 +1100,27 @@ describe("Dependency suite models", () => {
 				.documentation ?? "",
 			/Right operation/,
 		);
+		const models = decodeDependencyModels([
+			{ packageName: "consumer", text: result.value.generateModel() },
+			{ packageName: "dependency", text: dependency.value.generateModel() },
+		]);
+		assert.equal(models.ok, true, JSON.stringify(models));
+		const producer = models.value.find((item) => item.packageName === "dependency");
+		assert(producer !== undefined);
+		const nested = producer.exports.find(
+			(entry) => entry.path.join(".") === "Services.Nested.right",
+		);
+		assert(nested !== undefined);
+		assert.equal(
+			model.value.apis
+				.find((item) => item.name === "fromNested")
+				?.documentation.inheritedFrom.includes(nested.items[0] ?? ""),
+			true,
+		);
+		const recursive = producer.exports.find(
+			(entry) => entry.path.join(".") === "Services.self",
+		);
+		assert.deepEqual(recursive?.referencePath, ["Services"]);
 		writeFileSync(
 			consumerFile,
 			original.replace("Services.self.Nested.right", "Services.self.Nested.missing"),

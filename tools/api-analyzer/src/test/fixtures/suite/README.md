@@ -8,6 +8,23 @@ Reformatting model JSON without changing its content must remain valid.
 Package manifests, TypeScript project configurations, and intentional artifact corruption are test-owned runtime data.
 Tests do not update accepted baselines or modify production package inputs.
 
+## Portable model snapshots
+
+The [dependency model](../../snapshots/dependency.api.json) and [consumer model](../../snapshots/consumer.api.json) preserve complete version 1 artifacts generated from `dependency.d.ts` and `consumer.d.ts`.
+Version markers stay at 1 during initial development, including incompatible schema or identity changes; regenerate snapshots without maintaining compatibility with earlier development artifacts.
+The test `resolves explicit and automatic dependency documentation with original link origins` compares the exact encoded text, including package-relative identities, source offsets, input hashes, and dependency fingerprints.
+It checks link origins and inherited content before comparing snapshots.
+No paths, identities, or hashes are normalized for comparison.
+The test `consumes checked-in model snapshots without declarations or compiler imports` reads the pair in a fresh process, blocks compiler imports, and follows aliases, inherited documentation, and cross-package link targets using only the artifacts.
+
+Normal tests never rewrite these files.
+To update the pair intentionally, generate the dependency first through `analyzeAPIs` using the test's fixture layout and configuration, then generate the consumer with that dependency model installed.
+Write the exact `generateModel()` outputs to the snapshot files and review the semantic changes before accepting them.
+Do not run a JSON formatter on these generated baselines; their formatting is part of the encoder contract.
+Regenerate both artifacts when dependency content changes because the consumer records its fingerprint.
+
+## Fixtures
+
 | Fixture | Validation role |
 | --- | --- |
 | [dependency.d.ts](dependency.d.ts) | Public-to-beta links, internal reference policy, and a generic automatic-inheritance source. |

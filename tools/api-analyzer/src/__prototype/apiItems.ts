@@ -46,57 +46,57 @@ export type ApiIdentifier = `${string}#${LocalApiIdentifier}`;
  * Represents the overall structure of the API surface for a package.
  */
 export interface ApiPackageModel {
-  // TODO: need to think on this setup more. I don't think this is the right setup.
-  // It might make more sense to have a single record of exports, and have parsed items track their canonical source.
+	// TODO: need to think on this setup more. I don't think this is the right setup.
+	// It might make more sense to have a single record of exports, and have parsed items track their canonical source.
 
-  /**
-   * APIs exported by this package.
-   * @remarks Only includes exports of items defined within this package.
-   */
-  readonly localExports: Readonly<Record<LocalApiIdentifier, ApiItem>>;
+	/**
+	 * APIs exported by this package.
+	 * @remarks Only includes exports of items defined within this package.
+	 */
+	readonly localExports: Readonly<Record<LocalApiIdentifier, ApiItem>>;
 
-  /**
-   * APIs re-exported from external packages.
-   */
-  readonly reExports: Readonly<Record<ApiIdentifier, ApiItem>>;
+	/**
+	 * APIs re-exported from external packages.
+	 */
+	readonly reExports: Readonly<Record<ApiIdentifier, ApiItem>>;
 }
 
 /**
  * Documentation on an API item.
  */
 interface ApiDocumentation {
-  // TODO: we probably want to store a serializable form of the parsed comment, rather than just the raw string.
-  // If TSDoc offers a way to serialize the parsed comment, we should use that.
-  // Otherwise, we may need to consider adding our own serialized representation.
-  readonly docComment: string;
+	// TODO: we probably want to store a serializable form of the parsed comment, rather than just the raw string.
+	// If TSDoc offers a way to serialize the parsed comment, we should use that.
+	// Otherwise, we may need to consider adding our own serialized representation.
+	readonly docComment: string;
 
-  // Possibly other derived metadata that's useful to the system?
-  // Question: what would users need? Or should we just let them (and the system) derive metadata as needed?
+	// Possibly other derived metadata that's useful to the system?
+	// Question: what would users need? Or should we just let them (and the system) derive metadata as needed?
 }
 
 /**
  * The kind of API item.
  */
 export enum ApiItemKind {
-  CallSignature = "CallSignature",
-  Class = "Class",
-  Constructor = "Constructor",
-  ConstructSignature = "ConstructSignature",
-  EntryPoint = "EntryPoint",
-  Enum = "Enum",
-  EnumMember = "EnumMember",
-  Function = "Function",
-  IndexSignature = "IndexSignature",
-  Interface = "Interface",
-  Method = "Method",
-  MethodSignature = "MethodSignature",
-  Model = "Model",
-  Namespace = "Namespace",
-  Package = "Package",
-  Property = "Property",
-  PropertySignature = "PropertySignature",
-  TypeAlias = "TypeAlias",
-  Variable = "Variable",
+	CallSignature = "CallSignature",
+	Class = "Class",
+	Constructor = "Constructor",
+	ConstructSignature = "ConstructSignature",
+	EntryPoint = "EntryPoint",
+	Enum = "Enum",
+	EnumMember = "EnumMember",
+	Function = "Function",
+	IndexSignature = "IndexSignature",
+	Interface = "Interface",
+	Method = "Method",
+	MethodSignature = "MethodSignature",
+	Model = "Model",
+	Namespace = "Namespace",
+	Package = "Package",
+	Property = "Property",
+	PropertySignature = "PropertySignature",
+	TypeAlias = "TypeAlias",
+	Variable = "Variable",
 }
 
 /**
@@ -105,29 +105,28 @@ export enum ApiItemKind {
  * Separate overloads of functions or methods are represented as distinct API items.
  */
 export interface ApiItem<TKind extends ApiItemKind = ApiItemKind> {
-  readonly kind: TKind;
-  readonly documentation?: ApiDocumentation;
+	readonly kind: TKind;
+	readonly documentation?: ApiDocumentation;
 
-  /**
-   * The containing context for this API item, if any (e.g., the class containing a method), by ID.
-   * @privateRemarks
-   * TODO: do we need a potentially cross-package identifier here? Or will a local identifier suffice? Is it possible (via merged declarations across package boundaries, for example) to have a parent context that is not local to the current package?
-   */
-  readonly parent?: ApiIdentifier;
+	/**
+	 * The containing context for this API item, if any (e.g., the class containing a method), by ID.
+	 * @privateRemarks
+	 * TODO: do we need a potentially cross-package identifier here? Or will a local identifier suffice? Is it possible (via merged declarations across package boundaries, for example) to have a parent context that is not local to the current package?
+	 */
+	readonly parent?: ApiIdentifier;
 
-  // Other data common to all kinds of API items
+	// Other data common to all kinds of API items
 }
 
 /**
  * An API item with child elements
  */
-export interface ApiParentItem<
-  TKind extends ApiItemKind = ApiItemKind,
-> extends ApiItem<TKind> {
-  /**
-   * The child elements of this API item, by ID.
-   */
-  readonly children: readonly ApiIdentifier[];
+export interface ApiParentItem<TKind extends ApiItemKind = ApiItemKind>
+	extends ApiItem<TKind> {
+	/**
+	 * The child elements of this API item, by ID.
+	 */
+	readonly children: readonly ApiIdentifier[];
 }
 
 // TODO: probably a type that represents API items may have child elements
@@ -143,14 +142,14 @@ export interface ApiParentItem<
  * The documentation for the package comes from the `@packageDocumentation` comment.
  */
 export interface ApiPackage extends ApiParentItem<ApiItemKind.Package> {
-  readonly entrypoints: readonly ApiIdentifier[];
+	readonly entrypoints: readonly ApiIdentifier[];
 }
 
 /**
  * API item representing a function.
  */
 export interface ApiFunction extends ApiItem<ApiItemKind.Function> {
-  // Function-specific data (parameters, etc.)
+	// Function-specific data (parameters, etc.)
 }
 
 // ...
