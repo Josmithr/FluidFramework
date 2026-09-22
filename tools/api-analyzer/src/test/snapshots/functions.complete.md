@@ -10,6 +10,5 @@ export function convert(value: string): string;
 
 // @internal (undocumented)
 export function convert(value: number): number;
-
 export type { convert as alias };
 ```

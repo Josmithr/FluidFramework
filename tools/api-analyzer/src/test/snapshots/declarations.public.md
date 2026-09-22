@@ -13,6 +13,7 @@ export class Implementation extends Base {
     label: string;
     operation(value: string): string;
 }
+export type { Implementation as TypeImplementation };
 
 // @public
 export enum Mode {
@@ -49,6 +50,4 @@ export type ValueName = string;
 
 // @public
 export const version: "v1";
-
-export type { Implementation as TypeImplementation };
 ```

@@ -152,6 +152,7 @@ export class Store implements Box<string> {
     set value(value: string);
     get(): string;
 }
+export type { Store as StoreType };
 
 // @public
 export type Text = Support["text"];
@@ -210,8 +211,6 @@ export namespace parse {
 
 // @public
 export const version = 1;
-
-export type { Store as StoreType };
 
 export { _default as ExpressionDefault };
 

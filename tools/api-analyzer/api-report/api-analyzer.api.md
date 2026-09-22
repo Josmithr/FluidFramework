@@ -12,6 +12,7 @@ declare interface APIAnalysis {
     generateReport(entrypoint: string, selection: ApiItemSelection, presentation?: ReviewPresentationOptions): Result<string>;
     getStatistics(): APIStatistics;
 }
+export type { APIAnalysis };
 
 // @public @sealed
 declare interface APIStatistics {
@@ -19,12 +20,14 @@ declare interface APIStatistics {
     readonly entrypoints: number;
     readonly signatures: number;
 }
+export type { APIStatistics };
 
 // @public @sealed
 declare interface AnalyzerDiagnostic {
     readonly code: DiagnosticCode;
     readonly message: string;
 }
+export type { AnalyzerDiagnostic };
 
 // @public
 declare interface ApiItemSelection {
@@ -34,6 +37,7 @@ declare interface ApiItemSelection {
     readonly releaseLevels: readonly ReleaseLevel[];
     readonly requireTags?: readonly string[] | undefined;
 }
+export type { ApiItemSelection };
 
 // @public
 declare interface ClassificationOptions extends TsdocOptions {
@@ -41,6 +45,7 @@ declare interface ClassificationOptions extends TsdocOptions {
     readonly customModifierTags?: readonly string[] | undefined;
     readonly rules?: ClassificationRules | undefined;
 }
+export type { ClassificationOptions };
 
 // @public
 declare interface ClassificationRules {
@@ -48,6 +53,7 @@ declare interface ClassificationRules {
     readonly requireReleaseLevel?: boolean | undefined;
     readonly validateTsdocSyntax?: boolean | undefined;
 }
+export type { ClassificationRules };
 
 // @public
 declare interface Configuration extends TsdocOptions {
@@ -62,6 +68,7 @@ declare interface Configuration extends TsdocOptions {
     readonly rules?: ClassificationRules | undefined;
     readonly suite?: SuiteConfiguration | undefined;
 }
+export type { Configuration };
 
 // @public @sealed
 declare interface DependencyModel {
@@ -79,6 +86,7 @@ declare interface DependencyModel {
     readonly packageName: string;
     readonly version: 1;
 }
+export type { DependencyModel };
 
 // @public
 export enum DiagnosticCode {
@@ -122,6 +130,7 @@ declare interface DirectionalReferenceRule {
     readonly source: Omit<ApiItemSelection, "name">;
     readonly target: Omit<ApiItemSelection, "name">;
 }
+export type { DirectionalReferenceRule };
 
 // @public @sealed
 declare interface EffectiveConfiguration {
@@ -134,12 +143,14 @@ declare interface EffectiveConfiguration {
     readonly rules: ClassificationRules;
     readonly suite?: SuiteConfiguration | undefined;
 }
+export type { EffectiveConfiguration };
 
 // @public
 declare interface Entrypoint {
     readonly name: string;
     readonly path: string;
 }
+export type { Entrypoint };
 
 // @public
 declare interface ReferencePolicies {
@@ -148,6 +159,7 @@ declare interface ReferencePolicies {
     readonly inheritanceVisibility?: boolean | undefined;
     readonly releaseCompatibility?: boolean | undefined;
 }
+export type { ReferencePolicies };
 
 // @public
 export enum ReleaseLevel {
@@ -163,6 +175,7 @@ declare type Result<TValue = never> = FailedResult | ([
 ] extends [
     never
 ] ? SuccessStatus : SuccessfulResult<TValue>);
+export type { Result };
 
 // @public
 declare interface ReviewPresentationOptions {
@@ -170,17 +183,20 @@ declare interface ReviewPresentationOptions {
     readonly includeReleaseTags?: boolean | undefined;
     readonly includeUndocumentedNotice?: boolean | undefined;
 }
+export type { ReviewPresentationOptions };
 
 // @public
 declare interface SuiteConfiguration {
     readonly modelFile: string;
     readonly packages: readonly string[];
 }
+export type { SuiteConfiguration };
 
 // @public
 declare interface TsdocOptions {
     readonly customModifierTags?: readonly string[] | undefined;
 }
+export type { TsdocOptions };
 
 // @public
 export function analyzeAPIs(configuration: Configuration, workingDirectory?: string): Promise<Result<APIAnalysis>>;
@@ -193,36 +209,4 @@ export function decodeDependencyModels(inputs: readonly {
     readonly packageName: string;
     readonly text: string;
 }[]): Result<readonly DependencyModel[]>;
-
-export type { APIAnalysis };
-
-export type { APIStatistics };
-
-export type { AnalyzerDiagnostic };
-
-export type { ApiItemSelection };
-
-export type { ClassificationOptions };
-
-export type { ClassificationRules };
-
-export type { Configuration };
-
-export type { DependencyModel };
-
-export type { DirectionalReferenceRule };
-
-export type { EffectiveConfiguration };
-
-export type { Entrypoint };
-
-export type { ReferencePolicies };
-
-export type { Result };
-
-export type { ReviewPresentationOptions };
-
-export type { SuiteConfiguration };
-
-export type { TsdocOptions };
 ```

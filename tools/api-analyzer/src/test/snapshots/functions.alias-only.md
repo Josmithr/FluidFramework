@@ -7,6 +7,5 @@ Surface: `"public"`
 ```ts
 // @public (undocumented)
 declare function convert(value: string): string;
-
 export type { convert as alias };
 ```

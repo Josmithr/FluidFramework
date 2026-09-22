@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "mocha";
 import { ReleaseLevel } from "../../analysis-types/classification.js";
 import type { CompletedAnalysis } from "../../analysis-types/completedGraph.js";
+import { assertSnapshot } from "../../test/snapshotUtils.js";
 import { freezeData } from "../../utilities/freezeData.js";
 import {
 	createReviewReport,
 	prepareReviewReport,
 	renderReviewReport,
+	type ReviewReport,
 } from "../reviewReport.js";
 
 /**
@@ -187,25 +189,96 @@ describe("Report generation from completed data", () => {
 			additionalTags: ["@deprecated", "@public", "@beta"],
 		});
 		assert.equal(renderReviewReport(report), text);
-		assert.match(text, /\/\/ @public\nexport class Box/);
-		assert.match(text, /\/\/ @public\nexport interface Contract/);
-		assert.match(text, /\/\/ @public\nexport enum Mode/);
-		assert.match(text, /\/\/ @public\nexport namespace Group/);
-		assert.match(text, /\/\/ @public\nexport function convert\(value: string\)/);
-		assert.match(text, /\/\/ @beta\nexport function convert\(value: number\)/);
-		assert.doesNotMatch(text, /^ +\/\/[^\n]*@(public|beta|alpha|internal)/m);
-		assert(text.includes("    // @deprecated (undocumented)\n    constructor"));
-		assert(text.includes("    // @deprecated (undocumented)\n    (): string"));
-		assert(
-			text.includes("        // @deprecated (undocumented)\n        export function run"),
-		);
-		assert.doesNotMatch(
+		assertSnapshot(text, "report.member-annotations.md");
+		assertSnapshot(
 			renderReviewReport(report, {
 				includeReleaseTags: false,
 				additionalTags: ["@public", "@beta"],
 			}),
-			/@(public|beta|alpha|internal)/,
+			"report.member-annotations-no-release-tags.md",
 		);
+		assert.equal(JSON.stringify(report), before);
+	});
+
+	it("places type-only exports after their complete declaration group in each scope", () => {
+		const metadata = {
+			text: "",
+			documented: true,
+			releaseLevel: ReleaseLevel.Public,
+			modifierTags: [],
+		};
+		const box = {
+			declarationId: "box",
+			declarationName: "Box",
+			name: "Box",
+			typeOnly: false,
+			signatures: [],
+			container: {
+				...metadata,
+				prefix: "class ",
+				suffix: "",
+				members: [],
+				augmentation: { suffix: "", members: [{ ...metadata, text: "(): string;" }] },
+			},
+			namespace: {
+				...metadata,
+				exports: [
+					{
+						declarationId: "mode",
+						declarationName: "Mode",
+						name: "Mode",
+						typeOnly: true,
+						signatures: [],
+						container: {
+							...metadata,
+							prefix: "enum ",
+							suffix: "",
+							members: [{ ...metadata, text: "Ready = 0," }],
+						},
+					},
+					{
+						declarationId: "box",
+						declarationName: "Box",
+						name: "Self",
+						typeOnly: false,
+						signatures: [],
+						namespace: { ...metadata, exports: [], reference: "box" },
+					},
+				],
+			},
+		};
+		const report: ReviewReport = freezeData({
+			packageName: "example",
+			surface: "complete",
+			exports: [
+				box,
+				{ ...box, name: "ZBox", typeOnly: true },
+				{ ...box, name: "ABox", typeOnly: true },
+				{ ...box, name: "ValueBox" },
+				{
+					declarationId: "overloads",
+					declarationName: "convert",
+					name: "ConvertType",
+					typeOnly: true,
+					signatures: [
+						{ ...metadata, text: "(value: string): string;" },
+						{ ...metadata, text: "(value: number): number;" },
+					],
+				},
+				{
+					declarationId: "count",
+					declarationName: "count",
+					name: "CountType",
+					typeOnly: true,
+					signatures: [],
+					statement: { ...metadata, prefix: "const ", suffix: ": number;" },
+				},
+			],
+		});
+		const before = JSON.stringify(report);
+		const text = renderReviewReport(report, { includeReleaseTags: false });
+		assertSnapshot(text, "report.type-only-groups.md");
+		assert.equal(renderReviewReport(report, { includeReleaseTags: false }), text);
 		assert.equal(JSON.stringify(report), before);
 	});
 
@@ -250,11 +323,7 @@ describe("Report generation from completed data", () => {
 				},
 			],
 		});
-		assert.match(report, /declare interface Item {/);
-		assert.match(report, /declare class Box {/);
-		assert.match(report, /export type { Item };/);
-		assert.match(report, /export type { Box };/);
-		assert.doesNotMatch(report, /Item_1|Box_1|export class Box/);
+		assertSnapshot(report, "report.type-only-names.md");
 	});
 
 	it("reserves names belonging to other declarations before assigning local names", () => {
@@ -293,11 +362,7 @@ describe("Report generation from completed data", () => {
 				},
 			],
 		});
-		assert.match(report, /declare function Source_2\(\): void;/);
-		assert.match(report, /declare function Source\(\): void;/);
-		assert.match(report, /export function Source_1\(\): void;/);
-		assert.match(report, /export type { Source_2 as Alias };/);
-		assert.match(report, /export type { Source };/);
+		assertSnapshot(report, "report.name-collisions.md");
 	});
 
 	it("uses resolved content and original metadata without processing source comments", () => {
@@ -316,7 +381,7 @@ describe("Report generation from completed data", () => {
 				modifierTags: ["@public"],
 			},
 		]);
-		assert.equal(renderReviewReport(result.value).includes("(undocumented)"), false);
+		assertSnapshot(renderReviewReport(result.value), "functions.resolved.md");
 		assert.equal(JSON.stringify(graph), before);
 		assert.equal(Object.isFrozen(result.value.exports), true);
 	});
@@ -343,7 +408,7 @@ describe("Report generation from completed data", () => {
 			releaseLevels: [ReleaseLevel.Public],
 		});
 		assert.equal(report.ok, true);
-		assert.match(renderReviewReport(report.value), /export function value\(\): string;/);
+		assertSnapshot(renderReviewReport(report.value), "functions.resolved.md");
 		assert.equal(JSON.stringify(input), before);
 		assert.equal(input.facts.declarations[0]?.signatures[0]?.id, "signature");
 	});
@@ -413,8 +478,7 @@ describe("Report generation from completed data", () => {
 			excludeTags: ["@omit"],
 		});
 		assert.equal(selected.ok, true);
-		assert.match(renderReviewReport(selected.value), /class Child/);
-		assert.match(renderReviewReport(selected.value), /value: string/);
+		assertSnapshot(renderReviewReport(selected.value), "report.selected-container.md");
 		const excluded = createReviewReport(prepared, ".", {
 			name: "excluded",
 			releaseLevels: [ReleaseLevel.Public],

@@ -917,6 +917,8 @@ function formatCodeSpan(text: string): string {
  * @remarks
  * Accepts a report created by {@link createReviewReport}. Does not mutate or sort its input.
  * Uses an API Extractor-like heading, a single TypeScript block, and explicit alias exports.
+ * Type-only export statements immediately follow their complete declaration group within each namespace scope.
+ * Ordinary alias exports remain at the end of their scope.
  * Release annotations appear on top-level declarations and standalone overloads, not container members.
  * Inherited members receive separate source annotations, including the owning package for cross-package inheritance.
  * Source annotations are independent of tag and undocumented-notice settings.
@@ -960,6 +962,7 @@ export function renderReviewReport(
  * @remarks
  * Reuses names owned by the same declaration; generated suffixes distinguish different declarations.
  * Type-only exports remain explicit even when the local declaration keeps its original name.
+ * Groups them after all overloads and merged declaration parts, with no intervening blank line.
  * @param exports - Selected exported bindings in canonical order.
  * @param options - Annotation presentation settings.
  * @param enclosing - Rendered names of enclosing namespace identities for recursive alias references.
@@ -1066,6 +1069,8 @@ function renderDeclarationText(
 
 		// Generated local names must also remain unavailable to subsequent declaration groups.
 		nameOwners.set(localName, binding.declarationId);
+		const declarationParts: string[] = [];
+		const typeAliases: string[] = [];
 		const declarationPrefix =
 			direct === undefined ? (enclosing.size === 0 ? "declare " : "") : "export ";
 		let namespaceDeclaration: string | undefined;
@@ -1083,7 +1088,7 @@ function renderDeclarationText(
 		}
 		if (binding.statement !== undefined) {
 			const statement = binding.statement;
-			declarations.push(
+			declarationParts.push(
 				`${renderAnnotation(statement, enclosing.size === 0)}${declarationPrefix}${statement.prefix}${localName}${statement.suffix}`,
 			);
 		}
@@ -1099,7 +1104,7 @@ function renderDeclarationText(
 						.join("\n"),
 				)
 				.join("\n");
-			declarations.push(
+			declarationParts.push(
 				`${renderAnnotation(container, enclosing.size === 0)}${declarationPrefix}${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
 			);
 			if (container.augmentation !== undefined) {
@@ -1111,30 +1116,31 @@ function renderDeclarationText(
 							.join("\n"),
 					)
 					.join("\n");
-				declarations.push(
+				declarationParts.push(
 					`${renderAnnotation(container, enclosing.size === 0)}${declarationPrefix}interface ${localName}${container.augmentation.suffix} {\n${augmentationText}\n}`,
 				);
 			}
 		}
 		for (const signature of binding.signatures) {
 			const comment = renderAnnotation(signature, enclosing.size === 0);
-			declarations.push(
+			declarationParts.push(
 				`${comment}${declarationPrefix}function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
 			);
 		}
 		if (namespaceDeclaration !== undefined) {
-			declarations.push(namespaceDeclaration);
+			declarationParts.push(namespaceDeclaration);
 		}
 		for (const exported of group) {
 			if (exported !== direct) {
 				const exportName = /^[$A-Z_a-z][\w$]*$/.test(exported.name)
 					? exported.name
 					: JSON.stringify(exported.name);
-				aliases.push(
+				(exported.typeOnly ? typeAliases : aliases).push(
 					`export ${exported.typeOnly ? "type " : ""}{ ${localName}${exported.name === localName ? "" : ` as ${exportName}`} };`,
 				);
 			}
 		}
+		declarations.push([declarationParts.join("\n\n"), ...typeAliases.sort()].join("\n"));
 	}
 	return [...declarations, ...aliases.sort()].join("\n\n") || "// No selected exports.";
 }

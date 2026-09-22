@@ -5,7 +5,6 @@
 Surface: `"public"`
 
 ```ts
-// @public @partner
-export function convert(value: string): string;
-export type { convert as alias };
+// @public
+export function value(): string;
 ```

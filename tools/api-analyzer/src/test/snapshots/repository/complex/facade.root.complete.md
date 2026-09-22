@@ -10,6 +10,7 @@ declare interface Service extends Domain, Adapter {
     // Inherited from `Contract` in package `@scenario/core`
     convert(value: string): string;
 }
+export type { Service as Contract };
 
 // @public
 declare function source(value: string): string;
@@ -19,8 +20,6 @@ export function operation(value: string): string;
 
 // @internal
 export function target(value: string): string;
-
-export type { Service as Contract };
 
 export { source as facadeAlias };
 ```

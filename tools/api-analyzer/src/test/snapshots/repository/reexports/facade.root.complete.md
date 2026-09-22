@@ -9,16 +9,14 @@ Surface: `"complete"`
 export interface Contract<TValue> {
     convert(value: TValue): TValue;
 }
+export type { Contract as ContractType };
 
 // @public
 export function source(value: string): string;
+export type { source as SourceType };
 
 // @beta
 export function target(value: string): string;
-
-export type { Contract as ContractType };
-
-export type { source as SourceType };
 
 export { source as renamedSource };
 ```

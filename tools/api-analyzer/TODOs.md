@@ -6,11 +6,44 @@ Stage 3 portable models and the remaining required Stage 4 declaration rollups a
 
 ## API Report TODOs
 
-### Move `export type { Foo };` statements next to their declarations
+## Simplify type-only exports for type-only API kinds
 
-Currently, APIs that are exported by type only are presented in the API report as a non-exported declaration and a `export type { Foo };` statement.
-All of the latter statements appear at the bottom of the file.
-It would be nicer to (by default) put them directly beneath the declaration they export.
+Our reports are more complex than they need to be for exports of type-only contents.
+
+E.g.
+
+```typescript
+export interface Foo {}
+```
+
+This case currently yields something like:
+
+```typescript
+declare interface Foo {}
+export { type Foo };
+```
+
+It would be better if the output were:
+
+```typescript
+export interface Foo {}
+```
+
+Ideally, the current declare-then-export syntax would only be used when type-only exporting non-type-only API kinds.
+
+E.g.
+
+```typescript
+class Foo {}
+export type Foo;
+```
+
+In this case, it's fine for us to yield, because there's not a simpler syntax we can use:
+
+```typescript
+declare class Foo {}
+export { type Foo };
+```
 
 ### Add import statements
 
