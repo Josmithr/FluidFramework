@@ -1,0 +1,1 @@
+{ "packages": ["core", "domain", "adapter", "unused", "service", "facade"] }

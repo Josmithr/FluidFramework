@@ -1,0 +1,39 @@
+{
+  "format": "api-analyzer-documentation",
+  "version": 1,
+  "graph": {
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": []
+      }
+    ],
+    "declarations": []
+  },
+  "identityVersion": 1,
+  "compilerVersion": "7.0.2",
+  "packageName": "@scenario/empty",
+  "inputFiles": [
+    {
+      "file": "lib/index.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    }
+  ],
+  "dependencyModels": [],
+  "modifierTags": [
+    "@alpha",
+    "@beta",
+    "@eventProperty",
+    "@experimental",
+    "@internal",
+    "@override",
+    "@packageDocumentation",
+    "@public",
+    "@readonly",
+    "@sealed",
+    "@virtual"
+  ],
+  "apis": [],
+  "exports": [],
+  "external": []
+}

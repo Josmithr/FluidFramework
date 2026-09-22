@@ -1,0 +1,10 @@
+{
+  "name": "@scenario/primary",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": { "types": "./lib/index.d.ts" },
+    "./values": { "types": "./lib/values.d.ts" },
+    "./empty": { "types": "./lib/empty.d.ts" }
+  }
+}

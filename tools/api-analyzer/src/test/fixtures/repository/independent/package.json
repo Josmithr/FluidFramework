@@ -1,0 +1,1 @@
+{ "name": "independent-repository", "private": true, "workspaces": ["packages/*"] }

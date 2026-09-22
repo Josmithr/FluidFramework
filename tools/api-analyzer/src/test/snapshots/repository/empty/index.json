@@ -1,0 +1,12 @@
+[
+  {
+    "packageName": "@scenario/empty",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": []
+      }
+    ],
+    "exports": []
+  }
+]

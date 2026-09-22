@@ -1,0 +1,1 @@
+{ "name": "@scenario/unused", "version": "1.0.0", "type": "module", "exports": { ".": { "types": "./lib/index.d.ts" } } }

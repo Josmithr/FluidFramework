@@ -1,0 +1,1 @@
+{ "packageName": "@scenario/facade", "project": "tsconfig.analysis.json", "entrypoints": [{ "name": ".", "path": "lib/index.d.ts" }], "suite": { "packages": ["@scenario/core", "@scenario/domain", "@scenario/adapter", "@scenario/unused", "@scenario/service"], "modelFile": "api.json" } }

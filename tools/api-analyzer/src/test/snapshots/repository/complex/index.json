@@ -1,0 +1,563 @@
+[
+  {
+    "packageName": "@scenario/adapter",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Adapter"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Adapter"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Adapter",
+            "owner": "@scenario/adapter",
+            "sourcePackage": "@scenario/adapter",
+            "documentation": "/**\n * Adapter contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/adapter\\\",\\\"lib/index.d.ts\\\"]\"],\"Adapter\"]",
+                "packageName": "@scenario/adapter"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Adapter",
+          "convert"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/adapter",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/adapter\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Adapter\\\"]\",\"convert\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "packageName": "@scenario/core",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Contract",
+          "source",
+          "target"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Contract"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Contract",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Generic conversion contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Contract",
+          "convert"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "source"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "source",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "target"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "target",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core target documentation.\n *\n * @beta\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "packageName": "@scenario/domain",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Domain",
+          "domainAlias",
+          "inherited"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Domain"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Domain",
+            "owner": "@scenario/domain",
+            "sourcePackage": "@scenario/domain",
+            "documentation": "/**\n * Domain text contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/domain\\\",\\\"lib/index.d.ts\\\"]\"],\"Domain\"]",
+                "packageName": "@scenario/domain"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Domain",
+          "convert"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/domain",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/domain\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Domain\\\"]\",\"convert\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "domainAlias"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "source",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "inherited"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "inherited",
+            "owner": "@scenario/domain",
+            "sourcePackage": "@scenario/domain",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "packageName": "@scenario/facade",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Contract",
+          "facadeAlias",
+          "operation",
+          "target"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Contract"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "Service",
+            "owner": "@scenario/service",
+            "sourcePackage": "@scenario/service",
+            "documentation": "/**\n * Combined service contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/service\\\",\\\"lib/index.d.ts\\\"]\"],\"Service\"]",
+                "packageName": "@scenario/service"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Contract",
+          "convert"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/service",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/service\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Service\\\"]\",\"convert\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "facadeAlias"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "source",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "operation"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "operation",
+            "owner": "@scenario/service",
+            "sourcePackage": "@scenario/service",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "target"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "target",
+            "owner": "@scenario/facade",
+            "sourcePackage": "@scenario/facade",
+            "documentation": "/**\n * Local target must not capture the inherited core link.\n *\n * @internal\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/facade\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/facade"
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "packageName": "@scenario/service",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Service",
+          "operation",
+          "serviceAlias"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Service"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Service",
+            "owner": "@scenario/service",
+            "sourcePackage": "@scenario/service",
+            "documentation": "/**\n * Combined service contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/service\\\",\\\"lib/index.d.ts\\\"]\"],\"Service\"]",
+                "packageName": "@scenario/service"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Service",
+          "convert"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/service",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/service\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Service\\\"]\",\"convert\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "operation"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "operation",
+            "owner": "@scenario/service",
+            "sourcePackage": "@scenario/service",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "serviceAlias"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "source",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "packageName": "@scenario/unused",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": []
+      }
+    ],
+    "exports": []
+  }
+]

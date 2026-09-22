@@ -135,9 +135,10 @@ Evidence:
 
 The workflow must cover client, server, build-tools, independent common/tool packages, examples, and experimental packages that currently use API Extractor.
 It must handle packages with one entrypoint and packages with multiple subpath or conditional entrypoints.
-The tool may support ECMAScript modules (ESM) exclusively; CommonJS support is not required.
+The library and its supported package inputs are ECMAScript module (ESM) only.
+CommonJS package inputs, including TypeScript `export =` declarations, are outside the analysis, report, model, and declaration-rollup scope.
 Within the supported ESM surfaces, it must distinguish Node, browser, and custom package-resolution conditions where the package uses them.
-The package and validation-coverage requirements do not require analysis of CommonJS-only entrypoints.
+CommonJS support is not deferred work or a stage-acceptance requirement.
 It must not assume that every package exposes current and legacy release-level entrypoints.
 
 Developers must be able to review a complete surface or selected release levels.

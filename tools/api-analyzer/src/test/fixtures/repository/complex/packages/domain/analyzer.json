@@ -1,0 +1,1 @@
+{ "packageName": "@scenario/domain", "project": "tsconfig.analysis.json", "entrypoints": [{ "name": ".", "path": "lib/index.d.ts" }], "suite": { "packages": ["@scenario/*"], "modelFile": "api.json" } }

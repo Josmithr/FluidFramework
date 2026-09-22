@@ -1,0 +1,5 @@
+{
+  "name": "primary-repository",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

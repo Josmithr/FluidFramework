@@ -62,7 +62,7 @@ An implementation blocker must produce a documented decision request, not an una
 - Expose API statistics separately from internal performance instrumentation. Exact output signatures and statistics remain to be specified.
 - Expected validation failures return diagnostics; internal and unexpected operational failures reject the promise. An asynchronous entrypoint does not require the native asynchronous compiler client.
 - Provide a Node.js-compatible TypeScript API. A CLI is optional, not part of the initial required delivery.
-- ESM-only support is acceptable. Preserve Node, browser, and custom resolution conditions for supported entrypoints.
+- The library and supported package inputs are ESM only. CommonJS packages and TypeScript `export =` declarations are out of scope, not deferred work or stage-acceptance blockers. Preserve Node, browser, and custom resolution conditions for supported ESM entrypoints.
 - Keep Fluid tags, package scopes, surface names, and policy meanings outside the generic implementation.
 - V1 selects classes, interfaces, enums, and namespaces as whole containers. Neither release-level nor custom-tag selection may trim their members, including constructors and static members. Explicit member release levels must equal the declaring container's effective level; untagged members inherit that level. This rule has no V1 opt-out. Validate local overrides against their declaring container and reuse completed base-member validation. Standalone overload selection remains independent. See the [compound-container decision](#3-atomic-compound-functionnamespace-apis) and [future flexibility investigation](api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
 - Follow documentation-driven development, test-driven development, and functional programming principles throughout this project.
@@ -943,6 +943,187 @@ The graph deliberately stores effective member views rather than reconstructing 
 This can duplicate syntax across receiving types; deduplicating it is an optimization, not a requirement for source-free correctness.
 Direct heritage targets preserve recursive ancestry, and receiving views preserve transitive substitutions without inferring overload compatibility.
 Stage 5 still owns documenter integration, stable website URL policies, and migration or retention of maintained historical artifacts.
+
+#### Repository scenario acceptance suites
+
+Implementation status (2026-09-21): repository-shaped report/model suites now exercise all five baseline topologies, with independent-package, package-documentation-only, subpath, scoped-selector, and peer-dependency coverage.
+The [fixture guide](../src/test/fixtures/repository/README.md) maps the API inventory, artifacts, and known report limitations to checked-in inputs.
+The [workflow tests](../src/test/repository.test.ts) run both producer compilers; the [failure tests](../src/test/repositoryFailures.test.ts) cover source and artifact freshness, integrity, and dependency-first recovery.
+The fixtures include all package code and infrastructure: manifests, compiler projects, analyzer settings, and package build order.
+Runtime setup copies a workspace and links its packages; it does not synthesize repository code or configuration.
+Stage 3 is not yet accepted: module namespace re-exports and inherited non-public class members have explicit report-rejection tests, not successful report support.
+CommonJS export assignment is outside the agreed ESM-only input scope; it is not a fixture requirement or a remaining report gap.
+The remaining requirements below continue to define acceptance rather than treating these known rejections as completed capabilities.
+Extend the same scenarios with trimmed-rollup checks when Stage 4 provides declaration generation.
+Do not add passing placeholders or new skipped tests for APIs that do not exist yet.
+
+The purpose is to demonstrate complete package workflows, not repeat every compiler edge case in every repository layout.
+Keep the focused [native tests](../src/test/nativeCapabilities.test.ts), [suite tests](../src/test/suite.test.ts), and [self-artifact pilot](../src/test/pilot.test.ts).
+The new suites connect those contracts through public entrypoints and inspect the artifacts that a downstream consumer receives.
+
+The exported single-package scenario is the primary example for API-kind and export-form coverage.
+The other scenarios use only the API kinds needed to demonstrate their distinct behavior, such as cross-package ownership, re-exports, or transitive relationships.
+Repeat an API kind in another scenario when its interaction with that relationship is under test, not to repeat the full kind inventory.
+
+##### Required repository scenarios
+
+Every scenario must compile actual package sources, analyze emitted declarations, generate reports and models, and consume the models in a separate process.
+Every package in a multi-package scenario gets its own model and selected reports, not only the final consumer.
+Use small, documented APIs so a reviewer can inspect the complete expected artifacts.
+
+| Scenario | Repository configuration | API-report checks now | API-model checks now | Trimmed-rollup checks in Stage 4 |
+| --- | --- | --- | --- | --- |
+| Single package without exported APIs | One configured root entrypoint containing `export {}`. Start without package documentation; add a package-documentation-only variant. Private declarations must not become exports. | The configured surface produces the supported empty report for every selection. Package documentation appears when present. No accidental exports or inferred fallback entrypoint. | The root surface exists with no exports. Package identity, input fingerprints, and optional package documentation remain valid. Decode succeeds without inventing public API records. | An empty external module compiles and exposes no names. It must not become an ambient script or leak private declarations. |
+| Single package with exported APIs | The primary API-kind example, with the declaration and export forms listed below. Organize sources into focused modules behind the root entrypoint. Include public, beta, alpha, and internal declarations, a custom modifier, and referenced unexported supporting types. | Exact complete and selected surfaces, stable names, overload order, original release metadata, and inherited-member annotations. Every supported kind has an explicit expectation. A selection with no matches stays empty. | All retained declaration shapes and documentation survive regardless of report selection. Excerpts reconstruct displayed text; reference targets, source locations, and documentation links identify the intended records. No external owners or selected dependency fingerprints. | Every supported kind has a consumer check. Included exports compile; excluded exports fail at intended import/use sites. Required supporting declarations remain available without becoming public exports. Remove imports used only by excluded APIs. |
+| Two packages without re-exports | `consumer` depends on `contracts`, uses a contract in its own API, and implements a generic interface, but exports no dependency bindings. Include an explicit cross-package documentation link and inherited member documentation. | Consumer reports expose only consumer bindings while showing its foreign type references and original inherited-member ownership. Both packages have independent reports. | Consumer records the producer fingerprint and foreign documentation ownership. Effective members retain substitutions and original provenance. A dependency shape in the consumer graph must not become a consumer-owned documentation record or export. | The consumer declaration output preserves required external imports without adding dependency exports. Compile it against the matching producer output. |
+| Two packages with re-exports | A facade re-exports an origin package through named, renamed, and type-only bindings. Keep ordinary star and namespace re-exports as separate small variants. | Public names and aliases match each surface; the declaration's original name and ownership remain distinguishable. Repeated aliases do not create unrelated declarations. | Export paths retain aliases, type-only flags, and original target identities. Foreign documentation remains owned by the origin model. Following a facade path reaches the same declaration as the origin path. | Aliases and type/value distinctions survive trimming. Ordinary re-exports preserve value availability; type-only re-exports do not restore values. Test external-reference and included-dependency modes when those Stage 4 modes are implemented. |
+| Five-package chain and diamond | `core`, `domain`, `adapter`, `service`, and `facade`, with the relationships below. Mix type references, generic inheritance, documentation inheritance, and re-exports. | Inspect every package and the final facade. Preserve alias paths, original declaring-container annotations, and selection boundaries through intermediate packages. | References reached through both diamond branches agree on the original identity and owner. Transitive documentation provenance and dependency fingerprints are complete. Reordered model input does not change the decoded result. Changes to `core` invalidate stale downstream artifacts. | Compile every package and a final consumer using only generated outputs and declared dependencies. Preserve shared nominal identity across both branches, transitive alias behavior, and the supported included/external dependency boundary. |
+
+The complex scenario uses five packages to exercise both a three-edge dependency path and a shared dependency reached by two branches.
+In this diagram, an arrow means "depends on":
+
+```text
+facade -> service -> domain  -> core
+				 -> adapter -> core
+```
+
+Use `core` for generic contracts, a same-named symbol that another package can shadow, and a class with a private member to test nominal identity later.
+Use `domain` for an instantiated derived contract and a renamed export of a core API.
+Use `adapter` for an implementation that refers to core without re-exporting it.
+Use `service` for composition of both branches and a local API that inherits documentation through `domain`.
+Use `facade` for a second renamed export and a type-only export from `service`.
+Ensure at least one documentation chain retains a core-origin link whose spelling also exists in the final consumer; its target must remain the core API.
+Do not assume that shared declaration shapes are stored only once across artifact files.
+The invariant is consistent identity and authoritative documentation ownership, not cross-file shape deduplication.
+
+For the two-package case without re-exports, also run a small variant with two independent packages and no dependency edge.
+This distinguishes a multi-package repository from a selected dependency suite.
+Decoding the two independent models together must not invent dependencies or external references.
+
+##### Primary API-kind example
+
+Use the exported single-package scenario as the readable reference package for the majority of API-kind coverage.
+Maintain an explicit inventory that maps each kind or export form to its fixture declarations, report assertions, model assertions, and future rollup-consumer checks.
+Keep it one package, but separate source modules by API family so the example stays navigable.
+Reuse relevant patterns from native fixtures without copying unrelated failure cases into the successful example.
+
+| API family | Representative coverage |
+| --- | --- |
+| Functions and callable values | Ordinary and generic functions, overloads, and variables whose types are callable. Include representative optional and rest parameters, predicates, and assertion signatures. |
+| Interfaces | Properties and methods; optional and readonly members; generic bases and effective inherited members; call, construct, and index signatures. |
+| Classes | Ordinary and abstract classes; constructors, accessors, static and instance members; inheritance and implemented interfaces. Include protected/private members to check visibility and later nominal identity. |
+| Type aliases | Primitive, literal, union, intersection, object, and generic aliases. Include representative mapped, conditional, indexed-access, and utility-derived types, plus references to unexported supporting types. |
+| Values and enums | Constants, mutable exported variables, unique-symbol values and computed keys, and enum declarations and members. Track ordinary and const-enum behavior separately. |
+| Namespaces and merged declarations | Nested namespaces, repeated interface/namespace declarations, and supported class/interface, class/namespace, function/namespace, and enum/namespace combinations. Include callable class augmentations. |
+| Export forms | Direct and renamed exports, named and anonymous default declarations, default expressions, type-only exports, and same-package named/star/namespace re-exports. CommonJS export assignment is outside the supported ESM-only input scope. |
+
+This inventory defines coverage to establish, not a claim that every listed form is already supported.
+Record unsupported or uncertain forms explicitly with the expected diagnostic or an acceptance blocker; do not silently omit them from the inventory or mark them as passing.
+Keep negative cases for supported ESM forms in targeted variants within the single-package scenario family.
+Distribute release tags and documentation features across representative declarations rather than multiplying every API kind by every tag, syntax variation, and repository topology.
+The focused compiler tests remain responsible for exhaustive syntax edge cases.
+Multi-package scenarios can reuse a small subset, such as a generic interface, function, alias, and class, to isolate relationship-specific behavior.
+
+##### Shared end-to-end workflow
+
+1. Copy a complete checked-in workspace, including package sources, manifests, export maps, TypeScript projects, analyzer configurations, and dependency-first package order. Create local workspace package links in the temporary repository; do not construct its code or infrastructure dynamically. Use actual package-name resolution, not network installs, a user's checkout paths, or TypeScript `paths` mappings that bypass package ownership.
+2. Emit comment-preserving declarations with each supported producer compiler. Build the dependency graph in dependency order. Analyze each package through `analyzeAPIs`, write its model only inside the temporary repository, and make that model and the type declarations available to downstream packages. Model artifacts do not replace the declarations used by compiler analysis.
+3. From each successful analysis, generate its reports and complete model. Exercise model-first and report-first ordering on representative cases, repeat generation, and verify unchanged outputs and statistics. Generate again after the analyzed inputs are removed in a disposable copy to prove that returned analysis objects do not perform further file or compiler queries. Keep a separate copy of the required declarations for compiler-consumer tests.
+4. Compare complete output text with accepted snapshots and run independent semantic assertions. Check both root and configured subpath surfaces. Require stable bytes across repeated runs and relocated repositories for the same compiler inputs; do not require identical bytes across compiler versions unless the emitted inputs are identical.
+5. Pass only the JSON artifacts to a fresh consumer process using the public `api-analyzer/model` entrypoint. Make fixture source and declaration trees unavailable and block compiler-backed analysis imports. Decode each model and the complete set. Traverse export paths, declarations, documentation IDs, inherited sections, and excerpt reference tokens using stored IDs, without resolving TypeScript names or TSDoc references again.
+6. Produce a small test-owned documentation index from the decoded data: package, surface, exported path, original owner, summary, and resolved reference destinations. Snapshot this index and assert selected targets explicitly. It demonstrates source-free use without introducing a production renderer or preempting Stage 5 website URL policy.
+7. Apply one failure mutation at a time in a fresh temporary copy. Assert the relevant diagnostic category and named package or target, absence of a successful analysis value, and no writes to accepted baselines. Keep malformed artifacts distinct from valid but stale dependency sets. Regenerate dependencies before consumers for the recovery check.
+8. In Stage 4, add complete and trimmed declaration outputs to the same lifecycle after compiler disposal. Compile positive and negative consumer fixtures against generated files with both supported consumer compilers, without access to the original package declarations. Test both output orders without recreating analysis. Do not attempt to obtain a rollup by decoding a model into `APIAnalysis`; analysis restoration remains outside this plan.
+
+Use the existing Mocha discovery and the read-only [snapshot helper](../src/test/snapshotUtils.ts).
+Start with a focused repository-scenario test module and static fixture groups under the existing [fixture tree](../src/test/fixtures/README.md).
+Keep package relationships and expected exports explicit in test-owned data.
+Extract shared setup or artifact assertions only when the first two scenarios demonstrate useful reuse; do not create a general repository orchestration framework.
+Put file writes, process launches, and compiler invocation in test setup; keep artifact traversal and comparisons as simple data transformations.
+Each fixture must explain its purpose in an ordinary module comment, with scenario-specific explanations separate from the TSDoc under test.
+Scenario descriptions should state observable behavior rather than implementation-stage identifiers.
+
+##### Output contracts and baselines
+
+| Output | Required assertions |
+| --- | --- |
+| Reports | Exact Markdown for every configured surface and the scenario's meaningful selections. Assert exported names, type-only aliases, declaring-package annotations, overload order, and absent excluded APIs independently of snapshots. Report text is not treated as a standalone rollup. |
+| Models | Exact encoder output per package, successful decoding, supported format/compiler markers, valid token ranges and reconstruction, reference integrity, original classification, and source provenance. Verify that model generation is not filtered by the report selection. |
+| Cross-package references | Distinguish declaration `target` IDs from documentation `targetSignature` and `documentationId` IDs. Follow `external` ownership to the producer's `apis` records, check target/declaration agreement, and compare stored dependency fingerprints. Foreign graph shapes are permitted; reassigned documentation ownership is not. |
+| Source-free consumption | The complete artifact set works in a fresh process with no fixture source, declarations, or analysis imports. Lookup and rendering use stored identities. Input order is irrelevant; missing dependencies, conflicting ownership, and stale content fail. |
+| Future rollups | Exact declaration snapshots plus compiler checks. Assert export reachability, required imports, support-type closure, type/value semantics, and nominal identity. Positive and negative imports exercise release/custom-tag trimming; excluded declarations must not remain accessible through another alias accidentally. |
+
+The single-package exported-API scenario should cover all release levels and a custom-tag selection.
+Use complete and public-only selections throughout the multi-package baseline scenarios, adding beta-inclusive or custom-tag selections only where the fixture contains a meaningful difference.
+The model remains complete for the analyzed package and selected suite, independently of those report selections.
+Class, interface, enum, and namespace selection stays atomic; do not introduce per-member trimming expectations that contradict the approved container policy.
+Standalone mixed-release overloads may be selected independently.
+With reference-compatibility validation enabled, a public API that exposes an impermissible less-public type must fail analysis rather than pass because that type was hidden from a report.
+
+Store full reports and models as checked-in test snapshots, grouped by scenario and package.
+Use the snapshot helper's directory parameter to avoid changing its filename contract.
+Keep exact JSON formatting, package-relative paths, identities, offsets, and fingerprints; do not normalize away differences the tests need to detect.
+The same baseline can serve both producer compilers when their artifacts are byte-identical.
+If emitted declarations legitimately differ, retain explicitly named compiler-specific expectations and explain the difference; never overwrite one compiler's baseline with the other's output.
+Normal tests must not update snapshots or checked-in self-artifacts.
+Intentional updates generate producers before consumers, then review semantic changes and the resulting fingerprint changes together.
+Prefer small fixtures over compressed or filtered snapshots, and record artifact sizes and test duration before expanding the matrix.
+
+For future trimming, compile the same positive consumer against both original declarations and the corresponding generated output.
+For excluded APIs, use negative consumer tests and verify that failure occurs for the intended missing export or invalid value use, not a missing package or broken test setup.
+For the diamond, assign instances across both branches to catch accidental duplication of private or branded identity.
+Included-dependency rollups must not require the original included package declarations; external-reference rollups must retain the dependencies they intentionally reference.
+Defer exact rollup API calls and included-dependency policy details to the Stage 4 contract rather than inventing an API in these tests now.
+
+##### Failure and recovery cases
+
+Add these focused mutations to the smallest repository scenario that demonstrates the contract:
+
+- Remove a selected model, including one unused by retained API references. Analysis and complete-set decoding must reject the missing required artifact.
+- Supply malformed JSON, a wrong package name, unsupported version marker 99, a dangling excerpt target, or a mismatched documentation target pair. Expect format or integrity diagnostics, not a partially usable model set. Development versions remain 1; these tests do not promise migration support.
+- Change core documentation, rebuild its declarations and model, but leave intermediate models stale. The complex repository must reject the stale content even if the visible export names are unchanged. Rebuild affected intermediate and final models in dependency order and prove successful recovery.
+- Change an analyzed declaration without regenerating its model. Installed-suite analysis must reject the input fingerprint mismatch. A source-free decoder cannot check source-file freshness and must not claim to do so.
+- Change only JSON whitespace or object property order. Dependency content fingerprints should still validate. Changing semantically significant array order, such as overload order, must not be ignored.
+- Remove a transitive model from the supplied set, duplicate a package, or associate an external ID with the wrong owner. Require deterministic rejection independent of input order.
+- Retain original-scope documentation through a re-export and through inheritance despite a same-named local declaration. Include permitted public-to-beta links and rejected non-internal-to-internal links. Do not broaden the existing prohibition on module-based documentation references.
+- Fail shared semantic validation for one API excluded by a report selection. Analysis must still fail; output filtering must not bypass validation.
+
+Keep selected-but-unused dependencies, transitive freshness, and source-free ownership checks in the pre-Stage-4 gate.
+The existing focused suite tests remain useful evidence, but do not substitute for these full repository workflows.
+
+##### Additional configurations
+
+Use targeted variants instead of multiplying every axis across every scenario.
+The first three rows are recommended before Stage 4; the remaining rows can be scheduled by risk without silently expanding current support promises.
+
+| Configuration | Value and proposed placement |
+| --- | --- |
+| Multiple entrypoints, including an empty subpath | Add `.` and two subpaths to the single-package suite. Verify per-surface exports, one package-owned documentation comment, aliases shared across surfaces, and configured exposure-policy failures. |
+| Scoped package names and suite selectors | Run the complex fixture with scoped names and compare explicit selection with matching glob selection. Include an unused selected package in a focused variant and confirm its model is still required. |
+| Transitive and peer dependencies | Use the complex fixture with one peer edge and the normal dependency edges. Verify installed ownership and selected-model discovery without assuming that every suite dependency is direct. |
+| Node/browser conditional exports | Reuse the existing equal/divergent platform pair through the repository harness. Expect equal outputs for equivalent inputs and a detectable difference for intentionally different contracts; do not promise automatic parity enforcement. |
+| Dependencies outside the selected suite | Mix selected and unselected packages and standard-library types. Verify opaque external member graphs and accurate partial-view limitations. Documentation links outside the suite remain rejected under the current contract. |
+| Workspace symlinks and packed installation | Repeat one dependency scenario with local workspace links and a package containing only publishable inputs and artifacts. Compare resolution and ownership; keep installs offline and separate layout support from package-manager integration claims. |
+| Recursive namespace aliases and package cycles | Recursive namespace/export paths have existing support and should terminate. Treat cross-package dependency/model cycles as a separate capability investigation: topological generation and mutually recorded content fingerprints do not define a cycle policy. Decide whether to reject or support these cycles before adding a success expectation. |
+| Duplicate installed versions of a package | Investigate deterministic rejection or a future version-aware identity policy. The current model-set reader permits one unambiguous model per package name; do not imply that side-by-side versions already work. |
+| Configuration inheritance and policy overrides | Show that equivalent inherited and explicit configurations produce equivalent outputs. Change one reference rule to demonstrate a deliberate diagnostic difference. Include custom modifier vocabulary where selection depends on it. |
+| Build failure, missing outputs, and repeated builds | At Stage 5, extend the existing artifact-script pilot with failed publication, removed outputs, concurrent jobs, and clean/repeated-build agreement. Do not infer cache correctness or publication guarantees from the Stage 3 model-reader tests. |
+
+##### Implementation order and acceptance
+
+1. Add the empty and exported single-package scenarios and the minimum shared setup. Establish the primary API-kind inventory, exact snapshots, and source-free consumption before adding dependency complexity. Record unsupported forms explicitly for acceptance review.
+2. Add both two-package scenarios, including the independent-package variant. Prove ownership, alias, and type-only behavior with explicit target assertions.
+3. Add the five-package chain and diamond, its stale-transitive recovery test, and selected-but-unused dependency coverage. Show that changing the final export spelling does not change the original owner.
+4. Add the recommended multi-entrypoint, scoped-selector, and peer-dependency variants. Run both producer compilers for successful baseline scenarios; keep the full negative mutation set on the pinned analysis path and add dual-producer coverage where emitted syntax matters.
+5. Review the generated artifacts and documentation indexes as Stage 3 evidence. Link each scenario and expected failure to its test. Complete this report/model gate before proceeding to Stage 4; stage acceptance remains an explicit review decision.
+6. During Stage 4, add rollup assertions to these same fixtures and run both TS6 and TS7 consumer compilers against each supported producer's outputs. Complete the matrix before claiming trimmed-rollup support; do not treat report compilability as a substitute.
+
+The pre-Stage-4 gate requires all five baseline scenarios, the identified variants and failure cases, deterministic artifacts, source-free model-set consumption, and no baseline writes during normal tests.
+Current evidence includes exact artifacts for each successful package and a source-free documentation index, with producer-specific primary baselines only for the observed default-expression declaration-emission difference.
+The complex fixture adds a sixth unused package to the five-package chain and diamond so missing selected-but-unused artifacts are tested without runtime manifest construction.
+New tests must pass the package's normal build, test, lint, formatting, architecture, and self-artifact freshness checks.
+Retain the three existing pending compiler probes with their current explanations; this work must not hide them or claim to resolve Stage 4 capability gaps.
+Report any newly exposed unsupported behavior as a blocker or an explicit scope decision, not as an automatically accepted snapshot or an unimplemented passing test.
 
 ### Stage 4. Deliver declarations and entrypoint capabilities
 

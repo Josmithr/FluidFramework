@@ -1,0 +1,670 @@
+{
+  "format": "api-analyzer-documentation",
+  "version": 1,
+  "graph": {
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          {
+            "name": "Contract",
+            "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "ContractType",
+            "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+            "typeOnly": true
+          },
+          {
+            "name": "SourceType",
+            "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]",
+            "typeOnly": true
+          },
+          {
+            "name": "renamedSource",
+            "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "source",
+            "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "target",
+            "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]",
+            "typeOnly": false
+          }
+        ]
+      }
+    ],
+    "declarations": [
+      {
+        "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+        "documentationId": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+        "references": [],
+        "name": "Contract",
+        "sources": [
+          {
+            "packageName": "@scenario/core",
+            "file": "lib/index.d.ts",
+            "start": 225,
+            "kind": "InterfaceDeclaration",
+            "text": "\n/**\n * Generic conversion contract.\n * @public\n */\nexport interface Contract<TValue> {\n    /** Converts a value. */\n    convert(value: TValue): TValue;\n}",
+            "documentation": "/**\n * Generic conversion contract.\n * @public\n */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n/**\n * Generic conversion contract.\n * @public\n */\nexport interface Contract<TValue> {\n    /** Converts a value. */\n    convert(value: TValue): TValue;\n}"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "Contract<TValue>",
+        "container": {
+          "kind": "interface",
+          "prefix": "interface ",
+          "suffix": "<TValue>",
+          "supported": true,
+          "declaredMembers": []
+        },
+        "memberView": "complete",
+        "limitations": [],
+        "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "(value: TValue) => TValue"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "convert",
+            "referenceName": "convert",
+            "type": "(value: TValue) => TValue",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "@scenario/core",
+                "file": "lib/index.d.ts",
+                "start": 312,
+                "kind": "MethodSignature",
+                "text": "\n    /** Converts a value. */\n    convert(value: TValue): TValue;",
+                "documentation": "/** Converts a value. */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /** Converts a value. */\n    convert(value: TValue): TValue;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": [
+              {
+                "id": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783",
+                "documentationId": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783",
+                "declaringContainer": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+                "references": [],
+                "source": {
+                  "packageName": "@scenario/core",
+                  "file": "lib/index.d.ts",
+                  "start": 312,
+                  "kind": "MethodSignature",
+                  "text": "\n    /** Converts a value. */\n    convert(value: TValue): TValue;",
+                  "documentation": "/** Converts a value. */",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n    /** Converts a value. */\n    convert(value: TValue): TValue;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "effective": {
+                  "callSignatureText": "(value: TValue): TValue;",
+                  "functionTypeText": "(value: TValue) => TValue",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: TValue): TValue;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: TValue) => TValue"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "reduced": {
+                  "callSignatureText": "(value: TValue): TValue;",
+                  "functionTypeText": "(value: TValue) => TValue",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: TValue): TValue;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: TValue) => TValue"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "normalized": {
+                  "callSignatureText": "(value: TValue): TValue;",
+                  "functionTypeText": "(value: TValue) => TValue",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: TValue): TValue;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(value: TValue) => TValue"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]",
+        "references": [],
+        "name": "source",
+        "sources": [
+          {
+            "packageName": "@scenario/core",
+            "file": "lib/index.d.ts",
+            "start": 101,
+            "kind": "FunctionDeclaration",
+            "text": "\n/**\n * Core source documentation. See {@link target}.\n * @public\n */\nexport declare function source(value: string): string;",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n * @public\n */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n/**\n * Core source documentation. See {@link target}.\n * @public\n */\nexport declare function source(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "@scenario/core",
+              "file": "lib/index.d.ts",
+              "start": 101,
+              "kind": "FunctionDeclaration",
+              "text": "\n/**\n * Core source documentation. See {@link target}.\n * @public\n */\nexport declare function source(value: string): string;",
+              "documentation": "/**\n * Core source documentation. See {@link target}.\n * @public\n */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Core source documentation. See {@link target}.\n * @public\n */\nexport declare function source(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]",
+        "references": [],
+        "name": "target",
+        "sources": [
+          {
+            "packageName": "@scenario/core",
+            "file": "lib/index.d.ts",
+            "start": 0,
+            "kind": "FunctionDeclaration",
+            "text": "/**\n * Core target documentation.\n * @beta\n */\nexport declare function target(value: string): string;",
+            "documentation": "/**\n * Core target documentation.\n * @beta\n */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "/**\n * Core target documentation.\n * @beta\n */\nexport declare function target(value: string): string;"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "(value: string) => string",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [
+          {
+            "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "documentationId": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+            "references": [],
+            "source": {
+              "packageName": "@scenario/core",
+              "file": "lib/index.d.ts",
+              "start": 0,
+              "kind": "FunctionDeclaration",
+              "text": "/**\n * Core target documentation.\n * @beta\n */\nexport declare function target(value: string): string;",
+              "documentation": "/**\n * Core target documentation.\n * @beta\n */",
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "/**\n * Core target documentation.\n * @beta\n */\nexport declare function target(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "effective": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "reduced": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            },
+            "normalized": {
+              "callSignatureText": "(value: string): string;",
+              "functionTypeText": "(value: string) => string",
+              "callSignatureExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "functionTypeExcerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "(value: string) => string"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              }
+            }
+          }
+        ],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      }
+    ]
+  },
+  "identityVersion": 1,
+  "compilerVersion": "7.0.2",
+  "packageName": "@scenario/facade",
+  "inputFiles": [
+    {
+      "file": "lib/index.d.ts",
+      "sha256": "33f24ce64c35d5b94879d09ec8a57f35a4dbf0dd849e46927521233e9ca48743"
+    }
+  ],
+  "dependencyModels": [
+    {
+      "packageName": "@scenario/core",
+      "sha256": "86eaefd19e9c65ff21aadf97ae09d9a41c60dad2f900945a0c7fab9ff587d491"
+    }
+  ],
+  "modifierTags": [
+    "@alpha",
+    "@beta",
+    "@eventProperty",
+    "@experimental",
+    "@internal",
+    "@override",
+    "@packageDocumentation",
+    "@public",
+    "@readonly",
+    "@sealed",
+    "@virtual"
+  ],
+  "apis": [],
+  "exports": [
+    {
+      "entrypoint": ".",
+      "path": [
+        "Contract"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "Contract",
+        "convert"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "ContractType"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]"
+      ],
+      "typeOnly": true
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "ContractType",
+        "convert"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783"
+      ],
+      "typeOnly": true,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "SourceType"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": true
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "renamedSource"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "source"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "target"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7"
+      ],
+      "typeOnly": false
+    }
+  ],
+  "external": [
+    {
+      "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+      "packageName": "@scenario/core"
+    },
+    {
+      "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "packageName": "@scenario/core"
+    },
+    {
+      "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+      "packageName": "@scenario/core"
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783",
+      "packageName": "@scenario/core"
+    }
+  ]
+}

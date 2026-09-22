@@ -1,0 +1,2072 @@
+[
+  {
+    "packageName": "@scenario/primary",
+    "packageDocumentation": "/**\n * Primary API inventory. See {@link identity}.\n * @packageDocumentation\n */",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "AbstractStore",
+          "AnonymousDefault",
+          "Bits",
+          "Box",
+          "Callable",
+          "Choice",
+          "DerivedStore",
+          "Element",
+          "ExpressionDefault",
+          "Factory",
+          "Flags",
+          "Keyed",
+          "Label",
+          "Merged",
+          "Mode",
+          "NamedDefault",
+          "OptionalRecord",
+          "RecordValue",
+          "Space",
+          "Status",
+          "Store",
+          "StoreType",
+          "Text",
+          "TextBox",
+          "assertText",
+          "callback",
+          "collect",
+          "count",
+          "experiment",
+          "format",
+          "hidden",
+          "identity",
+          "isText",
+          "key",
+          "parse",
+          "renamedIdentity",
+          "version"
+        ]
+      },
+      {
+        "name": "./empty",
+        "exports": []
+      },
+      {
+        "name": "./values",
+        "exports": [
+          "Bits",
+          "Keyed",
+          "Mode",
+          "count",
+          "key",
+          "version"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "AbstractStore"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "AbstractStore",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Abstract store contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"AbstractStore\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "AbstractStore",
+          "get"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Gets the current value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"AbstractStore\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "AnonymousDefault"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "default",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Anonymous default function.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/anonymousDefault.d.ts\\\"]\"],\"default\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Bits"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Bits",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Compile-time enum.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Bits",
+          "None"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "None",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"None\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Bits",
+          "Read"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Read",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"Read\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Box"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Box",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Supplies a typed value.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Box\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Box",
+          "get"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Returns the stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Box\\\"]\",\"get\"]:2e3ddfd0ea48e44768ff7250db19c72e36168995ae1bf65ff1b3f9f847825b00",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Box",
+          "label"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "label",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Optional label.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Box\\\"]\",\"label\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Box",
+          "value"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "value",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Box\\\"]\",\"value\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Callable"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Callable",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * A callable class shape.\n *\n * Call signature augmenting the class.\n *\n * Static namespace augmenting the class.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Callable",
+          "value"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "value",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/merges.d.ts\\\\\\\"]\\\"],\\\"Callable\\\"]\",\"value\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Callable",
+          "description"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "description",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\",\"description\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Choice"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Choice",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Literal union.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "DerivedStore"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "DerivedStore",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Concrete implementation of the abstract base.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"DerivedStore\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "DerivedStore",
+          "get"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Gets the current value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"DerivedStore\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Element"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Element",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Conditional element view.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Element\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "ExpressionDefault"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "_default",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Default expression value.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/expressionDefault.d.ts\\\"]\"],\"_default\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Factory"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Factory",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Callable and constructable value with indexed properties.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Flags"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Flags",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Generic mapped view.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Flags\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Keyed"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Keyed",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Symbol-keyed API.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Keyed\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Keyed",
+          "[key]"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "[key]",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/values.d.ts\\\\\\\"]\\\"],\\\"Keyed\\\"]\",\"[key]\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Label"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Label",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Primitive alias.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Label\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Merged"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Merged",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * First merged shape.\n *\n * Second merged shape.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Merged\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Merged",
+          "first"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "first",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/merges.d.ts\\\\\\\"]\\\"],\\\"Merged\\\"]\",\"first\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Merged",
+          "second"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "second",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/merges.d.ts\\\\\\\"]\\\"],\\\"Merged\\\"]\",\"second\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Mode"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Mode",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Ordinary enum.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Mode",
+          "Off"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Off",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"Off\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Mode",
+          "On"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "On",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"On\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "NamedDefault"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "default",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Named default class.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namedDefault.d.ts\\\"]\"],\"default\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "NamedDefault",
+          "label"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "label",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/namedDefault.d.ts\\\\\\\"]\\\"],\\\"default\\\"]\",\"label\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "OptionalRecord"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "OptionalRecord",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Standard utility composition.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"OptionalRecord\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "OptionalRecord",
+          "count"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "count",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored count.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/types.d.ts\\\\\\\"]\\\"],\\\"OptionalRecord\\\"]\",\"count\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "OptionalRecord",
+          "text"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "text",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/types.d.ts\\\\\\\"]\\\"],\\\"OptionalRecord\\\"]\",\"text\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "RecordValue"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "RecordValue",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Intersection with an unexported shape.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"RecordValue\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "RecordValue",
+          "count"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "count",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored count.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/types.d.ts\\\\\\\"]\\\"],\\\"RecordValue\\\"]\",\"count\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "RecordValue",
+          "text"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "text",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/types.d.ts\\\\\\\"]\\\"],\\\"RecordValue\\\"]\",\"text\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Space"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Space",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Nested namespace.\n *\n * Repeated namespace contribution.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Space\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Space",
+          "Nested"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Nested",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Space\",\"Nested\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Space",
+          "Nested",
+          "value"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "value",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Space\",\"Nested\",\"value\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Space",
+          "extra"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "extra",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Space\",\"extra\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Status"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Status",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Enum with namespace members.\n *\n * Enum namespace.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Status\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Status",
+          "Ready"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Ready",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Status\",\"Ready\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Status",
+          "initial"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "initial",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Status\",\"initial\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Store"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Nominal implementation of a text box.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Creates a store.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Store",
+          "current"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "current",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"current\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Store",
+          "get"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Returns the stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Store",
+          "revision"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "revision",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Protected subclass state.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"revision\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Store",
+          "create"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "create",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Creates an empty store.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\",\"<static>\",\"create\"]:9fccf54352b458053a0ef5b3b3d84dbf304a231d38616ae9519394a741cbf980",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "StoreType"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Nominal implementation of a text box.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Creates a store.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "StoreType",
+          "current"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "current",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"current\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "StoreType",
+          "get"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Returns the stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "StoreType",
+          "revision"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "revision",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Protected subclass state.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"revision\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "StoreType",
+          "create"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "create",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Creates an empty store.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\",\"<static>\",\"create\"]:9fccf54352b458053a0ef5b3b3d84dbf304a231d38616ae9519394a741cbf980",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Text"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Text",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Indexed lookup.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Text\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "TextBox"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "TextBox",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * A text box with inherited generic members.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"TextBox\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "TextBox",
+          "get"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Returns the stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"TextBox\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "TextBox",
+          "label"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "label",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Optional label.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"TextBox\\\"]\",\"label\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "TextBox",
+          "value"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "value",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"TextBox\\\"]\",\"value\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "assertText"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "assertText",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Requires text.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"assertText\"]:2971ad064f9d3c204fd9addf4430cd3d56fae6d909cbc8bf0a7535a695619c9f",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "callback"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "callback",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * A callable value.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"callback\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "collect"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "collect",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Accepts optional and rest arguments.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"collect\"]:3385e097a58c2cfef80a2c1bd4043a74f516662b3ca3c8c9703b022cd42681e2",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "count"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "count",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Mutable counter.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"count\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "experiment"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "experiment",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Experimental operation.\n *\n * @alpha\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"experiment\"]:bb294253172c400781d8bd25c82fb55482e36696d3c6bf70d184f7c7c2a6c501",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "format"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "format",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Formats text.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "format",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Formats a preview numeric value.\n *\n * @beta\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]:a8f63d0c8bd7feacf987f771508da35629ab42173ae2c630320889be8d553f59",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "hidden"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "hidden",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Implementation-only operation.\n *\n * @internal\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"hidden\"]:bb294253172c400781d8bd25c82fb55482e36696d3c6bf70d184f7c7c2a6c501",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "identity"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "identity",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Copies a value.\n *\n * @public @exampleTag\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"identity\"]:7305264eec12f8728603d268d951c0f2b1c47e3b0fad9b0473845930b579f223",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "isText"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "isText",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Identifies text.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"isText\"]:ec6e4866ce2babea67ece7d981aa6331a8c25618cd39e06c2c2fb37e940a1a44",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "key"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "key",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Unique API key.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"key\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "parse"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "parse",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Function with namespace members.\n *\n * Function namespace.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"parse\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "parse",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Function with namespace members.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"parse\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "parse",
+          "version"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "version",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"parse\",\"version\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "renamedIdentity"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "identity",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Copies a value.\n *\n * @public @exampleTag\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"identity\"]:7305264eec12f8728603d268d951c0f2b1c47e3b0fad9b0473845930b579f223",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "version"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "version",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Current format version.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Bits"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Bits",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Compile-time enum.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Bits",
+          "None"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "None",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"None\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Bits",
+          "Read"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Read",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"Read\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Keyed"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Keyed",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Symbol-keyed API.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Keyed\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Keyed",
+          "[key]"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "[key]",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/values.d.ts\\\\\\\"]\\\"],\\\"Keyed\\\"]\",\"[key]\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Mode"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Mode",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Ordinary enum.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Mode",
+          "Off"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Off",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"Off\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "Mode",
+          "On"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "On",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"On\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "count"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "count",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Mutable counter.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"count\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "key"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "key",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Unique API key.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"key\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./values",
+        "path": [
+          "version"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "version",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Current format version.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
+    ]
+  }
+]

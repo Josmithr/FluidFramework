@@ -1,0 +1,48 @@
+{
+  "format": "api-analyzer-documentation",
+  "version": 1,
+  "graph": {
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": []
+      }
+    ],
+    "declarations": []
+  },
+  "identityVersion": 1,
+  "compilerVersion": "7.0.2",
+  "packageName": "@scenario/overview",
+  "packageDocumentation": {
+    "origin": {
+      "packageName": "@scenario/overview",
+      "file": "lib/index.d.ts",
+      "start": 0
+    },
+    "documentation": "/**\n * Empty package overview.\n * @packageDocumentation\n */",
+    "links": []
+  },
+  "inputFiles": [
+    {
+      "file": "lib/index.d.ts",
+      "sha256": "1ae2501ef8c349ccc29f47ad09bcad1b8b56b68c1c07c267fa737dfdba98ca9f"
+    }
+  ],
+  "dependencyModels": [],
+  "modifierTags": [
+    "@alpha",
+    "@beta",
+    "@eventProperty",
+    "@experimental",
+    "@internal",
+    "@override",
+    "@packageDocumentation",
+    "@public",
+    "@readonly",
+    "@sealed",
+    "@virtual"
+  ],
+  "apis": [],
+  "exports": [],
+  "external": []
+}

@@ -1,0 +1,209 @@
+[
+  {
+    "packageName": "@scenario/consumer",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Implementation",
+          "consumer"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Implementation"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Implementation",
+            "owner": "@scenario/consumer",
+            "sourcePackage": "@scenario/consumer",
+            "documentation": "/**\n * Local implementation of the generic contract. See {@link @scenario/core#source}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/consumer\\\",\\\"lib/index.d.ts\\\"]\"],\"Implementation\"]",
+                "packageName": "@scenario/consumer"
+              }
+            ],
+            "links": [
+              {
+                "name": "source",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Implementation",
+          "convert"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/consumer",
+            "sourcePackage": "@scenario/consumer",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "consumer"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "consumer",
+            "owner": "@scenario/consumer",
+            "sourcePackage": "@scenario/consumer",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "packageName": "@scenario/core",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": [
+          "Contract",
+          "source",
+          "target"
+        ]
+      }
+    ],
+    "exports": [
+      {
+        "entrypoint": ".",
+        "path": [
+          "Contract"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Contract",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Generic conversion contract.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"Contract\"]",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Contract",
+          "convert"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "convert",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Converts a value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/core\\\\\\\",\\\\\\\"lib/index.d.ts\\\\\\\"]\\\"],\\\"Contract\\\"]\",\"convert\"]:b66cbdca7bcf853e79efc9c264cb25130c314d31543368d45dad8718ac467783",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "source"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "source",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core source documentation. See {@link target}.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": [
+              {
+                "name": "target",
+                "owner": "@scenario/core"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "target"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "target",
+            "owner": "@scenario/core",
+            "sourcePackage": "@scenario/core",
+            "documentation": "/**\n * Core target documentation.\n *\n * @beta\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
+                "packageName": "@scenario/core"
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
+    ]
+  }
+]

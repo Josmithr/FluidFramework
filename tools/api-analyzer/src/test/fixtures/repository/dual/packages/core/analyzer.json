@@ -1,0 +1,1 @@
+{ "packageName": "@scenario/core", "project": "tsconfig.analysis.json", "entrypoints": [{ "name": ".", "path": "lib/index.d.ts" }] }

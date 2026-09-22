@@ -1,0 +1,1 @@
+{ "name": "reexports-repository", "private": true, "workspaces": ["packages/*"] }

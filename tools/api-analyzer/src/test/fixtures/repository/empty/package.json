@@ -1,0 +1,5 @@
+{
+  "name": "empty-repository",
+  "private": true,
+  "workspaces": ["packages/*"]
+}

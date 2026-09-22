@@ -1,0 +1,1 @@
+{ "name": "@scenario/service", "version": "1.0.0", "type": "module", "exports": { ".": { "types": "./lib/index.d.ts" } }, "dependencies": { "@scenario/domain": "1.0.0", "@scenario/adapter": "1.0.0", "@scenario/unused": "1.0.0" } }

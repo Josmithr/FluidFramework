@@ -1,0 +1,1 @@
+{ "name": "dual-repository", "private": true, "workspaces": ["packages/*"] }

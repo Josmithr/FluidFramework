@@ -5,6 +5,14 @@ It uses the official native TypeScript 7 API and includes the Stage 0 compiler c
 Its API is not stable. It does not generate production artifacts or replace API Extractor.
 Publication remains a separate decision.
 
+## Module support
+
+The library is ECMAScript module (ESM) only, and package analysis supports ESM entrypoints only.
+CommonJS package inputs and TypeScript `export =` declarations are out of scope for analysis, API reports, portable models, and future declaration rollups.
+CommonJS support is not planned work or a stage-acceptance requirement.
+Node, browser, and custom package-resolution conditions remain supported within ESM entrypoints.
+This scope does not promise a dedicated diagnostic for every unsupported CommonJS input.
+
 ## Current scope
 
 Stage 2 is complete as of 2026-09-20 under the accepted review and validation scope.

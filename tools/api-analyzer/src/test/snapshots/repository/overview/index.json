@@ -1,0 +1,13 @@
+[
+  {
+    "packageName": "@scenario/overview",
+    "packageDocumentation": "/**\n * Empty package overview.\n * @packageDocumentation\n */",
+    "surfaces": [
+      {
+        "name": ".",
+        "exports": []
+      }
+    ],
+    "exports": []
+  }
+]
