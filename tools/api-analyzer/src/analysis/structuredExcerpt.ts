@@ -10,6 +10,9 @@ import {
 	isMappedTypeNode,
 	isConditionalTypeNode,
 	isInferTypeNode,
+	isComputedPropertyName,
+	isEnumMember,
+	isVariableDeclaration,
 } from "typescript/unstable/ast/is";
 import type { CodeExcerpt, ExcerptToken } from "../analysis-types/excerpt.js";
 
@@ -134,15 +137,7 @@ export function printCodeExcerpt(
 				}
 			}
 		}
-		const name = isTypeReferenceNode(current)
-			? current.typeName
-			: isTypeQueryNode(current)
-				? current.exprName
-				: isExpressionWithTypeArguments(current)
-					? current.expression
-					: isImportTypeNode(current)
-						? current.qualifier
-						: undefined;
+		const name = getReferenceNode(current);
 		const target = name === undefined ? undefined : resolve(name, local, current);
 		if (name !== undefined && target !== undefined) {
 			const marker = `${prefix}${replacements.length}__`;
@@ -179,4 +174,36 @@ export function printCodeExcerpt(
 		"Excerpt tokens must preserve the compiler's printed text.",
 	);
 	return createCodeExcerpt(text, spans);
+}
+
+/**
+ * Selects the child syntax node to pass to the excerpt's reference resolver.
+ *
+ * @remarks
+ * Returns type names, query names, import qualifiers, computed-name expressions, or initializers.
+ * This is syntax selection only; the resolver determines whether the node refers to a declaration.
+ *
+ * @param node - Current node in the displayed syntax tree.
+ * @returns The reference candidate, or undefined for other node kinds or an absent qualifier or initializer.
+ */
+function getReferenceNode(node: Node): Node | undefined {
+	if (isTypeReferenceNode(node)) {
+		return node.typeName;
+	}
+	if (isTypeQueryNode(node)) {
+		return node.exprName;
+	}
+	if (isExpressionWithTypeArguments(node)) {
+		return node.expression;
+	}
+	if (isImportTypeNode(node)) {
+		return node.qualifier;
+	}
+	if (isComputedPropertyName(node)) {
+		return node.expression;
+	}
+	if (isEnumMember(node) || isVariableDeclaration(node)) {
+		return node.initializer;
+	}
+	return undefined;
 }

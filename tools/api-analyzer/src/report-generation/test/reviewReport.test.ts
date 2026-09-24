@@ -73,6 +73,124 @@ const graph: CompletedAnalysis = freezeData({
 });
 
 describe("Report generation from completed data", () => {
+	it("retains imports only for selected overloads", () => {
+		const publicImport = {
+			kind: "named" as const,
+			moduleSpecifier: "external",
+			importedName: "Input",
+			name: "PublicInput",
+			typeOnly: true,
+		};
+		const betaImport = { ...publicImport, importedName: "Preview", name: "Preview" };
+		const original = graph.facts.declarations[0];
+		assert(original !== undefined);
+		const signature = original.signatures[0];
+		assert(signature !== undefined);
+		const documentation = graph.documentation[0];
+		assert(documentation !== undefined);
+		const input = freezeData({
+			...graph,
+			facts: {
+				...graph.facts,
+				declarations: [
+					{
+						...original,
+						signatures: [
+							{
+								...signature,
+								normalized: { ...signature.normalized, imports: [publicImport] },
+							},
+							{
+								...signature,
+								id: "beta",
+								normalized: { ...signature.normalized, imports: [betaImport] },
+							},
+						],
+					},
+				],
+			},
+			classification: {
+				...graph.classification,
+				items: [
+					...graph.classification.items,
+					{ id: "beta", releaseLevel: ReleaseLevel.Beta, modifierTags: ["@beta"] },
+				],
+			},
+			documentation: [...graph.documentation, { ...documentation, id: "beta" }],
+		});
+		const prepared = prepareReviewReport(input);
+		for (const [level, expected] of [
+			[ReleaseLevel.Public, publicImport],
+			[ReleaseLevel.Beta, betaImport],
+		] as const) {
+			const result = createReviewReport(prepared, ".", {
+				name: String(level),
+				releaseLevels: [level],
+			});
+			assert(result.ok);
+			assert.deepEqual(result.value.imports, [expected]);
+		}
+		const empty = createReviewReport(prepared, ".", { name: "empty", releaseLevels: [] });
+		assert(empty.ok);
+		assert.equal(empty.value.imports, undefined);
+		const all = createReviewReport(prepared, ".", {
+			name: "all",
+			releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
+		});
+		assert(all.ok);
+		assert.deepEqual(all.value.imports, [publicImport, betaImport]);
+		assert.equal(
+			renderReviewReport(all.value, { includeImports: false }),
+			renderReviewReport({ ...all.value, imports: [] }),
+		);
+	});
+
+	it("deduplicates bindings and omits imports for rendered declarations", () => {
+		const original = graph.facts.declarations[0];
+		assert(original !== undefined);
+		const signature = original.signatures[0];
+		assert(signature !== undefined);
+		const imported = {
+			kind: "named" as const,
+			moduleSpecifier: "external",
+			importedName: "Input",
+			name: "Input",
+			typeOnly: true,
+		};
+		const prepared = prepareReviewReport(
+			freezeData({
+				...graph,
+				facts: {
+					...graph.facts,
+					declarations: [
+						{
+							...original,
+							signatures: [
+								{
+									...signature,
+									normalized: {
+										...signature.normalized,
+										imports: [
+											imported,
+											{ ...imported, typeOnly: false },
+											{ ...imported, target: original.id, name: "value" },
+										],
+									},
+								},
+							],
+						},
+					],
+				},
+			}),
+		);
+		const report = createReviewReport(prepared, ".", {
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert(report.ok);
+		assert.deepEqual(report.value.imports, [{ ...imported, typeOnly: false }]);
+	});
+
 	it("omits member release annotations without hiding other annotations or standalone overload tags", () => {
 		const metadata = {
 			text: "",

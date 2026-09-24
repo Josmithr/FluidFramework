@@ -17,6 +17,13 @@ import {
 	isPropertyAccessExpression,
 	isLiteralTypeNode,
 	isStringLiteral,
+	isImportSpecifier,
+	isImportClause,
+	isNamespaceImport,
+	isImportDeclaration,
+	isComputedPropertyName,
+	isEnumMember,
+	isVariableDeclaration,
 } from "typescript/unstable/ast/is";
 import {
 	NodeBuilderFlags,
@@ -28,7 +35,7 @@ import {
 	type Symbol as CompilerSymbol,
 } from "typescript/unstable/sync";
 import type { CodeExcerpt } from "../analysis-types/excerpt.js";
-import type { ApiItemId, SignatureText } from "../analysis-types/facts.js";
+import type { ApiItemId, ImportFact, SignatureText } from "../analysis-types/facts.js";
 import {
 	createCodeExcerpt,
 	printCodeExcerpt,
@@ -70,6 +77,7 @@ export function printSignatureText(
 	];
 	const functionNode = createFunctionTypeNode(node.typeParameters, node.parameters, node.type);
 	return {
+		...captureImports(compiler, node, scope, getReferenceTarget),
 		callSignatureText: compiler.emitter.printNode(node).trim(),
 		functionTypeText: compiler.emitter.printNode(functionNode).trim(),
 		callSignatureExcerpt: printNativeExcerpt(compiler, node, scope, types, getReferenceTarget),
@@ -80,6 +88,119 @@ export function printSignatureText(
 			types,
 			getReferenceTarget,
 		),
+	};
+}
+
+/**
+ * Captures import bindings referenced by displayed syntax in its original compiler scope.
+ * @param compiler - Active checker and emitter.
+ * @param node - Displayed syntax, with local type-parameter binders intact.
+ * @param scope - Original declaration scope; undefined produces no bindings.
+ * @param getReferenceTarget - Supplies identities for collected local and suite declarations.
+ * @returns Import metadata, omitted when the fragment uses no import bindings.
+ */
+export function captureImports(
+	compiler: ExcerptCompiler,
+	node: Node,
+	scope: Node | undefined,
+	getReferenceTarget: ReferenceTargetResolver,
+): { readonly imports?: readonly ImportFact[] } {
+	if (scope === undefined) {
+		return {};
+	}
+	const imports = new Map<string, ImportFact>();
+	printCodeExcerpt(
+		node,
+		(current) => compiler.emitter.printNode(current),
+		(name, bound, reference) => {
+			if (isImportTypeNode(reference)) {
+				return undefined;
+			}
+			let root = name;
+			while (isQualifiedName(root) || isPropertyAccessExpression(root)) {
+				root = isQualifiedName(root) ? root.left : root.expression;
+			}
+			const valueReference =
+				isTypeQueryNode(reference) ||
+				isComputedPropertyName(reference) ||
+				isEnumMember(reference) ||
+				isVariableDeclaration(reference);
+			if (!isIdentifier(root) || (!valueReference && bound.has(root.text))) {
+				return undefined;
+			}
+			const symbol = compiler.checker.resolveName(
+				root.text,
+				(valueReference ? SymbolFlags.Value : SymbolFlags.Type) |
+					SymbolFlags.Namespace |
+					SymbolFlags.Alias,
+				scope,
+			);
+			const binding =
+				symbol === undefined
+					? undefined
+					: getImportBinding(compiler, symbol, root.text, getReferenceTarget);
+			if (binding !== undefined) {
+				imports.set(root.text, binding);
+			}
+			return undefined;
+		},
+	);
+	return imports.size === 0 ? {} : { imports: [...imports.values()] };
+}
+
+/**
+ * Reads the import clause that declares a resolved local binding.
+ * @param compiler - Active compiler services.
+ * @param symbol - Original alias symbol, before following its target.
+ * @param name - Local name used by the displayed syntax.
+ * @param getReferenceTarget - Supplies collected target identities.
+ * @returns Detached import metadata, or undefined for a non-import binding.
+ */
+function getImportBinding(
+	compiler: ExcerptCompiler,
+	symbol: CompilerSymbol,
+	name: string,
+	getReferenceTarget: ReferenceTargetResolver,
+): ImportFact | undefined {
+	const declaration = symbol.declarations[0]?.resolve();
+	if (declaration === undefined) {
+		return undefined;
+	}
+	const clause = isImportSpecifier(declaration)
+		? declaration.parent.parent
+		: isImportClause(declaration)
+			? declaration
+			: isNamespaceImport(declaration)
+				? declaration.parent
+				: undefined;
+	if (
+		clause === undefined ||
+		!isImportClause(clause) ||
+		!isImportDeclaration(clause.parent) ||
+		!isStringLiteral(clause.parent.moduleSpecifier)
+	) {
+		return undefined;
+	}
+	const target = getReferenceTarget(resolveSymbolTarget(compiler.checker, symbol));
+	return {
+		kind: isImportSpecifier(declaration)
+			? "named"
+			: isNamespaceImport(declaration)
+				? "namespace"
+				: "default",
+		moduleSpecifier: clause.parent.moduleSpecifier.text,
+		name,
+		typeOnly:
+			clause.phaseModifier === SyntaxKind.TypeKeyword ||
+			(isImportSpecifier(declaration) && declaration.isTypeOnly),
+		...(isImportSpecifier(declaration)
+			? {
+					importedName: compiler.emitter
+						.printNode(declaration.propertyName ?? declaration.name)
+						.trim(),
+				}
+			: {}),
+		...(target === undefined ? {} : { target }),
 	};
 }
 
@@ -105,6 +226,14 @@ export function printNativeExcerpt(
 		bound: ReadonlySet<string>,
 		reference: Node,
 	): ApiItemId | undefined => {
+		if (
+			isComputedPropertyName(reference) ||
+			isEnumMember(reference) ||
+			isVariableDeclaration(reference)
+		) {
+			return undefined;
+		}
+
 		// Synthesized nodes cannot be queried as original source nodes. Use their print scope,
 		// or semantic types when substitution introduces an import absent from that scope.
 		// A type parameter can shadow a type name without shadowing a typeof value target.

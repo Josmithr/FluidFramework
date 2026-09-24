@@ -912,6 +912,23 @@ Keeping an original declaration name does not turn a type-only class, enum, or c
 Call-signature declaration text is printed by the compiler during analysis; the renderer does not rewrite arrow-function type strings.
 The report retains declaration identities internally to group aliases, but never prints those identities.
 
+`ReviewPresentationOptions.includeImports` defaults to `true`.
+Reports include import bindings referenced by the selected declaration syntax, including container headers, members, and nested namespace contents.
+Selection removes imports used only by omitted declarations or standalone overloads.
+Imports retain their module specifier, local alias, default or namespace form, and type-only status.
+Repeated bindings appear once; a value import takes precedence over a type-only import of the same binding.
+Explicit `import("package").Type` expressions remain inline and do not add a local import.
+Re-exporting an API from another package in the suite does not add an import for that API.
+Imports for declarations already rendered in the report are omitted.
+Import capture uses compiler lookup during analysis; rendering uses detached data after compiler disposal.
+These imports support API review, not declaration-rollup compilation or import-path relocation.
+
+The following presentation setting omits imports without changing API selection:
+
+```typescript
+const presentation = { includeImports: false };
+```
+
 `ReviewPresentationOptions.includeReleaseTags` defaults to `true` for top-level declarations and standalone overloads.
 Container members omit release tags, including constructors, statics, enum values, augmentation signatures, and nested namespace exports.
 Members still show requested non-release tags and undocumented notices; their original release metadata and validation are unchanged.

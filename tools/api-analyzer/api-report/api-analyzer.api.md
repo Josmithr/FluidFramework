@@ -167,6 +167,7 @@ export type Result<TValue = never> = FailedResult | ([
 // @public
 export interface ReviewPresentationOptions {
     readonly additionalTags?: readonly string[] | undefined;
+    readonly includeImports?: boolean | undefined;
     readonly includeReleaseTags?: boolean | undefined;
     readonly includeUndocumentedNotice?: boolean | undefined;
 }

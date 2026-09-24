@@ -17,6 +17,7 @@ import {
 } from "typescript/unstable/sync";
 import {
 	createSourceExcerpt,
+	captureImports,
 	printNativeExcerpt,
 	printSignatureText,
 } from "../compilerExcerpt.js";
@@ -145,6 +146,23 @@ describe("Compiler excerpt boundary", () => {
 			assert(node !== undefined && isCallSignatureDeclaration(node));
 			const beforeText = project.emitter.printNode(node);
 			const beforeSource = original.getFullText();
+			assert.deepEqual(
+				captureImports(project, node, original, getReferenceTarget),
+				name === "imported"
+					? {}
+					: {
+							imports: [
+								{
+									kind: "named",
+									moduleSpecifier: "./signature-views.js",
+									name: "ImportedView",
+									importedName: "View",
+									typeOnly: true,
+									target: "signature-views.ts:View",
+								},
+							],
+						},
+			);
 			const rendered = printSignatureText(
 				project,
 				node,

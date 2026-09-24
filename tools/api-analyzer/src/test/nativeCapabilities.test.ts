@@ -1638,10 +1638,11 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					)?.signatures[0];
 					assert(portable !== undefined);
 					assert("callSignatureExcerpt" in portable.effective);
-					assert.deepEqual(
-						portable.normalized,
-						getDeclaration("aliased").signatures[0]?.normalized,
-					);
+					const normalized = getDeclaration("aliased").signatures[0]?.normalized;
+					assert(normalized !== undefined);
+					const { imports, ...portableSyntax } = normalized;
+					assert.equal(imports?.[0]?.name, "ImportedView");
+					assert.deepEqual(portable.normalized, portableSyntax);
 					const portableProperty = model.graph.declarations
 						.find((item) => item.id === getDeclaration("Receiver").id)
 						?.members.find((item) => item.name === "item");

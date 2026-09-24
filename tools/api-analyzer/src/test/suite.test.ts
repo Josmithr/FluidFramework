@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "mocha";
 import { analyzeAPIs, DiagnosticCode, ReleaseLevel } from "../index.js";
@@ -42,6 +43,103 @@ describe("Dependency suite models", () => {
 		);
 	});
 	afterEach(() => rmSync(directory, { recursive: true, force: true }));
+
+	for (const compilerPackage of ["typescript6", "typescript"]) {
+		it(`filters report imports after selection with ${compilerPackage} inputs`, async () => {
+			const root = path.join(directory, "node_modules", "dependency");
+			writeFileSync(
+				path.join(root, "package.json"),
+				JSON.stringify({
+					name: "dependency",
+					version: "1.0.0",
+					type: "module",
+					types: "index.d.ts",
+				}),
+			);
+			writeFileSync(
+				path.join(directory, "package.json"),
+				JSON.stringify({
+					name: "consumer",
+					type: "module",
+					dependencies: { dependency: "1.0.0" },
+				}),
+			);
+			cpSync(
+				new URL("../../src/test/fixtures/suite/report-imports-dependency.ts", import.meta.url),
+				path.join(root, "index.ts"),
+			);
+			cpSync(
+				new URL("../../src/test/fixtures/suite/report-imports.ts", import.meta.url),
+				path.join(directory, "index.ts"),
+			);
+			const require = createRequire(import.meta.url);
+			const compiler = path.join(
+				path.dirname(require.resolve(`${compilerPackage}/package.json`)),
+				"bin/tsc",
+			);
+			const emit = (cwd: string): void => {
+				execFileSync(
+					process.execPath,
+					[
+						compiler,
+						"index.ts",
+						"--ignoreConfig",
+						"--declaration",
+						"--emitDeclarationOnly",
+						"--strict",
+						"--module",
+						"NodeNext",
+					],
+					{ cwd, stdio: "inherit" },
+				);
+			};
+			emit(root);
+			emit(directory);
+			const configuration = {
+				packageName: "consumer",
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+			};
+			const result = await analyzeAPIs(configuration, directory);
+			assert(result.ok, JSON.stringify(result));
+			const model = result.value.generateModel();
+			for (const [name, level] of [
+				["public", ReleaseLevel.Public],
+				["beta", ReleaseLevel.Beta],
+			] as const) {
+				const selection = { name, releaseLevels: [level] };
+				const report = result.value.generateReport(".", selection);
+				assert(report.ok, JSON.stringify(report));
+				assertSnapshot(report.value, `report.imports.${name}.md`);
+				const omitted = result.value.generateReport(".", selection, { includeImports: false });
+				assert(omitted.ok);
+				assert.equal(omitted.value, report.value.replace(/(?:^import[^\n]+;\n)+\n/m, ""));
+				assert.deepEqual(result.value.generateReport(".", selection), report);
+			}
+			assert.equal(result.value.generateModel(), model);
+			const dependency = await analyzeAPIs(
+				{ ...configuration, packageName: "dependency" },
+				root,
+			);
+			assert(dependency.ok, JSON.stringify(dependency));
+			writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				'// Re-exported suite declarations need no import bindings.\nimport type { Input } from "dependency";\nexport type { Input };\n/**\n * Refers to the rendered suite declaration.\n * @public\n */\nexport type Copy = Input;\n',
+			);
+			const reexport = await analyzeAPIs(
+				{ ...configuration, suite: { packages: ["dependency"], modelFile: "api-model.json" } },
+				directory,
+			);
+			assert(reexport.ok, JSON.stringify(reexport));
+			const reexportReport = reexport.value.generateReport(".", {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert(reexportReport.ok);
+			assertSnapshot(reexportReport.value, "report.imports.reexport.md");
+		});
+	}
 
 	it("forbids module-based references while preserving named package exports", async () => {
 		const root = path.join(directory, "node_modules", "dependency");

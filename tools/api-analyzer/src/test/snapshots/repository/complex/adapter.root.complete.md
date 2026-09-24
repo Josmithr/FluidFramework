@@ -5,6 +5,8 @@
 Surface: `"complete"`
 
 ```ts
+import type { Contract } from "@scenario/core";
+
 // @public
 export interface Adapter extends Contract<string> {
     // Inherited from `Contract` in package `@scenario/core`

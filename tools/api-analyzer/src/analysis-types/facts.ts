@@ -2,6 +2,43 @@ import type { AnalyzerDiagnostic } from "./result.js";
 import type { CodeExcerpt } from "./excerpt.js";
 
 /**
+ * A compiler-resolved import binding used by a displayed declaration fragment.
+ */
+export interface ImportFact {
+	/**
+	 * Collected declaration identity for local or suite-owned targets.
+	 * @defaultValue Omitted for targets outside the analyzed suite.
+	 */
+	readonly target?: ApiItemId;
+
+	/**
+	 * Import syntax for this binding.
+	 */
+	readonly kind: "named" | "default" | "namespace";
+
+	/**
+	 * Module specifier from the original import.
+	 */
+	readonly moduleSpecifier: string;
+
+	/**
+	 * Local identifier used by the displayed fragment.
+	 */
+	readonly name: string;
+
+	/**
+	 * Exported name for a named import.
+	 * @defaultValue Omitted for default and namespace imports.
+	 */
+	readonly importedName?: string;
+
+	/**
+	 * Whether the original import exposes only a type binding.
+	 */
+	readonly typeOnly: boolean;
+}
+
+/**
  * An opaque string that identifies an API item within its owning data set.
  *
  * @remarks
@@ -100,6 +137,12 @@ export interface ExportFact {
  * Two compiler-printed syntax forms of the same callable signature view.
  */
 export interface SignatureText {
+	/**
+	 * Imports referenced by these displayed signature forms.
+	 * @defaultValue Omitted when no imported bindings are needed.
+	 */
+	readonly imports?: readonly ImportFact[];
+
 	/**
 	 * Structured call text with producer-resolved reference tokens.
 	 * @defaultValue Omitted on synthetic facts that did not capture excerpts.
@@ -276,6 +319,12 @@ export interface SignatureFact extends SignatureText {
  * Includes inherited members and compiler-resolved generic substitutions where supported.
  */
 export interface MemberFact {
+	/**
+	 * Imports used by the effective member name and type.
+	 * @defaultValue Omitted when no import bindings are needed.
+	 */
+	readonly imports?: readonly ImportFact[];
+
 	/**
 	 * Compiler-printed effective type with resolved display references.
 	 * @defaultValue Omitted on synthetic facts without compiler excerpt capture.
@@ -712,6 +761,12 @@ export interface SignatureDocumentationContext extends DocumentationReferenceCon
  */
 export interface SourceDeclarationFact extends Origin {
 	/**
+	 * Imports used by separately rendered declared-member syntax.
+	 * @defaultValue Omitted when this source has no captured import bindings.
+	 */
+	readonly imports?: readonly ImportFact[];
+
+	/**
 	 * Original source text with compiler-resolved reference tokens.
 	 * @defaultValue Omitted for synthetic sources without compiler capture.
 	 */
@@ -819,6 +874,12 @@ export interface HeritageFact {
  */
 export interface DeclarationContainerFact {
 	/**
+	 * Imports used by type parameters and heritage clauses.
+	 * @defaultValue Omitted when the headers need no import bindings.
+	 */
+	readonly imports?: readonly ImportFact[];
+
+	/**
 	 * Type parameters and heritage for an interface merged with a callable or constructable class instance.
 	 * Call and construct signatures in declaredMembers belong in this interface, not the class body.
 	 * @defaultValue Omitted when no separate interface declaration is needed.
@@ -872,6 +933,12 @@ export interface DeclarationContainerFact {
  * Compiler-derived syntax around the name of an atomic type alias or variable declaration.
  */
 export interface DeclarationStatementFact {
+	/**
+	 * Imports used by the declaration's displayed type or initializer.
+	 * @defaultValue Omitted when no import bindings are needed.
+	 */
+	readonly imports?: readonly ImportFact[];
+
 	/**
 	 * Declaration keyword and trailing whitespace before the name.
 	 *

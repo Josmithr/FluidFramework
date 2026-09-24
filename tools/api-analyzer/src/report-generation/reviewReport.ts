@@ -11,6 +11,7 @@ import type {
 	DeclarationFact,
 	DeclarationStatementFact,
 	DocumentationReferenceContext,
+	ImportFact,
 } from "../analysis-types/facts.js";
 import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
@@ -20,6 +21,12 @@ import { freezeData } from "../utilities/freezeData.js";
  * Review metadata and a syntax fragment for a selected signature or declaration item.
  */
 export interface ReviewSignature {
+	/**
+	 * Import bindings required by this item's rendered syntax.
+	 * @defaultValue Omitted when this item needs no imports.
+	 */
+	readonly imports?: readonly ImportFact[];
+
 	/**
 	 * Original declaring container of an inherited member, independent of documentation inheritance.
 	 * @defaultValue Omitted for directly declared items or unavailable declaring-container metadata.
@@ -253,6 +260,12 @@ export interface ReviewExport {
  */
 export interface ReviewReport {
 	/**
+	 * Deduplicated import bindings used by the selected declarations.
+	 * @defaultValue Omitted on reports with no imports.
+	 */
+	readonly imports?: readonly ImportFact[];
+
+	/**
 	 * The package's documentation comment, shared by all entrypoint reports.
 	 * @defaultValue Omitted when the package has no documentation comment; no missing-comment notice is rendered.
 	 */
@@ -473,6 +486,7 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 		signatures.set(item.id, {
 			id: item.id,
 			text: item.normalized.callSignatureText,
+			...(item.normalized.imports === undefined ? {} : { imports: item.normalized.imports }),
 			documented: documentation.documented,
 			releaseLevel: metadata.releaseLevel,
 			modifierTags: [
@@ -643,14 +657,19 @@ function prepareContainer(
 	 * @param id - Member or signature identity.
 	 * @param text - Effective member syntax.
 	 * @param context - Original declaration lookup context, when available.
+	 * @param imports - Bindings referenced by the displayed member syntax.
 	 * @returns Prepared member with provenance only when another container declares it.
 	 */
 	function prepareMember(
 		id: ApiItemId,
 		text: string,
 		context: DocumentationReferenceContext | undefined,
+		imports: readonly ImportFact[] | undefined,
 	): PreparedSignature {
-		const prepared = prepareItem(id, text);
+		const prepared = {
+			...prepareItem(id, text),
+			...(imports === undefined ? {} : { imports }),
+		};
 		if (context?.container === undefined || context.container === declaration.id) {
 			return prepared;
 		}
@@ -706,7 +725,10 @@ function prepareContainer(
 	const members = [
 		...syntax.declaredMembers
 			.filter((member) => !augmentationMembers.includes(member))
-			.map((member) => prepareItem(member.id, member.printed)),
+			.map((member) => ({
+				...prepareItem(member.id, member.printed),
+				...(member.imports === undefined ? {} : { imports: member.imports }),
+			})),
 		...effectiveMembers.flatMap((member) =>
 			member.signatures.length > 0 && member.documentationContext === undefined
 				? member.signatures.map((signature) =>
@@ -714,6 +736,7 @@ function prepareContainer(
 							signature.id,
 							`${member.name}${member.optional ? "?" : ""}${signature.normalized.callSignatureText}`,
 							signature.documentationContext,
+							signature.normalized.imports,
 						),
 					)
 				: [
@@ -721,12 +744,14 @@ function prepareContainer(
 							member.id,
 							`${member.readonly === true ? "readonly " : ""}${member.name}${member.optional ? "?" : ""}: ${member.type};`,
 							member.documentationContext,
+							member.imports,
 						),
 					],
 		),
 	];
 	return {
 		...prepareItem(declaration.id, ""),
+		...(syntax.imports === undefined ? {} : { imports: syntax.imports }),
 		prefix: syntax.prefix,
 		suffix: syntax.suffix,
 		...(syntax.interfaceSuffix === undefined
@@ -736,7 +761,10 @@ function prepareContainer(
 						suffix: syntax.interfaceSuffix,
 						members: augmentationMembers.map((member) => {
 							const { id: _id, ...prepared } = prepareItem(member.id, member.printed);
-							return prepared;
+							return {
+								...prepared,
+								...(member.imports === undefined ? {} : { imports: member.imports }),
+							};
 						}),
 					},
 				}),
@@ -832,6 +860,8 @@ export function createReviewReport(
 		}
 		return exports;
 	}
+	const selectedExports = selectEntries(surface.exports, false);
+	const imports = collectImports(selectedExports);
 	return freezeData({
 		ok: true,
 		value: {
@@ -840,9 +870,53 @@ export function createReviewReport(
 				? {}
 				: { packageDocumentation: prepared.packageDocumentation }),
 			surface: selection.name,
-			exports: selectEntries(surface.exports, false),
+			exports: selectedExports,
+			...(imports.length === 0 ? {} : { imports }),
 		},
 	});
+}
+
+/**
+ * Collects imports from selected syntax, including complete container contents.
+ * @param exports - Selected bindings at the current namespace level.
+ * @returns Distinct imports in deterministic order.
+ */
+function collectImports(exports: readonly ReviewExport[]): ImportFact[] {
+	const imports = new Map<string, ImportFact>();
+	const declared = new Set(exports.map((entry) => entry.declarationId));
+	for (const entry of exports) {
+		const items = [
+			...entry.signatures,
+			...(entry.statement === undefined ? [] : [entry.statement]),
+			...(entry.container === undefined
+				? []
+				: [
+						entry.container,
+						...entry.container.members,
+						...(entry.container.augmentation?.members ?? []),
+					]),
+		];
+		const bindings = [
+			...items.flatMap((item) => item.imports ?? []),
+			...(entry.namespace === undefined ? [] : collectImports(entry.namespace.exports)),
+		];
+		for (const binding of bindings) {
+			if (binding.target !== undefined && declared.has(binding.target)) {
+				continue;
+			}
+			const key = JSON.stringify([
+				binding.moduleSpecifier,
+				binding.kind,
+				binding.importedName,
+				binding.name,
+			]);
+			const existing = imports.get(key);
+			imports.set(key, existing?.typeOnly === false ? existing : binding);
+		}
+	}
+	return [...imports.entries()]
+		.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+		.map(([, binding]) => binding);
 }
 
 /**
@@ -850,6 +924,18 @@ export function createReviewReport(
  * @public
  */
 export interface ReviewPresentationOptions {
+	/**
+	 * Whether imports referenced by the selected declarations appear before the APIs.
+	 *
+	 * @remarks
+	 * Imports used only by trimmed declarations are omitted.
+	 * Re-exporting a declaration from another package in the suite does not add an import for that declaration.
+	 * A false value hides imports without changing selection or validation.
+	 *
+	 * @defaultValue `true`
+	 */
+	readonly includeImports?: boolean;
+
 	/**
 	 * Whether classified release tags appear on top-level declarations and standalone overloads.
 	 *
@@ -925,10 +1011,11 @@ function formatCodeSpan(text: string): string {
  * Source annotations are independent of tag and undocumented-notice settings.
  * Other member annotations follow the presentation settings. Uses LF line endings and exactly one final newline.
  * Includes the package-owned documentation comment before declarations when present, regardless of API selection.
+ * Referenced imports precede the selected declarations unless includeImports is false.
  * Output is review text, not compilable declarations. No baseline is read or updated.
  *
  * @param report - Detached function report in canonical export and overload order.
- * @param options - Display settings. Omit to show top-level release tags, undocumented notices, and sealed, override, and deprecated annotations.
+ * @param options - Display settings. Omit to show imports, top-level release tags, undocumented notices, and sealed, override, and deprecated annotations.
  * @returns The complete Markdown report.
  * @throws If a release level violates the report model's internal contract.
  */
@@ -936,7 +1023,13 @@ export function renderReviewReport(
 	report: ReviewReport,
 	options: ReviewPresentationOptions = {},
 ): string {
-	const declarations = renderDeclarationText(report.exports, options, new Map());
+	const importText =
+		options.includeImports === false ? [] : (report.imports ?? []).map(renderImport);
+	const declarations = [
+		...importText,
+		...(importText.length === 0 ? [] : [""]),
+		renderDeclarationText(report.exports, options, new Map()),
+	].join("\n");
 	const body =
 		report.packageDocumentation === undefined
 			? declarations
@@ -956,6 +1049,21 @@ export function renderReviewReport(
 		fence,
 		"",
 	].join("\n");
+}
+
+/**
+ * Renders one referenced import binding.
+ * @param binding - Detached compiler import binding.
+ * @returns A complete import statement.
+ */
+function renderImport(binding: ImportFact): string {
+	const clause =
+		binding.kind === "namespace"
+			? `* as ${binding.name}`
+			: binding.kind === "default"
+				? binding.name
+				: `{ ${binding.importedName === binding.name ? binding.name : `${binding.importedName} as ${binding.name}`} }`;
+	return `import${binding.typeOnly ? " type" : ""} ${clause} from ${JSON.stringify(binding.moduleSpecifier)};`;
 }
 
 /**

@@ -6,15 +6,6 @@ Stage 3 portable models and the remaining required Stage 4 declaration rollups a
 
 ## API Report TODOs
 
-### Add import statements
-
-Like API-Extractor's API reports do by default, we should include relevant imports in our API reports.
-These should be filtered down to only what is referenced by the APIs declared in the report (accounting for trimming, which is something API-Extractor can't do).
-
-Imports should not be included for re-exports of items from other packages in the same suite.
-
-Via configuration, it should be possible to opt out of including imports.
-
 ### Ensure default tags in API reports match API-Extractor
 
 The set of tags included by default in API reports should match the defaults of `api-extractor`, including ordering.

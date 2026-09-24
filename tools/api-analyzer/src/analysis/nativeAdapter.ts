@@ -105,6 +105,7 @@ import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 import { getDeclarationSelectorKind } from "./dependencyReferences.js";
 import {
 	createSourceExcerpt,
+	captureImports,
 	printNativeExcerpt,
 	printSignatureText,
 } from "./compilerExcerpt.js";
@@ -1658,8 +1659,28 @@ export function extractMembers(
 				declaration,
 				NodeBuilderFlags.NoTruncation | NodeBuilderFlags.UseOnlyExternalAliasing,
 			);
+			const nameImports =
+				nameNode !== null && typeof nameNode === "object" && "kind" in nameNode
+					? (captureImports(
+							compiler,
+							nameNode as Node,
+							declaration,
+							createExcerptTargetResolver(compiler, locations),
+						).imports ?? [])
+					: [];
 			return {
 				id,
+				imports: [
+					...nameImports,
+					...(typeNode === undefined
+						? []
+						: (captureImports(
+								compiler,
+								typeNode,
+								declaration,
+								createExcerptTargetResolver(compiler, locations),
+							).imports ?? [])),
+				],
 				...(typeNode === undefined
 					? {}
 					: {
@@ -1685,16 +1706,26 @@ export function extractMembers(
 								owner,
 							),
 						}),
-				signatures:
-					callableType && state
-						? addDocumentationContexts(
-								compiler,
-								locations,
-								state,
-								callableType,
-								callableSignatures,
-							)
-						: callableSignatures,
+				signatures: (callableType && state
+					? addDocumentationContexts(
+							compiler,
+							locations,
+							state,
+							callableType,
+							callableSignatures,
+						)
+					: callableSignatures
+				).map((signature) =>
+					nameImports.length === 0
+						? signature
+						: {
+								...signature,
+								normalized: {
+									...signature.normalized,
+									imports: [...nameImports, ...(signature.normalized.imports ?? [])],
+								},
+							},
+				),
 				name,
 				type: checker.typeToString(propertyType, declaration),
 				optional: Boolean(property.flags & SymbolFlags.Optional),
@@ -2296,7 +2327,12 @@ export function collect(
 		(node) =>
 			node !== undefined && (isVariableDeclaration(node) || isTypeAliasDeclaration(node)),
 	);
-	const statement = extractStatementSyntax(compiler, statementNode ?? sourceNode, type);
+	const statement = extractStatementSyntax(
+		compiler,
+		locations,
+		statementNode ?? sourceNode,
+		type,
+	);
 	const symbolId = getMemberSymbolId(compiler, locations, symbol);
 
 	// Publish only after recursive dependencies have been collected; active identities prevent cycles.
@@ -2686,6 +2722,7 @@ function mergeDeclarationContainers(
 			}
 			return {
 				...primary,
+				imports: [...(primary.imports ?? []), ...(interfaceContainer?.imports ?? [])],
 				...(interfaceContainer === undefined
 					? {}
 					: { interfaceSuffix: interfaceContainer.suffix }),
@@ -2756,6 +2793,7 @@ function mergeDeclarationContainers(
 	);
 	return {
 		...header,
+		imports: containers.flatMap((container) => container?.imports ?? []),
 		declaredMembers: containers.flatMap((container) => container?.declaredMembers ?? []),
 	};
 }
@@ -2787,6 +2825,18 @@ function extractContainerSyntax(
 			node.heritageClauses?.map((clause) => compiler.emitter.printNode(clause).trim()) ?? [];
 		return {
 			kind,
+			imports: [
+				...(node.typeParameters ?? []),
+				...(node.heritageClauses ?? []).flatMap((clause) => clause.types),
+			].flatMap(
+				(part) =>
+					captureImports(
+						compiler,
+						part,
+						part,
+						createExcerptTargetResolver(compiler, locations),
+					).imports ?? [],
+			),
 			prefix: `${node.modifiers?.some((modifier) => modifier.kind === SyntaxKind.AbstractKeyword) === true ? "abstract " : ""}${kind} `,
 			suffix: `${parameters.length > 0 ? `<${parameters.join(", ")}>` : ""}${heritage.length > 0 ? ` ${heritage.join(" ")}` : ""}`,
 			supported: node.members.every(
@@ -2903,6 +2953,12 @@ function createDeclaredMemberRecord(
 	}
 	return {
 		...location,
+		...captureImports(
+			compiler,
+			member,
+			member,
+			createExcerptTargetResolver(compiler, locations),
+		),
 		excerpt: createSourceExcerpt(
 			compiler,
 			member,
@@ -2929,23 +2985,37 @@ function createDeclaredMemberRecord(
 /**
  * Extracts atomic declaration syntax while keeping the name available for alias rendering.
  * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership for import target identities.
  * @param sourceNode - Original node, or undefined when unavailable; produces no statement then.
  * @param type - Effective variable type; if undefined and no type or initializer exists, prints unknown.
  * @returns Detached type alias or variable syntax, or undefined for other declarations.
  */
 function extractStatementSyntax(
-	compiler: Pick<Project, "checker" | "emitter">,
+	compiler: CompilerContext,
+	locations: LocationContext,
 	sourceNode: Node | undefined,
 	type: Type | undefined,
 ): DeclarationStatementFact | undefined {
 	if (sourceNode && isTypeAliasDeclaration(sourceNode)) {
 		return {
+			...captureImports(
+				compiler,
+				sourceNode,
+				sourceNode,
+				createExcerptTargetResolver(compiler, locations),
+			),
 			prefix: "type ",
 			suffix: `${sourceNode.typeParameters === undefined ? "" : `<${sourceNode.typeParameters.map((parameter) => compiler.emitter.printNode(getSynthesizedDeepClone(parameter)).trim()).join(", ")}>`} = ${compiler.emitter.printNode(getSynthesizedDeepClone(sourceNode.type)).trim()};`,
 		};
 	}
 	if (sourceNode && isVariableDeclaration(sourceNode)) {
 		return {
+			...captureImports(
+				compiler,
+				sourceNode,
+				sourceNode,
+				createExcerptTargetResolver(compiler, locations),
+			),
 			prefix:
 				sourceNode.parent.flags & NodeFlags.Const
 					? "const "

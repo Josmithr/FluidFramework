@@ -5,6 +5,9 @@
 Surface: `"complete"`
 
 ```ts
+import type { Adapter } from "@scenario/adapter";
+import type { Domain } from "@scenario/domain";
+
 // @public
 export interface Service extends Domain, Adapter {
     // Inherited from `Contract` in package `@scenario/core`

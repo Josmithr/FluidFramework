@@ -5,6 +5,8 @@
 Surface: `"complete"`
 
 ```ts
+import type { Contract } from "@scenario/core";
+
 // @public
 export class Implementation implements Contract<string> {
     convert(value: string): string;

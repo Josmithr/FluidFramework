@@ -246,12 +246,22 @@ export function createModelGraph(
 				sources: declaration.declarations.map(createModelSource),
 				type: declaration.type,
 				...(declaration.symbolId === undefined ? {} : { symbolId: declaration.symbolId }),
-				...(declaration.statement === undefined ? {} : { statement: declaration.statement }),
+				...(declaration.statement === undefined
+					? {}
+					: {
+							statement: {
+								prefix: declaration.statement.prefix,
+								suffix: declaration.statement.suffix,
+							},
+						}),
 				...(declaration.container === undefined
 					? {}
 					: {
 							container: {
-								...declaration.container,
+								kind: declaration.container.kind,
+								prefix: declaration.container.prefix,
+								suffix: declaration.container.suffix,
+								supported: declaration.container.supported,
 								declaredMembers: declaration.container.declaredMembers.map((declared) => ({
 									...createItem(declared.id, declared.documentationContext),
 									source: createModelSource(declared),
@@ -260,6 +270,9 @@ export function createModelGraph(
 										? {}
 										: { staticTarget: declared.staticTarget }),
 								})),
+								...(declaration.container.interfaceSuffix === undefined
+									? {}
+									: { interfaceSuffix: declaration.container.interfaceSuffix }),
 							},
 						}),
 				memberView: declaration.memberView,
