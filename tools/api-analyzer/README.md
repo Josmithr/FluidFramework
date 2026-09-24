@@ -898,6 +898,9 @@ These are unsupported library capabilities, not user-input diagnostics. No parti
 `renderReviewReport(report, options?)` produces API Extractor-like Markdown: a package heading, generated-file notice,
 surface identity, and one `ts` block containing selected declarations and explicit export statements.
 Each function is declared once, with per-overload comments. Alias and type-only exports refer to that declaration.
+Same-name type-only exports of interfaces and type aliases use direct `export interface` and `export type` declarations.
+This simplification applies only when the declaration has no value-bearing merged parts.
+Renamed type-only exports and declarations with a value aspect retain separate export statements.
 Type-only export statements appear directly beneath their complete declaration group, with no intervening blank line.
 For overloaded or merged declarations, they follow the last overload or merged part.
 Multiple type-only aliases are sorted together there, including within nested namespaces.

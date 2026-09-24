@@ -27,6 +27,7 @@ import {
 } from "typescript6";
 import { analyzeAPIs, ReleaseLevel } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
+import { assertSnapshot } from "./snapshotUtils.js";
 
 describe("Repository pilot", () => {
 	it("checks the package's portable model without rewriting the baseline", () => {
@@ -149,9 +150,6 @@ describe("Repository pilot", () => {
 				: [],
 		);
 		assert.deepEqual(declarations.sort(), names.sort());
-		assert.doesNotMatch(before, /^ +\/\/[^\n]*@(public|beta|alpha|internal)/m);
-		assert.match(before, /\/\/ @public @sealed\ndeclare interface APIAnalysis/);
-		assert.equal(before.includes("// No selected exports."), false);
 	});
 
 	it("generates selected self-artifacts and checks them without accepting changes", () => {
@@ -182,9 +180,10 @@ describe("Repository pilot", () => {
 			];
 			execFileSync(process.execPath, [script], { cwd: tmpdir(), stdio: "pipe" });
 			for (const artifact of artifacts) {
-				assert.equal(
+				assertSnapshot(
 					readFileSync(path.join(directory, artifact.file), "utf8"),
-					readFileSync(new URL(artifact.file, root), "utf8"),
+					path.basename(artifact.file),
+					new URL(`${path.dirname(artifact.file)}/`, root),
 				);
 			}
 			const baselineModified = artifacts.map(
@@ -296,8 +295,8 @@ describe("Repository pilot", () => {
 			});
 			assert.equal(current.ok, true);
 			assert.equal(legacy.ok, true);
-			assert.equal(current.value.includes("compareArrays"), false);
-			assert.equal(legacy.value.includes("compareArrays"), true);
+			assertSnapshot(current.value, "pilot.core-utils.current.md");
+			assertSnapshot(legacy.value, "pilot.core-utils.legacy.md");
 			assert.equal(
 				decodeDependencyModel(result.value.generateModel(), "@fluidframework/core-utils").ok,
 				true,

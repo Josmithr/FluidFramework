@@ -917,6 +917,7 @@ function formatCodeSpan(text: string): string {
  * @remarks
  * Accepts a report created by {@link createReviewReport}. Does not mutate or sort its input.
  * Uses an API Extractor-like heading, a single TypeScript block, and explicit alias exports.
+ * Same-name type-only bindings use direct exports for interfaces and type aliases without value-bearing merged parts.
  * Type-only export statements immediately follow their complete declaration group within each namespace scope.
  * Ordinary alias exports remain at the end of their scope.
  * Release annotations appear on top-level declarations and standalone overloads, not container members.
@@ -961,7 +962,7 @@ export function renderReviewReport(
  * Renders selected declarations within one lexical namespace without Markdown framing.
  * @remarks
  * Reuses names owned by the same declaration; generated suffixes distinguish different declarations.
- * Type-only exports remain explicit even when the local declaration keeps its original name.
+ * Type-only exports remain explicit for renamed bindings and declarations with a value aspect.
  * Groups them after all overloads and merged declaration parts, with no intervening blank line.
  * @param exports - Selected exported bindings in canonical order.
  * @param options - Annotation presentation settings.
@@ -1040,10 +1041,17 @@ function renderDeclarationText(
 			continue;
 		}
 
-		// Type-only bindings need explicit exports; exporting a class or enum declaration directly would expose its value.
+		// Direct exports are safe only when every declaration part has no value aspect.
+		const hasOnlyTypeDeclarations =
+			binding.namespace === undefined &&
+			binding.signatures.length === 0 &&
+			((binding.container?.prefix === "interface " && binding.statement === undefined) ||
+				(binding.statement?.prefix === "type " && binding.container === undefined));
 		const direct = group.find(
 			(item) =>
-				!item.typeOnly && item.name === item.declarationName && item.name !== "default",
+				(!item.typeOnly || hasOnlyTypeDeclarations) &&
+				item.name === item.declarationName &&
+				item.name !== "default",
 		);
 		let localName = direct?.name ?? binding.declarationName;
 		if (direct === undefined) {

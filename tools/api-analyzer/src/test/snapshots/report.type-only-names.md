@@ -6,14 +6,51 @@ Surface: `"complete"`
 
 ```ts
 // @public
-declare interface Item {
+export interface Item {
     next?: Item;
 }
-export type { Item };
+export type { Item as ItemAlias };
+
+// @public
+export type Label = string;
+
+// @public
+declare type Hidden = string;
+export type { Hidden as Visible };
 
 // @public
 declare class Box {
     value: Item;
 }
 export type { Box };
+
+// @public
+declare namespace Scope {
+    export interface Item {
+        next?: Item;
+    }
+
+    export type Label = string;
+}
+export type { Scope };
+
+// @public
+declare interface MergedNamespace {
+    next?: Item;
+}
+
+// @public
+declare namespace MergedNamespace {
+    export type Label = string;
+}
+export type { MergedNamespace };
+
+// @public
+declare const MergedConstant: number;
+
+// @public
+declare interface MergedConstant {
+    next?: Item;
+}
+export type { MergedConstant };
 ```

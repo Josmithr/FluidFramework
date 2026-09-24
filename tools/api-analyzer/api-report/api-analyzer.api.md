@@ -6,57 +6,51 @@ Surface: `"complete"`
 
 ```ts
 // @public @sealed
-declare interface APIAnalysis {
+export interface APIAnalysis {
     readonly configuration: EffectiveConfiguration;
     generateModel(): string;
     generateReport(entrypoint: string, selection: ApiItemSelection, presentation?: ReviewPresentationOptions): Result<string>;
     getStatistics(): APIStatistics;
 }
-export type { APIAnalysis };
 
 // @public @sealed
-declare interface APIStatistics {
+export interface APIStatistics {
     readonly declarations: number;
     readonly entrypoints: number;
     readonly signatures: number;
 }
-export type { APIStatistics };
 
 // @public @sealed
-declare interface AnalyzerDiagnostic {
+export interface AnalyzerDiagnostic {
     readonly code: DiagnosticCode;
     readonly message: string;
 }
-export type { AnalyzerDiagnostic };
 
 // @public
-declare interface ApiItemSelection {
+export interface ApiItemSelection {
     readonly excludeTags?: readonly string[] | undefined;
     readonly includeUntagged?: boolean | undefined;
     readonly name: string;
     readonly releaseLevels: readonly ReleaseLevel[];
     readonly requireTags?: readonly string[] | undefined;
 }
-export type { ApiItemSelection };
 
 // @public
-declare interface ClassificationOptions extends TsdocOptions {
+export interface ClassificationOptions extends TsdocOptions {
     // Inherited from `TsdocOptions`
     readonly customModifierTags?: readonly string[] | undefined;
     readonly rules?: ClassificationRules | undefined;
 }
-export type { ClassificationOptions };
 
 // @public
-declare interface ClassificationRules {
+export interface ClassificationRules {
     readonly requirePackageDocumentation?: boolean | undefined;
     readonly requireReleaseLevel?: boolean | undefined;
     readonly validateTsdocSyntax?: boolean | undefined;
 }
-export type { ClassificationRules };
 
 // @public
-declare interface Configuration extends TsdocOptions {
+export interface Configuration extends TsdocOptions {
     // Inherited from `TsdocOptions`
     readonly customModifierTags?: readonly string[] | undefined;
     readonly entrypoints?: readonly Entrypoint[] | undefined;
@@ -68,10 +62,9 @@ declare interface Configuration extends TsdocOptions {
     readonly rules?: ClassificationRules | undefined;
     readonly suite?: SuiteConfiguration | undefined;
 }
-export type { Configuration };
 
 // @public @sealed
-declare interface DependencyModel {
+export interface DependencyModel {
     readonly apis: readonly DependencyApi[];
     readonly compilerVersion: string;
     readonly dependencyModels: readonly DependencyModelInput[];
@@ -86,7 +79,6 @@ declare interface DependencyModel {
     readonly packageName: string;
     readonly version: 1;
 }
-export type { DependencyModel };
 
 // @public
 export enum DiagnosticCode {
@@ -124,16 +116,15 @@ export enum DiagnosticCode {
 }
 
 // @public
-declare interface DirectionalReferenceRule {
+export interface DirectionalReferenceRule {
     readonly enabled?: boolean | undefined;
     readonly name: string;
     readonly source: Omit<ApiItemSelection, "name">;
     readonly target: Omit<ApiItemSelection, "name">;
 }
-export type { DirectionalReferenceRule };
 
 // @public @sealed
-declare interface EffectiveConfiguration {
+export interface EffectiveConfiguration {
     readonly customModifierTags: readonly string[];
     readonly entrypoints: readonly Entrypoint[];
     readonly packageName: string;
@@ -143,23 +134,20 @@ declare interface EffectiveConfiguration {
     readonly rules: ClassificationRules;
     readonly suite?: SuiteConfiguration | undefined;
 }
-export type { EffectiveConfiguration };
 
 // @public
-declare interface Entrypoint {
+export interface Entrypoint {
     readonly name: string;
     readonly path: string;
 }
-export type { Entrypoint };
 
 // @public
-declare interface ReferencePolicies {
+export interface ReferencePolicies {
     readonly directional?: readonly DirectionalReferenceRule[] | undefined;
     readonly entrypointExposure?: boolean | undefined;
     readonly inheritanceVisibility?: boolean | undefined;
     readonly releaseCompatibility?: boolean | undefined;
 }
-export type { ReferencePolicies };
 
 // @public
 export enum ReleaseLevel {
@@ -170,33 +158,29 @@ export enum ReleaseLevel {
 }
 
 // @public @sealed
-declare type Result<TValue = never> = FailedResult | ([
+export type Result<TValue = never> = FailedResult | ([
     TValue
 ] extends [
     never
 ] ? SuccessStatus : SuccessfulResult<TValue>);
-export type { Result };
 
 // @public
-declare interface ReviewPresentationOptions {
+export interface ReviewPresentationOptions {
     readonly additionalTags?: readonly string[] | undefined;
     readonly includeReleaseTags?: boolean | undefined;
     readonly includeUndocumentedNotice?: boolean | undefined;
 }
-export type { ReviewPresentationOptions };
 
 // @public
-declare interface SuiteConfiguration {
+export interface SuiteConfiguration {
     readonly modelFile: string;
     readonly packages: readonly string[];
 }
-export type { SuiteConfiguration };
 
 // @public
-declare interface TsdocOptions {
+export interface TsdocOptions {
     readonly customModifierTags?: readonly string[] | undefined;
 }
-export type { TsdocOptions };
 
 // @public
 export function analyzeAPIs(configuration: Configuration, workingDirectory?: string): Promise<Result<APIAnalysis>>;

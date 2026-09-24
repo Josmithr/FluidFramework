@@ -282,31 +282,48 @@ describe("Report generation from completed data", () => {
 		assert.equal(JSON.stringify(report), before);
 	});
 
-	it("reuses type-only export names without aliasing them to suffixed locals", () => {
+	it("directly exports type-only declarations without exposing merged values", () => {
 		const metadata = {
 			text: "",
 			documented: true,
 			releaseLevel: ReleaseLevel.Public,
 			modifierTags: [],
 		};
+		const item = {
+			declarationId: "item",
+			declarationName: "Item",
+			name: "Item",
+			typeOnly: true,
+			signatures: [],
+			container: {
+				...metadata,
+				prefix: "interface ",
+				suffix: "",
+				members: [{ ...metadata, text: "next?: Item;" }],
+			},
+		};
+		const label = {
+			declarationId: "label",
+			declarationName: "Label",
+			name: "Label",
+			typeOnly: true,
+			signatures: [],
+			statement: { ...metadata, prefix: "type ", suffix: " = string;" },
+		};
 
 		// Self-references and references from another type keep the original declaration name.
-		const report = renderReviewReport({
+		const report: ReviewReport = freezeData({
 			packageName: "example",
 			surface: "complete",
 			exports: [
+				item,
+				{ ...item, name: "ItemAlias" },
+				label,
 				{
-					declarationId: "item",
-					declarationName: "Item",
-					name: "Item",
-					typeOnly: true,
-					signatures: [],
-					container: {
-						...metadata,
-						prefix: "interface ",
-						suffix: "",
-						members: [{ ...metadata, text: "next?: Item;" }],
-					},
+					...label,
+					declarationId: "hidden",
+					declarationName: "Hidden",
+					name: "Visible",
 				},
 				{
 					declarationId: "box",
@@ -321,9 +338,33 @@ describe("Report generation from completed data", () => {
 						members: [{ ...metadata, text: "value: Item;" }],
 					},
 				},
+				{
+					declarationId: "scope",
+					declarationName: "Scope",
+					name: "Scope",
+					typeOnly: true,
+					signatures: [],
+					namespace: { ...metadata, exports: [item, label] },
+				},
+				{
+					...item,
+					declarationId: "merged-namespace",
+					declarationName: "MergedNamespace",
+					name: "MergedNamespace",
+					namespace: { ...metadata, exports: [label] },
+				},
+				{
+					...item,
+					declarationId: "merged-constant",
+					declarationName: "MergedConstant",
+					name: "MergedConstant",
+					statement: { ...metadata, prefix: "const ", suffix: ": number;" },
+				},
 			],
 		});
-		assertSnapshot(report, "report.type-only-names.md");
+		const before = JSON.stringify(report);
+		assertSnapshot(renderReviewReport(report), "report.type-only-names.md");
+		assert.equal(JSON.stringify(report), before);
 	});
 
 	it("reserves names belonging to other declarations before assigning local names", () => {

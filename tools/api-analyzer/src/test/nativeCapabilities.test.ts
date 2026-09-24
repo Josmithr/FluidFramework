@@ -1839,8 +1839,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							}),
 						),
 					);
-					assert.match(report, /get\(\): Preview \| undefined/);
-					assert.match(report, /nested: readonly Preview\[]/);
+					assertSnapshot(report, "effective-references.beta.md");
 					const source = facts.declarations.find((item) => item.name === "Base");
 					assert(source !== undefined);
 					for (const owner of [source, derived]) {
@@ -2154,8 +2153,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							releaseLevels: [ReleaseLevel.Beta],
 						}),
 					);
-					assert.match(empty, /Package-wide overview/);
-					assert.match(empty, /No selected exports/);
+					assertSnapshot(empty, "package-documentation.empty.md");
 				} finally {
 					rmSync(file, { force: true });
 					rmSync(entry, { force: true });
@@ -2523,8 +2521,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 								requireTags: ["@legacy"],
 							}),
 						);
-						assert.match(report, /first: string/);
-						assert.match(report, /second: number/);
+						assertSnapshot(report, "merged-comments.legacy.md");
 					}
 				} finally {
 					rmSync(file, { force: true });
@@ -2670,9 +2667,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				const report = getSuccessValue(
 					result.generateReport(".", { name: "public", releaseLevels: [ReleaseLevel.Public] }),
 				);
-				assert(report.includes("other: Value"));
-				assert(report.includes("receiverConstant: number"));
-				assert(report.includes("Two = 2"));
+				assertSnapshot(report, "declaration-inheritance.public.md");
 			});
 
 			it("inherits documentation from merged interfaces and repeated properties", async () => {
@@ -2864,36 +2859,19 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 					excludeTags: ["@omit"],
 				});
 				assert.equal(report.ok, true, JSON.stringify(report));
-				for (const text of [
-					"private constructor",
-					"static create",
-					"value: string",
-					"method(value: string)",
-					"method(value: number)",
-					"new (value: string)",
-					"[key: string]",
-					"Second = 2",
-					"namespace Nested",
-					"function operation",
-					"class Child",
-					"export import self = WholeNamespace",
-				]) {
-					assert.equal(report.value.includes(text), true, `${text}\n${report.value}`);
-				}
+				assertSnapshot(report.value, "container-members.selected.md");
 				const beta = result.value.generateReport(".", {
 					name: "beta",
 					releaseLevels: [ReleaseLevel.Beta],
 				});
 				assert.equal(beta.ok, true);
-				assert.match(beta.value, /inherited: string/);
-				assert.equal(beta.value.includes("WholeClass"), false);
+				assertSnapshot(beta.value, "container-members.beta.md");
 				const publicReport = result.value.generateReport(".", {
 					name: "public",
 					releaseLevels: [ReleaseLevel.Public],
 				});
 				assert.equal(publicReport.ok, true);
-				assert.match(publicReport.value, /standalone\(value: string\)/);
-				assert.equal(publicReport.value.includes("standalone(value: number)"), false);
+				assertSnapshot(publicReport.value, "container-members.public.md");
 
 				// Model consumers receive effective release metadata, not copied custom tags or invented comments.
 				const model = decodeDependencyModel(result.value.generateModel(), "example");
@@ -3006,30 +2984,12 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						releaseLevels: [ReleaseLevel.Public],
 					}),
 				);
-				for (const text of [
-					"interface Contract",
-					"const Contract",
-					"function Factory(value: string)",
-					"namespace Factory",
-					"class Widget",
-					"label: string",
-					"namespace Widget",
-					"function create()",
-					"interface Shape",
-					"namespace Shape",
-					"enum Mode",
-					"namespace Mode",
-				]) {
-					assert(report.includes(text), report);
-				}
 				const model = getSuccessValue(
 					decodeDependencyModel(analysis.generateModel(), "example"),
 				);
 				assert(model.exports.some((item) => item.path.join(".") === "Factory.version"));
 				assert(model.exports.some((item) => item.path.join(".") === "Widget.create"));
-				assert(report.includes("extends Left, Right"), report);
-				assert(report.includes("Extended<Value extends string = string>"), report);
-				assert(report.includes("(value: number): number"), report);
+				assertSnapshot(report, "compound-merges.public.md");
 				validateReportConsumers(
 					directory,
 					new Map([["compound-merges", report]]),
@@ -3152,18 +3112,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						excludeTags: ["@omit"],
 					}),
 				);
-				for (const declaration of [
-					"namespace Services",
-					"namespace Nested",
-					"function first",
-					"function second",
-					"function left",
-					"function right",
-				]) {
-					assert.equal(report.split(declaration).length - 1, 1, report);
-				}
-				assert.match(report, /export import self = Services/);
-				assert.match(report, /export { Services as RenamedServices }/);
+				assertSnapshot(report, "merged-namespace.selected.md");
 			});
 
 			it("rejects conflicting namespace metadata", async () => {
@@ -3255,28 +3204,19 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						releaseLevels: [ReleaseLevel.Public],
 					}),
 				);
-				assert.match(report, /declare enum Mode/);
-				assert.match(report, /declare const version: "v1"/);
-				assert.match(report, /export type { Mode as ChainedMode }/);
-				assert.match(report, /export type { version as chainedVersion }/);
-				assert.match(report, /declare interface RecursiveItem {/);
-				assert.match(report, /declare class TypeOnlyBox {/);
-				assert.match(report, /export type { Mode };/);
-				assert.match(report, /export type { version };/);
-				assert.doesNotMatch(report, /(?:RecursiveItem|TypeOnlyBox|Mode|version)_\d/);
+				assertSnapshot(report, "type-only-forward.public.md");
+				const directReport = getSuccessValue(
+					analysis.generateReport(".", {
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					}),
+				);
+				assertSnapshot(directReport, "type-only-values.public.md");
 
 				validateReportConsumers(
 					directory,
 					new Map([
-						[
-							"type-only-values",
-							getSuccessValue(
-								analysis.generateReport(".", {
-									name: "public",
-									releaseLevels: [ReleaseLevel.Public],
-								}),
-							),
-						],
+						["type-only-values", directReport],
 						["type-only-forward", report],
 					]),
 				);
@@ -3374,19 +3314,6 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						}),
 					);
 					const text = renderReviewReport(report);
-					assert.equal(text.includes("export namespace Operations {"), true, text);
-					assert.equal(text.includes("export function visible(): void;"), true, text);
-					assert.equal(text.includes("function hidden()"), true, text);
-
-					// Cycles remain aliases, while excluding a namespace also excludes its recursive bindings.
-					assert.equal(text.includes("export import self = Operations;"), true, text);
-					assert.equal(text.includes("HiddenOperations"), false, text);
-
-					// Merge repeated members in the report without discarding either original source record.
-					assert.equal(text.includes("export interface Settings {"), true, text);
-					assert.equal(text.includes("endpoint: string;"), true, text);
-					assert.equal(text.includes("internalTimeout"), true, text);
-					assert.equal(text.split("endpoint: string;").length - 1, 1);
 					assert.equal(
 						facts.declarations.find((item) => item.name === "Settings")?.declarations.length,
 						2,
@@ -3446,38 +3373,6 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 						false,
 					);
 					assert.equal(decodeDependencyModel("not json", "example").ok, false);
-					assert.equal(
-						text.includes("export interface Store<Value extends string = string>"),
-						true,
-					);
-					assert.equal(text.includes("readonly value: Value;"), true);
-					assert.equal(text.includes("lookup(value: string): Value;"), true);
-					assert.equal(text.includes("lookup(value: number)"), true);
-					assert.equal(text.includes("count?"), true);
-					assert.equal(
-						text.includes("callback?: ((value: Value) => void) | undefined;"),
-						true,
-						text,
-					);
-					assert.equal(text.includes("export class Implementation extends Base"), true, text);
-					assert.equal(text.includes("constructor(label: string);"), true, text);
-					assert.equal(
-						text.includes("static readonly nameOfImplementation: string;"),
-						true,
-						text,
-					);
-					assert.equal(text.includes("Construct an implementation"), false);
-					assert.equal(text.includes("export type ValueName = string;"), true, text);
-					assert.equal(text.includes('export const version: "v1";'), true, text);
-					assert.equal(text.includes("export enum Mode"), true, text);
-					assert.equal(text.includes("Visible = 1"), true, text);
-					assert.equal(text.includes("Hidden = 2"), true, text);
-					assert.equal(text.includes("performance"), false, text);
-					assert.equal(
-						text.includes("export type { Implementation as TypeImplementation };"),
-						true,
-						text,
-					);
 					const completeReport = renderReviewReport(
 						getSuccessValue(
 							createReviewReport(prepared, ".", {
@@ -3486,14 +3381,7 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 							}),
 						),
 					);
-					assert.equal(
-						completeReport.includes("export const performance: number;"),
-						true,
-						completeReport,
-					);
-					assert.match(text, /\n {4}operation\(value: string\): string;/);
-					assert.match(text, /\/\/ \(undocumented\)\n {4}label: string;/);
-					assert.doesNotMatch(text, /^ +\/\/[^\n]*@(public|beta|alpha|internal)/m);
+					assertSnapshot(completeReport, "declarations.complete.md");
 				} finally {
 					adapter.close();
 				}
