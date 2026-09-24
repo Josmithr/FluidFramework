@@ -18,6 +18,17 @@ import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/re
 import { freezeData } from "../utilities/freezeData.js";
 
 /**
+ * API Extractor's standard report tags in annotation order, also enabled by default.
+ */
+const standardReportTags: readonly string[] = [
+	"@sealed",
+	"@virtual",
+	"@override",
+	"@eventProperty",
+	"@deprecated",
+];
+
+/**
  * Review metadata and a syntax fragment for a selected signature or declaration item.
  */
 export interface ReviewSignature {
@@ -956,8 +967,10 @@ export interface ReviewPresentationOptions {
 	 * Names are matched exactly against report metadata. Unknown or absent names display nothing.
 	 * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.
 	 * A supplied list replaces the defaults; an empty list hides all additional tag annotations.
+	 * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.
+	 * Other configured tags follow in the supplied order. Repeated names appear once.
 	 *
-	 * @defaultValue `["@sealed", "@override", "@deprecated"]`
+	 * @defaultValue `["@sealed", "@virtual", "@override", "@eventProperty", "@deprecated"]`
 	 *
 	 * @example Show deprecation annotations without release annotations
 	 * These settings display `@deprecated` when present in an item's metadata and hide release tags.
@@ -1015,7 +1028,7 @@ function formatCodeSpan(text: string): string {
  * Output is review text, not compilable declarations. No baseline is read or updated.
  *
  * @param report - Detached function report in canonical export and overload order.
- * @param options - Display settings. Omit to show imports, top-level release tags, undocumented notices, and sealed, override, and deprecated annotations.
+ * @param options - Display settings. Omit to show imports, top-level release tags, undocumented notices, and API Extractor's standard tag annotations.
  * @returns The complete Markdown report.
  * @throws If a release level violates the report model's internal contract.
  */
@@ -1100,7 +1113,15 @@ function renderDeclarationText(
 	const declarations: string[] = [];
 	const aliases: string[] = [];
 	const releaseTags = new Set(Object.values(levels).map((level) => `@${level}`));
-	const additionalTags = options.additionalTags ?? ["@sealed", "@override", "@deprecated"];
+	const additionalTags = options.additionalTags ?? standardReportTags;
+	const orderedTags = [
+		...standardReportTags.filter((tag) => additionalTags.includes(tag)),
+		...new Set(
+			additionalTags.filter(
+				(tag) => !standardReportTags.includes(tag) && !releaseTags.has(tag),
+			),
+		),
+	];
 
 	/**
 	 * Formats enabled metadata and documentation-status annotations for one report item.
@@ -1117,11 +1138,7 @@ function renderDeclarationText(
 				tags.push(`@${level}`);
 			}
 		}
-		tags.push(
-			...signature.modifierTags.filter(
-				(tag) => !releaseTags.has(tag) && additionalTags.includes(tag),
-			),
-		);
+		tags.push(...orderedTags.filter((tag) => signature.modifierTags.includes(tag)));
 		if (options.includeUndocumentedNotice !== false && !signature.documented) {
 			tags.push("(undocumented)");
 		}

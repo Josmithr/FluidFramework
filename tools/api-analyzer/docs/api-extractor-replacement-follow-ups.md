@@ -206,7 +206,8 @@ Tests verify unchanged input data, deterministic output, and independent baselin
 
 This follow-up does not defer the agreed initial options for displayed tags or undocumented-item annotations.
 Release tags appear by default on top-level declarations and standalone overloads, not on container members.
-`@sealed`, `@override`, and `@deprecated` display by default on declarations and members when present.
+`@sealed`, `@virtual`, `@override`, `@eventProperty`, and `@deprecated` display by default on declarations and members when present, in that order, matching API Extractor.
 An explicit additional-tag list replaces those defaults; an empty list hides them.
+Enabled standard tags retain this order; other configured tags follow in the supplied order.
 Undocumented-item annotations are independently configurable and default to enabled.
 Inherited-member source annotations are currently always included; their configuration is a future refinement.

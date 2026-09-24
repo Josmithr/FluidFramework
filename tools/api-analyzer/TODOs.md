@@ -6,10 +6,6 @@ Stage 3 portable models and the remaining required Stage 4 declaration rollups a
 
 ## API Report TODOs
 
-### Ensure default tags in API reports match API-Extractor
-
-The set of tags included by default in API reports should match the defaults of `api-extractor`, including ordering.
-
 ### For APIs re-exported from other packages in the same suite, reports should note the original source
 
 Just like we include a comment line for members inherited from another type, we should add a `//` comment above API exports that originate in another package.

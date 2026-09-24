@@ -73,6 +73,94 @@ const graph: CompletedAnalysis = freezeData({
 });
 
 describe("Report generation from completed data", () => {
+	it("matches API Extractor's default annotation tags and ordering", () => {
+		const signature = {
+			text: "(): void;",
+			documented: false,
+			releaseLevel: ReleaseLevel.Public,
+			modifierTags: [
+				"@deprecated",
+				"@custom",
+				"@eventProperty",
+				"@override",
+				"@public",
+				"@sealed",
+				"@virtual",
+				"@another",
+			],
+		};
+		const report = freezeData({
+			packageName: "example",
+			surface: "public",
+			exports: [
+				{
+					declarationId: "value",
+					declarationName: "value",
+					name: "value",
+					typeOnly: false,
+					signatures: [signature],
+				},
+				{
+					declarationId: "wrapper",
+					declarationName: "Wrapper",
+					name: "Wrapper",
+					typeOnly: false,
+					signatures: [],
+					container: {
+						...signature,
+						prefix: "interface ",
+						suffix: "",
+						members: [{ ...signature, text: "value: string;" }],
+					},
+				},
+			],
+		});
+		assertSnapshot(renderReviewReport(report), "report.default-tags.md");
+		assert.equal(
+			renderReviewReport({
+				...report,
+				exports: report.exports.map((entry) => ({
+					...entry,
+					signatures: entry.signatures.map((item) => ({
+						...item,
+						modifierTags: [...item.modifierTags].reverse(),
+					})),
+				})),
+			}),
+			renderReviewReport(report),
+		);
+		assert.equal(
+			renderReviewReport(report, {
+				additionalTags: ["@deprecated", "@override", "@eventProperty", "@virtual", "@sealed"],
+			}),
+			renderReviewReport(report),
+		);
+		assertSnapshot(
+			renderReviewReport(report, {
+				additionalTags: [
+					"@custom",
+					"@deprecated",
+					"@sealed",
+					"@another",
+					"@custom",
+					"@public",
+					"@missing",
+				],
+				includeReleaseTags: false,
+				includeUndocumentedNotice: false,
+			}),
+			"report.configured-tags.md",
+		);
+		assertSnapshot(
+			renderReviewReport(report, {
+				additionalTags: [],
+				includeReleaseTags: false,
+				includeUndocumentedNotice: false,
+			}),
+			"report.no-tags.md",
+		);
+	});
+
 	it("retains imports only for selected overloads", () => {
 		const publicImport = {
 			kind: "named" as const,

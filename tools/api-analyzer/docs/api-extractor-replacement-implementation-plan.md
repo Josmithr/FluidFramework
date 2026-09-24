@@ -725,7 +725,10 @@ These operations consume text without parsing report syntax or repeating analysi
 The initial report representation now joins selected signature metadata to detached function facts.
 The Markdown renderer preserves exported aliases, type-only paths, and compiler overload order, while excluding implementation bodies and provisional identifiers.
 The default layout now follows API Extractor's declaration-oriented Markdown style, using compiler-printed call-signature declarations and explicit alias exports.
-Release tags display by default; other recognized tags are opt-in. Undocumented annotations are independently configurable and default to enabled.
+Release tags display by default on top-level declarations and standalone overloads.
+The standard tags `@sealed`, `@virtual`, `@override`, `@eventProperty`, and `@deprecated` also display by default, in that order, matching API Extractor.
+Other recognized tags are opt-in and follow the standard tags in configured order.
+Undocumented annotations are independently configurable, default to enabled, and appear last.
 These options affect presentation only. Tag-only comments do not count as descriptive documentation.
 Required package-documentation support is recorded in the follow-up tracker; broader presentation customization follows rough API Extractor parity.
 Public, complete, and empty reports use checked-in snapshots. Both TS6- and TS7-built function fixtures render the same snapshots after session closure.

@@ -936,8 +936,11 @@ Inherited members also receive a separate `` // Inherited from `Base` `` line th
 When the declaring type belongs to another package, the line includes `` in package `package-name` ``.
 These source annotations remain visible when tag and undocumented-notice output are disabled.
 A locally declared override does not receive a source annotation, even when its documentation is inherited.
-`additionalTags` defaults to `["@sealed", "@override", "@deprecated"]` for declarations and members.
+`additionalTags` defaults to `["@sealed", "@virtual", "@override", "@eventProperty", "@deprecated"]` for declarations and members, matching API Extractor.
 A supplied list replaces these defaults; use `[]` to hide all additional tags, or include other recognized tags such as `@input` or `@legacy` as needed.
+Annotations show the release tag first, then enabled standard tags in the order above, then other configured tags in the supplied order, and finally the undocumented notice.
+Standard-tag ordering does not depend on source comment order or configured list order.
+Repeated configured tags appear once.
 Additional names match report metadata exactly. Unknown or absent names display nothing; this option does not register custom TSDoc tags.
 Release tags are controlled only by `includeReleaseTags`, not `additionalTags`; adding a release tag to `additionalTags` does not restore member release annotations.
 Permitted untagged items have no release annotation.
