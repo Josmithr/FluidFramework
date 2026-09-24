@@ -73,6 +73,56 @@ const graph: CompletedAnalysis = freezeData({
 });
 
 describe("Report generation from completed data", () => {
+	it("annotates re-exports with their declaring package, not their documentation source", () => {
+		const reexportGraph = freezeData({
+			...graph,
+			facts: {
+				...graph.facts,
+				surfaces: [
+					{
+						name: ".",
+						exports: [
+							{ name: "value", target: "value", typeOnly: false },
+							{ name: "ValueType", target: "value", typeOnly: true },
+						],
+					},
+				],
+				declarations: graph.facts.declarations.map((declaration) => ({
+					...declaration,
+					declarations: declaration.declarations.map((source) => ({
+						...source,
+						packageName: "@scope/original",
+					})),
+				})),
+			},
+		});
+		const prepared = prepareReviewReport(reexportGraph);
+		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+		const report = createReviewReport(prepared, ".", selection);
+		assert(report.ok);
+		assertSnapshot(renderReviewReport(report.value), "report.reexport-source.md");
+		assert(report.value.exports.every((entry) => entry.reexportedFrom === "@scope/original"));
+		assert.deepEqual(createReviewReport(prepared, ".", selection), report);
+		assert.equal(
+			renderReviewReport(report.value, {
+				includeReleaseTags: false,
+				additionalTags: [],
+				includeUndocumentedNotice: false,
+			}),
+			renderReviewReport(report.value).replace("// @public\n", ""),
+		);
+		const local = createReviewReport(prepareReviewReport(graph), ".", selection);
+		assert(local.ok);
+		assert(local.value.exports.every((entry) => !Object.hasOwn(entry, "reexportedFrom")));
+		assert.equal(renderReviewReport(local.value).includes("// Re-exported from"), false);
+		const empty = createReviewReport(prepared, ".", {
+			name: "empty",
+			releaseLevels: [],
+		});
+		assert(empty.ok);
+		assert.equal(renderReviewReport(empty.value).includes("// Re-exported from"), false);
+	});
+
 	it("matches API Extractor's default annotation tags and ordering", () => {
 		const signature = {
 			text: "(): void;",
@@ -485,6 +535,30 @@ describe("Report generation from completed data", () => {
 		const text = renderReviewReport(report, { includeReleaseTags: false });
 		assertSnapshot(text, "report.type-only-groups.md");
 		assert.equal(renderReviewReport(report, { includeReleaseTags: false }), text);
+		assertSnapshot(
+			renderReviewReport(
+				{
+					...report,
+					exports: report.exports.map((entry) => ({
+						...entry,
+						reexportedFrom: "@scope/original",
+						...(entry.namespace === undefined
+							? {}
+							: {
+									namespace: {
+										...entry.namespace,
+										exports: entry.namespace.exports.map((nested) => ({
+											...nested,
+											reexportedFrom: "@scope/original",
+										})),
+									},
+								}),
+					})),
+				},
+				{ includeReleaseTags: false },
+			),
+			"report.reexport-groups.md",
+		);
 		assert.equal(JSON.stringify(report), before);
 	});
 

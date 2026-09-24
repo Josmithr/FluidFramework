@@ -174,6 +174,19 @@ export interface ReviewContainer extends ReviewStatement {
  */
 export interface ReviewExport {
 	/**
+	 * Original declaring package when this API is re-exported from another package in the suite.
+	 *
+	 * @remarks
+	 * Identifies declaration ownership, not an intermediate re-export or inherited documentation source.
+	 * The renderer adds one source comment after the first declaration's tag comments in each namespace scope.
+	 * With no tag comments, the source comment appears directly above that declaration.
+	 * Recursive namespace aliases carry the comment on their export statement instead.
+	 *
+	 * @defaultValue Omitted for declarations owned by the package being reported or with no source records.
+	 */
+	readonly reexportedFrom?: string;
+
+	/**
 	 * Complete nested namespace exports and effective namespace metadata.
 	 * @defaultValue Omitted for non-namespace declarations.
 	 */
@@ -604,7 +617,11 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 						"Function declarations must have callable signatures.",
 					);
 				}
+				const sourcePackage = declaration.declarations[0]?.packageName;
 				return {
+					...(sourcePackage === undefined || sourcePackage === facts.packageName
+						? {}
+						: { reexportedFrom: sourcePackage }),
 					...(namespace === undefined ? {} : { namespace }),
 					...(container === undefined ? {} : { container }),
 					...(statement === undefined ? {} : { statement }),
@@ -1148,9 +1165,29 @@ function renderDeclarationText(
 			? annotation
 			: `${annotation}// Inherited from ${formatCodeSpan(source.name)}${source.packageName === undefined ? "" : ` in package ${formatCodeSpan(source.packageName)}`}\n`;
 	}
+
+	/**
+	 * Adds group provenance after the first declaration's annotations without repeating it on merged parts.
+	 * @param item - Metadata for the next declaration part.
+	 * @param declarationParts - Already rendered parts of this declaration group.
+	 * @param sourceAnnotation - Source comment for the group, or an empty string for local declarations.
+	 * @returns Annotation lines followed by the source comment for the first part only.
+	 */
+	function renderDeclarationAnnotation(
+		item: ReviewSignature,
+		declarationParts: readonly string[],
+		sourceAnnotation: string,
+	): string {
+		return `${renderAnnotation(item, enclosing.size === 0)}${declarationParts.length === 0 ? sourceAnnotation : ""}`;
+	}
+
 	for (const group of groups.values()) {
 		const binding = group[0];
 		assert(binding !== undefined, "Report export groups must not be empty.");
+		const sourceAnnotation =
+			binding.reexportedFrom === undefined
+				? ""
+				: `// Re-exported from ${formatCodeSpan(binding.reexportedFrom)}\n`;
 		if (binding.namespace?.reference !== undefined) {
 			// An enclosing declaration can have a generated local name; its source name is not sufficient.
 			const referencedName = enclosing.get(binding.namespace.reference);
@@ -1161,7 +1198,7 @@ function renderDeclarationText(
 
 			// Keep cycles as aliases, not nested declarations. Selection already removed excluded targets.
 			for (const exported of group) {
-				aliases.push(`export import ${exported.name} = ${referencedName};`);
+				aliases.push(`${sourceAnnotation}export import ${exported.name} = ${referencedName};`);
 			}
 			continue;
 		}
@@ -1206,23 +1243,10 @@ function renderDeclarationText(
 		const typeAliases: string[] = [];
 		const declarationPrefix =
 			direct === undefined ? (enclosing.size === 0 ? "declare " : "") : "export ";
-		let namespaceDeclaration: string | undefined;
-		if (binding.namespace !== undefined) {
-			// Extend names only for this nested scope so sibling namespaces cannot inherit each other's bindings.
-			const nested = renderDeclarationText(
-				binding.namespace.exports,
-				options,
-				new Map([...enclosing, [binding.declarationId, localName]]),
-			)
-				.split("\n")
-				.map((line) => (line.length > 0 ? `    ${line}` : ""))
-				.join("\n");
-			namespaceDeclaration = `${renderAnnotation(binding.namespace, enclosing.size === 0)}${declarationPrefix}namespace ${localName} {\n${nested}\n}`;
-		}
 		if (binding.statement !== undefined) {
 			const statement = binding.statement;
 			declarationParts.push(
-				`${renderAnnotation(statement, enclosing.size === 0)}${declarationPrefix}${statement.prefix}${localName}${statement.suffix}`,
+				`${renderDeclarationAnnotation(statement, declarationParts, sourceAnnotation)}${declarationPrefix}${statement.prefix}${localName}${statement.suffix}`,
 			);
 		}
 		if (binding.container !== undefined) {
@@ -1238,7 +1262,7 @@ function renderDeclarationText(
 				)
 				.join("\n");
 			declarationParts.push(
-				`${renderAnnotation(container, enclosing.size === 0)}${declarationPrefix}${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
+				`${renderDeclarationAnnotation(container, declarationParts, sourceAnnotation)}${declarationPrefix}${container.prefix}${localName}${container.suffix} {${memberText ? `\n${memberText}\n` : ""}}`,
 			);
 			if (container.augmentation !== undefined) {
 				const augmentationText = container.augmentation.members
@@ -1255,13 +1279,28 @@ function renderDeclarationText(
 			}
 		}
 		for (const signature of binding.signatures) {
-			const comment = renderAnnotation(signature, enclosing.size === 0);
+			const comment = renderDeclarationAnnotation(
+				signature,
+				declarationParts,
+				sourceAnnotation,
+			);
 			declarationParts.push(
 				`${comment}${declarationPrefix}function ${localName}${signature.text.replaceAll(/\r\n?/g, "\n").trimEnd()}`,
 			);
 		}
-		if (namespaceDeclaration !== undefined) {
-			declarationParts.push(namespaceDeclaration);
+		if (binding.namespace !== undefined) {
+			// Extend names only for this nested scope so sibling namespaces cannot inherit each other's bindings.
+			const nested = renderDeclarationText(
+				binding.namespace.exports,
+				options,
+				new Map([...enclosing, [binding.declarationId, localName]]),
+			)
+				.split("\n")
+				.map((line) => (line.length > 0 ? `    ${line}` : ""))
+				.join("\n");
+			declarationParts.push(
+				`${renderDeclarationAnnotation(binding.namespace, declarationParts, sourceAnnotation)}${declarationPrefix}namespace ${localName} {\n${nested}\n}`,
+			);
 		}
 		for (const exported of group) {
 			if (exported !== direct) {

@@ -9,6 +9,7 @@ import type { Adapter } from "@scenario/adapter";
 import type { Domain } from "@scenario/domain";
 
 // @public
+// Re-exported from `@scenario/service`
 declare interface Service extends Domain, Adapter {
     // Inherited from `Contract` in package `@scenario/core`
     convert(value: string): string;
@@ -16,9 +17,11 @@ declare interface Service extends Domain, Adapter {
 export type { Service as Contract };
 
 // @public
+// Re-exported from `@scenario/core`
 declare function source(value: string): string;
 
 // @public
+// Re-exported from `@scenario/service`
 export function operation(value: string): string;
 
 export { source as facadeAlias };

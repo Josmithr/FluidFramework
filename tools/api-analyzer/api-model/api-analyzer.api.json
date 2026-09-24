@@ -19094,7 +19094,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/report-generation/reviewReport.d.ts",
-            "start": 18667,
+            "start": 19353,
             "kind": "PropertySignature",
             "text": "\n    /**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */\n    readonly additionalTags?: readonly string[];",
             "documentation": "/**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */",
@@ -19136,7 +19136,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/report-generation/reviewReport.d.ts",
-            "start": 17457,
+            "start": 18143,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * Presentation settings that do not change classification, selection, or validation.\n * @public\n */\nexport interface ReviewPresentationOptions {\n    /**\n     * Whether imports referenced by the selected declarations appear before the APIs.\n     *\n     * @remarks\n     * Imports used only by trimmed declarations are omitted.\n     * Re-exporting a declaration from another package in the suite does not add an import for that declaration.\n     * A false value hides imports without changing selection or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeImports?: boolean;\n    /**\n     * Whether classified release tags appear on top-level declarations and standalone overloads.\n     *\n     * @remarks\n     * A false value hides these annotations without changing classification or selection.\n     * Container members omit release annotations, including nested namespace exports.\n     * Other member annotations remain controlled by their respective presentation settings.\n     * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeReleaseTags?: boolean;\n    /**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */\n    readonly additionalTags?: readonly string[];\n    /**\n     * Whether items without descriptive documentation receive an `(undocumented)` annotation.\n     *\n     * @remarks\n     * A false value suppresses the notice without changing effective documentation status or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeUndocumentedNotice?: boolean;\n}",
             "documentation": "/**\n * Presentation settings that do not change classification, selection, or validation.\n * @public\n */",
@@ -19191,7 +19191,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 18667,
+                "start": 19353,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */\n    readonly additionalTags?: readonly string[];",
                 "documentation": "/**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */",
@@ -19237,7 +19237,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 17607,
+                "start": 18293,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether imports referenced by the selected declarations appear before the APIs.\n     *\n     * @remarks\n     * Imports used only by trimmed declarations are omitted.\n     * Re-exporting a declaration from another package in the suite does not add an import for that declaration.\n     * A false value hides imports without changing selection or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeImports?: boolean;",
                 "documentation": "/**\n     * Whether imports referenced by the selected declarations appear before the APIs.\n     *\n     * @remarks\n     * Imports used only by trimmed declarations are omitted.\n     * Re-exporting a declaration from another package in the suite does not add an import for that declaration.\n     * A false value hides imports without changing selection or validation.\n     *\n     * @defaultValue `true`\n     */",
@@ -19283,7 +19283,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 18059,
+                "start": 18745,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether classified release tags appear on top-level declarations and standalone overloads.\n     *\n     * @remarks\n     * A false value hides these annotations without changing classification or selection.\n     * Container members omit release annotations, including nested namespace exports.\n     * Other member annotations remain controlled by their respective presentation settings.\n     * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeReleaseTags?: boolean;",
                 "documentation": "/**\n     * Whether classified release tags appear on top-level declarations and standalone overloads.\n     *\n     * @remarks\n     * A false value hides these annotations without changing classification or selection.\n     * Container members omit release annotations, including nested namespace exports.\n     * Other member annotations remain controlled by their respective presentation settings.\n     * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.\n     *\n     * @defaultValue `true`\n     */",
@@ -19329,7 +19329,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 19884,
+                "start": 20570,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether items without descriptive documentation receive an `(undocumented)` annotation.\n     *\n     * @remarks\n     * A false value suppresses the notice without changing effective documentation status or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeUndocumentedNotice?: boolean;",
                 "documentation": "/**\n     * Whether items without descriptive documentation receive an `(undocumented)` annotation.\n     *\n     * @remarks\n     * A false value suppresses the notice without changing effective documentation status or validation.\n     *\n     * @defaultValue `true`\n     */",
@@ -19428,7 +19428,7 @@
     },
     {
       "file": "lib/report-generation/reviewReport.d.ts",
-      "sha256": "264b6660a497e3ef91e0e1bc6bcaa4d9922f2ff2e1e5296c80602886bd461ec1"
+      "sha256": "2434b0213c0e2609a1c6d0f714256d5750c4a6235044a00e9d7bcc3c07f53a3d"
     }
   ],
   "dependencyModels": [],
@@ -24754,7 +24754,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 18667
+        "start": 19353
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/report-generation/reviewReport.d.ts\\\"]\"],\"ReviewPresentationOptions\",\"additionalTags\"]",
@@ -24811,7 +24811,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 17457
+        "start": 18143
       },
       "typeParameters": [],
       "metadata": {
@@ -32918,7 +32918,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 18667
+        "start": 19353
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"additionalTags\"]",
@@ -32975,7 +32975,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 17607
+        "start": 18293
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"includeImports\"]",
@@ -33026,7 +33026,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 18059
+        "start": 18745
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"includeReleaseTags\"]",
@@ -33067,7 +33067,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/report-generation/reviewReport.d.ts",
-              "start": 18059
+              "start": 18745
             }
           }
         ],
@@ -33090,7 +33090,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 19884
+        "start": 20570
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"includeUndocumentedNotice\"]",

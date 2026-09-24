@@ -14,6 +14,7 @@ export interface Domain extends Contract<string> {
 }
 
 // @public
+// Re-exported from `@scenario/core`
 declare function source(value: string): string;
 
 // @public

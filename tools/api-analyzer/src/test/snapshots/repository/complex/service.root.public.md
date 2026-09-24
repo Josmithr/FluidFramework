@@ -18,6 +18,7 @@ export interface Service extends Domain, Adapter {
 export function operation(value: string): string;
 
 // @public
+// Re-exported from `@scenario/core`
 declare function source(value: string): string;
 
 export { source as serviceAlias };

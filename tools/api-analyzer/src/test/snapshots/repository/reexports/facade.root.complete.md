@@ -6,16 +6,19 @@ Surface: `"complete"`
 
 ```ts
 // @public
+// Re-exported from `@scenario/core`
 export interface Contract<TValue> {
     convert(value: TValue): TValue;
 }
 export type { Contract as ContractType };
 
 // @public
+// Re-exported from `@scenario/core`
 export function source(value: string): string;
 export type { source as SourceType };
 
 // @beta
+// Re-exported from `@scenario/core`
 export function target(value: string): string;
 
 export { source as renamedSource };

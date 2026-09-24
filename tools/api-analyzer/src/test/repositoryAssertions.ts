@@ -170,6 +170,9 @@ function verifyPackageRelationships(
 				(api) => api.documentation.documentation?.includes("Converts a value") === true,
 			),
 		);
+		for (const report of Object.values(consumer.reports)) {
+			assert(!report.includes("// Re-exported from"));
+		}
 		return;
 	}
 	const facade = artifacts.find((artifact) => artifact.name === "facade");
@@ -180,7 +183,12 @@ function verifyPackageRelationships(
 	);
 	assert.deepEqual(alias?.items, [source.id]);
 	assert(!facade.model.apis.some((api) => api.id === source.id));
+	for (const report of Object.values(facade.reports)) {
+		assert(report.includes("// @public\n// Re-exported from `@scenario/core`\n"));
+	}
 	if (scenario === "reexports") {
+		assert.equal(facade.reports["root.public"]?.match(/\/\/ Re-exported from/g)?.length, 2);
+		assert.equal(facade.reports["root.complete"]?.match(/\/\/ Re-exported from/g)?.length, 3);
 		assert.equal(
 			facade.model.exports.find((entry) => entry.path.join(".") === "SourceType")?.typeOnly,
 			true,
@@ -203,6 +211,32 @@ function verifyPackageRelationships(
 	);
 	const operation = service.model.apis.find((api) => api.name === "operation");
 	assert.equal(operation?.documentation.links[0]?.targetSignature, target.id);
+	for (const report of Object.values(facade.reports)) {
+		assert(
+			report.includes(
+				"// @public\n// Re-exported from `@scenario/core`\ndeclare function source",
+			),
+		);
+		assert(
+			report.includes(
+				"// @public\n// Re-exported from `@scenario/service`\nexport function operation",
+			),
+		);
+		assert(
+			report.includes(
+				"// @public\n// Re-exported from `@scenario/service`\ndeclare interface Service",
+			),
+		);
+		assert(!report.includes("// Re-exported from `@scenario/facade`"));
+	}
+	for (const report of Object.values(service.reports)) {
+		assert.equal(report.match(/\/\/ Re-exported from/g)?.length, 1);
+		assert(
+			report.includes(
+				"// @public\n// Re-exported from `@scenario/core`\ndeclare function source",
+			),
+		);
+	}
 	assert(
 		operation?.documentation.sections?.some(
 			(section) => section.packageName === "@scenario/core",

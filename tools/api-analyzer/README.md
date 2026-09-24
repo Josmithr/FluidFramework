@@ -912,6 +912,14 @@ Keeping an original declaration name does not turn a type-only class, enum, or c
 Call-signature declaration text is printed by the compiler during analysis; the renderer does not rewrite arrow-function type strings.
 The report retains declaration identities internally to group aliases, but never prints those identities.
 
+APIs re-exported from another package in the suite receive a `` // Re-exported from `package-name` `` comment above their declaration group.
+The source comment follows the first declaration's tag-comment lines, or appears directly above the declaration when no tag comments are shown.
+The comment names the original declaring package, not an intermediate re-exporting package or an inherited documentation source.
+Aliases, overloads, and merged declarations share one comment per declaration group in each namespace scope.
+Recursive namespace aliases receive the comment above their export statement instead.
+Local declarations receive no re-export comment, including declarations with inherited documentation or members.
+Re-export source comments remain visible when tag and undocumented-notice output are disabled.
+
 `ReviewPresentationOptions.includeImports` defaults to `true`.
 Reports include import bindings referenced by the selected declaration syntax, including container headers, members, and nested namespace contents.
 Selection removes imports used only by omitted declarations or standalone overloads.

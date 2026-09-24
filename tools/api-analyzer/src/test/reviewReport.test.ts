@@ -31,7 +31,7 @@ const facts: AnalysisFacts = {
 			name: "convert",
 			declarations: [
 				{
-					packageName: "dependency",
+					packageName: "example",
 					file: "api.d.ts",
 					start: 100,
 					kind: "FunctionDeclaration",

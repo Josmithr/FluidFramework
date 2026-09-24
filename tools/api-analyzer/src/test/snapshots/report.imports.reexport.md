@@ -9,6 +9,7 @@ Surface: `"public"`
 export type Copy = Input;
 
 // @public
+// Re-exported from `dependency`
 export interface Input {
     // (undocumented)
     value: string;
