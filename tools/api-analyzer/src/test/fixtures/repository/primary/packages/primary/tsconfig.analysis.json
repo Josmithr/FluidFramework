@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "noEmit": true },
-  "files": ["lib/index.d.ts", "lib/values.d.ts", "lib/empty.d.ts"]
+  "files": ["lib/index.d.ts", "lib/values.d.ts", "lib/namespaceExport.d.ts", "lib/empty.d.ts"]
 }

@@ -1211,6 +1211,36 @@ export interface SurfaceFact {
 }
 
 /**
+ * Explicit release tags for one resolved binding of an ordinary re-export statement.
+ *
+ * @remarks
+ * Used only to validate agreement with the source API's effective release level.
+ * Does not replace the target's documentation or metadata.
+ * A statement that exports several bindings can produce several facts with the same origin and tags.
+ */
+export interface ReexportFact {
+	/**
+	 * Exported name used in diagnostics.
+	 */
+	readonly name: string;
+
+	/**
+	 * Original statement location.
+	 */
+	readonly origin: Origin;
+
+	/**
+	 * Resolved declaration identity whose metadata must be preserved.
+	 */
+	readonly target: ApiItemId;
+
+	/**
+	 * Release tag names parsed with the configured TSDoc vocabulary.
+	 */
+	readonly releaseTags: readonly string[];
+}
+
+/**
  * Shared semantic data for all configured entrypoints in one analysis context.
  *
  * @remarks
@@ -1218,6 +1248,12 @@ export interface SurfaceFact {
  * They remain usable after the compiler snapshot or analysis session closes.
  */
 export interface AnalysisFacts {
+	/**
+	 * Explicit release tags on ordinary re-export statements, retained only for validation.
+	 * @defaultValue Omitted when no re-export statement has release tags.
+	 */
+	readonly reexports?: readonly ReexportFact[];
+
 	/**
 	 * The package's single documentation comment, independent of configured entrypoints.
 	 *

@@ -35,12 +35,17 @@ Regenerate both artifacts when dependency content changes because the consumer r
 | [self-references-consumer.d.ts](self-references-consumer.d.ts) | Self-qualified dependency re-exports, qualified model subpaths, retained inherited provenance, and missing-suite and internal-link rejection. |
 | [merged-inheritance-consumer.d.ts](merged-inheritance-consumer.d.ts) | Explicit generic interface and repeated-property inheritance through qualified and imported model targets, multi-source merged requests, combined section provenance, parameter-name checks, and original dependency link scope. |
 | [merged-namespace-consumer.d.ts](merged-namespace-consumer.d.ts) | Links and inherited member documentation through combined namespace exports and recursive aliases, with dependency provenance and unchanged receiver metadata. |
+| [module-namespace.ts](module-namespace.ts) and [module-namespace-dependency.ts](module-namespace-dependency.ts) | TS6/TS7 namespace-export comments, matching member release levels, selectors, type-only members, aliases, defaults, atomic tag selection, and exact report snapshots. |
+| [module-namespace-forward.d.ts](module-namespace-forward.d.ts) | Ordinary forwarding preserves namespace identity and documentation; qualified namespace selectors resolve through selected dependency models. |
+| [module-namespace-recursive.d.ts](module-namespace-recursive.d.ts) | Recursive and empty namespace wrappers terminate traversal and retain portable back-references. The empty target reuses the repository's empty-module fixture. |
+| [reexport-source.d.ts](reexport-source.d.ts) and [reexport-forward.d.ts](reexport-forward.d.ts) | Absent and matching re-export tags preserve source metadata; conflicting tags fail for named, type-only, star, overloaded, and intermediate export paths. Other re-export documentation and links are ignored. |
 | [unused.d.ts](unused.d.ts) | Missing and incompatible selected dependencies must fail even when no documentation references them. |
 | [conditional-entry.d.ts](conditional-entry.d.ts) | The same package import resolves through actual Node and browser export conditions. |
 | [platform.d.ts](platform.d.ts) | Equal platform contracts produce equal reports; an intentional browser-only return-type change produces a parity failure. |
 
 Ordinary inline comments explain each declaration's role separately from the TSDoc under test.
-Suite tests also reuse the native ambient-module inputs to check inherited merged documentation and original link provenance without compiler lookup of the qualified reference.
+Suite tests also reuse the native ambient-module inputs to check namespace-export documentation inheritance and original link provenance without compiler lookup of the qualified reference.
+The namespace wrapper's statement documentation is separate from the merged ambient module's documentation.
 Keep absent, empty, and tag-only comments unchanged when editing fixture explanations.
 The suite tests intentionally substitute reference text and return literals in copied files.
 Preserve those exact replacement anchors.

@@ -56,15 +56,33 @@ That rule is implemented and tested for the supported report and analysis forms;
 Declaration-rollup selection remains Stage 4 work, not part of this optional follow-up.
 Investigate whether a later version can permit different member release levels or independent member selection with a clear compatibility contract.
 No namespace or static-member exception is approved for V1.
+The 2026-09-24 [module namespace export decision](api-extractor-replacement-implementation-plan.md#module-namespace-export-policy) confirms the same V1 rules for explicit namespaces and module namespace exports; analysis, reports, and portable models now implement those rules.
 
 - Evaluate assignability of instance types, constructor/static types, and namespace values obtained through `typeof` across different selected surfaces.
 - Define the effects of release-level and custom-tag filters on complete container shapes, inherited members, local overrides, and nested containers.
+- Investigate trimming namespace contents by member tags uniformly for explicit namespaces and module namespace exports; do not introduce separate selection policies for the two forms.
 - Preserve constructor accessibility, overload resolution, and required reference targets. Removing a constructor must not accidentally permit a new construction pattern.
 - Specify diagnostics, configuration, and dependency-model requirements before introducing any exception.
 - Verify reports, models, and declaration rollups against mixed-surface consumer examples with both supported compiler versions.
 
 Outcome: document whether additional flexibility is justified and which compatibility guarantees it can preserve.
 Any implementation requires an approved design; this item is not a commitment to permit partial container selection.
+
+## Re-export metadata customization
+
+Status: open; deferred beyond V1 by the 2026-09-24 re-export metadata decision.
+
+Investigate whether a re-export may intentionally expose an existing API with different documentation or a different release level in another context.
+V1 must preserve source metadata, ignore redundant tags and other re-export documentation, and reject disagreeing release tags as specified in the [re-export metadata policy](api-extractor-replacement-implementation-plan.md#re-export-metadata-policy).
+This investigation does not defer V1 conflict validation.
+
+- Define how export-specific metadata relates to the original declaration identity, documentation links, and source provenance.
+- Evaluate compatibility and validation when a re-export has a more-public or less-public release level than its source.
+- Specify behavior across aliases, overloads, type-only exports, namespace exports, and transitive re-export chains.
+- Define consistent report, model, and declaration-rollup behavior before enabling overrides.
+
+Outcome: an explicit design decision on whether to support context-specific metadata and under what constraints.
+No retagging or documentation override is approved by this follow-up.
 
 ## Upstream TypeScript reports
 

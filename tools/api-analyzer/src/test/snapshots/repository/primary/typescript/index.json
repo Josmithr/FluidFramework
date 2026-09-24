@@ -50,6 +50,12 @@
         "exports": []
       },
       {
+        "name": "./namespace",
+        "exports": [
+          "Values"
+        ]
+      },
+      {
         "name": "./values",
         "exports": [
           "Bits",
@@ -1794,6 +1800,293 @@
       {
         "entrypoint": ".",
         "path": [
+          "version"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "version",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Current format version.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Values",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Public value APIs.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Bits"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Bits",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Compile-time enum.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Bits",
+          "None"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "None",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"None\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Bits",
+          "Read"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Read",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"Read\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Keyed"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Keyed",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Symbol-keyed API.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Keyed\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Keyed",
+          "[key]"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "[key]",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/values.d.ts\\\\\\\"]\\\"],\\\"Keyed\\\"]\",\"[key]\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Mode"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Mode",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Ordinary enum.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Mode",
+          "Off"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Off",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"Off\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "Mode",
+          "On"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "On",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"On\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "count"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "count",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Mutable counter.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"count\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
+          "key"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "key",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Unique API key.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"key\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./namespace",
+        "path": [
+          "Values",
           "version"
         ],
         "typeOnly": false,

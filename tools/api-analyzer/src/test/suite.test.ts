@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -44,7 +52,326 @@ describe("Dependency suite models", () => {
 	});
 	afterEach(() => rmSync(directory, { recursive: true, force: true }));
 
+	it("rejects re-export release changes without replacing source documentation", async () => {
+		// Build the dependency model first so consumers validate against the source API's metadata.
+		const root = path.join(directory, "node_modules", "dependency");
+		const sourceFixture = new URL(
+			"../../src/test/fixtures/suite/reexport-source.d.ts",
+			import.meta.url,
+		);
+		const forwardInput = readFileSync(
+			new URL("../../src/test/fixtures/suite/reexport-forward.d.ts", import.meta.url),
+			"utf8",
+		);
+		cpSync(sourceFixture, path.join(root, "index.d.ts"));
+		const configuration = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const source = await analyzeAPIs({ ...configuration, packageName: "dependency" }, root);
+		assert(source.ok, JSON.stringify(source));
+		writeFileSync(path.join(root, "api-model.json"), source.value.generateModel());
+
+		// Exercise named, type-only, and star exports: tags cannot make the source more or less public.
+		// A matching beta tag or no tag is allowed; an additional conflicting tag must still fail.
+		for (const [tag, statement] of [
+			["@public", 'export { foo as renamed } from "dependency";'],
+			["@alpha", 'export type { foo } from "dependency";'],
+			["@internal", 'export * from "dependency";'],
+			["@beta", 'export type { foo as renamed } from "dependency";'],
+			["", 'export * from "dependency";'],
+			["@public @beta", 'export { foo } from "dependency";'],
+		] as const) {
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				forwardInput
+					.replace("@beta", tag)
+					.replace('export { foo as renamed } from "dependency";', statement),
+			);
+
+			// Release agreement is mandatory even when missing-tag and TSDoc-syntax checks are disabled.
+			const result = await analyzeAPIs(
+				{
+					...configuration,
+					packageName: "consumer",
+					rules: { requireReleaseLevel: false, validateTsdocSyntax: false },
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+				},
+				directory,
+			);
+			assert.equal(result.ok, tag === "@beta" || tag === "", tag);
+			if (result.ok) {
+				// Accepted forwarding retains beta output and does not substitute the re-export's prose.
+				// The fixture's unresolved Missing link must also be ignored for analysis to succeed.
+				const report = result.value.generateReport(".", {
+					name: "beta",
+					releaseLevels: [ReleaseLevel.Beta],
+				});
+				assert(report.ok);
+				assert(report.value.includes("@beta"));
+				assert(!result.value.generateModel().includes("Ignored documentation"));
+			} else {
+				// Attribute the failure to re-export validation, not an unrelated input error.
+				assert.match(JSON.stringify(result), /re-export/i);
+			}
+		}
+
+		// The local overloads have different source levels, so neither beta nor public matches them all.
+		// Leaving the forwarding statement untagged preserves each overload's original level.
+		cpSync(sourceFixture, path.join(directory, "source.d.ts"));
+		for (const tag of ["@beta", "@public", ""]) {
+			writeFileSync(
+				path.join(directory, "forward.d.ts"),
+				forwardInput
+					.replace("@beta", tag)
+					.replace("foo as renamed", "local")
+					.replace('"dependency"', '"./source.js"'),
+			);
+
+			// An untagged final alias must not hide a conflict on an intermediate export statement.
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				forwardInput
+					.replace("@beta", "")
+					.replace("foo as renamed", "local as renamed")
+					.replace('"dependency"', '"./forward.js"'),
+			);
+			const result = await analyzeAPIs(
+				{ ...configuration, packageName: "consumer" },
+				directory,
+			);
+			assert.equal(result.ok, tag === "", JSON.stringify(result));
+			if (!result.ok) {
+				// Identify the conflicting intermediate file so the author knows where to correct the tag.
+				assert.equal(
+					result.diagnostics[0]?.code,
+					DiagnosticCode.ClassificationReleaseConflict,
+				);
+				assert.match(result.diagnostics[0]?.message ?? "", /forward\.d\.ts/);
+			}
+		}
+	});
+
+	it("retains recursive and empty module namespaces after compiler disposal", async () => {
+		cpSync(
+			new URL(
+				"../../src/test/fixtures/repository/empty/packages/empty/src/index.ts",
+				import.meta.url,
+			),
+			path.join(directory, "empty.d.ts"),
+		);
+		cpSync(
+			new URL(
+				"../../src/test/fixtures/suite/module-namespace-recursive.d.ts",
+				import.meta.url,
+			),
+			path.join(directory, "index.d.ts"),
+		);
+		const result = await analyzeAPIs(
+			{
+				packageName: "consumer",
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+			},
+			directory,
+		);
+		assert(result.ok, JSON.stringify(result));
+		const report = result.value.generateReport(".", {
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert(report.ok);
+		assert(report.value.includes("export namespace Empty"));
+		assert(report.value.includes("export import Self = Self;"));
+		const decoded = decodeDependencyModel(result.value.generateModel(), "consumer");
+		assert(decoded.ok, JSON.stringify(decoded));
+		assert.deepEqual(
+			decoded.value.exports.find((entry) => entry.path.join(".") === "Self.Self")
+				?.referencePath,
+			["Self"],
+		);
+	});
+
 	for (const compilerPackage of ["typescript6", "typescript"]) {
+		it(`preserves documented module namespaces with ${compilerPackage} inputs`, async () => {
+			const root = path.join(directory, "node_modules", "dependency");
+			const require = createRequire(import.meta.url);
+			const compiler = path.join(
+				path.dirname(require.resolve(`${compilerPackage}/package.json`)),
+				"bin/tsc",
+			);
+			for (const [cwd, fixture] of [
+				[root, "module-namespace-dependency"],
+				[directory, "module-namespace"],
+			]) {
+				assert(cwd !== undefined && fixture !== undefined);
+				cpSync(
+					new URL(`../../src/test/fixtures/suite/${fixture}.ts`, import.meta.url),
+					path.join(cwd, "index.ts"),
+				);
+				writeFileSync(
+					path.join(cwd, "package.json"),
+					JSON.stringify({
+						name: cwd === root ? "dependency" : "consumer",
+						type: "module",
+						types: "index.d.ts",
+						...(cwd === root ? {} : { dependencies: { dependency: "1.0.0" } }),
+					}),
+				);
+				execFileSync(
+					process.execPath,
+					[
+						compiler,
+						"index.ts",
+						"--ignoreConfig",
+						"--declaration",
+						"--emitDeclarationOnly",
+						"--strict",
+						"--module",
+						"NodeNext",
+					],
+					{ cwd, stdio: "inherit" },
+				);
+				rmSync(path.join(cwd, "index.ts"));
+			}
+			const configuration = {
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+			};
+			const source = await analyzeAPIs({ ...configuration, packageName: "dependency" }, root);
+			assert(source.ok, JSON.stringify(source));
+			writeFileSync(path.join(root, "api-model.json"), source.value.generateModel());
+			const result = await analyzeAPIs(
+				{
+					...configuration,
+					packageName: "consumer",
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			const report = result.value.generateReport(".", {
+				name: "beta",
+				releaseLevels: [ReleaseLevel.Beta],
+			});
+			assert(report.ok, JSON.stringify(report));
+			assertSnapshot(report.value, "report.module-namespace-suite.md");
+			const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+			assert(model.ok, JSON.stringify(model));
+			assert.equal(
+				model.value.apis.find((api) => api.name === "Tools")?.documentation.links.length,
+				2,
+			);
+			assert.equal(
+				model.value.exports.find((entry) => entry.path.join(".") === "Tools")?.items[0],
+				model.value.exports.find((entry) => entry.path.join(".") === "Renamed")?.items[0],
+			);
+			assert.equal(
+				model.value.exports.find((entry) => entry.path.join(".") === "Types.foo")?.typeOnly,
+				true,
+			);
+			writeFileSync(path.join(directory, "api-model.json"), result.value.generateModel());
+			const downstream = path.join(directory, "downstream");
+			mkdirSync(path.join(downstream, "node_modules"), { recursive: true });
+			symlinkSync(directory, path.join(downstream, "node_modules", "consumer"), "dir");
+			writeFileSync(
+				path.join(downstream, "package.json"),
+				JSON.stringify({
+					name: "downstream",
+					type: "module",
+					dependencies: { consumer: "1.0.0" },
+				}),
+			);
+			writeFileSync(
+				path.join(downstream, "tsconfig.json"),
+				JSON.stringify({ compilerOptions: { strict: true }, files: ["index.d.ts"] }),
+			);
+			cpSync(
+				new URL(
+					"../../src/test/fixtures/suite/module-namespace-forward.d.ts",
+					import.meta.url,
+				),
+				path.join(downstream, "index.d.ts"),
+			);
+			const forwarded = await analyzeAPIs(
+				{
+					...configuration,
+					packageName: "downstream",
+					suite: { packages: ["consumer", "dependency"], modelFile: "api-model.json" },
+				},
+				downstream,
+			);
+			assert(forwarded.ok, JSON.stringify(forwarded));
+			const forwardedModel = decodeDependencyModel(
+				forwarded.value.generateModel(),
+				"downstream",
+			);
+			assert(forwardedModel.ok, JSON.stringify(forwardedModel));
+			assert.equal(
+				forwardedModel.value.apis.find((api) => api.name === "use")?.documentation.links
+					.length,
+				1,
+			);
+			const forwardedReport = forwarded.value.generateReport(".", {
+				name: "beta",
+				releaseLevels: [ReleaseLevel.Beta],
+			});
+			assert(
+				forwardedReport.ok && forwardedReport.value.includes("// Re-exported from `consumer`"),
+			);
+			const input = readFileSync(path.join(directory, "index.d.ts"), "utf8");
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				input.replace("@beta", "@beta @sealed"),
+			);
+			const tagged = await analyzeAPIs(
+				{
+					...configuration,
+					packageName: "consumer",
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+				},
+				directory,
+			);
+			assert(tagged.ok, JSON.stringify(tagged));
+			const selected = tagged.value.generateReport(
+				".",
+				{ name: "beta", releaseLevels: [ReleaseLevel.Beta], requireTags: ["@sealed"] },
+				{ additionalTags: [] },
+			);
+			assert(selected.ok);
+			assert.equal(selected.value, report.value);
+			for (const tag of ["", "@public", "@alpha", "@internal"]) {
+				writeFileSync(path.join(directory, "index.d.ts"), input.replace("@beta", tag));
+				const invalid = await analyzeAPIs(
+					{
+						...configuration,
+						packageName: "consumer",
+						rules: { requireReleaseLevel: false },
+						suite: { packages: ["dependency"], modelFile: "api-model.json" },
+					},
+					directory,
+				);
+				assert(!invalid.ok, tag);
+				assert.equal(
+					invalid.diagnostics[0]?.code,
+					tag === ""
+						? DiagnosticCode.ClassificationReleaseMissing
+						: DiagnosticCode.ClassificationContainerMismatch,
+				);
+			}
+			writeFileSync(path.join(directory, "index.d.ts"), input);
+			const empty = result.value.generateReport(".", {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert(empty.ok && empty.value.includes("No selected exports"));
+			rmSync(path.join(directory, "index.d.ts"));
+			assert.deepEqual(
+				result.value.generateReport(".", { name: "beta", releaseLevels: [ReleaseLevel.Beta] }),
+				report,
+			);
+		});
+
 		it(`filters report imports after selection with ${compilerPackage} inputs`, async () => {
 			const root = path.join(directory, "node_modules", "dependency");
 			writeFileSync(
@@ -730,7 +1057,7 @@ describe("Dependency suite models", () => {
 		assert.notEqual(links?.[0]?.targetSignature, links?.[1]?.targetSignature);
 	});
 
-	it("inherits merged ambient module documentation from a selected model", async () => {
+	it("inherits namespace export documentation without replacing merged ambient documentation", async () => {
 		const root = path.join(directory, "node_modules", "dependency");
 		cpSync(
 			new URL("../../src/test/fixtures/native/ambient-entry.ts", import.meta.url),
@@ -769,7 +1096,7 @@ describe("Dependency suite models", () => {
 		const model = decodeDependencyModel(result.value.generateModel(), "consumer");
 		assert.equal(model.ok, true, JSON.stringify(model));
 		const copied = model.value.apis.find((item) => item.name === "Copied");
-		assert.match(copied?.documentation.documentation ?? "", /Second ambient contribution/);
+		assert.match(copied?.documentation.documentation ?? "", /Tools namespace documentation/);
 		assert.equal(copied?.documentation.links.length, 2);
 		assert(
 			copied.documentation.links.every((link) => link.origin.packageName === "dependency"),

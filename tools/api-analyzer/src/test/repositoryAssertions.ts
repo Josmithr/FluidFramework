@@ -68,12 +68,16 @@ export function verifyRepositorySemantics(
  */
 function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 	const { model, analysis, reports } = artifact;
+
+	// Check the independently maintained inventory so accepting a snapshot cannot hide missing APIs.
 	const surface = model.graph.surfaces.find((current) => current.name === ".");
 	assert(surface !== undefined);
 	assert.deepEqual(
 		surface.exports.map((entry) => entry.name).sort(),
 		[...primaryExports].sort(),
 	);
+
+	// Renaming or restricting an export to types must not create a new declaration identity.
 	assert.equal(
 		surface.exports.find((entry) => entry.name === "identity")?.target,
 		surface.exports.find((entry) => entry.name === "renamedIdentity")?.target,
@@ -83,10 +87,46 @@ function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 		surface.exports.find((entry) => entry.name === "StoreType")?.target,
 		surface.exports.find((entry) => entry.name === "Store")?.target,
 	);
+
+	// The namespace adds a documented wrapper, but its children must reuse the direct value exports.
+	const namespaceSurface = model.graph.surfaces.find(
+		(current) => current.name === "./namespace",
+	);
+	const valuesSurface = model.graph.surfaces.find((current) => current.name === "./values");
+	assert(namespaceSurface !== undefined && valuesSurface !== undefined);
+	assert.deepEqual(
+		namespaceSurface.exports.map((entry) => entry.name),
+		["Values"],
+	);
+	const namespaceId = namespaceSurface.exports[0]?.target;
+	const namespace = model.graph.declarations.find(
+		(declaration) => declaration.id === namespaceId,
+	);
+	assert(namespace !== undefined);
+	assert.deepEqual(namespace.exports, valuesSurface.exports);
+	assert.equal(namespace.sources[0]?.kind, "NamespaceExport");
+
+	// Wrapper metadata comes from the namespace export statement, not from one of its members.
+	const namespaceApi = model.apis.find((api) => api.id === namespaceId);
+	assert.equal(namespaceApi?.metadata.releaseLevel, ReleaseLevel.Public);
+	assert(namespaceApi?.documentation.documentation?.includes("Public value APIs.") === true);
+
+	// Both report selections must expose the public namespace as a namespace, not flatten its exports.
+	for (const selection of ["public", "complete"]) {
+		const report = reports[`namespace.${selection}`];
+		assert(report !== undefined);
+		assert(report.includes("// @public\nexport namespace Values {"));
+	}
+
+	// This standalone package must not acquire dependency records from compiler libraries or traversal.
 	assert.deepEqual(model.external, []);
 	assert.deepEqual(model.dependencyModels, []);
+
+	// Referenced supporting types belong in the graph without becoming part of the exported API.
 	assert(model.graph.declarations.some((declaration) => declaration.name === "Support"));
 	assert(!model.exports.some((entry) => entry.path[0] === "Support"));
+
+	// Package documentation and the full declaration-kind inventory must survive model generation.
 	assert(model.packageDocumentation?.documentation.includes("Primary API inventory") === true);
 	for (const kind of [
 		"FunctionDeclaration",
@@ -104,6 +144,8 @@ function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 			kind,
 		);
 	}
+
+	// Preserve substituted member types, all merged contributions, and separate overload records.
 	const box = model.graph.declarations.find((declaration) => declaration.name === "TextBox");
 	assert.equal(box?.members.find((member) => member.name === "value")?.type, "string");
 	const merged = model.graph.declarations.find((declaration) => declaration.name === "Merged");
@@ -112,8 +154,12 @@ function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 		model.apis.filter((api) => api.name === "format" && api.parameters !== undefined).length,
 		2,
 	);
+
+	// Release filtering changes report contents without discarding less-public APIs from complete reports.
 	assert.doesNotMatch(reports["root.public"] ?? "", /export function (experiment|hidden)/);
 	assert.match(reports["root.complete"] ?? "", /export function hidden/);
+
+	// Tag filters must exclude untagged APIs and allow a valid selection with no matching exports.
 	for (const selection of [
 		{ name: "tagged", releaseLevels: [ReleaseLevel.Public], requireTags: ["@exampleTag"] },
 		{ name: "none", releaseLevels: [ReleaseLevel.Internal], requireTags: ["@exampleTag"] },
@@ -127,6 +173,8 @@ function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 			assert.doesNotMatch(report.value, /export class Store/);
 		}
 	}
+
+	// Generating different report selections must not mutate or trim the reusable model.
 	assert.equal(analysis.generateModel(), artifact.text);
 }
 

@@ -45,8 +45,8 @@ describe("Repository end-to-end workflows", () => {
 			});
 		}
 
-		// TODO: Add successful baselines when module namespace exports and inherited non-public members can be reported.
-		it(`records unsupported report forms without skipping them with ${compiler}`, async () => {
+		// TODO: Add successful baselines when inherited non-public members can be reported.
+		it(`rejects inherited non-public members with ${compiler}`, async () => {
 			const repository = createRepository(compiler, "primary");
 			try {
 				compilePackage(repository, "primary");
@@ -56,16 +56,14 @@ describe("Repository end-to-end workflows", () => {
 				) as Configuration;
 				const result = await analyzeAPIs(configuration, root);
 				assert(result.ok, JSON.stringify(result));
-				for (const surface of configuration.entrypoints ?? []) {
-					assert.throws(
-						() =>
-							result.value.generateReport(surface.name, {
-								name: "public",
-								releaseLevels: [ReleaseLevel.Public],
-							}),
-						/not supported|unsupported syntax/,
-					);
-				}
+				assert.throws(
+					() =>
+						result.value.generateReport("./private", {
+							name: "public",
+							releaseLevels: [ReleaseLevel.Public],
+						}),
+					/not supported|unsupported syntax/,
+				);
 			} finally {
 				rmSync(repository.directory, { recursive: true, force: true });
 			}

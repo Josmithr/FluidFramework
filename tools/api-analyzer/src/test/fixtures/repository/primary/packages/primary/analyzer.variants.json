@@ -2,7 +2,6 @@
   "packageName": "@scenario/primary",
   "project": "tsconfig.variants.json",
   "entrypoints": [
-    { "name": "./namespace", "path": "lib/namespaceExport.d.ts" },
     { "name": "./private", "path": "lib/privateInheritance.d.ts" }
   ]
 }

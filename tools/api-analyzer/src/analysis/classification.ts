@@ -368,21 +368,41 @@ function validateContainerRelease(
  * Checks namespace export targets without changing the target's original declaration ownership.
  * @param facts - Declarations and alias-preserving namespace exports.
  * @param classification - Completed effective release metadata.
+ * @param documentation - Original parsed comments, before container release inheritance.
  * @returns Success or the first mismatched or unsupported namespace export.
  */
 export function validateNamespaceReleases(
 	facts: AnalysisFacts,
 	classification: ApiClassification,
+	documentation: DocumentationContext<ApiItemDocumentation>,
 ): Result {
 	const declarations = new Map(
 		facts.declarations.map((declaration) => [declaration.id, declaration]),
 	);
 	const metadata = new Map(classification.items.map((item) => [item.id, item]));
 	for (const declaration of facts.declarations) {
-		if (!declaration.declarations.some((source) => source.kind === "ModuleDeclaration")) {
+		if (
+			!declaration.declarations.some(
+				(source) => source.kind === "ModuleDeclaration" || source.kind === "NamespaceExport",
+			)
+		) {
 			continue;
 		}
 		const container = metadata.get(declaration.id);
+		if (
+			declaration.declarations.some((source) => source.kind === "NamespaceExport") &&
+			!releaseLevels.some(
+				(level) =>
+					documentation.items
+						.get(declaration.id)
+						?.parsed.docComment.modifierTagSet.hasTagName(releaseLevelTags[level]) === true,
+			)
+		) {
+			return reportFailure(
+				DiagnosticCode.ClassificationReleaseMissing,
+				`Module namespace ${declaration.name}: add a release tag to its namespace export statement.`,
+			);
+		}
 		if (container === undefined) {
 			continue;
 		}
@@ -411,6 +431,46 @@ export function validateNamespaceReleases(
 						`Namespace ${declaration.name}, export ${binding.name} at ${source?.packageName}/${source?.file}:${source?.start}: target ${target.name} has a different release level. Match the namespace's release level or move the export outside it.`,
 					);
 				}
+			}
+		}
+	}
+	return { ok: true };
+}
+
+/**
+ * Rejects ordinary re-export tags that differ from any exposed source API's effective release level.
+ * @param facts - Original declarations and export-statement constraints.
+ * @param classification - Classified source APIs; re-export comments do not supply their metadata.
+ * @returns Success or the first conflict with the statement and target identified.
+ */
+export function validateReexportReleases(
+	facts: AnalysisFacts,
+	classification: ApiClassification,
+): Result {
+	const declarations = new Map(
+		facts.declarations.map((declaration) => [declaration.id, declaration]),
+	);
+	const metadata = new Map(classification.items.map((item) => [item.id, item]));
+	for (const binding of facts.reexports ?? []) {
+		const target = declarations.get(binding.target);
+		assert(target !== undefined, "Re-export constraints must have collected targets.");
+		const targets = metadata.has(target.id)
+			? [target.id]
+			: target.signatures.map((signature) => signature.id);
+		if (targets.length === 0) {
+			return reportFailure(
+				DiagnosticCode.DocumentationUnsupported,
+				`Re-export ${binding.name} at ${binding.origin.packageName}/${binding.origin.file}:${binding.origin.start}: source API ${target.name} has no supported release metadata. Remove the re-export tag or use a supported source declaration.`,
+			);
+		}
+		for (const id of targets) {
+			const level = metadata.get(id)?.releaseLevel;
+			const tag = level === undefined ? undefined : releaseLevelTags[level];
+			if (binding.releaseTags.some((requested) => requested !== tag)) {
+				return reportFailure(
+					DiagnosticCode.ClassificationReleaseConflict,
+					`Re-export ${binding.name} at ${binding.origin.packageName}/${binding.origin.file}:${binding.origin.start}: release tags ${binding.releaseTags.join(", ")} disagree with source API ${target.name} (${tag ?? "untagged"}). Remove the re-export tag or match the source release level.`,
+				);
 			}
 		}
 	}

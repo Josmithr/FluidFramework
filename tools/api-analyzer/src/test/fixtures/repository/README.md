@@ -16,7 +16,7 @@ CommonJS packages and TypeScript `export =` declarations are not supported and a
 | --- | --- |
 | [empty](empty/repository.json) | Configured empty external module, including empty reports and model exports. |
 | [overview](overview/repository.json) | Package documentation without exported APIs. |
-| [primary](primary/repository.json) | Main API-kind inventory, release and custom-tag selections, default and renamed exports, same-package star exports, supporting types, and populated/empty sub-paths. |
+| [primary](primary/repository.json) | Main API-kind inventory, release and custom-tag selections, default and renamed exports, same-package star and module namespace exports, supporting types, and populated/empty sub-paths. |
 | [independent](independent/repository.json) | Two packages in one repository without dependency edges or invented suite references. |
 | [dual](dual/repository.json) | Dependency type use, generic implementation, and inherited documentation without re-exported bindings. |
 | [reexports](reexports/repository.json) | Named, renamed, star, and type-only dependency re-exports with origin identities. |
@@ -61,6 +61,10 @@ Keep copies aligned when changing the shared relationship example intentionally.
 | Namespaces and merges | [merges.ts](primary/packages/primary/src/merges.ts) | Repeated interfaces/namespaces, nested namespaces, callable class augmentation, class/function/enum namespaces. The enum namespace constant has an explicit type to avoid invalid inferred declaration emission. |
 | Export forms | [index.ts](primary/packages/primary/src/index.ts) | Same-package star, renamed, and type-only exports; named and anonymous default declarations; a default expression. |
 
+The documented [module namespace entrypoint](primary/packages/primary/src/namespaceExport.ts) is part of the primary scenario's regular analysis configuration.
+The scenario loop checks complete/public reports, full model and documentation-index snapshots, and detached reuse for both declaration producers, including the [TS6 namespace report](../../snapshots/repository/primary/typescript6/primary.namespace.public.md) and [TS7 namespace report](../../snapshots/repository/primary/typescript/primary.namespace.public.md).
+Cross-package aliases, type-only paths, defaults, documentation links, and release validation are covered by the [suite tests](../../suite.test.ts).
+
 ## Known report gaps
 
 These cases have non-skipped tests that require the current report rejection.
@@ -69,7 +73,6 @@ Convert each to successful artifact and consumer coverage when the corresponding
 
 | Input | Observed limitation |
 | --- | --- |
-| [namespaceExport.ts](primary/packages/primary/src/namespaceExport.ts) | `export * as Values` produces an unsupported-declaration report error. |
 | [privateInheritance.ts](primary/packages/primary/src/privateInheritance.ts) | A class inheriting private/protected members produces an unsupported-container report error. The successful primary example retains non-public members on the original class and uses a public abstract base for its derived-class example. |
 
 No production changes or validation opt-outs were added to make these cases pass.

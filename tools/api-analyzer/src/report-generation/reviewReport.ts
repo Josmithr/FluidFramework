@@ -568,7 +568,10 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 				let namespace: PreparedExport["namespace"];
 				if (
 					declaration.documentationContext !== undefined &&
-					declaration.declarations.some((source) => source.kind === "ModuleDeclaration")
+					declaration.declarations.some(
+						(source) =>
+							source.kind === "ModuleDeclaration" || source.kind === "NamespaceExport",
+					)
 				) {
 					// Stop only cycles on this path. Other export paths can still expand the same namespace.
 					// Retain the target metadata so selection treats a recursive alias like its namespace.

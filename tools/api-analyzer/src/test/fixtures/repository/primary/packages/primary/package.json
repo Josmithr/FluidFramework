@@ -5,6 +5,7 @@
   "exports": {
     ".": { "types": "./lib/index.d.ts" },
     "./values": { "types": "./lib/values.d.ts" },
+    "./namespace": { "types": "./lib/namespaceExport.d.ts" },
     "./empty": { "types": "./lib/empty.d.ts" }
   }
 }

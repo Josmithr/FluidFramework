@@ -120,6 +120,7 @@ export function bindDocumentationReferences(
 								"VariableDeclaration",
 								"EnumDeclaration",
 								"ModuleDeclaration",
+								"NamespaceExport",
 							].includes(source.kind))
 					),
 			)
@@ -352,6 +353,9 @@ function getNonCallableDocumentationShape(
 		return undefined;
 	}
 	const kind = kinds[0];
+	if (kinds.every((part) => part === "ModuleDeclaration" || part === "NamespaceExport")) {
+		return { kind: "ModuleDeclaration", typeParameters: [] };
+	}
 	if (
 		(kind === "InterfaceDeclaration" ||
 			kind === "ClassDeclaration" ||

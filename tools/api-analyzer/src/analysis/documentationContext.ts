@@ -10,6 +10,7 @@ import {
 	classifyApiItems,
 	validateMergedReleaseLevels,
 	validateNamespaceReleases,
+	validateReexportReleases,
 	type ContainerReleaseContext,
 } from "./classification.js";
 import type {
@@ -329,9 +330,17 @@ export function createAnalysisContext(
 	if (!classification.ok) {
 		return classification;
 	}
-	const namespaceReleases = validateNamespaceReleases(facts, classification.value);
+	const namespaceReleases = validateNamespaceReleases(
+		facts,
+		classification.value,
+		parsed.value,
+	);
 	if (!namespaceReleases.ok) {
 		return namespaceReleases;
+	}
+	const reexportReleases = validateReexportReleases(facts, classification.value);
+	if (!reexportReleases.ok) {
+		return reexportReleases;
 	}
 	return {
 		ok: true,

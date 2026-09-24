@@ -13848,7 +13848,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 9873,
+            "start": 10043,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * A diagnostic for a user-caused failure or an analysis capability limitation.\n *\n * @remarks\n * Can describe an operation failure or a limitation in otherwise successful analysis facts.\n * @sealed\n * @public\n */\nexport interface AnalyzerDiagnostic {\n    /**\n     * The diagnostic category used for programmatic checks. See {@link DiagnosticCode} for corrective actions.\n     */\n    readonly code: DiagnosticCode;\n    /**\n     * A human-readable description of the problem and, when available, a corrective action.\n     */\n    readonly message: string;\n}",
             "documentation": "/**\n * A diagnostic for a user-caused failure or an analysis capability limitation.\n *\n * @remarks\n * Can describe an operation failure or a limitation in otherwise successful analysis facts.\n * @sealed\n * @public\n */",
@@ -13897,7 +13897,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/result.d.ts",
-                  "start": 10276
+                  "start": 10446
                 }
               }
             ],
@@ -13923,7 +13923,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 10129,
+                "start": 10299,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * The diagnostic category used for programmatic checks. See {@link DiagnosticCode} for corrective actions.\n     */\n    readonly code: DiagnosticCode;",
                 "documentation": "/**\n     * The diagnostic category used for programmatic checks. See {@link DiagnosticCode} for corrective actions.\n     */",
@@ -13978,7 +13978,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 10292,
+                "start": 10462,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * A human-readable description of the problem and, when available, a corrective action.\n     */\n    readonly message: string;",
                 "documentation": "/**\n     * A human-readable description of the problem and, when available, a corrective action.\n     */",
@@ -14015,7 +14015,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 9231,
+            "start": 9401,
             "kind": "EnumMember",
             "text": "\n    /**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */\n    BaselineMissing = \"baseline-missing\"",
             "documentation": "/**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */",
@@ -14058,7 +14058,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 9502,
+            "start": 9672,
             "kind": "EnumMember",
             "text": "\n    /**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */\n    BaselineStale = \"baseline-stale\"",
             "documentation": "/**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */",
@@ -14189,13 +14189,13 @@
             "file": "lib/analysis-types/result.d.ts",
             "start": 8223,
             "kind": "EnumMember",
-            "text": "\n    /**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\"",
-            "documentation": "/**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */",
+            "text": "\n    /**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\"",
+            "documentation": "/**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */",
             "excerpt": {
               "tokens": [
                 {
                   "kind": "Content",
-                  "text": "\n    /**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\""
+                  "text": "\n    /**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\""
                 }
               ],
               "tokenRange": {
@@ -14230,15 +14230,15 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 8623,
+            "start": 8713,
             "kind": "EnumMember",
-            "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\"",
-            "documentation": "/**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */",
+            "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\"",
+            "documentation": "/**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */",
             "excerpt": {
               "tokens": [
                 {
                   "kind": "Content",
-                  "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\""
+                  "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\""
                 }
               ],
               "tokenRange": {
@@ -15305,7 +15305,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 8923,
+            "start": 9093,
             "kind": "EnumMember",
             "text": "\n    /**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */\n    SelectionConfiguration = \"selection-configuration\"",
             "documentation": "/**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */",
@@ -15349,13 +15349,13 @@
             "file": "lib/analysis-types/result.d.ts",
             "start": 0,
             "kind": "EnumDeclaration",
-            "text": "/**\n * Supported diagnostic codes and their corrective actions.\n *\n * @remarks\n * String values identify diagnostic categories in serialized results.\n * Failure codes describe invalid user inputs, configuration, or caller actions.\n * Internal assertions and unexpected operational errors propagate as exceptions.\n * {@link DiagnosticCode.MemberExpansionIncomplete}\n * describes a limitation in otherwise successful analysis facts.\n * Diagnostic messages provide details specific to the affected input.\n * @public\n */\nexport declare enum DiagnosticCode {\n    /**\n     * Package documentation is duplicated, misplaced, or contains an invalid package-level tag combination.\n     *\n     * @remarks\n     * Keep one leading package documentation comment in the analyzed package, separate from API-item metadata.\n     */\n    PackageDocumentationInvalid = \"package-documentation-invalid\",\n    /**\n     * The configured package-documentation requirement is enabled but no package comment was found.\n     *\n     * @remarks\n     * Add one leading package documentation comment to a package-owned compiler input or disable the requirement.\n     */\n    PackageDocumentationMissing = \"package-documentation-missing\",\n    /**\n     * A member or namespace export has a different release level from its declaring container.\n     *\n     * @remarks\n     * Use the container's release tag, omit the member tag to inherit it, or move the API outside the container.\n     * Container consistency cannot be disabled in V1.\n     */\n    ClassificationContainerMismatch = \"classification-container-mismatch\",\n    /**\n     * A selected dependency model is missing, incompatible, or structurally invalid.\n     */\n    DependencyModel = \"dependency-model\",\n    /**\n     * A configured declaration or documentation reference policy rejected an API relationship.\n     */\n    ReferencePolicy = \"reference-policy\",\n    /**\n     * Required release tags are absent, or custom modifier definitions are invalid.\n     *\n     * @remarks\n     * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.\n     * Add release tags to untagged API link sources, targets, and receiving declarations.\n     * Missing internal classification records are assertion failures, not configuration diagnostics.\n     */\n    DocumentationConfiguration = \"documentation-configuration\",\n    /**\n     * A documentation comment failed TSDoc parsing.\n     *\n     * @remarks\n     * Correct the syntax or unsupported tags identified in the diagnostic message.\n     * Register custom modifier tags with the same options used for classification, binding, and resolution.\n     */\n    DocumentationTsdoc = \"documentation-tsdoc\",\n    /**\n     * A documentation inheritance reference or API link target failed validation.\n     *\n     * @remarks\n     * The target can be missing, or an overload selector can be absent or out of range.\n     * Parameter incompatibility also produces this diagnostic.\n     * Correct the reference, specify a numeric overload selector, or provide local documentation.\n     * Missing or inconsistent internal lookup facts and bindings are assertion failures.\n     */\n    DocumentationReference = \"documentation-reference\",\n    /**\n     * A non-internal API links to an internal API.\n     *\n     * @remarks\n     * Remove the link or correct the original release tags.\n     * Report selection does not change this policy. Public-to-beta links are permitted.\n     * Inherited links are checked against each receiving API's original release level.\n     */\n    DocumentationLinkPolicy = \"documentation-link-policy\",\n    /**\n     * A comment requests a documentation feature that is not supported.\n     *\n     * @remarks\n     * Use supported local declaration paths or package-qualified paths into selected dependency models.\n     * Disambiguate callable overloads with numeric selectors and class member collisions with static or instance selectors.\n     * See the diagnostic message for the specific limitation.\n     */\n    DocumentationUnsupported = \"documentation-unsupported\",\n    /**\n     * Explicit documentation inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove a cyclic request or replace it with local descriptive documentation.\n     */\n    DocumentationCycle = \"documentation-cycle\",\n    /**\n     * A report request has an unknown entrypoint.\n     *\n     * @remarks\n     * Request an entrypoint listed in the analysis configuration.\n     * Invalid internal selections are assertion failures.\n     */\n    ReportConfiguration = \"report-configuration\",\n    /**\n     * Required analysis settings are missing or blank.\n     *\n     * @remarks\n     * Supply a non-blank package name and project path, and at least one entrypoint.\n     */\n    ConfigurationRequired = \"configuration-required\",\n    /**\n     * An entrypoint name or path is blank.\n     *\n     * @remarks\n     * Supply a non-blank name and path for each entrypoint.\n     */\n    ConfigurationEntrypoint = \"configuration-entrypoint\",\n    /**\n     * More than one configured entrypoint has the same name.\n     *\n     * @remarks\n     * Give each entrypoint a distinct name or remove duplicate entries.\n     */\n    DuplicateEntrypoint = \"duplicate-entrypoint\",\n    /**\n     * The working directory is not an absolute path.\n     *\n     * @remarks\n     * Pass an absolute working directory when resolving configuration.\n     */\n    ConfigurationDirectory = \"configuration-directory\",\n    /**\n     * Configuration inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove the cyclic inheritance reference from the configuration's `extends` values.\n     */\n    ConfigurationCycle = \"configuration-cycle\",\n    /**\n     * A configuration property has an invalid value type.\n     *\n     * @remarks\n     * Use the diagnostic message to correct invalid settings or inherited configuration.\n     */\n    ConfigurationInvalid = \"configuration-invalid\",\n    /**\n     * The project configuration does not exist or the compiler cannot open the project.\n     *\n     * @remarks\n     * Check the configured project path and make sure the project configuration is available.\n     */\n    ProjectMissing = \"project-missing\",\n    /**\n     * The compiler reported diagnostics before fact extraction.\n     *\n     * @remarks\n     * Correct the compiler diagnostics included in the message, then analyze the project again.\n     */\n    CompilerDiagnostics = \"compiler-diagnostics\",\n    /**\n     * A configured entrypoint is not a source file in the compiler project.\n     *\n     * @remarks\n     * Check the entrypoint path and the project's file inclusion settings.\n     * Build the declaration inputs first if the project requires them.\n     */\n    EntrypointMissing = \"entrypoint-missing\",\n    /**\n     * The compiler cannot identify a module symbol for an entrypoint.\n     *\n     * @remarks\n     * Use an entrypoint that the compiler recognizes as a module, with imports or exports.\n     */\n    EntrypointModule = \"entrypoint-module\",\n    /**\n     * A declaration's effective member list is incomplete.\n     *\n     * @remarks\n     * This limitation does not fail analysis. Retain the original declaration.\n     * Do not present the extracted member list as complete.\n     */\n    MemberExpansionIncomplete = \"member-expansion-incomplete\",\n    /**\n     * Members owned outside the selected suite remain represented by their original type references.\n     */\n    MemberExpansionOutsideSuite = \"member-expansion-outside-suite\",\n    /**\n     * A custom modifier tag definition is invalid or duplicates an existing definition.\n     *\n     * @remarks\n     * Use valid TSDoc tag names, including the leading `@`.\n     * Do not redefine standard tags or repeat custom tag names.\n     */\n    ClassificationConfiguration = \"classification-configuration\",\n    /**\n     * The TSDoc parser reported a diagnostic for an input comment.\n     *\n     * @remarks\n     * Correct the comment using the parser details in the message, or configure a missing custom modifier tag.\n     * Set `rules.validateTsdocSyntax` to `false` only when parser diagnostics can be ignored.\n     * This setting does not suppress release-level checks.\n     */\n    ClassificationTsdoc = \"classification-tsdoc\",\n    /**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\",\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\",\n    /**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */\n    SelectionConfiguration = \"selection-configuration\",\n    /**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */\n    BaselineMissing = \"baseline-missing\",\n    /**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */\n    BaselineStale = \"baseline-stale\"\n}",
+            "text": "/**\n * Supported diagnostic codes and their corrective actions.\n *\n * @remarks\n * String values identify diagnostic categories in serialized results.\n * Failure codes describe invalid user inputs, configuration, or caller actions.\n * Internal assertions and unexpected operational errors propagate as exceptions.\n * {@link DiagnosticCode.MemberExpansionIncomplete}\n * describes a limitation in otherwise successful analysis facts.\n * Diagnostic messages provide details specific to the affected input.\n * @public\n */\nexport declare enum DiagnosticCode {\n    /**\n     * Package documentation is duplicated, misplaced, or contains an invalid package-level tag combination.\n     *\n     * @remarks\n     * Keep one leading package documentation comment in the analyzed package, separate from API-item metadata.\n     */\n    PackageDocumentationInvalid = \"package-documentation-invalid\",\n    /**\n     * The configured package-documentation requirement is enabled but no package comment was found.\n     *\n     * @remarks\n     * Add one leading package documentation comment to a package-owned compiler input or disable the requirement.\n     */\n    PackageDocumentationMissing = \"package-documentation-missing\",\n    /**\n     * A member or namespace export has a different release level from its declaring container.\n     *\n     * @remarks\n     * Use the container's release tag, omit the member tag to inherit it, or move the API outside the container.\n     * Container consistency cannot be disabled in V1.\n     */\n    ClassificationContainerMismatch = \"classification-container-mismatch\",\n    /**\n     * A selected dependency model is missing, incompatible, or structurally invalid.\n     */\n    DependencyModel = \"dependency-model\",\n    /**\n     * A configured declaration or documentation reference policy rejected an API relationship.\n     */\n    ReferencePolicy = \"reference-policy\",\n    /**\n     * Required release tags are absent, or custom modifier definitions are invalid.\n     *\n     * @remarks\n     * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.\n     * Add release tags to untagged API link sources, targets, and receiving declarations.\n     * Missing internal classification records are assertion failures, not configuration diagnostics.\n     */\n    DocumentationConfiguration = \"documentation-configuration\",\n    /**\n     * A documentation comment failed TSDoc parsing.\n     *\n     * @remarks\n     * Correct the syntax or unsupported tags identified in the diagnostic message.\n     * Register custom modifier tags with the same options used for classification, binding, and resolution.\n     */\n    DocumentationTsdoc = \"documentation-tsdoc\",\n    /**\n     * A documentation inheritance reference or API link target failed validation.\n     *\n     * @remarks\n     * The target can be missing, or an overload selector can be absent or out of range.\n     * Parameter incompatibility also produces this diagnostic.\n     * Correct the reference, specify a numeric overload selector, or provide local documentation.\n     * Missing or inconsistent internal lookup facts and bindings are assertion failures.\n     */\n    DocumentationReference = \"documentation-reference\",\n    /**\n     * A non-internal API links to an internal API.\n     *\n     * @remarks\n     * Remove the link or correct the original release tags.\n     * Report selection does not change this policy. Public-to-beta links are permitted.\n     * Inherited links are checked against each receiving API's original release level.\n     */\n    DocumentationLinkPolicy = \"documentation-link-policy\",\n    /**\n     * A comment requests a documentation feature that is not supported.\n     *\n     * @remarks\n     * Use supported local declaration paths or package-qualified paths into selected dependency models.\n     * Disambiguate callable overloads with numeric selectors and class member collisions with static or instance selectors.\n     * See the diagnostic message for the specific limitation.\n     */\n    DocumentationUnsupported = \"documentation-unsupported\",\n    /**\n     * Explicit documentation inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove a cyclic request or replace it with local descriptive documentation.\n     */\n    DocumentationCycle = \"documentation-cycle\",\n    /**\n     * A report request has an unknown entrypoint.\n     *\n     * @remarks\n     * Request an entrypoint listed in the analysis configuration.\n     * Invalid internal selections are assertion failures.\n     */\n    ReportConfiguration = \"report-configuration\",\n    /**\n     * Required analysis settings are missing or blank.\n     *\n     * @remarks\n     * Supply a non-blank package name and project path, and at least one entrypoint.\n     */\n    ConfigurationRequired = \"configuration-required\",\n    /**\n     * An entrypoint name or path is blank.\n     *\n     * @remarks\n     * Supply a non-blank name and path for each entrypoint.\n     */\n    ConfigurationEntrypoint = \"configuration-entrypoint\",\n    /**\n     * More than one configured entrypoint has the same name.\n     *\n     * @remarks\n     * Give each entrypoint a distinct name or remove duplicate entries.\n     */\n    DuplicateEntrypoint = \"duplicate-entrypoint\",\n    /**\n     * The working directory is not an absolute path.\n     *\n     * @remarks\n     * Pass an absolute working directory when resolving configuration.\n     */\n    ConfigurationDirectory = \"configuration-directory\",\n    /**\n     * Configuration inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove the cyclic inheritance reference from the configuration's `extends` values.\n     */\n    ConfigurationCycle = \"configuration-cycle\",\n    /**\n     * A configuration property has an invalid value type.\n     *\n     * @remarks\n     * Use the diagnostic message to correct invalid settings or inherited configuration.\n     */\n    ConfigurationInvalid = \"configuration-invalid\",\n    /**\n     * The project configuration does not exist or the compiler cannot open the project.\n     *\n     * @remarks\n     * Check the configured project path and make sure the project configuration is available.\n     */\n    ProjectMissing = \"project-missing\",\n    /**\n     * The compiler reported diagnostics before fact extraction.\n     *\n     * @remarks\n     * Correct the compiler diagnostics included in the message, then analyze the project again.\n     */\n    CompilerDiagnostics = \"compiler-diagnostics\",\n    /**\n     * A configured entrypoint is not a source file in the compiler project.\n     *\n     * @remarks\n     * Check the entrypoint path and the project's file inclusion settings.\n     * Build the declaration inputs first if the project requires them.\n     */\n    EntrypointMissing = \"entrypoint-missing\",\n    /**\n     * The compiler cannot identify a module symbol for an entrypoint.\n     *\n     * @remarks\n     * Use an entrypoint that the compiler recognizes as a module, with imports or exports.\n     */\n    EntrypointModule = \"entrypoint-module\",\n    /**\n     * A declaration's effective member list is incomplete.\n     *\n     * @remarks\n     * This limitation does not fail analysis. Retain the original declaration.\n     * Do not present the extracted member list as complete.\n     */\n    MemberExpansionIncomplete = \"member-expansion-incomplete\",\n    /**\n     * Members owned outside the selected suite remain represented by their original type references.\n     */\n    MemberExpansionOutsideSuite = \"member-expansion-outside-suite\",\n    /**\n     * A custom modifier tag definition is invalid or duplicates an existing definition.\n     *\n     * @remarks\n     * Use valid TSDoc tag names, including the leading `@`.\n     * Do not redefine standard tags or repeat custom tag names.\n     */\n    ClassificationConfiguration = \"classification-configuration\",\n    /**\n     * The TSDoc parser reported a diagnostic for an input comment.\n     *\n     * @remarks\n     * Correct the comment using the parser details in the message, or configure a missing custom modifier tag.\n     * Set `rules.validateTsdocSyntax` to `false` only when parser diagnostics can be ignored.\n     * This setting does not suppress release-level checks.\n     */\n    ClassificationTsdoc = \"classification-tsdoc\",\n    /**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\",\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\",\n    /**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */\n    SelectionConfiguration = \"selection-configuration\",\n    /**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */\n    BaselineMissing = \"baseline-missing\",\n    /**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */\n    BaselineStale = \"baseline-stale\"\n}",
             "documentation": "/**\n * Supported diagnostic codes and their corrective actions.\n *\n * @remarks\n * String values identify diagnostic categories in serialized results.\n * Failure codes describe invalid user inputs, configuration, or caller actions.\n * Internal assertions and unexpected operational errors propagate as exceptions.\n * {@link DiagnosticCode.MemberExpansionIncomplete}\n * describes a limitation in otherwise successful analysis facts.\n * Diagnostic messages provide details specific to the affected input.\n * @public\n */",
             "excerpt": {
               "tokens": [
                 {
                   "kind": "Content",
-                  "text": "/**\n * Supported diagnostic codes and their corrective actions.\n *\n * @remarks\n * String values identify diagnostic categories in serialized results.\n * Failure codes describe invalid user inputs, configuration, or caller actions.\n * Internal assertions and unexpected operational errors propagate as exceptions.\n * {@link DiagnosticCode.MemberExpansionIncomplete}\n * describes a limitation in otherwise successful analysis facts.\n * Diagnostic messages provide details specific to the affected input.\n * @public\n */\nexport declare enum DiagnosticCode {\n    /**\n     * Package documentation is duplicated, misplaced, or contains an invalid package-level tag combination.\n     *\n     * @remarks\n     * Keep one leading package documentation comment in the analyzed package, separate from API-item metadata.\n     */\n    PackageDocumentationInvalid = \"package-documentation-invalid\",\n    /**\n     * The configured package-documentation requirement is enabled but no package comment was found.\n     *\n     * @remarks\n     * Add one leading package documentation comment to a package-owned compiler input or disable the requirement.\n     */\n    PackageDocumentationMissing = \"package-documentation-missing\",\n    /**\n     * A member or namespace export has a different release level from its declaring container.\n     *\n     * @remarks\n     * Use the container's release tag, omit the member tag to inherit it, or move the API outside the container.\n     * Container consistency cannot be disabled in V1.\n     */\n    ClassificationContainerMismatch = \"classification-container-mismatch\",\n    /**\n     * A selected dependency model is missing, incompatible, or structurally invalid.\n     */\n    DependencyModel = \"dependency-model\",\n    /**\n     * A configured declaration or documentation reference policy rejected an API relationship.\n     */\n    ReferencePolicy = \"reference-policy\",\n    /**\n     * Required release tags are absent, or custom modifier definitions are invalid.\n     *\n     * @remarks\n     * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.\n     * Add release tags to untagged API link sources, targets, and receiving declarations.\n     * Missing internal classification records are assertion failures, not configuration diagnostics.\n     */\n    DocumentationConfiguration = \"documentation-configuration\",\n    /**\n     * A documentation comment failed TSDoc parsing.\n     *\n     * @remarks\n     * Correct the syntax or unsupported tags identified in the diagnostic message.\n     * Register custom modifier tags with the same options used for classification, binding, and resolution.\n     */\n    DocumentationTsdoc = \"documentation-tsdoc\",\n    /**\n     * A documentation inheritance reference or API link target failed validation.\n     *\n     * @remarks\n     * The target can be missing, or an overload selector can be absent or out of range.\n     * Parameter incompatibility also produces this diagnostic.\n     * Correct the reference, specify a numeric overload selector, or provide local documentation.\n     * Missing or inconsistent internal lookup facts and bindings are assertion failures.\n     */\n    DocumentationReference = \"documentation-reference\",\n    /**\n     * A non-internal API links to an internal API.\n     *\n     * @remarks\n     * Remove the link or correct the original release tags.\n     * Report selection does not change this policy. Public-to-beta links are permitted.\n     * Inherited links are checked against each receiving API's original release level.\n     */\n    DocumentationLinkPolicy = \"documentation-link-policy\",\n    /**\n     * A comment requests a documentation feature that is not supported.\n     *\n     * @remarks\n     * Use supported local declaration paths or package-qualified paths into selected dependency models.\n     * Disambiguate callable overloads with numeric selectors and class member collisions with static or instance selectors.\n     * See the diagnostic message for the specific limitation.\n     */\n    DocumentationUnsupported = \"documentation-unsupported\",\n    /**\n     * Explicit documentation inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove a cyclic request or replace it with local descriptive documentation.\n     */\n    DocumentationCycle = \"documentation-cycle\",\n    /**\n     * A report request has an unknown entrypoint.\n     *\n     * @remarks\n     * Request an entrypoint listed in the analysis configuration.\n     * Invalid internal selections are assertion failures.\n     */\n    ReportConfiguration = \"report-configuration\",\n    /**\n     * Required analysis settings are missing or blank.\n     *\n     * @remarks\n     * Supply a non-blank package name and project path, and at least one entrypoint.\n     */\n    ConfigurationRequired = \"configuration-required\",\n    /**\n     * An entrypoint name or path is blank.\n     *\n     * @remarks\n     * Supply a non-blank name and path for each entrypoint.\n     */\n    ConfigurationEntrypoint = \"configuration-entrypoint\",\n    /**\n     * More than one configured entrypoint has the same name.\n     *\n     * @remarks\n     * Give each entrypoint a distinct name or remove duplicate entries.\n     */\n    DuplicateEntrypoint = \"duplicate-entrypoint\",\n    /**\n     * The working directory is not an absolute path.\n     *\n     * @remarks\n     * Pass an absolute working directory when resolving configuration.\n     */\n    ConfigurationDirectory = \"configuration-directory\",\n    /**\n     * Configuration inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove the cyclic inheritance reference from the configuration's `extends` values.\n     */\n    ConfigurationCycle = \"configuration-cycle\",\n    /**\n     * A configuration property has an invalid value type.\n     *\n     * @remarks\n     * Use the diagnostic message to correct invalid settings or inherited configuration.\n     */\n    ConfigurationInvalid = \"configuration-invalid\",\n    /**\n     * The project configuration does not exist or the compiler cannot open the project.\n     *\n     * @remarks\n     * Check the configured project path and make sure the project configuration is available.\n     */\n    ProjectMissing = \"project-missing\",\n    /**\n     * The compiler reported diagnostics before fact extraction.\n     *\n     * @remarks\n     * Correct the compiler diagnostics included in the message, then analyze the project again.\n     */\n    CompilerDiagnostics = \"compiler-diagnostics\",\n    /**\n     * A configured entrypoint is not a source file in the compiler project.\n     *\n     * @remarks\n     * Check the entrypoint path and the project's file inclusion settings.\n     * Build the declaration inputs first if the project requires them.\n     */\n    EntrypointMissing = \"entrypoint-missing\",\n    /**\n     * The compiler cannot identify a module symbol for an entrypoint.\n     *\n     * @remarks\n     * Use an entrypoint that the compiler recognizes as a module, with imports or exports.\n     */\n    EntrypointModule = \"entrypoint-module\",\n    /**\n     * A declaration's effective member list is incomplete.\n     *\n     * @remarks\n     * This limitation does not fail analysis. Retain the original declaration.\n     * Do not present the extracted member list as complete.\n     */\n    MemberExpansionIncomplete = \"member-expansion-incomplete\",\n    /**\n     * Members owned outside the selected suite remain represented by their original type references.\n     */\n    MemberExpansionOutsideSuite = \"member-expansion-outside-suite\",\n    /**\n     * A custom modifier tag definition is invalid or duplicates an existing definition.\n     *\n     * @remarks\n     * Use valid TSDoc tag names, including the leading `@`.\n     * Do not redefine standard tags or repeat custom tag names.\n     */\n    ClassificationConfiguration = \"classification-configuration\",\n    /**\n     * The TSDoc parser reported a diagnostic for an input comment.\n     *\n     * @remarks\n     * Correct the comment using the parser details in the message, or configure a missing custom modifier tag.\n     * Set `rules.validateTsdocSyntax` to `false` only when parser diagnostics can be ignored.\n     * This setting does not suppress release-level checks.\n     */\n    ClassificationTsdoc = \"classification-tsdoc\",\n    /**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\",\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\",\n    /**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */\n    SelectionConfiguration = \"selection-configuration\",\n    /**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */\n    BaselineMissing = \"baseline-missing\",\n    /**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */\n    BaselineStale = \"baseline-stale\"\n}"
+                  "text": "/**\n * Supported diagnostic codes and their corrective actions.\n *\n * @remarks\n * String values identify diagnostic categories in serialized results.\n * Failure codes describe invalid user inputs, configuration, or caller actions.\n * Internal assertions and unexpected operational errors propagate as exceptions.\n * {@link DiagnosticCode.MemberExpansionIncomplete}\n * describes a limitation in otherwise successful analysis facts.\n * Diagnostic messages provide details specific to the affected input.\n * @public\n */\nexport declare enum DiagnosticCode {\n    /**\n     * Package documentation is duplicated, misplaced, or contains an invalid package-level tag combination.\n     *\n     * @remarks\n     * Keep one leading package documentation comment in the analyzed package, separate from API-item metadata.\n     */\n    PackageDocumentationInvalid = \"package-documentation-invalid\",\n    /**\n     * The configured package-documentation requirement is enabled but no package comment was found.\n     *\n     * @remarks\n     * Add one leading package documentation comment to a package-owned compiler input or disable the requirement.\n     */\n    PackageDocumentationMissing = \"package-documentation-missing\",\n    /**\n     * A member or namespace export has a different release level from its declaring container.\n     *\n     * @remarks\n     * Use the container's release tag, omit the member tag to inherit it, or move the API outside the container.\n     * Container consistency cannot be disabled in V1.\n     */\n    ClassificationContainerMismatch = \"classification-container-mismatch\",\n    /**\n     * A selected dependency model is missing, incompatible, or structurally invalid.\n     */\n    DependencyModel = \"dependency-model\",\n    /**\n     * A configured declaration or documentation reference policy rejected an API relationship.\n     */\n    ReferencePolicy = \"reference-policy\",\n    /**\n     * Required release tags are absent, or custom modifier definitions are invalid.\n     *\n     * @remarks\n     * Custom modifier names must use valid TSDoc syntax and must not redefine standard or configured tags.\n     * Add release tags to untagged API link sources, targets, and receiving declarations.\n     * Missing internal classification records are assertion failures, not configuration diagnostics.\n     */\n    DocumentationConfiguration = \"documentation-configuration\",\n    /**\n     * A documentation comment failed TSDoc parsing.\n     *\n     * @remarks\n     * Correct the syntax or unsupported tags identified in the diagnostic message.\n     * Register custom modifier tags with the same options used for classification, binding, and resolution.\n     */\n    DocumentationTsdoc = \"documentation-tsdoc\",\n    /**\n     * A documentation inheritance reference or API link target failed validation.\n     *\n     * @remarks\n     * The target can be missing, or an overload selector can be absent or out of range.\n     * Parameter incompatibility also produces this diagnostic.\n     * Correct the reference, specify a numeric overload selector, or provide local documentation.\n     * Missing or inconsistent internal lookup facts and bindings are assertion failures.\n     */\n    DocumentationReference = \"documentation-reference\",\n    /**\n     * A non-internal API links to an internal API.\n     *\n     * @remarks\n     * Remove the link or correct the original release tags.\n     * Report selection does not change this policy. Public-to-beta links are permitted.\n     * Inherited links are checked against each receiving API's original release level.\n     */\n    DocumentationLinkPolicy = \"documentation-link-policy\",\n    /**\n     * A comment requests a documentation feature that is not supported.\n     *\n     * @remarks\n     * Use supported local declaration paths or package-qualified paths into selected dependency models.\n     * Disambiguate callable overloads with numeric selectors and class member collisions with static or instance selectors.\n     * See the diagnostic message for the specific limitation.\n     */\n    DocumentationUnsupported = \"documentation-unsupported\",\n    /**\n     * Explicit documentation inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove a cyclic request or replace it with local descriptive documentation.\n     */\n    DocumentationCycle = \"documentation-cycle\",\n    /**\n     * A report request has an unknown entrypoint.\n     *\n     * @remarks\n     * Request an entrypoint listed in the analysis configuration.\n     * Invalid internal selections are assertion failures.\n     */\n    ReportConfiguration = \"report-configuration\",\n    /**\n     * Required analysis settings are missing or blank.\n     *\n     * @remarks\n     * Supply a non-blank package name and project path, and at least one entrypoint.\n     */\n    ConfigurationRequired = \"configuration-required\",\n    /**\n     * An entrypoint name or path is blank.\n     *\n     * @remarks\n     * Supply a non-blank name and path for each entrypoint.\n     */\n    ConfigurationEntrypoint = \"configuration-entrypoint\",\n    /**\n     * More than one configured entrypoint has the same name.\n     *\n     * @remarks\n     * Give each entrypoint a distinct name or remove duplicate entries.\n     */\n    DuplicateEntrypoint = \"duplicate-entrypoint\",\n    /**\n     * The working directory is not an absolute path.\n     *\n     * @remarks\n     * Pass an absolute working directory when resolving configuration.\n     */\n    ConfigurationDirectory = \"configuration-directory\",\n    /**\n     * Configuration inheritance contains a cycle.\n     *\n     * @remarks\n     * Remove the cyclic inheritance reference from the configuration's `extends` values.\n     */\n    ConfigurationCycle = \"configuration-cycle\",\n    /**\n     * A configuration property has an invalid value type.\n     *\n     * @remarks\n     * Use the diagnostic message to correct invalid settings or inherited configuration.\n     */\n    ConfigurationInvalid = \"configuration-invalid\",\n    /**\n     * The project configuration does not exist or the compiler cannot open the project.\n     *\n     * @remarks\n     * Check the configured project path and make sure the project configuration is available.\n     */\n    ProjectMissing = \"project-missing\",\n    /**\n     * The compiler reported diagnostics before fact extraction.\n     *\n     * @remarks\n     * Correct the compiler diagnostics included in the message, then analyze the project again.\n     */\n    CompilerDiagnostics = \"compiler-diagnostics\",\n    /**\n     * A configured entrypoint is not a source file in the compiler project.\n     *\n     * @remarks\n     * Check the entrypoint path and the project's file inclusion settings.\n     * Build the declaration inputs first if the project requires them.\n     */\n    EntrypointMissing = \"entrypoint-missing\",\n    /**\n     * The compiler cannot identify a module symbol for an entrypoint.\n     *\n     * @remarks\n     * Use an entrypoint that the compiler recognizes as a module, with imports or exports.\n     */\n    EntrypointModule = \"entrypoint-module\",\n    /**\n     * A declaration's effective member list is incomplete.\n     *\n     * @remarks\n     * This limitation does not fail analysis. Retain the original declaration.\n     * Do not present the extracted member list as complete.\n     */\n    MemberExpansionIncomplete = \"member-expansion-incomplete\",\n    /**\n     * Members owned outside the selected suite remain represented by their original type references.\n     */\n    MemberExpansionOutsideSuite = \"member-expansion-outside-suite\",\n    /**\n     * A custom modifier tag definition is invalid or duplicates an existing definition.\n     *\n     * @remarks\n     * Use valid TSDoc tag names, including the leading `@`.\n     * Do not redefine standard tags or repeat custom tag names.\n     */\n    ClassificationConfiguration = \"classification-configuration\",\n    /**\n     * The TSDoc parser reported a diagnostic for an input comment.\n     *\n     * @remarks\n     * Correct the comment using the parser details in the message, or configure a missing custom modifier tag.\n     * Set `rules.validateTsdocSyntax` to `false` only when parser diagnostics can be ignored.\n     * This setting does not suppress release-level checks.\n     */\n    ClassificationTsdoc = \"classification-tsdoc\",\n    /**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\",\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\",\n    /**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */\n    SelectionConfiguration = \"selection-configuration\",\n    /**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */\n    BaselineMissing = \"baseline-missing\",\n    /**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */\n    BaselineStale = \"baseline-stale\"\n}"
                 }
               ],
               "tokenRange": {
@@ -16110,13 +16110,13 @@
                 "file": "lib/analysis-types/result.d.ts",
                 "start": 8223,
                 "kind": "EnumMember",
-                "text": "\n    /**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\"",
-                "documentation": "/**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */",
+                "text": "\n    /**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\"",
+                "documentation": "/**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */",
                 "excerpt": {
                   "tokens": [
                     {
                       "kind": "Content",
-                      "text": "\n    /**\n     * A documentation input or merged non-overloaded API declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\""
+                      "text": "\n    /**\n     * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n     *\n     * @remarks\n     * Keep exactly one release tag per input and make explicit tags on merged parts agree.\n     * Ordinary re-export tags must match the source API's effective release level.\n     * Callable overloads may have independent release levels. This conflict check cannot be disabled.\n     */\n    ClassificationReleaseConflict = \"classification-release-conflict\""
                     }
                   ],
                   "tokenRange": {
@@ -16136,15 +16136,15 @@
               "source": {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 8623,
+                "start": 8713,
                 "kind": "EnumMember",
-                "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\"",
-                "documentation": "/**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */",
+                "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\"",
+                "documentation": "/**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */",
                 "excerpt": {
                   "tokens": [
                     {
                       "kind": "Content",
-                      "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\""
+                      "text": "\n    /**\n     * A documentation input has no release level and the classification policy requires one.\n     *\n     * @remarks\n     * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n     * Module namespace export statements always require their own release tag.\n     */\n    ClassificationReleaseMissing = \"classification-release-missing\""
                     }
                   ],
                   "tokenRange": {
@@ -16164,7 +16164,7 @@
               "source": {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 8923,
+                "start": 9093,
                 "kind": "EnumMember",
                 "text": "\n    /**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */\n    SelectionConfiguration = \"selection-configuration\"",
                 "documentation": "/**\n     * A selection has a blank name, an unsupported release level, or an unknown modifier filter.\n     *\n     * @remarks\n     * Supply a non-blank name, supported release levels, and modifier names from the classification's vocabulary.\n     */",
@@ -16192,7 +16192,7 @@
               "source": {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 9231,
+                "start": 9401,
                 "kind": "EnumMember",
                 "text": "\n    /**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */\n    BaselineMissing = \"baseline-missing\"",
                 "documentation": "/**\n     * No accepted review baseline exists.\n     *\n     * @remarks\n     * Review the generated API and explicitly create the baseline after required checks pass.\n     * Checking alone never accepts generated text.\n     */",
@@ -16220,7 +16220,7 @@
               "source": {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 9502,
+                "start": 9672,
                 "kind": "EnumMember",
                 "text": "\n    /**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */\n    BaselineStale = \"baseline-stale\"",
                 "documentation": "/**\n     * Generated review text differs from the expected baseline.\n     *\n     * @remarks\n     * Review the differences. Correct unintended API changes or explicitly update the accepted baseline.\n     * For surface parity checks, correct the difference between surfaces rather than accepting it through a file update.\n     */",
@@ -16265,7 +16265,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 11019,
+            "start": 11189,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * Failure diagnostics without a partial success value.\n * @public\n */\nexport interface FailedResult {\n    /**\n     * Indicates that the operation failed.\n     */\n    readonly ok: false;\n    /**\n     * Diagnostics that explain the operation's failure.\n     */\n    readonly diagnostics: readonly AnalyzerDiagnostic[];\n}",
             "documentation": "/**\n * Failure diagnostics without a partial success value.\n * @public\n */",
@@ -16314,7 +16314,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/result.d.ts",
-                  "start": 11318
+                  "start": 11488
                 }
               }
             ],
@@ -16348,7 +16348,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 11210,
+                "start": 11380,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Diagnostics that explain the operation's failure.\n     */\n    readonly diagnostics: readonly AnalyzerDiagnostic[];",
                 "documentation": "/**\n     * Diagnostics that explain the operation's failure.\n     */",
@@ -16403,7 +16403,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 11126,
+                "start": 11296,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Indicates that the operation failed.\n     */\n    readonly ok: false;",
                 "documentation": "/**\n     * Indicates that the operation failed.\n     */",
@@ -16440,7 +16440,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/result.d.ts",
-              "start": 12449
+              "start": 12619
             }
           },
           {
@@ -16449,7 +16449,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/result.d.ts",
-              "start": 12492
+              "start": 12662
             }
           },
           {
@@ -16458,7 +16458,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/result.d.ts",
-              "start": 12508
+              "start": 12678
             }
           }
         ],
@@ -16467,7 +16467,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 11342,
+            "start": 11512,
             "kind": "TypeAliasDeclaration",
             "text": "\n/**\n * An operation's success or failure diagnostics.\n *\n * @remarks\n * Check `ok` before reading a payload or diagnostics. Failure results contain no partial value.\n * Omitting the type argument produces a success with no `value` property.\n * An explicit payload type, including undefined or a union, requires the `value` property.\n * The default `never` type represents no payload. Payload unions remain a single success branch.\n * Failure diagnostics describe user-caused issues, not internal assertions or unexpected operational errors.\n * This type alone does not guarantee that the value or result is frozen.\n *\n * @typeParam TValue - The value produced on success. Omit, or use `never`, for a value-less result.\n *\n * @example Validation and optional payloads\n * These declarations describe results returned by library operations.\n * Validation success has no payload. An explicitly optional payload retains its property.\n *\n * ```typescript\n * declare const validated: Result;\n * declare const found: Result<string | undefined>;\n * ```\n * @sealed\n * @public\n */\nexport type Result<TValue = never> = FailedResult | ([TValue] extends [never] ? SuccessStatus : SuccessfulResult<TValue>);",
             "documentation": "/**\n * An operation's success or failure diagnostics.\n *\n * @remarks\n * Check `ok` before reading a payload or diagnostics. Failure results contain no partial value.\n * Omitting the type argument produces a success with no `value` property.\n * An explicit payload type, including undefined or a union, requires the `value` property.\n * The default `never` type represents no payload. Payload unions remain a single success branch.\n * Failure diagnostics describe user-caused issues, not internal assertions or unexpected operational errors.\n * This type alone does not guarantee that the value or result is frozen.\n *\n * @typeParam TValue - The value produced on success. Omit, or use `never`, for a value-less result.\n *\n * @example Validation and optional payloads\n * These declarations describe results returned by library operations.\n * Validation success has no payload. An explicitly optional payload retains its property.\n *\n * ```typescript\n * declare const validated: Result;\n * declare const found: Result<string | undefined>;\n * ```\n * @sealed\n * @public\n */",
@@ -16540,7 +16540,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 10433,
+            "start": 10603,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * The success discriminator shared by results with and without payloads.\n * @public\n */\ninterface SuccessStatus {\n    /**\n     * Indicates that the operation succeeded.\n     */\n    readonly ok: true;\n}",
             "documentation": "/**\n * The success discriminator shared by results with and without payloads.\n * @public\n */",
@@ -16595,7 +16595,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 10552,
+                "start": 10722,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Indicates that the operation succeeded.\n     */\n    readonly ok: true;",
                 "documentation": "/**\n     * Indicates that the operation succeeded.\n     */",
@@ -16632,7 +16632,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/result.d.ts",
-              "start": 10853
+              "start": 11023
             }
           }
         ],
@@ -16641,7 +16641,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/result.d.ts",
-            "start": 10640,
+            "start": 10810,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * A successful operation with a required payload.\n *\n * @typeParam TValue - The produced value, including undefined when explicitly permitted.\n * @public\n */\nexport interface SuccessfulResult<TValue> extends SuccessStatus {\n    /**\n     * The successful operation's value. The property remains present even when the value is undefined.\n     */\n    readonly value: TValue;\n}",
             "documentation": "/**\n * A successful operation with a required payload.\n *\n * @typeParam TValue - The produced value, including undefined when explicitly permitted.\n * @public\n */",
@@ -16705,7 +16705,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 10552,
+                "start": 10722,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Indicates that the operation succeeded.\n     */\n    readonly ok: true;",
                 "documentation": "/**\n     * Indicates that the operation succeeded.\n     */",
@@ -16751,7 +16751,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/result.d.ts",
-                "start": 10869,
+                "start": 11039,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * The successful operation's value. The property remains present even when the value is undefined.\n     */\n    readonly value: TValue;",
                 "documentation": "/**\n     * The successful operation's value. The property remains present even when the value is undefined.\n     */",
@@ -16806,7 +16806,7 @@
                   {
                     "packageName": "api-analyzer",
                     "file": "lib/analysis-types/result.d.ts",
-                    "start": 10552,
+                    "start": 10722,
                     "kind": "PropertySignature",
                     "text": "\n    /**\n     * Indicates that the operation succeeded.\n     */\n    readonly ok: true;",
                     "documentation": "/**\n     * Indicates that the operation succeeded.\n     */",
@@ -19388,7 +19388,7 @@
     },
     {
       "file": "lib/analysis-types/facts.d.ts",
-      "sha256": "575e7f64f6cc11bb3cc34bf9530a7e3f49ca971f1237bc1fb41d9632c94a508b"
+      "sha256": "cbfe3f96e3f2164a14c250ada6cf9fecd771ccf88c3dc3cdc5a5072efa9651aa"
     },
     {
       "file": "lib/analysis-types/modelGraph.d.ts",
@@ -19400,7 +19400,7 @@
     },
     {
       "file": "lib/analysis-types/result.d.ts",
-      "sha256": "95d81d3fe4f83b161b85fc41ecfb6a6b4cb9800241d8ecc5c165abe256294374"
+      "sha256": "2c72c169c53e84afe1ab962826981e95f10ed3e5a23188619221511cfd3c2c45"
     },
     {
       "file": "lib/analysis-types/tsdocOptions.d.ts",
@@ -21366,7 +21366,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 9873
+        "start": 10043
       },
       "typeParameters": [],
       "metadata": {
@@ -21413,7 +21413,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 9231
+        "start": 9401
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\",\"BaselineMissing\"]",
@@ -21458,7 +21458,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 9502
+        "start": 9672
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\",\"BaselineStale\"]",
@@ -21617,7 +21617,7 @@
           }
         ],
         "packageName": "api-analyzer",
-        "documentation": "/**\n * A documentation input or merged non-overloaded API declares conflicting release levels.\n *\n * @remarks\n *\n * Keep exactly one release tag per input and make explicit tags on merged parts agree. Callable overloads may have independent release levels. This conflict check cannot be disabled.\n */\n",
+        "documentation": "/**\n * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n *\n * @remarks\n *\n * Keep exactly one release tag per input and make explicit tags on merged parts agree. Ordinary re-export tags must match the source API's effective release level. Callable overloads may have independent release levels. This conflict check cannot be disabled.\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -21638,7 +21638,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 8623
+        "start": 8713
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\",\"ClassificationReleaseMissing\"]",
@@ -21662,7 +21662,7 @@
           }
         ],
         "packageName": "api-analyzer",
-        "documentation": "/**\n * A documentation input has no release level and the classification policy requires one.\n *\n * @remarks\n *\n * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n */\n",
+        "documentation": "/**\n * A documentation input has no release level and the classification policy requires one.\n *\n * @remarks\n *\n * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs. Module namespace export statements always require their own release tag.\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -22742,7 +22742,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 8923
+        "start": 9093
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\",\"SelectionConfiguration\"]",
@@ -22845,7 +22845,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 9231
+        "start": 9401
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\"]:enum:BaselineMissing",
@@ -22890,7 +22890,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 9502
+        "start": 9672
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\"]:enum:BaselineStale",
@@ -23049,7 +23049,7 @@
           }
         ],
         "packageName": "api-analyzer",
-        "documentation": "/**\n * A documentation input or merged non-overloaded API declares conflicting release levels.\n *\n * @remarks\n *\n * Keep exactly one release tag per input and make explicit tags on merged parts agree. Callable overloads may have independent release levels. This conflict check cannot be disabled.\n */\n",
+        "documentation": "/**\n * A documentation input, merged API, or ordinary re-export declares conflicting release levels.\n *\n * @remarks\n *\n * Keep exactly one release tag per input and make explicit tags on merged parts agree. Ordinary re-export tags must match the source API's effective release level. Callable overloads may have independent release levels. This conflict check cannot be disabled.\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -23070,7 +23070,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 8623
+        "start": 8713
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\"]:enum:ClassificationReleaseMissing",
@@ -23094,7 +23094,7 @@
           }
         ],
         "packageName": "api-analyzer",
-        "documentation": "/**\n * A documentation input has no release level and the classification policy requires one.\n *\n * @remarks\n *\n * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.\n */\n",
+        "documentation": "/**\n * A documentation input has no release level and the classification policy requires one.\n *\n * @remarks\n *\n * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs. Module namespace export statements always require their own release tag.\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -24174,7 +24174,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 8923
+        "start": 9093
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/result.d.ts\\\"]\"],\"DiagnosticCode\"]:enum:SelectionConfiguration",
@@ -24219,7 +24219,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 11019
+        "start": 11189
       },
       "typeParameters": [],
       "metadata": {
@@ -24258,7 +24258,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 11342
+        "start": 11512
       },
       "typeParameters": [
         "TValue"
@@ -24318,7 +24318,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10433
+        "start": 10603
       },
       "typeParameters": [],
       "metadata": {
@@ -24357,7 +24357,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10640
+        "start": 10810
       },
       "typeParameters": [
         "TValue"
@@ -32258,7 +32258,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10129
+        "start": 10299
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"AnalyzerDiagnostic\\\"]\",\"code\"]",
@@ -32289,7 +32289,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/result.d.ts",
-              "start": 10129
+              "start": 10299
             }
           }
         ],
@@ -32309,7 +32309,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10292
+        "start": 10462
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"AnalyzerDiagnostic\\\"]\",\"message\"]",
@@ -32347,7 +32347,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 11210
+        "start": 11380
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"FailedResult\\\"]\",\"diagnostics\"]",
@@ -32385,7 +32385,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 11126
+        "start": 11296
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"FailedResult\\\"]\",\"ok\"]",
@@ -32423,7 +32423,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10552
+        "start": 10722
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"SuccessStatus\\\"]\",\"ok\"]",
@@ -32461,7 +32461,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10552
+        "start": 10722
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"SuccessfulResult\\\"]\",\"ok\"]",
@@ -32499,7 +32499,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/result.d.ts",
-        "start": 10869
+        "start": 11039
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/result.d.ts\\\\\\\"]\\\"],\\\"SuccessfulResult\\\"]\",\"value\"]",

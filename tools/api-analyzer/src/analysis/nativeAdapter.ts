@@ -20,6 +20,7 @@ import {
 	getTrailingCommentRanges,
 	type CallSignatureDeclaration,
 	type ComputedPropertyName,
+	type ExportDeclaration,
 	type FunctionLikeDeclaration,
 	type FunctionTypeNode,
 	type MethodSignatureDeclaration,
@@ -74,6 +75,7 @@ import {
 	type Signature,
 } from "typescript/unstable/sync";
 import type { EffectiveConfiguration } from "../analysis-types/configuration.js";
+import { releaseLevels, releaseLevelTags } from "../analysis-types/classification.js";
 import type {
 	AnalysisFacts,
 	ApiItemId,
@@ -89,6 +91,7 @@ import type {
 	HeritageFact,
 	Origin,
 	PackageDocumentationFact,
+	ReexportFact,
 	SignatureFact,
 	SourceDeclarationFact,
 } from "../analysis-types/facts.js";
@@ -447,6 +450,7 @@ function extractFacts(
 		name,
 		exports: collectExports(project, locations, state, moduleSymbol),
 	}));
+	const reexports = collectReexportTags(project, locations, state, parser);
 	let packageComment = packageDocumentation.value.documentation;
 	if (packageComment !== undefined) {
 		const source = assertDefined(
@@ -491,6 +495,7 @@ function extractFacts(
 		ok: true,
 		value: {
 			packageName: configuration.packageName,
+			...(reexports.length === 0 ? {} : { reexports }),
 			...(packageComment === undefined ? {} : { packageDocumentation: packageComment }),
 			compilerVersion: "7.0.2",
 			inputFiles,
@@ -500,6 +505,96 @@ function extractFacts(
 			),
 		},
 	});
+}
+
+/**
+ * Captures ordinary re-export release constraints without using their descriptive documentation.
+ * @param compiler - Active compiler services.
+ * @param locations - Package ownership settings.
+ * @param state - Declaration collection for resolved targets.
+ * @param parser - Parser with the configured tag vocabulary.
+ * @returns Constraints from all package-owned export statements, including intermediate modules.
+ */
+function collectReexportTags(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	parser: TSDocParser,
+): readonly ReexportFact[] {
+	const constraints: ReexportFact[] = [];
+	for (const file of compiler.program.getSourceFileNames()) {
+		const source = compiler.program.getSourceFile(file);
+		if (
+			source === undefined ||
+			compiler.program.isSourceFileDefaultLibrary(source) ||
+			getOrigin(locations, file, 0).packageName !== locations.configuration.packageName
+		) {
+			continue;
+		}
+
+		/**
+		 * Retains release constraints while ignoring all other export-statement documentation.
+		 * @param node - Original node in the package-owned source file.
+		 */
+		const visit = (node: Node): void => {
+			if (
+				isExportDeclaration(node) &&
+				(node.exportClause === undefined || isNamedExports(node.exportClause))
+			) {
+				const text = getOriginalComment(node);
+				const comment = text === undefined ? undefined : parser.parseString(text).docComment;
+				const tags =
+					comment === undefined
+						? []
+						: releaseLevels
+								.map((level) => releaseLevelTags[level])
+								.filter((tag) => comment.modifierTagSet.hasTagName(tag));
+				if (tags.length > 0) {
+					for (const symbol of getReexportSymbols(compiler.checker, node)) {
+						constraints.push({
+							name: symbol.name,
+							origin: getOrigin(locations, file, node.pos),
+							target: collect(
+								compiler,
+								locations,
+								state,
+								resolveSymbolTarget(compiler.checker, symbol),
+							),
+							releaseTags: tags,
+						});
+					}
+				}
+			}
+			node.forEachChild(visit);
+		};
+		visit(source);
+	}
+	return constraints;
+}
+
+/**
+ * Gets named re-export targets or the non-default targets of a star export.
+ * @param checker - Active native checker.
+ * @param node - Original ordinary export declaration.
+ * @returns Symbols before alias resolution, retaining the exported names.
+ */
+function getReexportSymbols(
+	checker: Project["checker"],
+	node: ExportDeclaration,
+): readonly CompilerSymbol[] {
+	if (node.exportClause !== undefined && isNamedExports(node.exportClause)) {
+		return node.exportClause.elements.flatMap((element) => {
+			const symbol = checker.getSymbolAtLocation(element.name);
+			return symbol === undefined ? [] : [symbol];
+		});
+	}
+	const moduleSymbol =
+		node.moduleSpecifier === undefined
+			? undefined
+			: checker.getSymbolAtLocation(node.moduleSpecifier);
+	return moduleSymbol === undefined
+		? []
+		: checker.getExportsOfModule(moduleSymbol).filter((symbol) => symbol.name !== "default");
 }
 
 /**
@@ -729,17 +824,33 @@ export function getOrigin(
 }
 
 /**
- * Resolves an alias through the compiler's symbol resolver.
+ * Resolves aliases while preserving documented module namespace export wrappers.
  *
  * @param checker - The checker for the active compiler snapshot.
  * @param symbol - The exported symbol to resolve.
- * @returns The alias target, or the original symbol if it is not an alias.
+ * @returns The target declaration or namespace-export wrapper; non-alias symbols are unchanged.
  */
 export function resolveSymbolTarget(
 	checker: Project["checker"],
 	symbol: CompilerSymbol,
 ): CompilerSymbol {
-	return symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+	const visited = new Set<number>();
+	let current = symbol;
+	while (current.flags & SymbolFlags.Alias) {
+		if (current.declarations.some((handle) => handle.kind === SyntaxKind.NamespaceExport)) {
+			return current;
+		}
+		if (visited.has(current.id)) {
+			return checker.getAliasedSymbol(symbol);
+		}
+		visited.add(current.id);
+		const next = checker.getImmediateAliasedSymbol(current);
+		if (next === undefined) {
+			return checker.getAliasedSymbol(current);
+		}
+		current = next;
+	}
+	return current;
 }
 
 /**
@@ -1896,8 +2007,7 @@ export function lookupReference(
 					? getDeclarationSelectorKind(member.selector.selector)
 					: undefined;
 			if (
-				(firstKind !== undefined &&
-					!resolved.declarations.some((handle) => SyntaxKind[handle.kind] === firstKind)) ||
+				(firstKind !== undefined && !hasDeclarationKind(resolved, firstKind)) ||
 				(reference.memberReferences.length > 1 &&
 					member?.selector?.selectorKind === SelectorKind.Label &&
 					!hasSymbolLabel(resolved, member.selector.selector, state))
@@ -1953,8 +2063,7 @@ export function lookupReference(
 							? getDeclarationSelectorKind(part.selector.selector)
 							: undefined;
 					if (
-						(kind !== undefined &&
-							!resolved.declarations.some((handle) => SyntaxKind[handle.kind] === kind)) ||
+						(kind !== undefined && !hasDeclarationKind(resolved, kind)) ||
 						(pathIndex < reference.memberReferences.length - 2 &&
 							part.selector?.selectorKind === SelectorKind.Label &&
 							!hasSymbolLabel(resolved, part.selector.selector, state))
@@ -1984,6 +2093,20 @@ export function lookupReference(
 }
 
 /**
+ * Matches a declaration selector while treating module namespace exports as namespace APIs.
+ * @param symbol - Resolved declaration or module namespace export.
+ * @param kind - Compiler declaration kind associated with the selector.
+ * @returns Whether the symbol supports the requested selector.
+ */
+function hasDeclarationKind(symbol: CompilerSymbol, kind: string): boolean {
+	return symbol.declarations.some(
+		(handle) =>
+			SyntaxKind[handle.kind] === kind ||
+			(kind === "ModuleDeclaration" && handle.kind === SyntaxKind.NamespaceExport),
+	);
+}
+
+/**
  * Validates a label on an intermediate compiler-resolved path component.
  * @param symbol - Resolved declaration symbol.
  * @param label - Requested original documentation label.
@@ -2001,7 +2124,9 @@ function hasSymbolLabel(
 		return (
 			node !== undefined &&
 			collectDocumentationLabels(
-				parser.parseString(getOriginalComment(node) ?? "/** */").docComment,
+				parser.parseString(
+					getOriginalComment(isNamespaceExport(node) ? node.parent : node) ?? "/** */",
+				).docComment,
 			).includes(label)
 		);
 	});
@@ -2023,6 +2148,15 @@ function lookupMemberSymbol(
 	side: string | undefined,
 	matchSymbol?: (symbol: CompilerSymbol) => boolean,
 ): Result<CompilerSymbol | undefined> {
+	if (owner.declarations.some((handle) => handle.kind === SyntaxKind.NamespaceExport)) {
+		return lookupMemberSymbol(
+			checker,
+			checker.getAliasedSymbol(owner),
+			name,
+			side,
+			matchSymbol,
+		);
+	}
 	if (owner.flags & (SymbolFlags.Class | SymbolFlags.Interface)) {
 		const staticType =
 			owner.flags & (SymbolFlags.Value | SymbolFlags.Module)
@@ -2220,6 +2354,12 @@ export function collect(
 
 	// Reserve the identifier before following exports or documentation references back to this symbol.
 	visiting.add(id);
+	const namespace = extractModuleNamespace(compiler, locations, state, symbol, id);
+	if (namespace !== undefined) {
+		declarations.set(id, namespace);
+		visiting.delete(id);
+		return id;
+	}
 	const moduleSource = symbol.declarations.find(
 		(handle) => handle.kind === SyntaxKind.SourceFile,
 	);
@@ -2370,6 +2510,67 @@ export function collect(
 	});
 	visiting.delete(id);
 	return id;
+}
+
+/**
+ * Extracts a module namespace wrapper without replacing its child declarations or their metadata.
+ * @param compiler - Active native compiler services.
+ * @param locations - Original package ownership settings.
+ * @param state - Collection state with the wrapper identity already reserved for cycle detection.
+ * @param symbol - Resolved symbol, preserving namespace-export aliases.
+ * @param id - Wrapper declaration identity.
+ * @returns A documented namespace wrapper, or undefined for other declaration forms.
+ */
+function extractModuleNamespace(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	symbol: CompilerSymbol,
+	id: ApiItemId,
+): DeclarationFact | undefined {
+	const namespaceNode = symbol.declarations
+		.find((handle) => handle.kind === SyntaxKind.NamespaceExport)
+		?.resolve();
+	if (namespaceNode === undefined || !isNamespaceExport(namespaceNode)) {
+		return undefined;
+	}
+	const statement = namespaceNode.parent;
+	assert(
+		isExportDeclaration(statement),
+		"Namespace exports must belong to export declarations.",
+	);
+	const source = {
+		...extractSourceDeclaration(locations, assertDefined(symbol.declarations[0]), compiler),
+		documentation: getOriginalComment(statement),
+	};
+	return {
+		id,
+		name: namespaceNode.name.text,
+		declarations: [source],
+		documentationContext: createReferenceContext(
+			compiler,
+			locations,
+			state,
+			statement,
+			source,
+			id,
+			source.documentation,
+		),
+		type: "",
+		memberView: "complete",
+		baseDeclarations: [],
+		heritage: [],
+		implementedDeclarations: [],
+		limitations: [],
+		members: [],
+		signatures: [],
+		exports: collectExports(
+			compiler,
+			locations,
+			state,
+			compiler.checker.getAliasedSymbol(symbol),
+		),
+	};
 }
 
 /**

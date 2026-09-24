@@ -218,6 +218,38 @@ Callable and constructable class-instance augmentations render a separate merged
 Repeated ambient modules retain original-scope documentation and export identities through direct and namespace re-exports.
 Their quoted compiler names are not emitted as invalid namespace identifiers.
 
+### Module namespace exports and re-export metadata
+
+Module namespace exports retain their own identity and documentation, separate from the source module and its exported APIs.
+Require a release tag on the namespace export statement, even when `rules.requireReleaseLevel` is disabled.
+Every exported member's effective release level must match the namespace's level.
+Member metadata is not replaced by the namespace tag.
+Selection is atomic, including when only the namespace matches a custom-tag filter.
+
+The following export documents a public namespace; every API exported by `tools.js` must also have the public effective release level:
+
+```typescript
+/**
+ * Tools for clients.
+ * @public
+ */
+export * as Tools from "./tools.js";
+```
+
+Reports and models preserve aliases, type-only paths, default exports, empty namespaces, recursive namespace paths, and original child provenance.
+Namespace selectors and links through type-only members work locally and through selected dependency models.
+Separate `export * as` statements create separate namespace APIs, even when they target the same module.
+Ordinary forwarding of an existing namespace retains its identity and documentation.
+
+Ordinary re-export statements do not override API metadata.
+An absent release tag retains the source level; a matching tag is redundant; a disagreeing tag fails validation in either direction.
+An explicit tag must agree with every exposed overload or target of that statement.
+Other re-export documentation, including links, is ignored.
+The analyzer validates package-owned intermediate export statements as well as entrypoint exports.
+Conflicts cannot be disabled through missing-tag or TSDoc-syntax options.
+The [suite tests](src/test/suite.test.ts) cover these rules and detached model/report reuse with both declaration producers.
+Declaration-rollup compilation remains separate Stage 4 work; successful report generation is not proof of a compilable rollup.
+
 ### Type-only enum and constant exports
 
 Reports and dependency models retain type-only flags for enum and constant aliases, including ordinary re-exports of type-only aliases and `export type *` paths.

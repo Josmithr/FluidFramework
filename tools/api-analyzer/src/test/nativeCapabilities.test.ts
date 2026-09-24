@@ -3777,8 +3777,18 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.equal(strict.diagnostics[0]?.code, DiagnosticCode.ClassificationReleaseMissing);
 
 				// This broad compiler fixture intentionally contains untagged members.
+				const missingNamespaceTag = await analyzeAPIs({
+					...configuration.value,
+					rules: { requireReleaseLevel: false },
+				});
+				assert(!missingNamespaceTag.ok);
+				assert.equal(
+					missingNamespaceTag.diagnostics[0]?.code,
+					DiagnosticCode.ClassificationReleaseMissing,
+				);
 				const result = await analyzeAPIs({
 					...configuration.value,
+					entrypoints: [{ name: ".", path: path.join(directory, "declarations/api.d.ts") }],
 					rules: { requireReleaseLevel: false },
 				});
 				assert.equal(result.ok, true, JSON.stringify(result));

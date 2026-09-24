@@ -1,4 +1,9 @@
-import { SelectorKind, type DocDeclarationReference } from "@microsoft/tsdoc";
+import {
+	SelectorKind,
+	type DocDeclarationReference,
+	type DocMemberReference,
+	type DocMemberSelector,
+} from "@microsoft/tsdoc";
 import type {
 	DependencyApi,
 	DependencyExport,
@@ -204,17 +209,7 @@ function resolveQualifiedExport(
 	if (
 		reference.memberReferences.some(
 			(part, index) =>
-				(part.memberIdentifier === undefined && part.memberSymbol === undefined) ||
-				(part.selector !== undefined &&
-					!(
-						(index === reference.memberReferences.length - 1 &&
-							part.selector.selectorKind === SelectorKind.Index) ||
-						part.selector.selectorKind === SelectorKind.Label ||
-						(part.selector.selectorKind === SelectorKind.System &&
-							(part.selector.selector === "constructor" ||
-								getDeclarationSelectorKind(part.selector.selector) !== undefined ||
-								(index > 0 && ["static", "instance"].includes(part.selector.selector))))
-					)),
+				!isSupportedReferenceMember(part, index, reference.memberReferences.length),
 		)
 	) {
 		return reportFailure(
@@ -232,6 +227,7 @@ function resolveQualifiedExport(
 	let exported: DependencyExport | undefined;
 	for (const [index, part] of reference.memberReferences.entries()) {
 		if (part.memberSymbol !== undefined) {
+			// Resolve computed keys by declaration identity, then use the model's stored path name.
 			const member = resolveSymbolMemberName(
 				model,
 				models,
@@ -245,27 +241,17 @@ function resolveQualifiedExport(
 			}
 			names[index] = member.value;
 		}
+
+		// Models store complete export paths; only selected prefixes need a separate lookup.
 		if (index !== names.length - 1 && part.selector === undefined) {
 			continue;
 		}
-		const selector =
-			part.selector?.selectorKind === SelectorKind.System ? part.selector.selector : undefined;
-		const side = selector === "static" || selector === "instance" ? selector : undefined;
-		const kind = selector === undefined ? undefined : getDeclarationSelectorKind(selector);
 		const matches = findExportedTargets(model, entrypoint, names.slice(0, index + 1)).filter(
-			(entry) =>
-				(side === undefined || entry.memberKind === side) &&
-				(part.selector?.selectorKind !== SelectorKind.Label ||
-					entry.items.some(
-						(id) => apis.get(id)?.labels.includes(part.selector?.selector ?? "") === true,
-					)) &&
-				(selector !== "constructor" ||
-					entry.items.some((id) => apis.get(id)?.kind === "Constructor")) &&
-				(kind === undefined ||
-					entry.items.some((id) => apis.get(id)?.declarationKinds.includes(kind) === true)),
+			(entry) => matchesExportSelector(entry, part.selector, apis),
 		);
 		exported = matches.length === 1 ? matches[0] : undefined;
 		if (exported === undefined) {
+			// A later path match must not bypass a missing or ambiguous intermediate selector.
 			break;
 		}
 	}
@@ -275,6 +261,88 @@ function resolveQualifiedExport(
 				`Dependency ${model.packageName}: exported target ${text} is missing or ambiguous in the model. Specify a member side when static and instance names collide.`,
 			)
 		: { ok: true, value: exported };
+}
+
+/**
+ * Checks whether a reference component's name and selector are supported at its path position.
+ * @param member - Parsed identifier or symbol-key reference with an optional selector.
+ * @param index - Zero-based position in the reference path.
+ * @param memberCount - Total number of components; numeric selectors are permitted only at the end.
+ * @returns Whether lookup supports the component; class member-side selectors require a parent.
+ */
+function isSupportedReferenceMember(
+	member: DocMemberReference,
+	index: number,
+	memberCount: number,
+): boolean {
+	if (member.memberIdentifier === undefined && member.memberSymbol === undefined) {
+		return false;
+	}
+	const selector = member.selector;
+	if (selector === undefined) {
+		return true;
+	}
+	switch (selector.selectorKind) {
+		case SelectorKind.Index: {
+			return index === memberCount - 1;
+		}
+		case SelectorKind.Label: {
+			return true;
+		}
+		case SelectorKind.System: {
+			return (
+				selector.selector === "constructor" ||
+				getDeclarationSelectorKind(selector.selector) !== undefined ||
+				(index > 0 && ["static", "instance"].includes(selector.selector))
+			);
+		}
+		default: {
+			return false;
+		}
+	}
+}
+
+/**
+ * Tests an exported path against its selector using original API records from the selected suite.
+ * @param entry - Candidate exported path, which may refer to several declaration or callable records.
+ * @param selector - Validated selector; undefined leaves all path candidates eligible.
+ * @param apis - API records indexed by identity, including owners of re-exported declarations.
+ * @returns Whether the path matches. Numeric overload selection is deferred until its API records are resolved.
+ */
+function matchesExportSelector(
+	entry: DependencyExport,
+	selector: DocMemberSelector | undefined,
+	apis: ReadonlyMap<string, DependencyApi>,
+): boolean {
+	// Numeric selectors choose an overload within the resolved export, not an export path.
+	if (selector === undefined || selector.selectorKind === SelectorKind.Index) {
+		return true;
+	}
+	if (selector.selectorKind === SelectorKind.Label) {
+		return entry.items.some((id) => apis.get(id)?.labels.includes(selector.selector) === true);
+	}
+	if (selector.selector === "static" || selector.selector === "instance") {
+		return entry.memberKind === selector.selector;
+	}
+	if (selector.selector === "constructor") {
+		return entry.items.some((id) => apis.get(id)?.kind === "Constructor");
+	}
+
+	// Both namespace forms accept the same selector while retaining their original syntax kinds.
+	const kind = getDeclarationSelectorKind(selector.selector);
+	return (
+		kind === undefined ||
+		entry.items.some(
+			(id) =>
+				apis
+					.get(id)
+					?.declarationKinds.some(
+						(declarationKind) =>
+							declarationKind === kind ||
+							(kind === "ModuleDeclaration" && declarationKind === "NamespaceExport"),
+					) === true,
+		)
+	);
 }
 
 /**
@@ -295,6 +363,7 @@ function resolveSymbolMemberName(
 	path: readonly string[],
 	reference: DocDeclarationReference,
 ): Result<string> {
+	// An exported API named Symbol takes precedence over the built-in well-known symbols.
 	const wellKnown =
 		reference.packageName === undefined &&
 		reference.importPath === undefined &&

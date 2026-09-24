@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "noEmit": true },
-  "files": ["lib/namespaceExport.d.ts", "lib/privateInheritance.d.ts"]
+  "files": ["lib/privateInheritance.d.ts"]
 }

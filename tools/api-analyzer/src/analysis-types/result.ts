@@ -234,10 +234,11 @@ export enum DiagnosticCode {
 	ClassificationTsdoc = "classification-tsdoc",
 
 	/**
-	 * A documentation input or merged non-overloaded API declares conflicting release levels.
+	 * A documentation input, merged API, or ordinary re-export declares conflicting release levels.
 	 *
 	 * @remarks
 	 * Keep exactly one release tag per input and make explicit tags on merged parts agree.
+	 * Ordinary re-export tags must match the source API's effective release level.
 	 * Callable overloads may have independent release levels. This conflict check cannot be disabled.
 	 */
 	ClassificationReleaseConflict = "classification-release-conflict",
@@ -247,6 +248,7 @@ export enum DiagnosticCode {
 	 *
 	 * @remarks
 	 * Add a release tag or set `rules.requireReleaseLevel` to `false` to permit untagged inputs.
+	 * Module namespace export statements always require their own release tag.
 	 */
 	ClassificationReleaseMissing = "classification-release-missing",
 

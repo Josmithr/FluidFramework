@@ -68,6 +68,59 @@ function createContainerFacts(
 }
 
 describe("Container release metadata", () => {
+	it("does not substitute an enclosing namespace tag for a module export's own tag", () => {
+		const facts = createContainerFacts("ModuleDeclaration", "/** @beta */", undefined);
+		const [member, container] = facts.declarations;
+		assert(member !== undefined && container !== undefined);
+		const result = createAnalysisContext(
+			{
+				...facts,
+				declarations: [
+					{
+						...member,
+						declarations: member.declarations.map((source) => ({
+							...source,
+							kind: "NamespaceExport",
+						})),
+					},
+					{ ...container, exports: [{ name: "Nested", target: member.id, typeOnly: false }] },
+				],
+			},
+			{ rules: { requireReleaseLevel: false } },
+		);
+		assert(!result.ok);
+		assert.equal(result.diagnostics[0]?.code, DiagnosticCode.ClassificationReleaseMissing);
+	});
+
+	it("requires module namespace release tags and validates source levels without re-tagging", () => {
+		for (const namespaceTag of [undefined, "/** @public */", "/** @beta */"]) {
+			const facts = createContainerFacts("NamespaceExport", namespaceTag, "/** @beta */");
+			const [member, container] = facts.declarations;
+			assert(member !== undefined && container !== undefined);
+			const source = member.declarations[0];
+			assert(source !== undefined);
+			const input: AnalysisFacts = {
+				...facts,
+				declarations: [
+					{ ...member, documentationContext: { origin: source, links: [] } },
+					{ ...container, exports: [{ name: "alias", target: member.id, typeOnly: true }] },
+				],
+			};
+			const before = JSON.stringify(input);
+			const result = createAnalysisContext(input, { rules: { requireReleaseLevel: false } });
+			assert.equal(result.ok, namespaceTag === "/** @beta */");
+			if (!result.ok) {
+				assert.equal(
+					result.diagnostics[0]?.code,
+					namespaceTag === undefined
+						? DiagnosticCode.ClassificationReleaseMissing
+						: DiagnosticCode.ClassificationContainerMismatch,
+				);
+			}
+			assert.equal(JSON.stringify(input), before);
+		}
+	});
+
 	it("inherits an untagged member's release without copying other container tags", () => {
 		for (const kind of [
 			"ClassDeclaration",

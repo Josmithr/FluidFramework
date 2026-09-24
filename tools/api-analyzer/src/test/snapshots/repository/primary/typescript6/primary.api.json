@@ -198,6 +198,16 @@
         "exports": []
       },
       {
+        "name": "./namespace",
+        "exports": [
+          {
+            "name": "Values",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+            "typeOnly": false
+          }
+        ]
+      },
+      {
         "name": "./values",
         "exports": [
           {
@@ -5665,6 +5675,74 @@
         "exports": []
       },
       {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+        "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+        "references": [],
+        "name": "Values",
+        "sources": [
+          {
+            "packageName": "@scenario/primary",
+            "file": "lib/namespaceExport.d.ts",
+            "start": 47,
+            "kind": "NamespaceExport",
+            "text": " * as Values",
+            "documentation": "/**\n * Public value APIs.\n * @public\n */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": " * as Values"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            }
+          }
+        ],
+        "type": "",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": [
+          {
+            "name": "Bits",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "Keyed",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Keyed\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "Mode",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "count",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"count\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "key",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"key\"]",
+            "typeOnly": false
+          },
+          {
+            "name": "version",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]",
+            "typeOnly": false
+          }
+        ]
+      },
+      {
         "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
         "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
         "references": [],
@@ -6963,6 +7041,10 @@
     {
       "file": "lib/namedDefault.d.ts",
       "sha256": "051f2b7f85c4e2312a048f9ecfe6bbc7d91e7e6cbe8678bf8258e95ea5811458"
+    },
+    {
+      "file": "lib/namespaceExport.d.ts",
+      "sha256": "01c0fa7d34f3a966d0b453d15ecdaba547836d73c313688686f953699302c0f6"
     },
     {
       "file": "lib/types.d.ts",
@@ -8693,6 +8775,44 @@
         ],
         "packageName": "@scenario/primary",
         "documentation": "/**\n * Named default class.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+      "name": "Values",
+      "kind": "NamespaceExport",
+      "labels": [],
+      "declarationKinds": [
+        "NamespaceExport"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/namespaceExport.d.ts",
+        "start": 47
+      },
+      "metadata": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "documentation": "/**\n * Public value APIs.\n *\n * @public\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -11136,6 +11256,148 @@
     {
       "entrypoint": ".",
       "path": [
+        "version"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/namespaceExport.d.ts\\\"]\"],\"Values\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Bits"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Bits",
+        "None"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"None\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "static"
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Bits",
+        "Read"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Bits\",\"Read\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "static"
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Keyed"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Keyed\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Keyed",
+        "[key]"
+      ],
+      "symbolId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"key\"]",
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/values.d.ts\\\\\\\"]\\\"],\\\"Keyed\\\"]\",\"[key]\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Mode"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Mode",
+        "Off"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"Off\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "static"
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "Mode",
+        "On"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"Mode\",\"On\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "static"
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "count"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"count\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
+        "key"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"key\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./namespace",
+      "path": [
+        "Values",
         "version"
       ],
       "items": [

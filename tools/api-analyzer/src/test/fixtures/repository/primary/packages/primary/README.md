@@ -13,15 +13,17 @@ The other workspaces use smaller APIs to isolate package relationships.
 | [types.ts](src/types.ts) | Primitive and literal aliases, intersections, mapped/conditional/indexed types, utility composition, and an unexported supporting interface. |
 | [values.ts](src/values.ts) | Constants, mutable exports, unique-symbol keys, ordinary enums, and const enums. |
 | [merges.ts](src/merges.ts) | Repeated interfaces and namespaces, nested namespaces, callable class augmentation, and class/function/enum namespace merges. |
+| [namespaceExport.ts](src/namespaceExport.ts) | A documented public module namespace whose members retain their original declarations and identities. |
 | [index.ts](src/index.ts) | Package documentation, same-package star exports, renamed exports, type-only exports, named and anonymous default declarations, and a default expression. |
 
-The [package manifest](package.json) and [analyzer configuration](analyzer.json) expose the root, a populated `./values` subpath, and an empty `./empty` subpath.
+The [package manifest](package.json) and [analyzer configuration](analyzer.json) expose the root, populated `./values` and `./namespace` subpaths, and an empty `./empty` subpath.
 The package documentation belongs to the package, not to an individual subpath.
 
 ## Expected behavior
 
 - The root exports match the independent inventory in [repositoryScenarios.ts](../../../../../repositoryScenarios.ts).
 - Renamed exports retain their original declaration identity, and `StoreType` remains type-only.
+- The `./namespace` surface exports the public `Values` namespace with its own documentation; its members share the targets exported directly through `./values`.
 - The model retains the unexported `Support` interface without making it a package export.
 - Generic member substitution and merged-interface members appear in the model.
 - Public reports exclude alpha and internal functions; complete reports retain them.
@@ -34,13 +36,8 @@ This coverage does not establish every combination of TypeScript syntax or trimm
 
 ## Known report limitations
 
-The separate [variant configuration](analyzer.variants.json) exposes two inputs whose reports currently fail:
-
-- [namespaceExport.ts](src/namespaceExport.ts) uses a module namespace re-export, `export * as Values`.
-- [privateInheritance.ts](src/privateInheritance.ts) derives from a class with private and protected state.
-
-The tests require those rejections without skipping them.
-They record unsupported behavior, not successful support.
+The separate [variant configuration](analyzer.variants.json) exposes only [privateInheritance.ts](src/privateInheritance.ts), which derives from a class with private and protected state and still fails report generation.
+The tests require that rejection without skipping it; it records unsupported behavior, not successful support.
 The successful inventory instead keeps non-public members on their original class and uses a public abstract base for its derived-class example.
 Inline object-type members in the successful alias example have explicit release tags under the current classification contract.
 

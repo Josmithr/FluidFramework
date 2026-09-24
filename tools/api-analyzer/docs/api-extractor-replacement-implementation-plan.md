@@ -65,6 +65,7 @@ An implementation blocker must produce a documented decision request, not an una
 - The library and supported package inputs are ESM only. CommonJS packages and TypeScript `export =` declarations are out of scope, not deferred work or stage-acceptance blockers. Preserve Node, browser, and custom resolution conditions for supported ESM entrypoints.
 - Keep Fluid tags, package scopes, surface names, and policy meanings outside the generic implementation.
 - V1 selects classes, interfaces, enums, and namespaces as whole containers. Neither release-level nor custom-tag selection may trim their members, including constructors and static members. Explicit member release levels must equal the declaring container's effective level; untagged members inherit that level. This rule has no V1 opt-out. Validate local overrides against their declaring container and reuse completed base-member validation. Standalone overload selection remains independent. See the [compound-container decision](#3-atomic-compound-functionnamespace-apis) and [future flexibility investigation](api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
+- Module namespace exports follow the same V1 atomic-selection and release-level agreement rules as explicit namespaces. Require the namespace's release tag and read its documentation on the `export * as Name from "module"` statement. Analysis, reports, and portable models implement the policy approved on 2026-09-24. See the [module namespace export decision](#module-namespace-export-policy).
 - Follow documentation-driven development, test-driven development, and functional programming principles throughout this project.
 - Preserve all W1-W11 requirements, F1-F4 capabilities, and B1-B6 regression obligations. Staged delivery does not make later requirements optional.
 
@@ -947,6 +948,61 @@ This can duplicate syntax across receiving types; deduplicating it is an optimiz
 Direct heritage targets preserve recursive ancestry, and receiving views preserve transitive substitutions without inferring overload compatibility.
 Stage 5 still owns documenter integration, stable website URL policies, and migration or retention of maintained historical artifacts.
 
+#### Module namespace export policy
+
+Status: implemented for analysis, reports, and portable models; declaration rollups remain Stage 4 work.
+
+V1 applies the explicit-namespace rules to module namespace exports.
+Require a release tag on the namespace export statement.
+The statement's documentation and release tag describe the exported namespace, not the source module or its package documentation.
+Every exported member must have the same effective release level as the namespace.
+Preserve each target's original declaration identity and metadata; do not replace a conflicting member tag with the namespace tag.
+Selecting the namespace retains all its exported members, without release-level or custom-tag trimming.
+
+The following statement documents and classifies `Tools` as public; all exports of `tools.js` must also have the public effective release level:
+
+```typescript
+/**
+ * Docs about Tools.
+ * @public
+ */
+export * as Tools from "./tools.js";
+```
+
+TS6/TS7 suite tests verify export-statement documentation, a missing namespace release tag, mismatched member levels, and atomic release/custom-tag selection.
+Full report snapshots cover local and cross-package module exports; models retain aliases, default exports, type-only paths, empty namespaces, and recursive namespace references.
+Native and model-backed documentation lookup support namespace selectors and type-only children.
+The former module namespace report-rejection case now requires a successful report; inherited non-public class members remain a separate known gap.
+Future member-tag trimming must use a uniform policy for explicit namespaces and module namespace exports.
+That investigation remains in the [flexible container member selection follow-up](api-extractor-replacement-follow-ups.md#flexible-container-member-selection), not V1 implementation.
+
+#### Re-export metadata policy
+
+Status: implemented with validation coverage for the policy approved on 2026-09-24.
+
+V1 does not permit an ordinary re-export to change an existing API's release level or documentation.
+When the re-export statement has no release tag, inherit the source API's effective release level.
+An explicit matching release tag is redundant and has no effect.
+An explicit disagreeing release tag must produce a validation failure, whether it makes the API more public or less public.
+Ignore other documentation on an ordinary re-export statement; retain the source API's documentation, metadata, and identity.
+Apply these rules across re-export chains without assigning a new release level at an intermediate export.
+
+For a source API `foo` with release level `@beta`, the expected results are:
+
+| Release tag on the re-export | Result |
+| --- | --- |
+| None | Retain `@beta`. |
+| `@beta` | Retain `@beta`; ignore the redundant tag. |
+| `@public`, `@alpha`, or `@internal` | Fail validation. |
+
+This rule differs from the [module namespace export policy](#module-namespace-export-policy): `export * as Tools` introduces the namespace whose documentation and required release tag belong on that statement.
+It does not replace the metadata of the namespace's members.
+An ordinary re-export of an existing namespace follows the source-preserving rules above.
+
+Suite coverage verifies absent, matching, and disagreeing tags, ignored documentation and links, renamed/type-only/star re-exports, mixed-release overloads, and intermediate statements in same-package and cross-package chains.
+Conflict validation uses original target metadata and remains enabled when optional missing-tag and syntax rules are disabled.
+Context-specific retagging and documentation overrides require a separate design; see the [re-export metadata customization follow-up](api-extractor-replacement-follow-ups.md#re-export-metadata-customization).
+
 #### Repository scenario acceptance suites
 
 Implementation status (2026-09-21): repository-shaped report/model suites now exercise all five baseline topologies, with independent-package, package-documentation-only, subpath, scoped-selector, and peer-dependency coverage.
@@ -954,7 +1010,8 @@ The [fixture guide](../src/test/fixtures/repository/README.md) maps the API inve
 The [workflow tests](../src/test/repository.test.ts) run both producer compilers; the [failure tests](../src/test/repositoryFailures.test.ts) cover source and artifact freshness, integrity, and dependency-first recovery.
 The fixtures include all package code and infrastructure: manifests, compiler projects, analyzer settings, and package build order.
 Runtime setup copies a workspace and links its packages; it does not synthesize repository code or configuration.
-Stage 3 is not yet accepted: module namespace re-exports and inherited non-public class members have explicit report-rejection tests, not successful report support.
+Stage 3 is not yet accepted: inherited non-public class members still have explicit report-rejection tests, not successful report support.
+Module namespace exports now have successful report and portable-model coverage under the policy above.
 CommonJS export assignment is outside the agreed ESM-only input scope; it is not a fixture requirement or a remaining report gap.
 The remaining requirements below continue to define acceptance rather than treating these known rejections as completed capabilities.
 Extend the same scenarios with trimmed-rollup checks when Stage 4 provides declaration generation.
