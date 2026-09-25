@@ -156,6 +156,10 @@ describe("Effective configuration", () => {
 	// Design requirement: W11.
 	it("validates entrypoint structure and rule values", () => {
 		for (const invalid of [
+			{ extends: 42 },
+			{ extends: [null] },
+			{ extends: [false] },
+			{ extends: [[]] },
 			{ entrypoints: [null] },
 			{ entrypoints: [{ name: "." }] },
 			{ entrypoints: [{ name: 42, path: "index.d.ts" }] },

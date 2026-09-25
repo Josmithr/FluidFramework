@@ -203,7 +203,7 @@ export interface ModelMember extends ModelItem {
 	 *
 	 * @remarks
 	 * An empty array means the accessors remain represented by the base relationship and original sources.
-	 * The compiler could not safely expand a distinct generic setter type into the receiving declaration.
+	 * The effective member is a mapped property, or its distinct generic setter type cannot be safely expanded.
 	 *
 	 * @defaultValue Omitted for ordinary members and directly declared accessors.
 	 */

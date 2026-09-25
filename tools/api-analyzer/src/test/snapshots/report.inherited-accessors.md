@@ -53,6 +53,14 @@ export class Middle<Value> extends Base<Value> {
 }
 
 // @public
+export type Mutable<TValue> = {
+    -readonly [TKey in keyof TValue]: TValue[TKey];
+};
+
+// @public
+export interface MutableLeaf extends Mutable<Pick<Base<string>, "only">> {}
+
+// @public
 export class Override extends Base<string> {
     get value(): string;
     set value(input: string);
@@ -66,4 +74,10 @@ export class Override extends Base<string> {
     // Inherited from `Base` in package `dependency`
     protected state: string;
 }
+
+// @public
+export interface PartialLeaf extends Partial<Pick<Base<string>, "value">> {}
+
+// @public
+export interface ReadonlyLeaf extends Readonly<Pick<Base<string>, "value">> {}
 ```

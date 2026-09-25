@@ -77,7 +77,7 @@ export interface APIAnalysis {
 	 *
 	 * @param entrypoint - Configured entrypoint name.
 	 * @param selection - Release levels and modifier filters for this report.
-	 * @param presentation - Report formatting settings. Omit to include top-level release tags, undocumented notices, and sealed, override, and deprecated annotations.
+	 * @param presentation - Report formatting settings. Omit to use the defaults in {@link ReviewPresentationOptions}.
 	 * @returns Report text, or selection and entrypoint diagnostics.
 	 * @throws If the entrypoint contains unsupported declaration forms or unresolved merged ownership.
 	 */

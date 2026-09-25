@@ -68,7 +68,7 @@ Cross-package aliases, type-only paths, defaults, documentation links, and relea
 The [inherited-member entrypoint](primary/packages/primary/src/privateInheritance.ts) also participates in the primary scenario.
 Its public and complete reports preserve protected visibility and inherited getter/setter syntax without redeclaring base-private state.
 The model and source-free index retain the original accessor documentation identities.
-Generic accessor consumer checks and the distinct generic setter fallback are covered by the [suite fixtures](../suite/README.md).
+Generic and mapped accessor consumer checks, including heritage fallbacks, are covered by the [suite fixtures](../suite/README.md).
 Trimmed declaration rollups and their TS6/TS7 consumer matrix remain Stage 4 work.
 
 ## Artifacts and isolation

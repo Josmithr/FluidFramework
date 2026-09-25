@@ -109,6 +109,17 @@ export function validateDependencyModels(models: readonly DependencyModel[]): Re
 		// Analysis already resolved these links. Verify the stored target pair against the selected artifacts
 		// without repeating name lookup or documentation inheritance across packages.
 		for (const api of model.apis) {
+			if (
+				api.documentation.packageName !== api.origin.packageName ||
+				api.documentation.sections.some(
+					(section) => apis.get(section.source)?.origin.packageName !== section.packageName,
+				) === true
+			) {
+				return reportFailure(
+					DiagnosticCode.DependencyModel,
+					`Dependency ${model.packageName}: documentation provenance for ${api.id} disagrees with its original source package. Regenerate its model.`,
+				);
+			}
 			for (const link of api.documentation.links) {
 				if (apis.get(link.targetSignature)?.declarationId !== link.target) {
 					return reportFailure(

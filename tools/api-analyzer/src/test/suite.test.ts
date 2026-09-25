@@ -15,11 +15,14 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "mocha";
 import { analyzeAPIs, DiagnosticCode, ReleaseLevel } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
-import { decodeDependencyModels } from "../model.js";
+import {
+	decodeDependencyModels,
+	type ModelDeclaration,
+	type ModelDeclaredMember,
+} from "../model.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 import { compareReviewBaseline } from "../report-generation/reviewBaseline.js";
 import type { DependencyApi } from "../analysis-types/dependencyModel.js";
-import type { ModelDeclaredMember } from "../analysis-types/modelGraph.js";
 
 describe("Dependency suite models", () => {
 	let directory: string;
@@ -186,6 +189,21 @@ describe("Dependency suite models", () => {
 		}
 
 		// Neither decoding nor rendering may depend on the declaration file after analysis has completed.
+		const otherGetter = members.find((item) => item.printed === "get neither(): string;");
+		assert(otherGetter?.pairedAccessor !== undefined && getter.pairedAccessor !== undefined);
+		const replacements = new Map([
+			[getter.id, otherGetter.id],
+			[otherGetter.id, getter.id],
+			[getter.pairedAccessor, otherGetter.pairedAccessor],
+			[otherGetter.pairedAccessor, getter.pairedAccessor],
+		]);
+		const crossed = JSON.stringify(model.value, (key: string, value: unknown): unknown =>
+			key === "pairedAccessor" && typeof value === "string"
+				? (replacements.get(value) ?? value)
+				: value,
+		);
+		assert(!decodeDependencyModels([{ packageName: "consumer", text: crossed }]).ok);
+
 		rmSync(path.join(directory, "index.d.ts"));
 		assert(decodeDependencyModel(text, "consumer").ok);
 		assert.deepEqual(
@@ -412,7 +430,6 @@ describe("Dependency suite models", () => {
 
 			// The wider generic setter stays available through extends; expanding it with the read type would narrow it.
 			assert(!report.value.includes("flexible"));
-			assertSnapshot(report.value, "report.inherited-accessors.md");
 
 			// Both declaration forms must preserve protected access and accessor read/write assignability.
 			cpSync(
@@ -444,11 +461,19 @@ describe("Dependency suite models", () => {
 				);
 			}
 			writeFileSync(path.join(directory, "index.d.ts"), originalDeclarations);
+			assertSnapshot(report.value, "report.inherited-accessors.md");
 
 			// Report omission is not data loss: models keep private source members and the explicit accessor fallback.
 			const text = result.value.generateModel();
 			const model = decodeDependencyModel(text, "consumer");
 			assert(model.ok, JSON.stringify(model));
+			for (const name of ["MutableLeaf", "ReadonlyLeaf", "PartialLeaf"]) {
+				const mapped: ModelDeclaration | undefined = model.value.graph.declarations.find(
+					(item) => item.name === name,
+				);
+				assert(mapped !== undefined);
+				assert.deepEqual(mapped.members[0]?.accessors, []);
+			}
 			const leaf = model.value.graph.declarations.find((item) => item.name === "Leaf");
 			assert(leaf !== undefined);
 			assert.equal(leaf.members.find((item) => item.name === "hidden")?.visibility, "private");
@@ -2086,6 +2111,43 @@ describe("Dependency suite models", () => {
 		);
 		assert.equal(malformed.ok, false);
 		assert.equal(malformed.diagnostics[0]?.code, DiagnosticCode.DependencyModel);
+	});
+
+	it("rejects ambiguous constructors across local and dependency lookup", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		const source = readFileSync(
+			new URL("../../src/test/fixtures/native/reference-selectors.ts", import.meta.url),
+			"utf8",
+		);
+		writeFileSync(path.join(root, "index.d.ts"), source);
+		const base = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs({ ...base, packageName: "dependency" }, root);
+		assert(dependency.ok, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		for (const selector of ["MAKE", "constructor"]) {
+			for (const mode of ["local", "imported", "qualified"]) {
+				const reference = `${mode === "qualified" ? "dependency#" : ""}(Ambiguous:${selector})`;
+				writeFileSync(
+					path.join(directory, "index.d.ts"),
+					`${mode === "local" ? source : 'import { Ambiguous } from "dependency";'}\n/** See {@link ${reference}}. @public */\nexport declare function ambiguousLink(): void;\n`,
+				);
+				const result = await analyzeAPIs(
+					{
+						...base,
+						packageName: "consumer",
+						...(mode === "local"
+							? {}
+							: { suite: { packages: ["dependency"], modelFile: "api-model.json" } }),
+					},
+					directory,
+				);
+				assert(!result.ok, `${mode}: ${reference}`);
+				assert.equal(result.diagnostics[0]?.code, DiagnosticCode.DocumentationReference);
+			}
+		}
 	});
 
 	it("resolves selectors and recursive namespace paths through dependency models", async () => {

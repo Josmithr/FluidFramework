@@ -1317,8 +1317,8 @@
           "supported": true,
           "declaredMembers": [
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",455,180]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",455,180]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
               "references": [],
               "source": {
@@ -1344,8 +1344,8 @@
               "printed": "(value: string): string;"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:80aee4774d33525327c5b85d9da7a33191fe2c19cc23ddd8311cf70a565da06c",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:80aee4774d33525327c5b85d9da7a33191fe2c19cc23ddd8311cf70a565da06c",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",521,181]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",521,181]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
               "references": [
                 {
@@ -1390,8 +1390,8 @@
               "printed": "new (value: string): Box<string>;"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:85296830c379623b13cf146c46da67daa65ddec59c127a0f6ae3fa7e23381552",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:85296830c379623b13cf146c46da67daa65ddec59c127a0f6ae3fa7e23381552",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",602,182]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",602,182]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
               "references": [],
               "source": {
@@ -1816,8 +1816,8 @@
           "supported": true,
           "declaredMembers": [
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:af151b85708189f8c9104869fe4239f73d5617bb5c3da957f19fa13ef097f151",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:af151b85708189f8c9104869fe4239f73d5617bb5c3da957f19fa13ef097f151",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",784,173]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",784,173]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
               "source": {
@@ -1842,8 +1842,8 @@
               "printed": "private current;"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:dd554d995ca823ba8d72a6c4aad0870fe4f555a01c21989738ef44ef9dca819c",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:dd554d995ca823ba8d72a6c4aad0870fe4f555a01c21989738ef44ef9dca819c",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",805,173]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",805,173]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
               "source": {
@@ -1869,8 +1869,8 @@
               "printed": "protected revision: number;"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
               "source": {
@@ -1896,8 +1896,8 @@
               "printed": "constructor(value: string);"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:f3d3a4541f0ac2405a3cfee771638d23a426710a2e7195634b55c3abb82a08ff",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:f3d3a4541f0ac2405a3cfee771638d23a426710a2e7195634b55c3abb82a08ff",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",934,175]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",934,175]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [
                 {
@@ -1943,11 +1943,11 @@
               "staticTarget": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\",\"<static>\",\"create\"]"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
-              "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+              "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
               "source": {
                 "packageName": "@scenario/primary",
                 "file": "lib/containers.d.ts",
@@ -1971,11 +1971,11 @@
               "printed": "get value(): string;"
             },
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
-              "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+              "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
               "source": {
                 "packageName": "@scenario/primary",
                 "file": "lib/containers.d.ts",
@@ -4598,8 +4598,8 @@
           "supported": true,
           "declaredMembers": [
             {
-              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
-              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+              "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:[\"@scenario/primary\",\"lib/merges.d.ts\",365,180]",
+              "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:[\"@scenario/primary\",\"lib/merges.d.ts\",365,180]",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]",
               "references": [],
               "source": {
@@ -6067,11 +6067,11 @@
             "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
             "accessors": [
               {
-                "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
-                "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+                "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+                "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
                 "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
                 "references": [],
-                "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+                "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
                 "source": {
                   "packageName": "@scenario/primary",
                   "file": "lib/containers.d.ts",
@@ -6095,11 +6095,11 @@
                 "printed": "get value(): string;"
               },
               {
-                "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
-                "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+                "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
+                "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
                 "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
                 "references": [],
-                "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+                "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
                 "source": {
                   "packageName": "@scenario/primary",
                   "file": "lib/containers.d.ts",
@@ -8035,7 +8035,7 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",455,180]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
       "name": "Factory",
       "kind": "CallSignature",
@@ -8049,17 +8049,17 @@
         "start": 455
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",455,180]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",455,180]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",455,180]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
@@ -8073,7 +8073,7 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:80aee4774d33525327c5b85d9da7a33191fe2c19cc23ddd8311cf70a565da06c",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",521,181]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
       "name": "Factory",
       "kind": "ConstructSignature",
@@ -8087,17 +8087,17 @@
         "start": 521
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:80aee4774d33525327c5b85d9da7a33191fe2c19cc23ddd8311cf70a565da06c",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",521,181]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:80aee4774d33525327c5b85d9da7a33191fe2c19cc23ddd8311cf70a565da06c",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",521,181]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:80aee4774d33525327c5b85d9da7a33191fe2c19cc23ddd8311cf70a565da06c",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",521,181]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
@@ -8111,7 +8111,7 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:85296830c379623b13cf146c46da67daa65ddec59c127a0f6ae3fa7e23381552",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",602,182]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]",
       "name": "Factory",
       "kind": "IndexSignature",
@@ -8125,17 +8125,17 @@
         "start": 602
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:85296830c379623b13cf146c46da67daa65ddec59c127a0f6ae3fa7e23381552",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",602,182]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:85296830c379623b13cf146c46da67daa65ddec59c127a0f6ae3fa7e23381552",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",602,182]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:85296830c379623b13cf146c46da67daa65ddec59c127a0f6ae3fa7e23381552",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Factory\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",602,182]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
@@ -8228,82 +8228,7 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
-      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
-      "name": "Store",
-      "kind": "GetAccessor",
-      "labels": [],
-      "declarationKinds": [
-        "GetAccessor"
-      ],
-      "origin": {
-        "packageName": "@scenario/primary",
-        "file": "lib/containers.d.ts",
-        "start": 997
-      },
-      "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
-        "releaseLevel": 0,
-        "modifierTags": [
-          "@public"
-        ]
-      },
-      "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
-        "sections": [
-          {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
-            "packageName": "@scenario/primary",
-            "section": "summary"
-          }
-        ],
-        "packageName": "@scenario/primary",
-        "documentation": "/**\n * Stored value.\n */\n",
-        "inheritedFrom": [],
-        "links": [],
-        "documented": true,
-        "originalBlockTags": []
-      }
-    },
-    {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:af151b85708189f8c9104869fe4239f73d5617bb5c3da957f19fa13ef097f151",
-      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
-      "name": "Store",
-      "kind": "PropertyDeclaration",
-      "labels": [],
-      "declarationKinds": [
-        "PropertyDeclaration"
-      ],
-      "origin": {
-        "packageName": "@scenario/primary",
-        "file": "lib/containers.d.ts",
-        "start": 784
-      },
-      "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:af151b85708189f8c9104869fe4239f73d5617bb5c3da957f19fa13ef097f151",
-        "releaseLevel": 0,
-        "modifierTags": [
-          "@public"
-        ]
-      },
-      "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:af151b85708189f8c9104869fe4239f73d5617bb5c3da957f19fa13ef097f151",
-        "sections": [
-          {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:af151b85708189f8c9104869fe4239f73d5617bb5c3da957f19fa13ef097f151",
-            "packageName": "@scenario/primary",
-            "section": "summary"
-          }
-        ],
-        "packageName": "@scenario/primary",
-        "inheritedFrom": [],
-        "links": [],
-        "documented": false,
-        "originalBlockTags": []
-      }
-    },
-    {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
       "name": "Store",
       "kind": "SetAccessor",
@@ -8317,17 +8242,17 @@
         "start": 1047
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",1047,179]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
@@ -8340,45 +8265,44 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",784,173]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
       "name": "Store",
-      "kind": "Constructor",
+      "kind": "PropertyDeclaration",
       "labels": [],
       "declarationKinds": [
-        "Constructor"
+        "PropertyDeclaration"
       ],
       "origin": {
         "packageName": "@scenario/primary",
         "file": "lib/containers.d.ts",
-        "start": 874
+        "start": 784
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",784,173]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",784,173]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",784,173]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
         ],
         "packageName": "@scenario/primary",
-        "documentation": "/**\n * Creates a store.\n */\n",
         "inheritedFrom": [],
         "links": [],
-        "documented": true,
+        "documented": false,
         "originalBlockTags": []
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:dd554d995ca823ba8d72a6c4aad0870fe4f555a01c21989738ef44ef9dca819c",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",805,173]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
       "name": "Store",
       "kind": "PropertyDeclaration",
@@ -8392,17 +8316,17 @@
         "start": 805
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:dd554d995ca823ba8d72a6c4aad0870fe4f555a01c21989738ef44ef9dca819c",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",805,173]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:dd554d995ca823ba8d72a6c4aad0870fe4f555a01c21989738ef44ef9dca819c",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",805,173]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:dd554d995ca823ba8d72a6c4aad0870fe4f555a01c21989738ef44ef9dca819c",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",805,173]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
@@ -8416,7 +8340,45 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:f3d3a4541f0ac2405a3cfee771638d23a426710a2e7195634b55c3abb82a08ff",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+      "name": "Store",
+      "kind": "Constructor",
+      "labels": [],
+      "declarationKinds": [
+        "Constructor"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/containers.d.ts",
+        "start": 874
+      },
+      "metadata": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "documentation": "/**\n * Creates a store.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",934,175]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
       "name": "Store",
       "kind": "MethodDeclaration",
@@ -8430,23 +8392,61 @@
         "start": 934
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:f3d3a4541f0ac2405a3cfee771638d23a426710a2e7195634b55c3abb82a08ff",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",934,175]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:f3d3a4541f0ac2405a3cfee771638d23a426710a2e7195634b55c3abb82a08ff",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",934,175]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:f3d3a4541f0ac2405a3cfee771638d23a426710a2e7195634b55c3abb82a08ff",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",934,175]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
         ],
         "packageName": "@scenario/primary",
         "documentation": "/**\n * Creates an empty store.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+      "name": "Store",
+      "kind": "GetAccessor",
+      "labels": [],
+      "declarationKinds": [
+        "GetAccessor"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/containers.d.ts",
+        "start": 997
+      },
+      "metadata": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "documentation": "/**\n * Stored value.\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -9011,7 +9011,7 @@
       }
     },
     {
-      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:[\"@scenario/primary\",\"lib/merges.d.ts\",365,180]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]",
       "name": "Callable",
       "kind": "CallSignature",
@@ -9025,17 +9025,17 @@
         "start": 365
       },
       "metadata": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:[\"@scenario/primary\",\"lib/merges.d.ts\",365,180]",
         "releaseLevel": 0,
         "modifierTags": [
           "@public"
         ]
       },
       "documentation": {
-        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:[\"@scenario/primary\",\"lib/merges.d.ts\",365,180]",
         "sections": [
           {
-            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:131907d5b0bba2e5ebc8f3ff9fc4447f611867914924ba531272f73c38484393",
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/merges.d.ts\\\"]\"],\"Callable\"]:declared:[\"@scenario/primary\",\"lib/merges.d.ts\",365,180]",
             "packageName": "@scenario/primary",
             "section": "summary"
           }
@@ -11872,7 +11872,7 @@
       ],
       "items": [
         "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
-        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874"
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]"
       ],
       "typeOnly": false
     },
@@ -11931,7 +11931,7 @@
       ],
       "items": [
         "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
-        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874"
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]"
       ],
       "typeOnly": true
     },

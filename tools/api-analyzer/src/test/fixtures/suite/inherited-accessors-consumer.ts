@@ -1,5 +1,5 @@
 /* Checks original and rendered declarations for accessibility and accessor read/write behavior. */
-import { Leaf, Override, ConcreteLeaf } from "./index.js";
+import { Leaf, Override, ConcreteLeaf, type MutableLeaf, type ReadonlyLeaf, type PartialLeaf } from "./index.js";
 const leaf = new Leaf("value");
 const value: string = leaf.value;
 leaf.value = "next";
@@ -25,3 +25,11 @@ concrete.value = "text";
 concrete.value = 1;
 const numeric: number = concrete.value;
 void [value, flexible, numeric, Subclass];
+
+declare const mutable: MutableLeaf;
+mutable.only = "next";
+declare const readonly: ReadonlyLeaf;
+// @ts-expect-error A mapped readonly pair must not regain its setter.
+readonly.value = "next";
+const partial: PartialLeaf = {};
+void partial;

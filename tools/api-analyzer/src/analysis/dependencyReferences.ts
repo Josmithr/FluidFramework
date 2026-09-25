@@ -10,8 +10,94 @@ import type {
 	DependencyModel,
 } from "../analysis-types/dependencyModel.js";
 import type { DocumentationReferenceLookup } from "../analysis-types/facts.js";
-import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
+import {
+	DiagnosticCode,
+	reportFailure,
+	type Result,
+	type SuccessfulResult,
+	type FailedResult,
+} from "../analysis-types/result.js";
 import type { AnalysisContext } from "./documentationContext.js";
+
+/**
+ * One documentation candidate with an explicit structural role.
+ * @typeParam TValue - Original record returned after selection.
+ */
+export interface ReferenceCandidate<TValue> {
+	/**
+	 * Original record without copied documentation.
+	 */
+	readonly value: TValue;
+
+	/**
+	 * Whether this is a declaration facet, callable signature, or declared member.
+	 */
+	readonly role: "declaration" | "signature" | "member";
+
+	/**
+	 * Original syntax kind, used for constructor and compound-function selection.
+	 */
+	readonly kind: string;
+
+	/**
+	 * Original documentation labels.
+	 */
+	readonly labels: readonly string[];
+}
+
+/**
+ * Applies terminal selectors identically after local or dependency name lookup.
+ * @typeParam TValue - Original candidate record.
+ * @param candidates - Complete candidates in compiler overload order.
+ * @param terminal - Terminal selector; undefined requires a unique ordinary target.
+ * @param reference - Reference text and source description for diagnostics.
+ * @param preferCallable - Select a compound function's callable facet for inheritance.
+ * @returns One original record, or an ambiguity or selector diagnostic.
+ */
+export function selectReferenceCandidate<TValue>(
+	candidates: readonly ReferenceCandidate<TValue>[],
+	terminal: DocMemberSelector | undefined,
+	reference: string,
+	preferCallable: boolean,
+): SuccessfulResult<TValue> | FailedResult {
+	const numeric = terminal?.selectorKind === SelectorKind.Index;
+	let selected = candidates;
+	if (terminal?.selectorKind === SelectorKind.Label || terminal?.selector === "constructor") {
+		selected = candidates.filter((candidate) =>
+			terminal.selectorKind === SelectorKind.Label
+				? candidate.labels.includes(terminal.selector)
+				: candidate.kind === "Constructor",
+		);
+	} else {
+		const declaration = candidates.find((candidate) => candidate.role === "declaration");
+		if (declaration !== undefined) {
+			selected =
+				(numeric || preferCallable) && declaration.kind === "FunctionDeclaration"
+					? candidates.filter((candidate) => candidate.role === "signature")
+					: [declaration];
+		}
+	}
+	const ordinal = numeric ? Number(terminal.selector) : 1;
+	if (
+		(!numeric && selected.length !== 1) ||
+		!Number.isSafeInteger(ordinal) ||
+		ordinal < 1 ||
+		ordinal > selected.length
+	) {
+		return reportFailure(
+			DiagnosticCode.DocumentationReference,
+			`Reference ${reference}: selector ${terminal?.selector ?? "(none)"} identifies ${selected.length} candidates; supply a unique label or a one-based numeric callable selector within range 1..${selected.length}.`,
+		);
+	}
+	const target = selected[ordinal - 1];
+	if (target === undefined || (numeric && target.role !== "signature")) {
+		return reportFailure(
+			DiagnosticCode.DocumentationReference,
+			`Reference ${reference}: non-callable targets do not accept overload selectors.`,
+		);
+	}
+	return { ok: true, value: target.value };
+}
 
 /**
  * Resolves selected dependency documentation by exported path or compiler target identity.
@@ -132,45 +218,33 @@ export function resolveDependencyReference(
 			);
 		}
 	}
-	const terminal = reference?.memberReferences.at(-1)?.selector;
-	if (terminal?.selectorKind === SelectorKind.Label || terminal?.selector === "constructor") {
-		candidates = candidates.filter((api) =>
-			terminal.selectorKind === SelectorKind.Label
-				? api.labels.includes(terminal.selector)
-				: api.kind === "Constructor",
-		);
-	}
-	const selector = terminal?.selectorKind === SelectorKind.Index ? terminal : undefined;
-	if (candidates.length > 1 && candidates[0]?.parameters === undefined) {
-		candidates =
-			selector !== undefined || preferCallable ? candidates.slice(1) : candidates.slice(0, 1);
-	}
-	const ordinal = selector === undefined ? 1 : Number(selector.selector);
-	if (
-		(selector === undefined && candidates.length !== 1) ||
-		!Number.isSafeInteger(ordinal) ||
-		ordinal < 1 ||
-		ordinal > candidates.length
-	) {
-		return reportFailure(
-			DiagnosticCode.DocumentationReference,
-			`Dependency ${packageName}: ${lookup.reference} has ${candidates.length} candidates. Supply a valid one-based numeric callable selector.`,
-		);
-	}
-	const selected = candidates[ordinal - 1];
-	if (selected === undefined) {
-		return reportFailure(
-			DiagnosticCode.DocumentationReference,
-			`Dependency ${packageName}: target ${lookup.reference} is missing from selected models.`,
-		);
-	}
-	if (selector !== undefined && selected.parameters === undefined) {
-		return reportFailure(
-			DiagnosticCode.DocumentationReference,
-			`Dependency ${packageName}: non-callable targets do not accept overload selectors.`,
-		);
-	}
-	return { ok: true, value: selected };
+	const signatures = new Set(
+		analysis.dependencies.flatMap((dependency) =>
+			dependency.graph.declarations
+				.flatMap((item) => [
+					...item.signatures,
+					...item.members.flatMap((member) => member.signatures),
+				])
+				.map((signature) => signature.id),
+		),
+	);
+	return selectReferenceCandidate(
+		candidates.map((api) => ({
+			value: api,
+			role: signatures.has(api.id)
+				? "signature"
+				: api.id === api.declarationId
+					? "declaration"
+					: "member",
+			kind: api.declarationKinds.includes("FunctionDeclaration")
+				? "FunctionDeclaration"
+				: api.kind,
+			labels: api.labels,
+		})),
+		reference?.memberReferences.at(-1)?.selector,
+		`${packageName}#${lookup.reference}`,
+		preferCallable,
+	);
 }
 
 /**

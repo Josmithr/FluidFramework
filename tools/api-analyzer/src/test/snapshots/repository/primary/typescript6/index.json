@@ -1123,7 +1123,7 @@
             "sections": [
               {
                 "section": "summary",
-                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
                 "packageName": "@scenario/primary"
               }
             ],
@@ -1255,7 +1255,7 @@
             "sections": [
               {
                 "section": "summary",
-                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:d4f5d61f43842c3242ea8bb2dc1b2527a5a4fa69750886d88e29012bf5fa444f:874",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",874,177]",
                 "packageName": "@scenario/primary"
               }
             ],

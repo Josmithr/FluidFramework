@@ -336,7 +336,7 @@ export interface MemberFact {
 	 *
 	 * @remarks
 	 * An empty array preserves the accessors through the base relationship instead of expanding them.
-	 * This occurs when the compiler cannot supply a distinct substituted setter type.
+	 * This preserves mapped property shapes and distinct generic setter types that cannot be safely expanded.
 	 * Original declarations remain on the declaring container and in this member's source records.
 	 *
 	 * @defaultValue Omitted for non-accessors, directly declared accessors, or extraction without ownership state.

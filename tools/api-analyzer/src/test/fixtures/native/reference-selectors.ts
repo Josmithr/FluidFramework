@@ -157,3 +157,14 @@ export interface Unnamed {
  * @public
  */
 export declare function fullSyntaxLinks(): void;
+
+/**
+ * Constructor selectors must reject both matching occurrences.
+ * @public
+ */
+export declare class Ambiguous {
+	/** First constructor. {@label MAKE} */
+	constructor();
+	/** Second constructor. {@label MAKE} */
+	constructor(value: string);
+}

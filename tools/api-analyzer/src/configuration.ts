@@ -144,11 +144,10 @@ const configurationSchema = new ObjectSchema({
  * Does not change the input objects.
  *
  * @param configuration - The configuration whose inheritance graph is traversed.
- * @returns A nonempty array of references to the input layers, or `undefined` if a cycle is found.
+ * @returns A nonempty array of input layers, or a shape or cycle diagnostic.
+ * @throws If a configuration getter throws unexpectedly.
  */
-function collectConfigurationLayers(
-	configuration: Configuration,
-): Configuration[] | undefined {
+function collectConfigurationLayers(configuration: Configuration): Result<Configuration[]> {
 	const layers: Configuration[] = [];
 	const active = new Set<Configuration>();
 
@@ -156,23 +155,42 @@ function collectConfigurationLayers(
 	 * Adds a configuration after its base configurations.
 	 *
 	 * @param current - The next configuration on the active inheritance path.
-	 * @returns `false` if a cycle is found; otherwise `true` after adding the layer.
+	 * @returns Success after adding the layer, or a shape or cycle diagnostic.
 	 */
-	function visit(current: Configuration): boolean {
-		if (active.has(current)) {
-			return false;
+	function visit(current: unknown): Result {
+		if (current === null || typeof current !== "object" || Array.isArray(current)) {
+			return reportFailure(
+				DiagnosticCode.ConfigurationInvalid,
+				"Each configuration layer must be an object.",
+			);
 		}
-		active.add(current);
-		for (const base of current.extends ?? []) {
-			if (!visit(base)) {
-				return false;
+		const layer = current as Configuration;
+		if (active.has(layer)) {
+			return reportFailure(
+				DiagnosticCode.ConfigurationCycle,
+				"Configuration inheritance contains a cycle.",
+			);
+		}
+		const bases = layer.extends;
+		if (bases !== undefined && bases !== null && !Array.isArray(bases)) {
+			return reportFailure(
+				DiagnosticCode.ConfigurationInvalid,
+				"Configuration extends must be an array of configuration objects.",
+			);
+		}
+		active.add(layer);
+		for (const base of bases ?? []) {
+			const result = visit(base);
+			if (!result.ok) {
+				return result;
 			}
 		}
-		layers.push(current);
-		active.delete(current);
-		return true;
+		layers.push(layer);
+		active.delete(layer);
+		return { ok: true };
 	}
-	return visit(configuration) ? layers : undefined;
+	const visited = visit(configuration);
+	return visited.ok ? { ok: true, value: layers } : visited;
 }
 
 /**
@@ -319,13 +337,11 @@ export function resolveConfiguration(
 		);
 	}
 	const layers = collectConfigurationLayers(configuration);
-	if (layers === undefined) {
-		return reportFailure(
-			DiagnosticCode.ConfigurationCycle,
-			"Configuration inheritance contains a cycle.",
-		);
+	if (!layers.ok) {
+		// Propagate error result
+		return layers;
 	}
-	const merged = mergeConfigurationLayers(layers);
+	const merged = mergeConfigurationLayers(layers.value);
 	return merged.ok
 		? validateAndNormalizeConfiguration(merged.value, workingDirectory)
 		: merged;

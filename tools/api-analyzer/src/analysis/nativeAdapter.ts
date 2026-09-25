@@ -863,7 +863,8 @@ export function resolveSymbolTarget(
  * @remarks
  * Uses sorted, distinct package-relative locations and containing symbol names.
  * Source-file modules use a fixed marker instead of the compiler's absolute-path name.
- * Does not encode source offsets or package versions.
+ * Anonymous lexical containers include source occurrences; named symbols omit offsets.
+ * Does not encode package versions.
  * Static member symbols include a separate marker so same-named instance members retain distinct identities.
  * The format is not a stable public contract.
  * Uniqueness across installed versions or all compiler-generated symbols is not guaranteed.
@@ -888,7 +889,7 @@ export function getDeclarationId(
 		parent &&
 		!parent.declarations.some((handle) => handle.kind === SyntaxKind.SourceFile)
 	) {
-		parents.unshift(getSourceSymbolName(parent));
+		parents.unshift(getSymbolIdentityName(locations, parent));
 		parent = parent.getParent();
 	}
 	return JSON.stringify([
@@ -910,8 +911,61 @@ export function getDeclarationId(
 			: []),
 		symbol.declarations.some((handle) => handle.kind === SyntaxKind.SourceFile)
 			? "<module>"
-			: getSourceSymbolName(symbol),
+			: getSymbolIdentityName(locations, symbol),
 	]);
+}
+
+/**
+ * Distinguishes anonymous lexical owners without changing named-symbol merging.
+ * @param locations - Package-relative source ownership.
+ * @param symbol - Original compiler symbol.
+ * @returns Source name, with original occurrences for anonymous containers.
+ */
+function getSymbolIdentityName(locations: LocationContext, symbol: CompilerSymbol): string {
+	const anonymous = symbol.declarations.filter((handle) =>
+		[
+			SyntaxKind.TypeLiteral,
+			SyntaxKind.FunctionType,
+			SyntaxKind.ConstructorType,
+			SyntaxKind.MappedType,
+			SyntaxKind.ObjectLiteralExpression,
+		].includes(handle.kind),
+	);
+	const name = getSourceSymbolName(symbol);
+	return anonymous.length === 0
+		? name
+		: JSON.stringify([
+				name,
+				...anonymous
+					.map((handle) => getSourceOccurrence(locations, assertDefined(handle.resolve())))
+					.sort(),
+			]);
+}
+
+/**
+ * Identifies an original source occurrence independently of checkout location.
+ * @param locations - Package-relative source ownership.
+ * @param node - Original compiler node, not a generated printing node.
+ * @returns An opaque occurrence key including the declaration kind.
+ */
+function getSourceOccurrence(locations: LocationContext, node: Node): string {
+	const origin = getOrigin(locations, node.getSourceFile().fileName, node.pos);
+	return JSON.stringify([origin.packageName, origin.file, origin.start, node.kind]);
+}
+
+/**
+ * Constructs one original declared-member identity shared by all of its views.
+ * @param locations - Package-relative source ownership.
+ * @param container - Original declaring-container identity.
+ * @param member - Original declaration occurrence.
+ * @returns Identity independent of effective types and printed accessor syntax.
+ */
+function getDeclaredMemberId(
+	locations: LocationContext,
+	container: ApiItemId,
+	member: Node,
+): ApiItemId {
+	return `${container}:declared:${getSourceOccurrence(locations, member)}`;
 }
 
 /**
@@ -1085,7 +1139,7 @@ export function isTypeOnlyExport(
  * Converts a type's call signatures into detached facts.
  *
  * @remarks
- * Prints each signature as a function type and combines its text hash with the owner identifier.
+ * Combines effective function text with the owner identifier and distinguishes text collisions by source occurrence.
  * Retains matching effective call-signature text, original source records, and separate reduced and normalized views.
  * Normalization does not contribute to identity. Reports consume the normalized view after compiler disposal.
  * Retains the closest attached TSDoc comment without declaration text, or `undefined` if absent.
@@ -1105,54 +1159,93 @@ export function extractSignatures(
 	owner: ApiItemId,
 	locations: LocationContext,
 ): SignatureFact[] {
-	const { checker, emitter } = compiler;
-	return checker.getSignaturesOfType(type, SignatureKind.Call).map((signature) => {
-		// Alias accessibility depends on the original module scope. Without it the printer can
-		// expose a dependency's private declaration name instead of its consumer-visible alias.
-		const enclosingDeclaration = signature.declaration?.resolve()?.getSourceFile();
-		const node = checker.signatureToSignatureDeclaration(
-			signature,
-			SyntaxKind.FunctionType,
-			enclosingDeclaration,
-			NodeBuilderFlags.UseOnlyExternalAliasing,
-		);
-		assert(
-			node !== undefined,
-			"The compiler must materialize a printable node for a call signature.",
-		);
-		const functionTypeText = emitter.printNode(node).trim();
-		const declaration = checker.signatureToSignatureDeclaration(
-			signature,
-			SyntaxKind.CallSignature,
-			enclosingDeclaration,
-			NodeBuilderFlags.UseOnlyExternalAliasing,
-		);
-		assert(
-			declaration !== undefined && isCallSignatureDeclaration(declaration),
-			"The compiler must materialize a call-signature declaration.",
-		);
-		const source = signature.declaration?.resolve();
-		const views = createSignatureViews(compiler, signature, declaration, source, locations);
-
-		// Keep reference capture separate from identity: IDs still use the original effective function text.
-		return {
-			...printSignatureText(
-				compiler,
-				declaration,
-				source,
-				signature,
-				createExcerptTargetResolver(compiler, locations),
-			),
-			...views,
-			...(source === undefined || signature.declaration === undefined
-				? {}
-				: { source: extractSourceDeclaration(locations, signature.declaration, compiler) }),
-			callSignatureText: emitter.printNode(declaration).trim(),
-			id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
-			functionTypeText,
-			documentation: getOriginalComment(signature.declaration?.resolve()),
-		};
+	const signatures = compiler.checker
+		.getSignaturesOfType(type, SignatureKind.Call)
+		.map((signature) => extractSignature(compiler, signature, owner, locations));
+	const counts = new Map<ApiItemId, number>();
+	for (const signature of signatures) {
+		counts.set(signature.id, (counts.get(signature.id) ?? 0) + 1);
+	}
+	return signatures.map((signature, index) => {
+		if (counts.get(signature.id) === 1) {
+			return signature;
+		}
+		const source = signature.source;
+		const occurrence =
+			source === undefined
+				? index
+				: [source.packageName, source.file, source.start, source.kind];
+		return { ...signature, id: `${signature.id}:${JSON.stringify(occurrence)}` };
 	});
+}
+
+/**
+ * Converts one compiler call signature into a detached fact.
+ *
+ * @remarks
+ * Retains effective syntax, source documentation, and reduced and normalized views.
+ * The identifier uses effective function text; the caller resolves collisions across signatures.
+ *
+ * @param compiler - Active compiler services.
+ * @param signature - The compiler call signature to extract.
+ * @param owner - The containing declaration's provisional identifier.
+ * @param locations - Package ownership information for original declaration records.
+ * @returns A detached signature fact before identity collision handling.
+ * @throws If compiler queries or signature extraction fail unexpectedly.
+ */
+function extractSignature(
+	compiler: CompilerContext,
+	signature: Signature,
+	owner: ApiItemId,
+	locations: LocationContext,
+): SignatureFact {
+	const { checker, emitter } = compiler;
+
+	// Alias accessibility depends on the original module scope. Without it the printer can
+	// expose a dependency's private declaration name instead of its consumer-visible alias.
+	const enclosingDeclaration = signature.declaration?.resolve()?.getSourceFile();
+	const node = checker.signatureToSignatureDeclaration(
+		signature,
+		SyntaxKind.FunctionType,
+		enclosingDeclaration,
+		NodeBuilderFlags.UseOnlyExternalAliasing,
+	);
+	assert(
+		node !== undefined,
+		"The compiler must materialize a printable node for a call signature.",
+	);
+	const functionTypeText = emitter.printNode(node).trim();
+	const declaration = checker.signatureToSignatureDeclaration(
+		signature,
+		SyntaxKind.CallSignature,
+		enclosingDeclaration,
+		NodeBuilderFlags.UseOnlyExternalAliasing,
+	);
+	assert(
+		declaration !== undefined && isCallSignatureDeclaration(declaration),
+		"The compiler must materialize a call-signature declaration.",
+	);
+	const source = signature.declaration?.resolve();
+	const views = createSignatureViews(compiler, signature, declaration, source, locations);
+
+	// Keep reference capture separate from identity: IDs still use the original effective function text.
+	return {
+		...printSignatureText(
+			compiler,
+			declaration,
+			source,
+			signature,
+			createExcerptTargetResolver(compiler, locations),
+		),
+		...views,
+		...(source === undefined || signature.declaration === undefined
+			? {}
+			: { source: extractSourceDeclaration(locations, signature.declaration, compiler) }),
+		callSignatureText: emitter.printNode(declaration).trim(),
+		id: `${owner}:${createHash("sha256").update(functionTypeText).digest("hex")}`,
+		functionTypeText,
+		documentation: getOriginalComment(signature.declaration?.resolve()),
+	};
 }
 
 /**
@@ -1676,8 +1769,9 @@ function haveMatchingDocumentationTypes(
  * Removes null and undefined from member types so optional methods retain their signatures.
  * Reads readonly modifiers from a generated type literal where possible, then from declarations.
  * Uses `null` for readonly state when neither source is available.
- * When extraction state is supplied, callable signatures and single non-callable properties retain original lookup context.
- * Callable-property comments, accessors, merged properties, and heritage comparison views do not receive property contexts.
+ * With extraction state, methods retain signature contexts and properties retain their original property contexts.
+ * Callable properties keep property documentation; merged property contexts retain their original contributions.
+ * Accessors use original declared-member records. Heritage comparison views omit documentation contexts.
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for member origins.
@@ -1905,7 +1999,7 @@ function getMemberVisibility(nodes: readonly Node[]): MemberFact["visibility"] {
  * @param propertyType - Effective read type, or write type for a setter-only property.
  * @param owner - Receiving declaration or heritage-view identity.
  * @param nodes - Original member declarations.
- * @returns Inherited accessor syntax; an empty view retains unresolved write types through heritage.
+ * @returns Inherited accessor syntax; an empty view retains mapped property shapes or unresolved write types through heritage.
  */
 function extractInheritedAccessors(
 	compiler: CompilerContext,
@@ -1928,6 +2022,13 @@ function extractInheritedAccessors(
 	// Direct accessors already have declared-member records; only inherited views need substituted syntax.
 	if (declaringContainer === undefined || declaringContainer === owner) {
 		return {};
+	}
+	if (
+		(property.flags & (SymbolFlags.GetAccessor | SymbolFlags.SetAccessor)) === 0 ||
+		(property.flags & SymbolFlags.Optional) !== 0
+	) {
+		// Mapped properties keep original source nodes even when their readonly or optional shape changes.
+		return { declaringContainer, accessors: [] };
 	}
 	const getter = nodes.find(isGetAccessorDeclaration);
 	const setter = nodes.find(isSetAccessorDeclaration);
@@ -1961,10 +2062,10 @@ function extractInheritedAccessors(
 			compiler.checker.typeToTypeNode(effectiveType, node, NodeBuilderFlags.NoTruncation),
 		);
 
-		// Identity uses original syntax, not the substituted type, so all receivers share the source docs.
+		// Original occurrences, not substituted types, identify the documentation shared by receivers.
 		const clone = getSynthesizedDeepClone(node);
 		const printedOriginal = compiler.emitter.printNode(clone).trim();
-		const id = `${declaringContainer}:declared:${createHash("sha256").update(printedOriginal).digest("hex")}`;
+		const id = getDeclaredMemberId(locations, declaringContainer, node);
 		const source = getOrigin(locations, node.getSourceFile().fileName, node.pos);
 
 		// Reuse completed source records when available; recursive collection may still be building the base.
@@ -3233,9 +3334,7 @@ function extractContainerSyntax(
 				// Remove trivia only on the printing clone; lookup still uses the original member node.
 				const printed = compiler.emitter.printNode(getSynthesizedDeepClone(member)).trim();
 
-				// Declaration emit erases private constructor parameters. Keep each original comment distinct even when syntax is identical.
-				const occurrence = member.kind === SyntaxKind.Constructor ? `:${member.pos}` : "";
-				const memberId = `${id}:declared:${createHash("sha256").update(printed).digest("hex")}${occurrence}`;
+				const memberId = getDeclaredMemberId(locations, id, member);
 				return createDeclaredMemberRecord(
 					compiler,
 					locations,
@@ -3297,7 +3396,7 @@ function needsDeclaredMemberRecord(member: Node): boolean {
  * @param state - Target collection and parsed comments for this invocation.
  * @param member - Original member node, not a synthesized printing clone.
  * @param source - Location of the containing declaration.
- * @param id - Member identity derived from its owner and syntax.
+ * @param id - Member identity derived from its owner and original source occurrence.
  * @param printed - Comment-free compiler-printed syntax.
  * @returns Detached source and reference records for this member.
  */
@@ -3341,7 +3440,12 @@ function createDeclaredMemberRecord(
 		id,
 		documentation,
 	);
-	const pairedAccessor = getPairedAccessorId(compiler, member, documentationContext.container);
+	const pairedAccessor = getPairedAccessorId(
+		compiler,
+		locations,
+		member,
+		documentationContext.container,
+	);
 	return {
 		...location,
 		...(pairedAccessor === undefined ? {} : { pairedAccessor }),
@@ -3369,12 +3473,14 @@ function createDeclaredMemberRecord(
 /**
  * Identifies the other accessor from compiler declarations instead of comparing displayed member names.
  * @param compiler - Active checker and emitter.
+ * @param locations - Package-relative source ownership.
  * @param member - Original member declaration.
  * @param container - Original declaring-container identity; undefined means no pair can be recorded.
  * @returns The other accessor's declared-member identity, or undefined for an unpaired member.
  */
 function getPairedAccessorId(
 	compiler: CompilerContext,
+	locations: LocationContext,
 	member: Node,
 	container: ApiItemId | undefined,
 ): ApiItemId | undefined {
@@ -3398,8 +3504,7 @@ function getPairedAccessorId(
 	}
 
 	// Match the original declared-member ID even if the partner has not been collected yet.
-	const printed = compiler.emitter.printNode(getSynthesizedDeepClone(partner)).trim();
-	return `${container}:declared:${createHash("sha256").update(printed).digest("hex")}`;
+	return getDeclaredMemberId(locations, container, partner);
 }
 
 /**

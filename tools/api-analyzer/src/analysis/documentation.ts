@@ -32,7 +32,11 @@ import type {
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { assertDefined } from "../utilities/assertDefined.js";
-import { resolveDependencyReference } from "./dependencyReferences.js";
+import {
+	resolveDependencyReference,
+	selectReferenceCandidate,
+	type ReferenceCandidate,
+} from "./dependencyReferences.js";
 import type { DependencyApi } from "../analysis-types/dependencyModel.js";
 import type { CompletedPackageDocumentation } from "../analysis-types/completedGraph.js";
 import {
@@ -485,26 +489,10 @@ function selectCallableOverload(
 		);
 	}
 	const terminal = reference?.memberReferences.at(-1)?.selector;
-	if (terminal?.selectorKind === SelectorKind.Label) {
-		const matches = target.signatures.filter((candidate) =>
-			(
-				candidate.documentationContext?.labels ??
-				collectDocumentationLabels(
-					new TSDocParser().parseString(candidate.documentation ?? "/** */").docComment,
-				)
-			).includes(terminal.selector),
-		);
-		return matches.length === 1
-			? { ok: true, value: assertDefined(matches[0]) }
-			: reportFailure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${source}: label ${terminal.selector} identifies ${matches.length} callable signatures on ${referenceText}.`,
-				);
-	}
-	const selector = terminal?.selectorKind === SelectorKind.Index ? terminal : undefined;
 	if (
 		terminal !== undefined &&
 		terminal.selectorKind !== SelectorKind.Index &&
+		terminal.selectorKind !== SelectorKind.Label &&
 		!(
 			terminal.selectorKind === SelectorKind.System &&
 			["static", "instance", "function"].includes(terminal.selector)
@@ -515,22 +503,21 @@ function selectCallableOverload(
 			`Item ${source}: use a numeric overload selector.`,
 		);
 	}
-	if (selector === undefined && target.signatures.length !== 1) {
-		return reportFailure(
-			DiagnosticCode.DocumentationReference,
-			`Item ${source}: target ${referenceText} has ${target.signatures.length} callable signatures. Supply a one-based numeric selector such as (foo:1), or local documentation.`,
-		);
-	}
-	const ordinal = selector === undefined ? 1 : Number(selector.selector);
-	if (!Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > target.signatures.length) {
-		return reportFailure(
-			DiagnosticCode.DocumentationReference,
-			`Item ${source}: overload selector ${selector?.selector} is outside the callable signature range 1..${target.signatures.length} for ${referenceText}.`,
-		);
-	}
-	const signature = target.signatures[ordinal - 1];
-	assert(signature !== undefined, "Validated overload selectors must identify a signature.");
-	return { ok: true, value: signature };
+	return selectReferenceCandidate(
+		target.signatures.map((signature) => ({
+			value: signature,
+			role: "signature",
+			kind: "FunctionDeclaration",
+			labels:
+				signature.documentationContext?.labels ??
+				collectDocumentationLabels(
+					new TSDocParser().parseString(signature.documentation ?? "/** */").docComment,
+				),
+		})),
+		terminal,
+		`${source}: ${referenceText}`,
+		true,
+	);
 }
 
 /**
@@ -936,39 +923,44 @@ function selectLinkTarget(
 ): Result<Pick<DeclarationFact, "id" | "documentationContext">> {
 	const terminal = reference?.memberReferences.at(-1)?.selector;
 	if (
-		terminal?.selectorKind === SelectorKind.Label ||
-		(terminal?.selectorKind === SelectorKind.System && terminal.selector === "constructor")
-	) {
-		const candidates = [
-			target,
-			...target.signatures,
-			...(target.container?.declaredMembers ?? []),
-		].filter((candidate) =>
-			terminal.selectorKind === SelectorKind.Label
-				? candidate.documentationContext?.labels?.includes(terminal.selector) === true
-				: "kind" in candidate && candidate.kind === "Constructor",
-		);
-		return candidates.length === 1
-			? { ok: true, value: assertDefined(candidates[0]) }
-			: reportFailure(
-					DiagnosticCode.DocumentationReference,
-					`Item ${source}: selector ${terminal.selector} identifies ${candidates.length} declarations on ${referenceText}.`,
-				);
-	}
-	const numeric = terminal?.selectorKind === SelectorKind.Index;
-	if (
-		target.documentationContext === undefined ||
-		(numeric && target.declarations.some((part) => part.kind === "FunctionDeclaration"))
+		target.documentationContext === undefined &&
+		terminal?.selectorKind !== SelectorKind.Label &&
+		terminal?.selector !== "constructor"
 	) {
 		return selectCallableOverload(source, target, reference, referenceText);
 	}
-	if (numeric) {
-		return reportFailure(
-			DiagnosticCode.DocumentationReference,
-			`Item ${source}: non-callable target ${referenceText} does not accept an overload selector.`,
+	const candidates: ReferenceCandidate<
+		Pick<DeclarationFact, "id" | "documentationContext">
+	>[] = [];
+	if (target.documentationContext !== undefined) {
+		candidates.push({
+			value: target,
+			role: "declaration",
+			kind: target.declarations.some((part) => part.kind === "FunctionDeclaration")
+				? "FunctionDeclaration"
+				: (target.declarations[0]?.kind ?? ""),
+			labels: target.documentationContext.labels ?? [],
+		});
+	}
+	candidates.push(
+		...target.signatures.map((signature) => ({
+			value: signature,
+			role: "signature" as const,
+			kind: "FunctionDeclaration",
+			labels: signature.documentationContext?.labels ?? [],
+		})),
+	);
+	if (terminal?.selectorKind === SelectorKind.Label || terminal?.selector === "constructor") {
+		candidates.push(
+			...(target.container?.declaredMembers ?? []).map((member) => ({
+				value: member,
+				role: "member" as const,
+				kind: member.kind,
+				labels: member.documentationContext.labels ?? [],
+			})),
 		);
 	}
-	return { ok: true, value: target };
+	return selectReferenceCandidate(candidates, terminal, `${source}: ${referenceText}`, false);
 }
 
 /**
@@ -1418,8 +1410,6 @@ function resolveDocumentationItem(
 		return links;
 	}
 
-	// TODO (Stage 3 portable models): Add structured content and complete type relationships to the
-	// retained section provenance and link identities; these text records cannot restore the full API graph.
 	const value: ResolvedDocumentation = {
 		id: item.id,
 		sections: collectDocumentationSections(comment).flatMap(({ section, node }) =>

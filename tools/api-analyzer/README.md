@@ -307,6 +307,8 @@ Decoder validation rejects missing, non-reciprocal, incompatible-kind, and cross
 The pinned compiler does not expose a substituted write type for a generic getter/setter pair whose read and write types differ.
 For that case, the report retains the existing `extends` relationship without expanding either accessor.
 The model records an empty `accessors` array, the declaring container, and original sources, so the fallback is explicit.
+Mapped accessors also remain represented by heritage when the compiler projects them as properties.
+This preserves changes made by `Readonly`, mutable mapped types, and `Partial` without restoring the original accessor shape.
 This avoids narrowing a wider setter or emitting an unbound type parameter.
 Equal read/write types, getter-only members, setter-only members, and non-generic pairs with distinct types expand normally.
 The [cross-package regression](src/test/suite.test.ts) compiles original and report declarations with both producers and checks accessor assignability, protected access, local overrides, and detached outputs.
@@ -363,7 +365,7 @@ Additional selection flexibility remains a [post-V1 investigation](docs/api-extr
 Each `SignatureFact` separates original input from compiler-produced views:
 
 - `source` identifies the original declaration for that overload and retains its exact input text and package-relative location. It is omitted when the compiler supplies no inspectable declaration.
-- `callSignatureText` and `functionTypeText` retain effective, scope-aware signature syntax, including generic substitutions. The effective function type continues to determine the provisional signature identity.
+- `callSignatureText` and `functionTypeText` retain effective, scope-aware signature syntax, including generic substitutions. Provisional signature identities use the effective function type and distinguish identical printed signatures by original source occurrence.
 - `reduced` contains compiler-resolved parameter and return types in both syntax forms. It can collapse primitive aliases and add `undefined` to optional parameter types.
 - `normalized` preserves application-defined names and parameter structure while reducing selected outer computed type expressions. Callable report output uses this view, not the text used for identity.
 
@@ -570,8 +572,9 @@ The resolver trusts validated binding identities, occurrence indices, reference 
 Unexpected processing errors propagate as exceptions.
 The resolver updates context-owned parsed comments once, with traversal state local to the call.
 Original input records and comment strings remain unchanged.
-It does not support parameter renaming, custom block or inline tags, or inheritance from other packages.
-Requests for inheritance from other packages and requests without explicit targets produce diagnostics.
+It does not support parameter renaming or custom block or inline tags.
+Explicit documentation inheritance can target the same package or a selected dependency model.
+Targets outside the selected suite and requests without explicit targets produce diagnostics.
 API links require validated original bindings and classification as described below.
 Links to URLs remain unchanged, and the resolver does not access their destinations.
 An absent comment alone does not authorize automatic inheritance.
@@ -589,7 +592,7 @@ Both compiler inputs and the direct-inheritance unit test use the same resolved-
 Pure and compiler-backed report tests share snapshots for descriptive and empty inherited content.
 `ReviewSignature.documented` and report notices use successfully resolved content while annotation tags remain local.
 Selected container reports and model-backed suite resolution now use this effective-content contract.
-Remaining declaration ownership and reference coverage still prevent closing Stage 2.
+Stage 2 is complete; the implementation plan records accepted scope and remaining follow-ups.
 
 ### Compiler-backed callable bindings
 
@@ -1065,12 +1068,13 @@ Generating report text never creates directories, writes artifacts, or accepts a
 
 Compare two generated surface texts directly to check parity without writing either text to an accepted baseline.
 The caller must use the same review identity and rendering options for both surfaces.
-This increment establishes baseline handling only; it does not satisfy the Stage 2 review-output or parity gates.
+Baseline comparison is one part of the completed Stage 2 report workflow.
 
 ## Experimental API
 
 Package exports are limited to anticipated user-facing workflows.
-`analyzeAPIs` is the only exported function, alongside `ReleaseLevel`, `DiagnosticCode`, and supporting types.
+The exported functions are `analyzeAPIs`, `decodeDependencyModel`, and `decodeDependencyModels`.
+The main entrypoint also exports `ReleaseLevel`, `DiagnosticCode`, and supporting types.
 Configuration resolution, classification, selection, documentation processing, report rendering, and baseline comparison are internal operations.
 The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, `generateReport(entrypoint, selection, presentation?)`, and `generateModel()`.
 `generateModel()` returns version 1 portable documentation as JSON with a final newline, independently of report selections.
@@ -1163,7 +1167,11 @@ Member facts preserve effective type text, optional and readonly state, and decl
 Incomplete member expansion produces `partial` and diagnostics while preserving the original declaration text.
 Signature documentation contains only the closest compiler-attached TSDoc comment, including delimiters, or `undefined` when absent.
 Ordinary comments do not count as TSDoc. Explicit empty TSDoc comments remain present.
-The enclosing declaration fact retains full source declaration text separately; signature `text` retains the printed function type.
+The enclosing declaration fact retains full source declaration text separately.
+Signatures retain `functionTypeText` and `callSignatureText`, with separate `reduced` and `normalized` views.
+Anonymous lexical containers and original declared members include package-relative source occurrences in their identities.
+Effective overloads with identical printed text retain separate source-occurrence identities.
+Distinct effective overloads remain stable across reordering; source-occurrence identities can change when declarations move.
 JSON serialization omits `undefined` documentation fields. Reading an omitted field returns `undefined`, while explicit empty comment strings remain intact.
 These comments are not parsed or resolved documentation models.
 Declared constructors and index signatures retain detached syntax and original documentation records.
@@ -1248,9 +1256,13 @@ Identifiers are opaque and stable for equivalent inputs, not guaranteed across s
 
 Import `decodeDependencyModel` and `decodeDependencyModels` from `api-analyzer/model` to avoid loading compiler-backed analysis.
 The same functions and the `DependencyModel` type are also available from the main entrypoint.
+The model entrypoint also exports portable reader types, including `ModelDeclaration`, `ModelMember`, and `CodeExcerpt`.
+Decoded documentation always includes a `sections` array; an empty array means that no sections were retained.
 The single-model reader validates shape, documentation syntax, and internal identity integrity.
+It checks callable parameter facts, API ownership, original member uniqueness, and accessor-pair property associations.
 It derives exported paths from the portable graph and rejects missing or inconsistent nested paths, member sides, aliases, and ordered targets.
 The model-set reader additionally rejects duplicate packages or API identities, missing recorded dependencies, stale dependency fingerprints, and inconsistent cross-package targets.
+It checks section provenance against the original source package across the selected model set.
 Both return frozen data and perform no filesystem access or semantic reference resolution.
 Installed-suite loading reuses these checks and additionally verifies declaration input files on disk.
 Publication and retention of maintained historical documentation artifacts remain Stage 5 integration work; this experimental reader does not replace the existing published-artifact readers.

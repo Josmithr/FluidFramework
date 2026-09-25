@@ -43,6 +43,7 @@ import type {
 } from "../analysis-types/facts.js";
 import type { CompletedDocumentation } from "../analysis-types/completedGraph.js";
 import { ReleaseLevel, DiagnosticCode, analyzeAPIs } from "../index.js";
+import type { CodeExcerpt, ModelMember } from "../model.js";
 import {
 	createReviewReport,
 	prepareReviewReport,
@@ -506,6 +507,71 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		it("specializes inherited interface and class members", () => {
 			assert.equal(getMemberTypes("Derived").value, "string");
 			assert.equal(getMemberTypes("DerivedClass").value, "string");
+		});
+
+		it("retains distinct lexical and signature occurrences", async () => {
+			const result = await analyzeAPIs(
+				{
+					packageName: "identity-occurrences",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "declarations/identity-occurrences.d.ts" }],
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			const model = getSuccessValue(
+				decodeDependencyModel(result.value.generateModel(), "identity-occurrences"),
+			);
+			const forward = model.apis.find((item) => item.name === "forward")?.documentation.links;
+			const reverse = model.apis.find((item) => item.name === "reverse")?.documentation.links;
+			assert(forward !== undefined && reverse !== undefined);
+			assert.equal(forward.length, 2);
+			assert.notEqual(forward[0]?.target, forward[1]?.target);
+			assert.match(
+				model.apis.find((item) => item.id === forward[0]?.targetSignature)?.documentation
+					.documentation ?? "",
+				/First nested value/,
+			);
+			assert.match(
+				model.apis.find((item) => item.id === forward[1]?.targetSignature)?.documentation
+					.documentation ?? "",
+				/Second nested value/,
+			);
+			assert.deepEqual(
+				forward.map((link) => link.target),
+				reverse.map((link) => link.target).reverse(),
+			);
+			for (const name of ["Derived", "Repeated"]) {
+				const declaration = model.graph.declarations.find((item) => item.name === name);
+				assert(declaration !== undefined);
+				const signatures =
+					name === "Derived" ? declaration.members[0]?.signatures : declaration.signatures;
+				assert(signatures !== undefined);
+				assert.equal(signatures.length, 2);
+				assert.equal(new Set(signatures.map((item) => item.id)).size, 2);
+				const documented =
+					name === "Derived" ? signatures : (declaration.container?.declaredMembers ?? []);
+				assert.equal(documented.length, 2);
+				assert.equal(new Set(documented.map((item) => item.id)).size, 2);
+				const comments = documented.map(
+					(signature) =>
+						model.apis.find((item) => item.id === signature.id)?.documentation.documentation,
+				);
+				assert.match(
+					comments[0] ?? "",
+					name === "Derived" ? /Generic overload/ : /First call/,
+				);
+				assert.match(
+					comments[1] ?? "",
+					name === "Derived" ? /String overload/ : /Second call/,
+				);
+				const member: ModelMember | undefined = declaration.members[0];
+				const excerpt: CodeExcerpt | undefined = member?.typeExcerpt;
+				if (name === "Derived") {
+					assert(excerpt !== undefined);
+					assert(excerpt.tokens.length > 0);
+				}
+			}
 		});
 
 		// Design feature: F1.

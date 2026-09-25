@@ -386,15 +386,15 @@ export function collectModelItems(graph: ModelGraph): readonly ModelItem[] {
 
 /**
  * Checks reciprocal getter/setter links without interpreting printed names or merging documentation.
- * @param members - Original declared members of one container.
- * @param container - Owning declaration identity.
+ * @param owner - Original container and its effective member source associations.
  * @returns Whether all recorded pairs refer to opposite accessor kinds on the same member side.
  */
-function hasValidAccessorPairs(
-	members: readonly ModelDeclaredMember[],
-	container: string,
-): boolean {
+function hasValidAccessorPairs(owner: ModelDeclaration): boolean {
+	const members = owner.container?.declaredMembers ?? [];
 	const byId = new Map(members.map((member) => [member.id, member]));
+	if (byId.size !== members.length) {
+		return false;
+	}
 	return members.every((member) => {
 		if (member.pairedAccessor === undefined) {
 			return true;
@@ -405,15 +405,36 @@ function hasValidAccessorPairs(
 		const partner = byId.get(member.pairedAccessor);
 		return (
 			partner?.pairedAccessor === member.id &&
-			member.declaringContainer === container &&
-			partner.declaringContainer === container &&
+			member.declaringContainer === owner.id &&
+			partner.declaringContainer === owner.id &&
 			member.staticTarget === partner.staticTarget &&
+			(member.staticTarget !== undefined ||
+				owner.members.some(
+					(property) =>
+						property.sources.some((source) => isSameSource(source, member.source)) &&
+						property.sources.some((source) => isSameSource(source, partner.source)),
+				)) &&
 			member.documentationId !== undefined &&
 			partner.documentationId !== undefined &&
 			((member.source.kind === "GetAccessor" && partner.source.kind === "SetAccessor") ||
 				(member.source.kind === "SetAccessor" && partner.source.kind === "GetAccessor"))
 		);
 	});
+}
+
+/**
+ * Compares original declaration occurrences without interpreting displayed syntax.
+ * @param left - First original source record.
+ * @param right - Second original source record.
+ * @returns Whether both records describe the same source occurrence.
+ */
+function isSameSource(left: ModelSource, right: ModelSource): boolean {
+	return (
+		left.kind === right.kind &&
+		left.packageName === right.packageName &&
+		left.file === right.file &&
+		left.start === right.start
+	);
 }
 
 /**
@@ -436,13 +457,7 @@ function isValidInheritedAccessor(
 ): boolean {
 	if (
 		accessor.staticTarget !== undefined ||
-		!member.sources.some(
-			(source) =>
-				source.kind === accessor.source.kind &&
-				source.packageName === accessor.source.packageName &&
-				source.file === accessor.source.file &&
-				source.start === accessor.source.start,
-		)
+		!member.sources.some((source) => isSameSource(source, accessor.source))
 	) {
 		return false;
 	}
@@ -453,10 +468,7 @@ function isValidInheritedAccessor(
 				original.documentationId === accessor.documentationId &&
 				original.pairedAccessor === accessor.pairedAccessor &&
 				accessor.declaringContainer === owner.id &&
-				original.source.kind === accessor.source.kind &&
-				original.source.packageName === accessor.source.packageName &&
-				original.source.file === accessor.source.file &&
-				original.source.start === accessor.source.start,
+				isSameSource(original.source, accessor.source),
 		) === true
 	);
 }
@@ -480,7 +492,7 @@ export function validateModelGraph(
 	);
 	const references: string[] = [];
 	const excerpts: CodeExcerpt[] = [];
-	const items: ModelItem[] = [];
+	const items = collectModelItems(graph);
 	let duplicate =
 		declarations.size !== graph.declarations.length ||
 		new Set(graph.surfaces.map((surface) => surface.name)).size !== graph.surfaces.length;
@@ -490,7 +502,7 @@ export function validateModelGraph(
 		references.push(...surface.exports.map((binding) => binding.target));
 	}
 	for (const declaration of graph.declarations) {
-		if (!hasValidAccessorPairs(declaration.container?.declaredMembers ?? [], declaration.id)) {
+		if (!hasValidAccessorPairs(declaration)) {
 			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: declaration ${declaration.name} has inconsistent accessor-pair metadata. Regenerate its model.`,
@@ -499,11 +511,6 @@ export function validateModelGraph(
 		excerpts.push(
 			...declaration.sources.map((source) => source.excerpt),
 			...(declaration.container?.declaredMembers.map((member) => member.source.excerpt) ?? []),
-		);
-		items.push(
-			declaration,
-			...declaration.signatures,
-			...(declaration.container?.declaredMembers ?? []),
 		);
 		references.push(
 			...declaration.baseDeclarations,
@@ -523,7 +530,6 @@ export function validateModelGraph(
 			duplicate ||= new Set(members.map((member) => member.id)).size !== members.length;
 			for (const member of members) {
 				excerpts.push(...member.sources.map((source) => source.excerpt));
-				items.push(member, ...member.signatures);
 				if (member.accessors !== undefined) {
 					// Empty views intentionally defer to heritage, but must still identify their original owner.
 					const owner =
@@ -548,7 +554,6 @@ export function validateModelGraph(
 					duplicate ||=
 						new Set(member.accessors.map((accessor) => accessor.id)).size !==
 						member.accessors.length;
-					items.push(...member.accessors);
 					excerpts.push(...member.accessors.map((accessor) => accessor.source.excerpt));
 				}
 			}

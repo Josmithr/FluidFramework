@@ -103,9 +103,9 @@ export interface ModelDocumentation {
 
 	/**
 	 * Source identities for summary, remarks, and named parameter sections.
-	 * @defaultValue Omitted only on internal inputs; encoded artifacts require this array.
+	 * Empty when the resolved comment supplies no sections.
 	 */
-	readonly sections?: readonly ModelDocumentationSection[];
+	readonly sections: readonly ModelDocumentationSection[];
 }
 
 /**
@@ -219,8 +219,11 @@ export interface DependencyApi {
 
 	/**
 	 * Original callable parameter names and flags for explicit inheritance compatibility.
-	 * @defaultValue Omitted when callable parameter context is unavailable or inapplicable.
+	 *
+	 * @remarks
 	 * An empty array represents a supported callable with no parameters; it is not equivalent to omission.
+	 *
+	 * @defaultValue Omitted for non-callable documentation records. Callable signature records require this array.
 	 */
 	readonly parameters?: readonly DependencyApiParameter[];
 

@@ -27,6 +27,93 @@ function assertFailure(result: Result<unknown>, code = DiagnosticCode.Dependency
 }
 
 describe("Repository failure and recovery workflows", () => {
+	it("rejects inconsistent API roles, owners, provenance, and member identities", () => {
+		const original = decodeDependencyModel(
+			readFileSync(
+				new URL(
+					"../../src/test/snapshots/repository/primary/typescript/primary.api.json",
+					import.meta.url,
+				),
+				"utf8",
+			),
+			"@scenario/primary",
+		);
+		assert(original.ok, JSON.stringify(original));
+		const model = original.value;
+		const format = model.graph.declarations.find((item) => item.name === "format");
+		const unrelated = model.graph.declarations.find((item) => item.name === "default");
+		const store = model.graph.declarations.find((item) => item.name === "Store");
+		assert(format !== undefined && unrelated !== undefined && store?.container !== undefined);
+		const container = store.container;
+		const getter = container.declaredMembers.find(
+			(member) => member.source.kind === "GetAccessor",
+		);
+		assert(getter !== undefined);
+		const variants = [
+			{
+				...model,
+				apis: model.apis.map((api) => {
+					const {
+						parameters: _parameters,
+						typeParameters: _typeParameters,
+						...withoutParameters
+					} = api;
+					return api.id === format.signatures[0]?.id ? withoutParameters : api;
+				}),
+			},
+			{
+				...model,
+				apis: model.apis.map((api) =>
+					api.name === "isText" ? { ...api, declarationId: unrelated.id } : api,
+				),
+			},
+			{
+				...model,
+				apis: model.apis.map((api) => ({
+					...api,
+					documentation: { ...api.documentation, packageName: "nonexistent-package" },
+				})),
+			},
+			{
+				...model,
+				apis: model.apis.map((api) => ({
+					...api,
+					documentation: {
+						...api.documentation,
+						sections: api.documentation.sections.map((section) => ({
+							...section,
+							packageName: "nonexistent-package",
+						})),
+					},
+				})),
+			},
+			{
+				...model,
+				graph: {
+					...model.graph,
+					declarations: model.graph.declarations.map((declaration) =>
+						declaration.id === store.id
+							? {
+									...declaration,
+									container: {
+										...container,
+										declaredMembers: [...container.declaredMembers, getter],
+									},
+								}
+							: declaration,
+					),
+				},
+			},
+		];
+		for (const [index, variant] of variants.entries()) {
+			const result = decodeDependencyModels([
+				{ packageName: model.packageName, text: JSON.stringify(variant) },
+			]);
+			assert(!result.ok, `Corruption case ${index} must fail`);
+			assertFailure(result);
+		}
+	});
+
 	it("rejects malformed and inconsistent artifact sets without source access", () => {
 		const inputs = ["core", "domain", "adapter", "unused", "service", "facade"].map(
 			(name) => ({

@@ -19,7 +19,7 @@ import type {
 	DependencyModel,
 } from "../analysis-types/dependencyModel.js";
 import type { ApiItemId, DeclarationFact, Origin } from "../analysis-types/facts.js";
-import type { ModelGraph } from "../analysis-types/modelGraph.js";
+import type { ModelDeclaration, ModelGraph } from "../analysis-types/modelGraph.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { ReleaseLevel } from "../analysis-types/classification.js";
@@ -650,12 +650,16 @@ export function decodeDependencyModel(
 	const declarations = new Map(
 		model.graph.declarations.map((declaration) => [declaration.id, declaration]),
 	);
+	const graphItems = collectModelItems(model.graph);
+	const callableIds = new Set(
+		graphItems.filter((item) => "effective" in item).map((item) => item.id),
+	);
 	const items = new Set(
-		collectModelItems(model.graph).flatMap((item) =>
+		graphItems.flatMap((item) =>
 			item.documentationId === undefined ? [] : [item.documentationId],
 		),
 	);
-	if (model.apis.some((api) => !items.has(api.id) || !declarations.has(api.declarationId))) {
+	if (model.apis.some((api) => hasInvalidApiShape(api, declarations, items, callableIds))) {
 		return reportFailure(
 			DiagnosticCode.DependencyModel,
 			`Dependency ${packageName}: API records require complete declaration and member shapes. Regenerate its model.`,
@@ -677,6 +681,46 @@ export function decodeDependencyModel(
 	}
 	const documentation = validateModelDocumentation(model);
 	return documentation.ok ? freezeData({ ok: true, value: model }) : documentation;
+}
+
+/**
+ * Checks whether an API record lacks a matching graph shape or required callable metadata.
+ *
+ * @remarks
+ * The API must identify its owner, one of the owner's signatures, or a member or member signature.
+ * An existing but unrelated declaration does not establish ownership.
+ * Graph call signatures require both parameter arrays, including empty arrays for zero parameters.
+ * This check uses stored graph relationships without compiler access or semantic resolution.
+ *
+ * @param api - Schema-validated API record to check.
+ * @param declarations - Graph declarations indexed by identity.
+ * @param documentationIds - Documentation identities referenced by graph items.
+ * @param callableIds - Graph call-signature identities.
+ * @returns Whether the API has a missing shape, an incorrect owner, or incomplete callable metadata.
+ */
+function hasInvalidApiShape(
+	api: DependencyApi,
+	declarations: ReadonlyMap<ApiItemId, ModelDeclaration>,
+	documentationIds: ReadonlySet<ApiItemId>,
+	callableIds: ReadonlySet<ApiItemId>,
+): boolean {
+	const owner = declarations.get(api.declarationId);
+	return (
+		!documentationIds.has(api.id) ||
+		owner === undefined ||
+		!(
+			owner.id === api.id ||
+			owner.signatures.some((signature) => signature.id === api.id) ||
+			owner.container?.declaredMembers.some((member) => member.id === api.id) === true ||
+			owner.members.some(
+				(member) =>
+					member.id === api.id ||
+					member.signatures.some((signature) => signature.id === api.id),
+			)
+		) ||
+		(callableIds.has(api.id) &&
+			(api.parameters === undefined || api.typeParameters === undefined))
+	);
 }
 
 /**
@@ -733,7 +777,12 @@ function validateModelIdentities(model: DependencyModel, packageName: string): R
 		);
 	}
 	for (const api of model.apis) {
-		if (ids.has(api.id) || api.metadata.id !== api.id || api.documentation.id !== api.id) {
+		if (
+			ids.has(api.id) ||
+			api.metadata.id !== api.id ||
+			api.documentation.id !== api.id ||
+			api.documentation.packageName !== api.origin.packageName
+		) {
 			return reportFailure(
 				DiagnosticCode.DependencyModel,
 				`Dependency ${packageName}: duplicate or inconsistent API identity ${api.id}. Regenerate its model.`,

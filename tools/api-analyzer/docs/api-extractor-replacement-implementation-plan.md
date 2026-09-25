@@ -1017,6 +1017,8 @@ Individual comments, tags, links, and documentation status remain separate in mo
 Standalone accessors and pairs with only absent, empty, or metadata-only comments retain their undocumented notices.
 TS6/TS7 cross-package consumer tests cover generic read/write accessors, local overrides, private identifiers, protected access, and detached model/report use.
 Distinct generic setter types that the native checker cannot substitute remain represented by the base relationship and original sources, with an explicit empty accessor view in the model.
+Mapped accessor properties also retain their heritage instead of restoring original getter/setter syntax after readonly or optionality changes.
+Pre-Stage 4 review regressions cover anonymous lexical identity, colliding effective overloads, local/dependency selector parity, malformed configuration inheritance, and portable model role, ownership, provenance, and accessor-pair integrity.
 The report does not replace those accessors with a narrower read type.
 Module namespace exports now have successful report and portable-model coverage under the policy above.
 CommonJS export assignment is outside the agreed ESM-only input scope; it is not a fixture requirement or a remaining report gap.

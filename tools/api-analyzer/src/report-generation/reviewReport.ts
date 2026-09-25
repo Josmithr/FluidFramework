@@ -500,25 +500,9 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 			member.documentationContext === undefined ? member.signatures : [],
 		),
 	])) {
-		const metadata = metadataById.get(item.id);
-		assert(
-			metadata !== undefined,
-			"Prepared signatures must have original classification metadata.",
-		);
-		const documentation = documentationById.get(item.id);
-		assert(
-			documentation !== undefined,
-			"Prepared signatures must have completed documentation.",
-		);
 		signatures.set(item.id, {
-			id: item.id,
-			text: item.normalized.callSignatureText,
+			...prepareItem(item.id, item.normalized.callSignatureText),
 			...(item.normalized.imports === undefined ? {} : { imports: item.normalized.imports }),
-			documented: documentation.documented,
-			releaseLevel: metadata.releaseLevel,
-			modifierTags: [
-				...new Set([...metadata.modifierTags, ...documentation.originalBlockTags]),
-			].sort(),
 		});
 	}
 
@@ -795,7 +779,7 @@ function prepareContainer(
 			.map(prepareDeclaredMember),
 		...effectiveMembers.flatMap((member) => {
 			if (member.accessors !== undefined) {
-				// An empty accessor view intentionally leaves unresolved write types on the base declaration.
+				// Heritage retains mapped property shapes and write types that cannot be safely expanded.
 				return member.accessors.map(prepareDeclaredMember);
 			}
 			const visibility = member.visibility === "protected" ? "protected " : "";

@@ -15,3 +15,12 @@ export class Override extends Base<string> {
 }
 /** Non-generic asymmetric accessor receiver. @public */
 export class ConcreteLeaf extends Concrete {}
+
+/** Removes readonly from the selected accessor. @public */
+export type Mutable<TValue> = { -readonly [TKey in keyof TValue]: TValue[TKey] };
+/** A mapped getter becomes a writable property. @public */
+export interface MutableLeaf extends Mutable<Pick<Base<string>, "only">> {}
+/** A mapped pair becomes a readonly property. @public */
+export interface ReadonlyLeaf extends Readonly<Pick<Base<string>, "value">> {}
+/** A mapped pair becomes an optional property. @public */
+export interface PartialLeaf extends Partial<Pick<Base<string>, "value">> {}
