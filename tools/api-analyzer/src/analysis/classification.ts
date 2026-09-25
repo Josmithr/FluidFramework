@@ -407,6 +407,9 @@ export function validateNamespaceReleases(
 			continue;
 		}
 		for (const binding of declaration.exports) {
+			if (binding.external !== undefined) {
+				continue;
+			}
 			const target = declarations.get(binding.target);
 			assert(target !== undefined, "Namespace exports must retain their target declarations.");
 			const targets = metadata.has(target.id)

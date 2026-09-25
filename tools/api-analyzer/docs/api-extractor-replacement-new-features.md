@@ -296,8 +296,11 @@ Required result: Generated declarations must preserve valid namespace exports an
 Namespace members must retain their type and value meanings.
 
 Regression check: Export a module namespace containing a class, interface, and constant, then re-export it from a consuming package.
-Generate declarations with the dependency included and with it retained as an external reference.
-Verify that both outputs compile and that consumer code can access the intended namespace members.
+Under the rollup policy approved on 2026-09-25, retain cross-package re-exports rather than requiring dependency bundling.
+Test the dependency both inside and outside the configured suite.
+Apply the release-tag rules to suite-owned re-exports, preserving the atomic namespace selection contract.
+Retain outside-suite re-exports as implicitly public without trimming them.
+Verify that generated outputs compile and that consumer code can access the intended namespace members.
 Include a dependency declaration input with an export list inside a namespace, as in the reported generated output.
 
 Related requirements: W4, W5.

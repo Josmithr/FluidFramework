@@ -241,7 +241,7 @@ Namespace selectors and links through type-only members work locally and through
 Separate `export * as` statements create separate namespace APIs, even when they target the same module.
 Ordinary forwarding of an existing namespace retains its identity and documentation.
 
-Ordinary re-export statements do not override API metadata.
+Ordinary re-export statements for local or suite-owned APIs do not override API metadata.
 An absent release tag retains the source level; a matching tag is redundant; a disagreeing tag fails validation in either direction.
 An explicit tag must agree with every exposed overload or target of that statement.
 Other re-export documentation, including links, is ignored.
@@ -981,6 +981,20 @@ Recursive namespace aliases receive the comment above their export statement ins
 Local declarations receive no re-export comment, including declarations with inherited documentation or members.
 Re-export source comments remain visible when tag and undocumented-notice output are disabled.
 
+APIs defined outside the configured suite remain opaque re-export statements instead of full definitions.
+Reports always retain these bindings as implicitly public, even when release-level or modifier filters exclude local APIs.
+Foreign declaration comments and release tags are not analyzed or shown, and forwarding-statement tags do not change this behavior.
+Aliases, default exports, type-only exports, namespace exports, and package subpaths are preserved.
+Star exports can be represented as explicit named bindings.
+Portable graphs retain the external module binding without requiring a foreign declaration or documentation record.
+Explicit documentation references to outside-suite APIs remain unsupported; retaining a foreign export does not enable documentation lookup into its package.
+
+For example, a foreign function remains a re-export in the report:
+
+```typescript
+export { foreignApi } from "foreign-package";
+```
+
 `ReviewPresentationOptions.includeImports` defaults to `true`.
 Reports include import bindings referenced by the selected declaration syntax, including container headers, members, and nested namespace contents.
 Selection removes imports used only by omitted declarations or standalone overloads.
@@ -1391,7 +1405,8 @@ Portable documentation graphs retain these relationships; self-contained consuma
 
 This library intentionally checks in its [portable API model](api-model/api-analyzer.api.json) so model-format and content changes can be reviewed over time.
 This is an exception for the analyzer's own development and Stage 3 evaluation, not a requirement to check in generated models for other packages.
-It does not establish Stage 3 acceptance or replace the Stage 5 publication and historical-artifact work.
+The user accepted [Stage 3](docs/api-extractor-replacement-implementation-plan.md#stage-3-deliver-resolved-documentation-models) on 2026-09-25, including the documented limitations and three pending compiler probes.
+The checked-in model does not replace the Stage 5 publication and historical-artifact work.
 
 The model includes the root and `./model` entrypoints, supporting declarations, resolved documentation, structured excerpts, and input fingerprints.
 It preserves the encoder's exact JSON output, including identities and source locations.

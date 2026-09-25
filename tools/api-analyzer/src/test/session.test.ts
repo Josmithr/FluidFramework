@@ -456,12 +456,11 @@ describe("One-shot API analysis and adapter facts", () => {
 		};
 		const outside = adapter.analyze(settings);
 		assert(outside.ok);
-		assert.equal(outside.value.declarations[0]?.memberView, "partial");
+		assert.equal(outside.value.declarations.length, 0);
 		assert.equal(
-			outside.value.declarations[0]?.limitations[0]?.code,
-			DiagnosticCode.MemberExpansionOutsideSuite,
+			outside.value.surfaces[0]?.exports[0]?.external?.moduleSpecifier,
+			"dependency",
 		);
-		assert.equal(outside.value.declarations[0]?.members.length, 0);
 		const node = adapter.analyze(settings, undefined, ["dependency"]);
 		const browser = adapter.analyze({ ...settings, project: browserProject }, undefined, [
 			"dependency",

@@ -1,8 +1,8 @@
 # TODOs
 
-Stage 2 is accepted on 2026-09-20.
-These investigations and the [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) are scheduled after the remaining library implementation.
-Stage 3 portable models and the remaining required Stage 4 declaration rollups are tracked in the [implementation plan](docs/api-extractor-replacement-implementation-plan.md).
+## Consistent terminology for local vs foreign, package vs suite
+
+We should audit our code and docs to consistently use "foreign" and "local" when referring to API origin within a scope, and "package" and "suite" to refer to the relevant scopes.
 
 ## Split up `nativeAdapter.ts`
 

@@ -177,6 +177,12 @@ export interface ReviewContainer extends ReviewStatement {
  */
 export interface ReviewExport {
 	/**
+	 * Opaque foreign re-export retained without metadata filtering or declaration expansion.
+	 * @defaultValue Omitted for local and suite-owned declarations.
+	 */
+	readonly external?: NonNullable<ExportFact["external"]>;
+
+	/**
 	 * Original declaring package when this API is re-exported from another package in the suite.
 	 *
 	 * @remarks
@@ -550,6 +556,14 @@ export function prepareReviewReport(graph: CompletedAnalysis): PreparedReviewDat
 			const exports = bindings.map((binding): PreparedExport => {
 				assert(!names.has(binding.name), "Entrypoint exports must have distinct names.");
 				names.add(binding.name);
+				if (binding.external !== undefined) {
+					return {
+						...binding,
+						declarationId: binding.target,
+						declarationName: binding.external.importedName ?? binding.name,
+						signatures: [],
+					};
+				}
 				const declaration = declarations.get(binding.target);
 				assert(declaration !== undefined, "Every export target must have a declaration fact.");
 				let namespace: PreparedExport["namespace"];
@@ -871,6 +885,10 @@ export function createReviewReport(
 	): ReviewExport[] {
 		const exports: ReviewExport[] = [];
 		for (const entry of entries) {
+			if (entry.external !== undefined) {
+				exports.push(entry);
+				continue;
+			}
 			if (entry.namespace !== undefined) {
 				if (retainAll || selectedIds.has(entry.namespace.id)) {
 					const { id: _id, exports: nested, ...namespace } = entry.namespace;
@@ -1212,6 +1230,12 @@ function renderDeclarationText(
 	for (const group of groups.values()) {
 		const binding = group[0];
 		assert(binding !== undefined, "Report export groups must not be empty.");
+		if (binding.external !== undefined) {
+			for (const exported of group) {
+				declarations.push(renderExternalExport(exported));
+			}
+			continue;
+		}
 		const sourceAnnotation =
 			binding.reexportedFrom === undefined
 				? ""
@@ -1343,4 +1367,28 @@ function renderDeclarationText(
 		declarations.push([declarationParts.join("\n\n"), ...typeAliases.sort()].join("\n"));
 	}
 	return [...declarations, ...aliases.sort()].join("\n\n") || "// No selected exports.";
+}
+
+/**
+ * Renders an opaque foreign binding without declaration metadata or documentation annotations.
+ * @param exported - Selected foreign binding with its alias and type-only state.
+ * @returns A named or namespace re-export statement.
+ * @throws If the binding has no external module information.
+ */
+function renderExternalExport(exported: ReviewExport): string {
+	const external = exported.external;
+	assert(external !== undefined, "Foreign export groups must retain their bindings.");
+	const exportedName = /^[$A-Z_a-z][\w$]*$/.test(exported.name)
+		? exported.name
+		: JSON.stringify(exported.name);
+	const importedName = external.importedName;
+	const imported =
+		importedName === undefined || /^[$A-Z_a-z][\w$]*$/.test(importedName)
+			? importedName
+			: JSON.stringify(importedName);
+	const clause =
+		imported === undefined
+			? `* as ${exportedName}`
+			: `{ ${imported}${importedName === exported.name ? "" : ` as ${exportedName}`} }`;
+	return `export ${exported.typeOnly ? "type " : ""}${clause} from ${JSON.stringify(external.moduleSpecifier)};`;
 }

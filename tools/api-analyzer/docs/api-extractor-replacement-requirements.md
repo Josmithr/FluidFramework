@@ -167,8 +167,12 @@ Unsupported analysis must produce an actionable failure.
 
 The workflow must support local workspace dependencies and installed dependencies without requiring every dependency's source project to be rebuilt.
 It must preserve the distinction between APIs that a package presents as its own surface and external references that remain external.
-Package-specific dependency inclusion or exclusions must be expressible without copying an entire analysis configuration.
-This does not require the current `bundledPackages` setting or its pattern syntax.
+Package-specific suite selection must be expressible without copying an entire analysis configuration.
+Under the rollup policy approved on 2026-09-25, cross-package re-exports can remain references to their defining packages; dependency bundling is not required.
+Rollups must trim re-exports of APIs defined in suite packages according to release tags.
+Re-exports of APIs defined outside the suite are implicitly public and must never be trimmed by rollup selection.
+This policy does not change documentation-reference validation or require the current `bundledPackages` setting or its pattern syntax.
+The same suite distinction applies to API reports: render full definitions for selected suite-owned targets, but retain outside-suite APIs as untrimmed re-export statements without foreign metadata or documentation expansion.
 
 Evidence:
 

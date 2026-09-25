@@ -95,18 +95,41 @@ export interface ModelSignatureText {
 	readonly functionTypeText: string;
 }
 
+// TODO: extract type for `external`
+// TODO: separate types for "suite export" vs "foreign export"
 /**
  * One exported name and its target; aliases can form cycles through namespaces.
  * @public
  */
 export interface ModelExport {
 	/**
+	 * Opaque re-export of an API defined outside the configured suite.
+	 *
+	 * @remarks
+	 * Reports retain this binding without release or modifier filtering.
+	 * Its target is an opaque identity, not a declaration in this graph.
+	 * @defaultValue Omitted for local and suite-owned targets, which have declaration records.
+	 */
+	readonly external?: {
+		/**
+		 * Original package import specifier, including any subpath.
+		 */
+		readonly moduleSpecifier: string;
+
+		/**
+		 * Name imported from the module, including default.
+		 * @defaultValue Omitted for a namespace re-export.
+		 */
+		readonly importedName?: string;
+	};
+
+	/**
 	 * Exported name, independent of the target's original name.
 	 */
 	readonly name: string;
 
 	/**
-	 * Declaration identity within the portable graph.
+	 * Declaration identity within the portable graph, or an opaque external target identity.
 	 */
 	readonly target: string;
 

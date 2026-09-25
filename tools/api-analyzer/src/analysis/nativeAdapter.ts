@@ -46,6 +46,9 @@ import {
 	isModuleBlock,
 	isImportClause,
 	isImportSpecifier,
+	isImportDeclaration,
+	isNamespaceImport,
+	isStringLiteral,
 	isExportSpecifier,
 	isPropertySignatureDeclaration,
 	isTypeLiteralNode,
@@ -555,15 +558,14 @@ function collectReexportTags(
 								.filter((tag) => comment.modifierTagSet.hasTagName(tag));
 				if (tags.length > 0) {
 					for (const symbol of getReexportSymbols(compiler.checker, node)) {
+						const target = resolveSymbolTarget(compiler.checker, symbol);
+						if (!isSuiteSymbol(compiler, locations, target)) {
+							continue;
+						}
 						constraints.push({
 							name: symbol.name,
 							origin: getOrigin(locations, file, node.pos),
-							target: collect(
-								compiler,
-								locations,
-								state,
-								resolveSymbolTarget(compiler.checker, symbol),
-							),
+							target: collect(compiler, locations, state, target),
 							releaseTags: tags,
 						});
 					}
@@ -2138,6 +2140,7 @@ function extractInheritedAccessors(
  * @remarks
  * Adds target facts to the supplied declaration map through {@link collect}.
  * Preserves the exported name separately from the target's identity.
+ * Retains outside-suite exports as opaque module bindings without collecting their declarations or documentation.
  *
  * @param compiler - The checker and emitter for the active compiler snapshot.
  * @param locations - Package settings and cache used for declaration locations.
@@ -2175,14 +2178,154 @@ export function collectExports(
 		)
 		.map((exported) => {
 			const resolved = resolveSymbolTarget(checker, exported);
-			const id = collect(compiler, locations, state, resolved);
+			const namespace = resolved.declarations.some(
+				(handle) => handle.kind === SyntaxKind.NamespaceExport,
+			);
+			const target = namespace ? checker.getAliasedSymbol(resolved) : resolved;
+			const inSuite = isSuiteSymbol(compiler, locations, target);
+			const external = inSuite
+				? undefined
+				: findExternalExport(compiler, moduleSymbol, exported);
+			assert(
+				inSuite || external !== undefined,
+				"Foreign exports must retain an importable module binding.",
+			);
+			const id =
+				external === undefined
+					? collect(compiler, locations, state, resolved)
+					: getDeclarationId(locations, target);
 			return {
+				...(external === undefined ? {} : { external }),
 				name: exported.name,
 				target: id,
 				typeOnly: isTypeOnlyExport(checker, locations, moduleSymbol, exported.name),
 			};
 		})
 		.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+}
+
+/**
+ * Finds the package binding behind a foreign export without collecting its documentation.
+ *
+ * @param compiler - Active compiler services.
+ * @param moduleSymbol - Module that exposes the exported name.
+ * @param exported - Export symbol before alias resolution.
+ * @param seen - Alias and module paths already visited. Defaults to an empty set.
+ * @returns The external binding, or undefined when no package import path is available.
+ */
+function findExternalExport(
+	compiler: CompilerContext,
+	moduleSymbol: CompilerSymbol,
+	exported: CompilerSymbol,
+	seen = new Set<string>(),
+): ExportFact["external"] {
+	const key = `${moduleSymbol.id}:${exported.id}`;
+	if (seen.has(key)) {
+		return undefined;
+	}
+	seen.add(key);
+	for (const handle of exported.declarations) {
+		const node = handle.resolve();
+		const binding = node === undefined ? undefined : getExternalExportBinding(node);
+		if (binding !== undefined) {
+			return binding;
+		}
+	}
+	if (exported.flags & SymbolFlags.Alias) {
+		const next = compiler.checker.getImmediateAliasedSymbol(exported);
+		if (next !== undefined) {
+			const binding = findExternalExport(compiler, moduleSymbol, next, seen);
+			if (binding !== undefined) {
+				return binding;
+			}
+		}
+	}
+	for (const handle of moduleSymbol.declarations) {
+		const node = handle.resolve();
+		const container = node && isModuleDeclaration(node) ? node.body : node;
+		if (!container || !(isSourceFile(container) || isModuleBlock(container))) {
+			continue;
+		}
+		for (const statement of container.statements) {
+			if (
+				!isExportDeclaration(statement) ||
+				statement.exportClause !== undefined ||
+				statement.moduleSpecifier === undefined ||
+				!isStringLiteral(statement.moduleSpecifier)
+			) {
+				continue;
+			}
+			const source = compiler.checker.getSymbolAtLocation(statement.moduleSpecifier);
+			const candidate =
+				source &&
+				compiler.checker
+					.getExportsOfModule(source)
+					.find((entry) => entry.name === exported.name);
+			if (
+				source === undefined ||
+				candidate === undefined ||
+				resolveSymbolTarget(compiler.checker, candidate).id !==
+					resolveSymbolTarget(compiler.checker, exported).id
+			) {
+				continue;
+			}
+			if (
+				!statement.moduleSpecifier.text.startsWith(".") &&
+				!path.isAbsolute(statement.moduleSpecifier.text)
+			) {
+				return {
+					moduleSpecifier: statement.moduleSpecifier.text,
+					importedName: exported.name,
+				};
+			}
+			const binding = findExternalExport(compiler, source, candidate, seen);
+			if (binding !== undefined) {
+				return binding;
+			}
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Reads a package binding from an original import or export declaration.
+ * @param node - Original alias declaration before compiler alias resolution.
+ * @returns Module specifier and imported name, or undefined for local and relative bindings.
+ */
+function getExternalExportBinding(node: Node): ExportFact["external"] {
+	const clause = isImportSpecifier(node)
+		? node.parent.parent
+		: isNamespaceImport(node)
+			? node.parent
+			: node;
+	const statement = isExportSpecifier(node)
+		? node.parent.parent
+		: isNamespaceExport(node)
+			? node.parent
+			: isImportClause(clause)
+				? clause.parent
+				: undefined;
+	if (
+		statement === undefined ||
+		!(isExportDeclaration(statement) || isImportDeclaration(statement)) ||
+		statement.moduleSpecifier === undefined ||
+		!isStringLiteral(statement.moduleSpecifier) ||
+		statement.moduleSpecifier.text.startsWith(".") ||
+		path.isAbsolute(statement.moduleSpecifier.text)
+	) {
+		return undefined;
+	}
+	return {
+		moduleSpecifier: statement.moduleSpecifier.text,
+		...(isNamespaceExport(node) || isNamespaceImport(node)
+			? {}
+			: {
+					importedName:
+						isExportSpecifier(node) || isImportSpecifier(node)
+							? (node.propertyName ?? node.name).text
+							: "default",
+				}),
+	};
 }
 
 /**

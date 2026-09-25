@@ -1,5 +1,6 @@
 import type { AnalyzerDiagnostic } from "./result.js";
 import type { CodeExcerpt } from "./excerpt.js";
+import type { ModelExport } from "./modelGraph.js";
 
 /**
  * A compiler-resolved import binding used by a displayed declaration fragment.
@@ -94,6 +95,12 @@ export interface Origin {
  */
 export interface ExportFact {
 	/**
+	 * Opaque binding for a target defined outside the configured suite.
+	 * @defaultValue Omitted for local and suite targets, which are collected as declarations.
+	 */
+	readonly external?: NonNullable<ModelExport["external"]>;
+
+	/**
 	 * The exported name, which can differ from the target declaration's name.
 	 *
 	 * @remarks
@@ -103,7 +110,7 @@ export interface ExportFact {
 	readonly name: string;
 
 	/**
-	 * The {@link DeclarationFact.id} of the resolved export target.
+	 * The {@link DeclarationFact.id} of the resolved export target, or an opaque external identity.
 	 *
 	 * @remarks
 	 * Aliases that expose the same declaration share this target identifier.

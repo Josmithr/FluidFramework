@@ -23,6 +23,7 @@ import { loadDependencyModels } from "./suite.js";
  *
  * @remarks
  * Includes collected unexported targets. These are not counts of selected report exports.
+ * Opaque outside-suite re-export bindings do not contribute declaration or signature counts.
  *
  * @sealed
  * @public
@@ -74,6 +75,11 @@ export interface APIAnalysis {
 
 	/**
 	 * Generates report text from prepared data without compiler or filesystem access.
+	 *
+	 * @remarks
+	 * Suite-owned re-exports render full definitions selected by release levels and modifiers.
+	 * Outside-suite re-exports remain statements and are retained regardless of those filters.
+	 * Foreign declaration documentation and release metadata are not expanded.
 	 *
 	 * @param entrypoint - Configured entrypoint name.
 	 * @param selection - Release levels and modifier filters for this report.

@@ -125,11 +125,26 @@ const memberSchema = itemSchema.extend({
 	sources: z.array(sourceSchema),
 	signatures: z.array(signatureSchema),
 });
-const exportSchema = z.strictObject({
-	name: z.string(),
-	target: z.string(),
-	typeOnly: z.boolean(),
-});
+const exportSchema = z
+	.strictObject({
+		external: z
+			.strictObject({
+				moduleSpecifier: z.string().min(1),
+				importedName: z.string().optional(),
+			})
+			.transform(({ importedName, ...external }) => ({
+				...external,
+				...(importedName === undefined ? {} : { importedName }),
+			}))
+			.optional(),
+		name: z.string(),
+		target: z.string(),
+		typeOnly: z.boolean(),
+	})
+	.transform(({ external, ...binding }) => ({
+		...binding,
+		...(external === undefined ? {} : { external }),
+	}));
 
 /**
  * Explicit versioned declaration schema; compiler lookup contexts and mutable parser state are excluded.
@@ -499,7 +514,11 @@ export function validateModelGraph(
 	for (const surface of graph.surfaces) {
 		duplicate ||=
 			new Set(surface.exports.map((binding) => binding.name)).size !== surface.exports.length;
-		references.push(...surface.exports.map((binding) => binding.target));
+		references.push(
+			...surface.exports
+				.filter((binding) => binding.external === undefined)
+				.map((binding) => binding.target),
+		);
 	}
 	for (const declaration of graph.declarations) {
 		if (!hasValidAccessorPairs(declaration)) {
@@ -515,7 +534,9 @@ export function validateModelGraph(
 		references.push(
 			...declaration.baseDeclarations,
 			...declaration.implementedDeclarations,
-			...declaration.exports.map((binding) => binding.target),
+			...declaration.exports
+				.filter((binding) => binding.external === undefined)
+				.map((binding) => binding.target),
 			...declaration.heritage.map((heritage) => heritage.target),
 			...(declaration.container?.declaredMembers.flatMap((member) =>
 				member.staticTarget === undefined ? [] : [member.staticTarget],

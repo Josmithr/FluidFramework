@@ -502,6 +502,9 @@ function collectModelExports(graph: ModelGraph): DependencyExport[] {
 			);
 		}
 		for (const binding of declaration.exports) {
+			if (binding.external !== undefined) {
+				continue;
+			}
 			collectExportTarget(
 				entrypoint,
 				[...path, binding.name],
@@ -514,6 +517,9 @@ function collectModelExports(graph: ModelGraph): DependencyExport[] {
 	}
 	for (const surface of graph.surfaces) {
 		for (const binding of surface.exports) {
+			if (binding.external !== undefined) {
+				continue;
+			}
 			collectExportTarget(
 				surface.name,
 				[binding.name],

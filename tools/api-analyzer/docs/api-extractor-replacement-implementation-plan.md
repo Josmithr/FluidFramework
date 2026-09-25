@@ -13,6 +13,7 @@ Stage 2 is complete as of 2026-09-20 under the user's accepted scope, following 
 The user explicitly deferred the remaining follow-ups until the rest of the library is implemented, including the [unnamed-selector parser limitation](api-extractor-replacement-follow-ups.md#verify-and-report-the-tsdoc-unnamed-selector-mismatch).
 This is an accepted limitation, not an assertion of full TSDoc conformance.
 Stage 3 implements portable documentation models and source-free artifact readers; declaration rollups remain Stage 4.
+The user accepted Stage 3 on 2026-09-25, including its documented limitations and three pending compiler probes.
 Declaration rollups remain required.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](Architecture-Proposal.md).
@@ -881,8 +882,10 @@ Stage 2 takes on these semantic prerequisites; Stage 3 retains the complete port
 
 ### Stage 3. Deliver resolved documentation models
 
-Acceptance status (2026-09-21): implementation and artifact regression coverage are available, but Stage 3 is not yet accepted.
-The W7 signature-link gap now has an implementation and compiler-backed acceptance tests; final stage acceptance remains a separate review.
+Acceptance status (2026-09-25): Stage 3 is accepted by the user, including its documented limitations and three pending compiler probes.
+The W7 signature-link gap has an implementation and compiler-backed acceptance tests.
+The final package validation passed with 315 tests passing and 3 pending; build, lint, formatting, architecture, and self-artifact freshness checks passed.
+Acceptance does not establish declaration-rollup support or complete the Stage 5 publication and historical-artifact work.
 
 Implemented: portable model encoding, source-free single-model and model-set readers, and portable declaration/member contracts.
 The public `api-analyzer/model` entrypoint does not import compiler-backed analysis.
@@ -1010,7 +1013,7 @@ The [fixture guide](../src/test/fixtures/repository/README.md) maps the API inve
 The [workflow tests](../src/test/repository.test.ts) run both producer compilers; the [failure tests](../src/test/repositoryFailures.test.ts) cover source and artifact freshness, integrity, and dependency-first recovery.
 The fixtures include all package code and infrastructure: manifests, compiler projects, analyzer settings, and package build order.
 Runtime setup copies a workspace and links its packages; it does not synthesize repository code or configuration.
-Stage 3 acceptance remains a separate review; the inherited-member rejection case now participates in successful primary report/model/index snapshots.
+These suites form part of the Stage 3 evidence accepted on 2026-09-25; the inherited-member rejection case participates in successful primary report/model/index snapshots.
 Inherited accessor views retain original getter/setter documentation identities, receiver types, and declaring containers; protected visibility is preserved and base-private members are not redeclared in derived reports.
 The 2026-09-24 getter/setter policy shares documentation presence across each pair: descriptive documentation on either accessor suppresses undocumented notices on both.
 Individual comments, tags, links, and documentation status remain separate in model records; reciprocal `pairedAccessor` identities let model-only consumers apply the same rule for declared or inherited pairs.
@@ -1045,8 +1048,8 @@ Use small, documented APIs so a reviewer can inspect the complete expected artif
 | Single package without exported APIs | One configured root entrypoint containing `export {}`. Start without package documentation; add a package-documentation-only variant. Private declarations must not become exports. | The configured surface produces the supported empty report for every selection. Package documentation appears when present. No accidental exports or inferred fallback entrypoint. | The root surface exists with no exports. Package identity, input fingerprints, and optional package documentation remain valid. Decode succeeds without inventing public API records. | An empty external module compiles and exposes no names. It must not become an ambient script or leak private declarations. |
 | Single package with exported APIs | The primary API-kind example, with the declaration and export forms listed below. Organize sources into focused modules behind the root entrypoint. Include public, beta, alpha, and internal declarations, a custom modifier, and referenced unexported supporting types. | Exact complete and selected surfaces, stable names, overload order, original release metadata, and inherited-member annotations. Every supported kind has an explicit expectation. A selection with no matches stays empty. | All retained declaration shapes and documentation survive regardless of report selection. Excerpts reconstruct displayed text; reference targets, source locations, and documentation links identify the intended records. No external owners or selected dependency fingerprints. | Every supported kind has a consumer check. Included exports compile; excluded exports fail at intended import/use sites. Required supporting declarations remain available without becoming public exports. Remove imports used only by excluded APIs. |
 | Two packages without re-exports | `consumer` depends on `contracts`, uses a contract in its own API, and implements a generic interface, but exports no dependency bindings. Include an explicit cross-package documentation link and inherited member documentation. | Consumer reports expose only consumer bindings while showing its foreign type references and original inherited-member ownership. Both packages have independent reports. | Consumer records the producer fingerprint and foreign documentation ownership. Effective members retain substitutions and original provenance. A dependency shape in the consumer graph must not become a consumer-owned documentation record or export. | The consumer declaration output preserves required external imports without adding dependency exports. Compile it against the matching producer output. |
-| Two packages with re-exports | A facade re-exports an origin package through named, renamed, and type-only bindings. Keep ordinary star and namespace re-exports as separate small variants. | Public names and aliases match each surface; the declaration's original name and ownership remain distinguishable. Repeated aliases do not create unrelated declarations. | Export paths retain aliases, type-only flags, and original target identities. Foreign documentation remains owned by the origin model. Following a facade path reaches the same declaration as the origin path. | Aliases and type/value distinctions survive trimming. Ordinary re-exports preserve value availability; type-only re-exports do not restore values. Test external-reference and included-dependency modes when those Stage 4 modes are implemented. |
-| Five-package chain and diamond | `core`, `domain`, `adapter`, `service`, and `facade`, with the relationships below. Mix type references, generic inheritance, documentation inheritance, and re-exports. | Inspect every package and the final facade. Preserve alias paths, original declaring-container annotations, and selection boundaries through intermediate packages. | References reached through both diamond branches agree on the original identity and owner. Transitive documentation provenance and dependency fingerprints are complete. Reordered model input does not change the decoded result. Changes to `core` invalidate stale downstream artifacts. | Compile every package and a final consumer using only generated outputs and declared dependencies. Preserve shared nominal identity across both branches, transitive alias behavior, and the supported included/external dependency boundary. |
+| Two packages with re-exports | A facade re-exports an origin package through named, renamed, and type-only bindings. Keep ordinary star and namespace re-exports as separate small variants. | Public names and aliases match each surface; the declaration's original name and ownership remain distinguishable. Repeated aliases do not create unrelated declarations. | Export paths retain aliases, type-only flags, and original target identities. Foreign documentation remains owned by the origin model. Following a facade path reaches the same declaration as the origin path. | Aliases and type/value distinctions survive trimming. Ordinary re-exports preserve value availability; type-only re-exports do not restore values. Trim suite-owned re-exports by release tags. Retain outside-suite re-exports as implicitly public. |
+| Five-package chain and diamond | `core`, `domain`, `adapter`, `service`, and `facade`, with the relationships below. Mix type references, generic inheritance, documentation inheritance, and re-exports. | Inspect every package and the final facade. Preserve alias paths, original declaring-container annotations, and selection boundaries through intermediate packages. | References reached through both diamond branches agree on the original identity and owner. Transitive documentation provenance and dependency fingerprints are complete. Reordered model input does not change the decoded result. Changes to `core` invalidate stale downstream artifacts. | Compile every package and a final consumer using only generated outputs and declared dependencies. Preserve shared nominal identity across both branches and transitive alias behavior. Apply release filtering by the target's defining package and suite membership. |
 
 The complex scenario uses five packages to exercise both a three-edge dependency path and a shared dependency reached by two branches.
 In this diagram, an arrow means "depends on":
@@ -1141,8 +1144,9 @@ Prefer small fixtures over compressed or filtered snapshots, and record artifact
 For future trimming, compile the same positive consumer against both original declarations and the corresponding generated output.
 For excluded APIs, use negative consumer tests and verify that failure occurs for the intended missing export or invalid value use, not a missing package or broken test setup.
 For the diamond, assign instances across both branches to catch accidental duplication of private or branded identity.
-Included-dependency rollups must not require the original included package declarations; external-reference rollups must retain the dependencies they intentionally reference.
-Defer exact rollup API calls and included-dependency policy details to the Stage 4 contract rather than inventing an API in these tests now.
+Rollups retain cross-package re-exports and the dependencies they reference under the approved Stage 4 policy.
+Consumer tests must use generated outputs for suite packages and installed declarations for outside-suite dependencies.
+Defer exact rollup API calls to the Stage 4 contract rather than inventing an API in these tests now.
 
 ##### Failure and recovery cases
 
@@ -1184,7 +1188,7 @@ The first three rows are recommended before Stage 4; the remaining rows can be s
 2. Add both two-package scenarios, including the independent-package variant. Prove ownership, alias, and type-only behavior with explicit target assertions.
 3. Add the five-package chain and diamond, its stale-transitive recovery test, and selected-but-unused dependency coverage. Show that changing the final export spelling does not change the original owner.
 4. Add the recommended multi-entrypoint, scoped-selector, and peer-dependency variants. Run both producer compilers for successful baseline scenarios; keep the full negative mutation set on the pinned analysis path and add dual-producer coverage where emitted syntax matters.
-5. Review the generated artifacts and documentation indexes as Stage 3 evidence. Link each scenario and expected failure to its test. Complete this report/model gate before proceeding to Stage 4; stage acceptance remains an explicit review decision.
+5. Review the generated artifacts and documentation indexes as Stage 3 evidence. Link each scenario and expected failure to its test. The user accepted this report/model gate on 2026-09-25.
 6. During Stage 4, add rollup assertions to these same fixtures and run both TS6 and TS7 consumer compilers against each supported producer's outputs. Complete the matrix before claiming trimmed-rollup support; do not treat report compilability as a substitute.
 
 The pre-Stage-4 gate requires all five baseline scenarios, the identified variants and failure cases, deterministic artifacts, source-free model-set consumption, and no baseline writes during normal tests.
@@ -1196,12 +1200,29 @@ Report any newly exposed unsupported behavior as a blocker or an explicit scope 
 
 ### Stage 4. Deliver declarations and entrypoint capabilities
 
+#### Approved re-export policy
+
+Approved on 2026-09-25; implementation remains Stage 4 work.
+Preserve cross-package re-exports as references to their defining packages rather than requiring dependency declarations to be bundled.
+Suite membership determines release-tag filtering, not dependency inclusion in the rollup.
+Re-exports of APIs defined in another suite package must follow the release-tag selection rules.
+Re-exports of APIs defined outside the suite are implicitly public and must never be trimmed by rollup selection.
+Preserve aliases, namespace semantics, and type-only export behavior.
+Re-export syntax may change when needed to apply suite release filtering, such as replacing a star re-export with selected named bindings.
+This decision supersedes the earlier requirement for included-dependency and external-reference generation modes in Stage 4.
+The report policy was extended on 2026-09-25: suite-owned re-exports render full definitions under normal release and modifier selection.
+Outside-suite report exports remain opaque re-export statements and are never trimmed by those filters.
+Reports preserve aliases, type-only exports, namespace bindings, and module specifiers without analyzing foreign declaration documentation.
+The policy for explicit documentation references outside the suite is unchanged.
+
+#### Implementation and exit criteria
+
 - Productize the generation path proven in Stage 0 using the shared facts and selected surfaces.
 - Generate entrypoint declaration rollups from completed `APIAnalysis` data without live compiler resources or full reanalysis. This capability remains required by the revised API scope.
 - Keep `rollup-generation` independent of analysis implementation and the other generators, using only the shared graph contract and generic utilities.
 - Preserve required imports, remove excluded-only imports, and retain namespace and alias semantics.
 - Expose sufficient APIs for release-level entrypoint generation without consumer reimplementation of analysis or selection.
-- Test included-dependency and external-reference variants and compile consumers with TS6 and TS7.
+- Test release-filtered suite re-exports and untrimmed outside-suite re-exports, and compile consumers with TS6 and TS7.
 
 Exit: W5 and B4-B5 pass, with B1 and B6 checked where applicable to generated output.
 The existing `flub generate entrypoints` command need not be migrated in this stage.
