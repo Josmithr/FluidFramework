@@ -972,7 +972,7 @@ export * as Tools from "./tools.js";
 TS6/TS7 suite tests verify export-statement documentation, a missing namespace release tag, mismatched member levels, and atomic release/custom-tag selection.
 Full report snapshots cover local and cross-package module exports; models retain aliases, default exports, type-only paths, empty namespaces, and recursive namespace references.
 Native and model-backed documentation lookup support namespace selectors and type-only children.
-The former module namespace report-rejection case now requires a successful report; inherited non-public class members remain a separate known gap.
+The former module namespace report-rejection case now requires a successful report.
 Future member-tag trimming must use a uniform policy for explicit namespaces and module namespace exports.
 That investigation remains in the [flexible container member selection follow-up](api-extractor-replacement-follow-ups.md#flexible-container-member-selection), not V1 implementation.
 
@@ -1010,7 +1010,14 @@ The [fixture guide](../src/test/fixtures/repository/README.md) maps the API inve
 The [workflow tests](../src/test/repository.test.ts) run both producer compilers; the [failure tests](../src/test/repositoryFailures.test.ts) cover source and artifact freshness, integrity, and dependency-first recovery.
 The fixtures include all package code and infrastructure: manifests, compiler projects, analyzer settings, and package build order.
 Runtime setup copies a workspace and links its packages; it does not synthesize repository code or configuration.
-Stage 3 is not yet accepted: inherited non-public class members still have explicit report-rejection tests, not successful report support.
+Stage 3 acceptance remains a separate review; the inherited-member rejection case now participates in successful primary report/model/index snapshots.
+Inherited accessor views retain original getter/setter documentation identities, receiver types, and declaring containers; protected visibility is preserved and base-private members are not redeclared in derived reports.
+The 2026-09-24 getter/setter policy shares documentation presence across each pair: descriptive documentation on either accessor suppresses undocumented notices on both.
+Individual comments, tags, links, and documentation status remain separate in model records; reciprocal `pairedAccessor` identities let model-only consumers apply the same rule for declared or inherited pairs.
+Standalone accessors and pairs with only absent, empty, or metadata-only comments retain their undocumented notices.
+TS6/TS7 cross-package consumer tests cover generic read/write accessors, local overrides, private identifiers, protected access, and detached model/report use.
+Distinct generic setter types that the native checker cannot substitute remain represented by the base relationship and original sources, with an explicit empty accessor view in the model.
+The report does not replace those accessors with a narrower read type.
 Module namespace exports now have successful report and portable-model coverage under the policy above.
 CommonJS export assignment is outside the agreed ESM-only input scope; it is not a fixture requirement or a remaining report gap.
 The remaining requirements below continue to define acceptance rather than treating these known rejections as completed capabilities.

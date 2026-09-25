@@ -14,9 +14,10 @@ The other workspaces use smaller APIs to isolate package relationships.
 | [values.ts](src/values.ts) | Constants, mutable exports, unique-symbol keys, ordinary enums, and const enums. |
 | [merges.ts](src/merges.ts) | Repeated interfaces and namespaces, nested namespaces, callable class augmentation, and class/function/enum namespace merges. |
 | [namespaceExport.ts](src/namespaceExport.ts) | A documented public module namespace whose members retain their original declarations and identities. |
+| [privateInheritance.ts](src/privateInheritance.ts) | Inherited public accessors and protected state without redeclaring base-private members. |
 | [index.ts](src/index.ts) | Package documentation, same-package star exports, renamed exports, type-only exports, named and anonymous default declarations, and a default expression. |
 
-The [package manifest](package.json) and [analyzer configuration](analyzer.json) expose the root, populated `./values` and `./namespace` subpaths, and an empty `./empty` subpath.
+The [package manifest](package.json) and [analyzer configuration](analyzer.json) expose the root, populated `./values`, `./namespace`, and `./inheritance` subpaths, and an empty `./empty` subpath.
 The package documentation belongs to the package, not to an individual subpath.
 
 ## Expected behavior
@@ -24,6 +25,7 @@ The package documentation belongs to the package, not to an individual subpath.
 - The root exports match the independent inventory in [repositoryScenarios.ts](../../../../../repositoryScenarios.ts).
 - Renamed exports retain their original declaration identity, and `StoreType` remains type-only.
 - The `./namespace` surface exports the public `Values` namespace with its own documentation; its members share the targets exported directly through `./values`.
+- The `./inheritance` surface preserves getter/setter syntax and protected visibility, omits base-private members from the derived report, and retains original accessor identities in the model.
 - The model retains the unexported `Support` interface without making it a package export.
 - Generic member substitution and merged-interface members appear in the model.
 - Public reports exclude alpha and internal functions; complete reports retain them.
@@ -34,11 +36,10 @@ The package documentation belongs to the package, not to an individual subpath.
 [Semantic assertions](../../../../../repositoryAssertions.ts) complement the full report, model, and documentation-index snapshots.
 This coverage does not establish every combination of TypeScript syntax or trimmed-rollup support.
 
-## Known report limitations
+## Scope
 
-The separate [variant configuration](analyzer.variants.json) exposes only [privateInheritance.ts](src/privateInheritance.ts), which derives from a class with private and protected state and still fails report generation.
-The tests require that rejection without skipping it; it records unsupported behavior, not successful support.
-The successful inventory instead keeps non-public members on their original class and uses a public abstract base for its derived-class example.
+Module namespace exports and inherited non-public/accessor views are included in the regular scenario; there is no separate rejection-only variant configuration.
+Generic accessors with distinct write types use the conservative heritage fallback described in the [package README](../../../../../../../../README.md#effective-member-identities-and-signatures).
 Inline object-type members in the successful alias example have explicit release tags under the current classification contract.
 
 ## Baselines

@@ -50,6 +50,12 @@
         "exports": []
       },
       {
+        "name": "./inheritance",
+        "exports": [
+          "PrivateDerived"
+        ]
+      },
+      {
         "name": "./namespace",
         "exports": [
           "Values"
@@ -1813,6 +1819,100 @@
               {
                 "section": "summary",
                 "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./inheritance",
+        "path": [
+          "PrivateDerived"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "PrivateDerived",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Derived store with inherited private and protected state.\n *\n * @public\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./inheritance",
+        "path": [
+          "PrivateDerived",
+          "current"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "current",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./inheritance",
+        "path": [
+          "PrivateDerived",
+          "get"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "get",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Returns the stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./inheritance",
+        "path": [
+          "PrivateDerived",
+          "revision"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "revision",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Protected subclass state.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
                 "packageName": "@scenario/primary"
               }
             ],

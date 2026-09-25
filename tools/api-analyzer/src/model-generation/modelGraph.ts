@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
 import type {
 	DocumentationReferenceContext,
+	DeclaredMemberFact,
 	MemberFact,
 	SignatureFact,
 	SignatureText,
@@ -9,6 +10,8 @@ import type {
 } from "../analysis-types/facts.js";
 import type {
 	ModelGraph,
+	ModelDeclaration,
+	ModelDeclaredMember,
 	ModelItem,
 	ModelMember,
 	ModelSignature,
@@ -101,7 +104,16 @@ const signatureSchema = itemSchema.extend({
 	reduced: signatureTextSchema,
 	normalized: signatureTextSchema,
 });
+const declaredMemberSchema = itemSchema.extend({
+	pairedAccessor: z.string().optional(),
+	source: sourceSchema,
+	printed: z.string(),
+	staticTarget: z.string().optional(),
+});
 const memberSchema = itemSchema.extend({
+	visibility: z.enum(["private", "protected"]).optional(),
+	accessors: z.array(declaredMemberSchema).optional(),
+
 	// Full printer output can differ from the compact type string; their text need not match exactly.
 	typeExcerpt: excerptSchema,
 	name: z.string(),
@@ -138,13 +150,7 @@ export const modelGraphSchema: z.ZodType<ModelGraph> = z.strictObject({
 					suffix: z.string(),
 					supported: z.boolean(),
 					interfaceSuffix: z.string().optional(),
-					declaredMembers: z.array(
-						itemSchema.extend({
-							source: sourceSchema,
-							printed: z.string(),
-							staticTarget: z.string().optional(),
-						}),
-					),
+					declaredMembers: z.array(declaredMemberSchema),
 				})
 				.optional(),
 			memberView: z.enum(["complete", "partial"]),
@@ -222,8 +228,17 @@ export function createModelGraph(
 	 * @returns Portable member shape.
 	 */
 	function createMember(member: MemberFact): ModelMember {
+		// Accessor views have separate source documentation, so retain ownership even without a property context.
+		// Preserve accessors: []: it denotes the heritage fallback, not an ordinary member with no accessor data.
 		return {
 			...createItem(member.id, member.documentationContext),
+			...(member.visibility === undefined ? {} : { visibility: member.visibility }),
+			...(member.declaringContainer === undefined
+				? {}
+				: { declaringContainer: member.declaringContainer }),
+			...(member.accessors === undefined
+				? {}
+				: { accessors: member.accessors.map(createDeclaredMember) }),
 			typeExcerpt: member.typeExcerpt ?? createContentExcerpt(member.type),
 			name: member.name,
 			...(member.referenceName === undefined ? {} : { referenceName: member.referenceName }),
@@ -233,6 +248,24 @@ export function createModelGraph(
 			readonly: member.readonly,
 			sources: member.declarations.map(createModelSource),
 			signatures: member.signatures.map(createSignature),
+		};
+	}
+
+	/**
+	 * Preserves original accessor ownership independently of its effective printed view.
+	 * @param member - Original declaration or inherited accessor view.
+	 * @returns Portable syntax and documentation references.
+	 */
+	function createDeclaredMember(member: DeclaredMemberFact): ModelDeclaredMember {
+		// Store the pair link, not a combined documentation flag, so readers can inspect either original comment.
+		return {
+			...createItem(member.id, member.documentationContext),
+			...(member.pairedAccessor === undefined
+				? {}
+				: { pairedAccessor: member.pairedAccessor }),
+			source: createModelSource(member),
+			printed: member.printed,
+			...(member.staticTarget === undefined ? {} : { staticTarget: member.staticTarget }),
 		};
 	}
 
@@ -262,14 +295,8 @@ export function createModelGraph(
 								prefix: declaration.container.prefix,
 								suffix: declaration.container.suffix,
 								supported: declaration.container.supported,
-								declaredMembers: declaration.container.declaredMembers.map((declared) => ({
-									...createItem(declared.id, declared.documentationContext),
-									source: createModelSource(declared),
-									printed: declared.printed,
-									...(declared.staticTarget === undefined
-										? {}
-										: { staticTarget: declared.staticTarget }),
-								})),
+								declaredMembers:
+									declaration.container.declaredMembers.map(createDeclaredMember),
 								...(declaration.container.interfaceSuffix === undefined
 									? {}
 									: { interfaceSuffix: declaration.container.interfaceSuffix }),
@@ -343,6 +370,7 @@ function createContentExcerpt(text: string): CodeExcerpt {
  * @returns Items that can reference documentation or declaring containers.
  */
 export function collectModelItems(graph: ModelGraph): readonly ModelItem[] {
+	// Inherited accessors can reference documentation owned by another package; include them in graph checks.
 	return graph.declarations.flatMap((declaration) => [
 		declaration,
 		...declaration.signatures,
@@ -350,8 +378,87 @@ export function collectModelItems(graph: ModelGraph): readonly ModelItem[] {
 		...[
 			declaration.members,
 			...declaration.heritage.map((heritage) => heritage.members),
-		].flatMap((members) => members.flatMap((member) => [member, ...member.signatures])),
+		].flatMap((members) =>
+			members.flatMap((member) => [member, ...member.signatures, ...(member.accessors ?? [])]),
+		),
 	]);
+}
+
+/**
+ * Checks reciprocal getter/setter links without interpreting printed names or merging documentation.
+ * @param members - Original declared members of one container.
+ * @param container - Owning declaration identity.
+ * @returns Whether all recorded pairs refer to opposite accessor kinds on the same member side.
+ */
+function hasValidAccessorPairs(
+	members: readonly ModelDeclaredMember[],
+	container: string,
+): boolean {
+	const byId = new Map(members.map((member) => [member.id, member]));
+	return members.every((member) => {
+		if (member.pairedAccessor === undefined) {
+			return true;
+		}
+
+		// Resolve within this container; a global ID match alone does not establish a valid pair.
+		// Reciprocal links and opposite kinds reject self-links, while staticTarget distinguishes member sides.
+		const partner = byId.get(member.pairedAccessor);
+		return (
+			partner?.pairedAccessor === member.id &&
+			member.declaringContainer === container &&
+			partner.declaringContainer === container &&
+			member.staticTarget === partner.staticTarget &&
+			member.documentationId !== undefined &&
+			partner.documentationId !== undefined &&
+			((member.source.kind === "GetAccessor" && partner.source.kind === "SetAccessor") ||
+				(member.source.kind === "SetAccessor" && partner.source.kind === "GetAccessor"))
+		);
+	});
+}
+
+/**
+ * Checks an inherited accessor view against its member sources and original declared accessor.
+ *
+ * @remarks
+ * Inherited instance views cannot carry static targets. Source locations, documentation identities,
+ * pair links, and declaring-container ownership must agree with the original record.
+ * Printed text is not compared because generic substitution can change the displayed types.
+ *
+ * @param accessor - Expanded inherited accessor view to validate.
+ * @param member - Effective member whose source declarations must include this accessor.
+ * @param owner - Original declaring container, already resolved from the model graph.
+ * @returns Whether the view retains a matching source and original accessor record.
+ */
+function isValidInheritedAccessor(
+	accessor: ModelDeclaredMember,
+	member: ModelMember,
+	owner: ModelDeclaration,
+): boolean {
+	if (
+		accessor.staticTarget !== undefined ||
+		!member.sources.some(
+			(source) =>
+				source.kind === accessor.source.kind &&
+				source.packageName === accessor.source.packageName &&
+				source.file === accessor.source.file &&
+				source.start === accessor.source.start,
+		)
+	) {
+		return false;
+	}
+	return (
+		owner.container?.declaredMembers.some(
+			(original) =>
+				original.id === accessor.id &&
+				original.documentationId === accessor.documentationId &&
+				original.pairedAccessor === accessor.pairedAccessor &&
+				accessor.declaringContainer === owner.id &&
+				original.source.kind === accessor.source.kind &&
+				original.source.packageName === accessor.source.packageName &&
+				original.source.file === accessor.source.file &&
+				original.source.start === accessor.source.start,
+		) === true
+	);
 }
 
 /**
@@ -368,6 +475,9 @@ export function validateModelGraph(
 ): Result {
 	// The schema validates record shapes. These indexes establish that relationships reach stored records.
 	const declarations = new Set(graph.declarations.map((declaration) => declaration.id));
+	const containers = new Map(
+		graph.declarations.map((declaration) => [declaration.id, declaration]),
+	);
 	const references: string[] = [];
 	const excerpts: CodeExcerpt[] = [];
 	const items: ModelItem[] = [];
@@ -380,6 +490,12 @@ export function validateModelGraph(
 		references.push(...surface.exports.map((binding) => binding.target));
 	}
 	for (const declaration of graph.declarations) {
+		if (!hasValidAccessorPairs(declaration.container?.declaredMembers ?? [], declaration.id)) {
+			return reportFailure(
+				DiagnosticCode.DependencyModel,
+				`Dependency ${packageName}: declaration ${declaration.name} has inconsistent accessor-pair metadata. Regenerate its model.`,
+			);
+		}
 		excerpts.push(
 			...declaration.sources.map((source) => source.excerpt),
 			...(declaration.container?.declaredMembers.map((member) => member.source.excerpt) ?? []),
@@ -408,6 +524,33 @@ export function validateModelGraph(
 			for (const member of members) {
 				excerpts.push(...member.sources.map((source) => source.excerpt));
 				items.push(member, ...member.signatures);
+				if (member.accessors !== undefined) {
+					// Empty views intentionally defer to heritage, but must still identify their original owner.
+					const owner =
+						member.declaringContainer === undefined
+							? undefined
+							: containers.get(member.declaringContainer);
+
+					if (
+						owner === undefined ||
+						!member.sources.every(
+							(source) => source.kind === "GetAccessor" || source.kind === "SetAccessor",
+						) ||
+						member.accessors.some(
+							(accessor) => !isValidInheritedAccessor(accessor, member, owner),
+						)
+					) {
+						return reportFailure(
+							DiagnosticCode.DependencyModel,
+							`Dependency ${packageName}: inherited accessor ${member.name} has inconsistent declaring-member metadata.`,
+						);
+					}
+					duplicate ||=
+						new Set(member.accessors.map((accessor) => accessor.id)).size !==
+						member.accessors.length;
+					items.push(...member.accessors);
+					excerpts.push(...member.accessors.map((accessor) => accessor.source.excerpt));
+				}
 			}
 		}
 	}

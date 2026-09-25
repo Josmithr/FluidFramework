@@ -193,6 +193,23 @@ export interface ModelSignature extends ModelItem {
  */
 export interface ModelMember extends ModelItem {
 	/**
+	 * Original non-public accessibility, independent of the receiving type.
+	 * @defaultValue Omitted for public members or unavailable source modifiers.
+	 */
+	readonly visibility?: "private" | "protected" | undefined;
+
+	/**
+	 * Inherited accessor syntax with effective types and original declaring-member identities.
+	 *
+	 * @remarks
+	 * An empty array means the accessors remain represented by the base relationship and original sources.
+	 * The compiler could not safely expand a distinct generic setter type into the receiving declaration.
+	 *
+	 * @defaultValue Omitted for ordinary members and directly declared accessors.
+	 */
+	readonly accessors?: readonly ModelDeclaredMember[] | undefined;
+
+	/**
 	 * Complete compiler-printed type excerpt with resolved reference tokens.
 	 * Formatting can differ from the compact type string; tokens are authoritative for linked display.
 	 */
@@ -248,12 +265,25 @@ export interface ModelMember extends ModelItem {
  */
 export interface ModelDeclaredMember extends ModelItem {
 	/**
+	 * Identity of the paired getter or setter in the original container's declared members.
+	 *
+	 * @remarks
+	 * The relationship is reciprocal and preserved on inherited accessor views.
+	 * Resolve each accessor's documentationId in the selected model set and treat the pair as documented
+	 * when either documentation record has documented set to true. Do not replace the individual comments or tags.
+	 *
+	 * @defaultValue Omitted for standalone accessors and other member kinds.
+	 */
+	readonly pairedAccessor?: string | undefined;
+
+	/**
 	 * Original member syntax and location.
 	 */
 	readonly source: ModelSource;
 
 	/**
 	 * Compiler-printed member declaration without source trivia.
+	 * Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.
 	 */
 	readonly printed: string;
 

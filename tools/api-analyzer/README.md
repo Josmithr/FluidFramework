@@ -284,6 +284,32 @@ Single-declaration non-callable properties retain `MemberFact.documentationConte
 Analysis classifies and resolves these comments under member identifiers, without creating synthetic signatures.
 Callable properties use their property comments for classification and remain properties in reports.
 Declared constructors, static members, accessors, and signature declarations retain separate comment and printed-syntax records.
+Inherited accessor views reuse the original getter/setter identities, documentation, and declaring container, with compiler-resolved types for the receiver.
+Reports retain getter/setter syntax, including getter-only and setter-only members, and annotate the original declaring class.
+Protected fields, methods, and accessors retain protected visibility; local overrides use their own accessibility and documentation.
+Base-private members, including private identifiers, remain on their declaring class and in model source records; they are not redeclared in derived reports.
+Portable members record non-public `visibility` and optional inherited `accessors` separately from ordinary callable signatures.
+Decoder validation checks that accessor views refer to original members on the recorded declaring container.
+
+Getter/setter pairs share documentation presence, consistent with IntelliSense accepting documentation from either accessor.
+When either accessor has descriptive effective documentation, neither receives an `(undocumented)` report annotation.
+If neither has descriptive content, both remain undocumented; empty and metadata-only comments do not count as descriptive content.
+Standalone getters and setters are evaluated independently.
+This policy applies to declared and inherited pairs, including static and computed-name properties.
+It does not copy or concatenate comments, tags, links, or provenance between accessor records.
+
+`ModelDeclaredMember.pairedAccessor` identifies the other accessor in the original container's declared members.
+The relationship is reciprocal and retained on inherited views; standalone accessors omit it.
+Model readers can follow the link, resolve each accessor's `documentationId` from the selected model set, and combine the two `documentation.documented` flags with logical OR.
+Individual documentation records retain their original status and content, so consumers can also display both comments without reparsing declaration text.
+Decoder validation rejects missing, non-reciprocal, incompatible-kind, and cross-container or member-side pair links.
+
+The pinned compiler does not expose a substituted write type for a generic getter/setter pair whose read and write types differ.
+For that case, the report retains the existing `extends` relationship without expanding either accessor.
+The model records an empty `accessors` array, the declaring container, and original sources, so the fallback is explicit.
+This avoids narrowing a wider setter or emitting an unbound type parameter.
+Equal read/write types, getter-only members, setter-only members, and non-generic pairs with distinct types expand normally.
+The [cross-package regression](src/test/suite.test.ts) compiles original and report declarations with both producers and checks accessor assignability, protected access, local overrides, and detached outputs.
 Automatic accessor inheritance and broader explicit reference forms remain incomplete.
 Heritage comparison views do not receive lookup contexts or separate classification.
 Conservative ancestor matching is described below.

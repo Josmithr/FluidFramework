@@ -320,6 +320,30 @@ export interface SignatureFact extends SignatureText {
  */
 export interface MemberFact {
 	/**
+	 * Explicit non-public visibility of the original member.
+	 * @defaultValue Omitted for public members or unavailable source modifiers.
+	 */
+	readonly visibility?: "private" | "protected";
+
+	/**
+	 * Original container of an inherited accessor view.
+	 * @defaultValue Omitted when no inherited accessor view is captured.
+	 */
+	readonly declaringContainer?: ApiItemId;
+
+	/**
+	 * Inherited accessor declarations with effective syntax and original documentation identities.
+	 *
+	 * @remarks
+	 * An empty array preserves the accessors through the base relationship instead of expanding them.
+	 * This occurs when the compiler cannot supply a distinct substituted setter type.
+	 * Original declarations remain on the declaring container and in this member's source records.
+	 *
+	 * @defaultValue Omitted for non-accessors, directly declared accessors, or extraction without ownership state.
+	 */
+	readonly accessors?: readonly DeclaredMemberFact[];
+
+	/**
 	 * Imports used by the effective member name and type.
 	 * @defaultValue Omitted when no import bindings are needed.
 	 */
@@ -1150,6 +1174,18 @@ export interface DeclarationFact {
  * An independently documented constructor, static member, accessor, or signature declaration.
  */
 export interface DeclaredMemberFact extends SourceDeclarationFact {
+	/**
+	 * Original declared-member identity of the other accessor for this property.
+	 *
+	 * @remarks
+	 * Getter and setter records refer to each other within their original declaring container.
+	 * Either accessor's descriptive documentation makes the pair documented for presentation.
+	 * Original comments and release metadata remain separate.
+	 *
+	 * @defaultValue Omitted for standalone accessors and other member kinds.
+	 */
+	readonly pairedAccessor?: ApiItemId;
+
 	/**
 	 * The collected declaration identity of a named static or enum member.
 	 * @defaultValue Omitted for constructors, instance members, and declarations without a name.

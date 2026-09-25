@@ -198,6 +198,16 @@
         "exports": []
       },
       {
+        "name": "./inheritance",
+        "exports": [
+          {
+            "name": "PrivateDerived",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+            "typeOnly": false
+          }
+        ]
+      },
+      {
         "name": "./namespace",
         "exports": [
           {
@@ -1937,6 +1947,7 @@
               "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
+              "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
               "source": {
                 "packageName": "@scenario/primary",
                 "file": "lib/containers.d.ts",
@@ -1964,6 +1975,7 @@
               "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
               "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
               "references": [],
+              "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
               "source": {
                 "packageName": "@scenario/primary",
                 "file": "lib/containers.d.ts",
@@ -1995,6 +2007,7 @@
             "documentationId": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"current\"]",
             "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
             "references": [],
+            "visibility": "private",
             "typeExcerpt": {
               "tokens": [
                 {
@@ -2195,6 +2208,7 @@
             "documentationId": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"revision\"]",
             "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
             "references": [],
+            "visibility": "protected",
             "typeExcerpt": {
               "tokens": [
                 {
@@ -5743,6 +5757,753 @@
         ]
       },
       {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+        "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+        "references": [
+          {
+            "text": "Store",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+            "origin": {
+              "packageName": "@scenario/primary",
+              "file": "lib/privateInheritance.d.ts",
+              "start": 164
+            }
+          }
+        ],
+        "name": "PrivateDerived",
+        "sources": [
+          {
+            "packageName": "@scenario/primary",
+            "file": "lib/privateInheritance.d.ts",
+            "start": 40,
+            "kind": "ClassDeclaration",
+            "text": "\n/**\n * Derived store with inherited private and protected state.\n * @public\n */\nexport declare class PrivateDerived extends Store {\n}",
+            "documentation": "/**\n * Derived store with inherited private and protected state.\n * @public\n */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n/**\n * Derived store with inherited private and protected state.\n * @public\n */\nexport declare class PrivateDerived extends "
+                },
+                {
+                  "kind": "Reference",
+                  "text": "Store",
+                  "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]"
+                },
+                {
+                  "kind": "Content",
+                  "text": " {\n}"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 3
+              }
+            }
+          }
+        ],
+        "type": "PrivateDerived",
+        "container": {
+          "kind": "class",
+          "prefix": "class ",
+          "suffix": " extends Store",
+          "supported": true,
+          "declaredMembers": []
+        },
+        "memberView": "complete",
+        "limitations": [],
+        "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+            "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+            "references": [],
+            "visibility": "private",
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "any"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "current",
+            "referenceName": "current",
+            "type": "any",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "@scenario/primary",
+                "file": "lib/containers.d.ts",
+                "start": 784,
+                "kind": "PropertyDeclaration",
+                "text": "\n    private current;",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    private current;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "() => string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "get",
+            "referenceName": "get",
+            "type": "() => string",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "@scenario/primary",
+                "file": "lib/containers.d.ts",
+                "start": 1077,
+                "kind": "MethodDeclaration",
+                "text": "\n    /** Returns the stored value. */\n    get(): string;",
+                "documentation": "/** Returns the stored value. */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /** Returns the stored value. */\n    get(): string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": [
+              {
+                "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "documentationId": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+                "references": [],
+                "source": {
+                  "packageName": "@scenario/primary",
+                  "file": "lib/containers.d.ts",
+                  "start": 1077,
+                  "kind": "MethodDeclaration",
+                  "text": "\n    /** Returns the stored value. */\n    get(): string;",
+                  "documentation": "/** Returns the stored value. */",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n    /** Returns the stored value. */\n    get(): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "effective": {
+                  "callSignatureText": "(): string;",
+                  "functionTypeText": "() => string",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "() => string"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "reduced": {
+                  "callSignatureText": "(): string;",
+                  "functionTypeText": "() => string",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "() => string"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "normalized": {
+                  "callSignatureText": "(): string;",
+                  "functionTypeText": "() => string",
+                  "callSignatureExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "(): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  },
+                  "functionTypeExcerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "() => string"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+            "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+            "references": [],
+            "visibility": "protected",
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "number"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "revision",
+            "referenceName": "revision",
+            "type": "number",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "@scenario/primary",
+                "file": "lib/containers.d.ts",
+                "start": 805,
+                "kind": "PropertyDeclaration",
+                "text": "\n    /** Protected subclass state. */\n    protected revision: number;",
+                "documentation": "/** Protected subclass state. */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /** Protected subclass state. */\n    protected revision: number;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"value\"]",
+            "references": [],
+            "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+            "accessors": [
+              {
+                "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+                "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+                "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+                "references": [],
+                "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+                "source": {
+                  "packageName": "@scenario/primary",
+                  "file": "lib/containers.d.ts",
+                  "start": 997,
+                  "kind": "GetAccessor",
+                  "text": "\n    /** Stored value. */\n    get value(): string;",
+                  "documentation": "/** Stored value. */",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n    /** Stored value. */\n    get value(): string;"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "printed": "get value(): string;"
+              },
+              {
+                "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+                "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:bbff3982f1f77655ece8a16230eff7517442ecefab2a8c8d35fbf533e73e7d13",
+                "declaringContainer": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+                "references": [],
+                "pairedAccessor": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:5329f0e5dd8091dd7503924ddfe3f3561cf868cb4c2880154ba15e595506abf3",
+                "source": {
+                  "packageName": "@scenario/primary",
+                  "file": "lib/containers.d.ts",
+                  "start": 1047,
+                  "kind": "SetAccessor",
+                  "text": "\n    set value(value: string);",
+                  "excerpt": {
+                    "tokens": [
+                      {
+                        "kind": "Content",
+                        "text": "\n    set value(value: string);"
+                      }
+                    ],
+                    "tokenRange": {
+                      "startIndex": 0,
+                      "endIndex": 1
+                    }
+                  }
+                },
+                "printed": "set value(value: string);"
+              }
+            ],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "value",
+            "referenceName": "value",
+            "type": "string",
+            "optional": false,
+            "readonly": false,
+            "sources": [
+              {
+                "packageName": "@scenario/primary",
+                "file": "lib/containers.d.ts",
+                "start": 997,
+                "kind": "GetAccessor",
+                "text": "\n    /** Stored value. */\n    get value(): string;",
+                "documentation": "/** Stored value. */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /** Stored value. */\n    get value(): string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              },
+              {
+                "packageName": "@scenario/primary",
+                "file": "lib/containers.d.ts",
+                "start": 1047,
+                "kind": "SetAccessor",
+                "text": "\n    set value(value: string);",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    set value(value: string);"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          }
+        ],
+        "signatures": [],
+        "baseDeclarations": [
+          "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]"
+        ],
+        "implementedDeclarations": [],
+        "heritage": [
+          {
+            "kind": "extends",
+            "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]",
+            "members": [
+              {
+                "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/privateInheritance.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"PrivateDerived\\\\\\\"]\\\",\\\"extends\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/containers.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Store\\\\\\\"]\\\",\\\"Store\\\"]\",\"current\"]",
+                "references": [],
+                "visibility": "private",
+                "typeExcerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "any"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                },
+                "name": "current",
+                "referenceName": "current",
+                "type": "any",
+                "optional": false,
+                "readonly": false,
+                "sources": [
+                  {
+                    "packageName": "@scenario/primary",
+                    "file": "lib/containers.d.ts",
+                    "start": 784,
+                    "kind": "PropertyDeclaration",
+                    "text": "\n    private current;",
+                    "excerpt": {
+                      "tokens": [
+                        {
+                          "kind": "Content",
+                          "text": "\n    private current;"
+                        }
+                      ],
+                      "tokenRange": {
+                        "startIndex": 0,
+                        "endIndex": 1
+                      }
+                    }
+                  }
+                ],
+                "signatures": []
+              },
+              {
+                "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/privateInheritance.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"PrivateDerived\\\\\\\"]\\\",\\\"extends\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/containers.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Store\\\\\\\"]\\\",\\\"Store\\\"]\",\"get\"]",
+                "references": [],
+                "typeExcerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "() => string"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                },
+                "name": "get",
+                "referenceName": "get",
+                "type": "() => string",
+                "optional": false,
+                "readonly": false,
+                "sources": [
+                  {
+                    "packageName": "@scenario/primary",
+                    "file": "lib/containers.d.ts",
+                    "start": 1077,
+                    "kind": "MethodDeclaration",
+                    "text": "\n    /** Returns the stored value. */\n    get(): string;",
+                    "documentation": "/** Returns the stored value. */",
+                    "excerpt": {
+                      "tokens": [
+                        {
+                          "kind": "Content",
+                          "text": "\n    /** Returns the stored value. */\n    get(): string;"
+                        }
+                      ],
+                      "tokenRange": {
+                        "startIndex": 0,
+                        "endIndex": 1
+                      }
+                    }
+                  }
+                ],
+                "signatures": [
+                  {
+                    "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/privateInheritance.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"PrivateDerived\\\\\\\"]\\\",\\\"extends\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/containers.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Store\\\\\\\"]\\\",\\\"Store\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+                    "references": [],
+                    "source": {
+                      "packageName": "@scenario/primary",
+                      "file": "lib/containers.d.ts",
+                      "start": 1077,
+                      "kind": "MethodDeclaration",
+                      "text": "\n    /** Returns the stored value. */\n    get(): string;",
+                      "documentation": "/** Returns the stored value. */",
+                      "excerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "\n    /** Returns the stored value. */\n    get(): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    },
+                    "effective": {
+                      "callSignatureText": "(): string;",
+                      "functionTypeText": "() => string",
+                      "callSignatureExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      },
+                      "functionTypeExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "() => string"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    },
+                    "reduced": {
+                      "callSignatureText": "(): string;",
+                      "functionTypeText": "() => string",
+                      "callSignatureExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      },
+                      "functionTypeExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "() => string"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    },
+                    "normalized": {
+                      "callSignatureText": "(): string;",
+                      "functionTypeText": "() => string",
+                      "callSignatureExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "(): string;"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      },
+                      "functionTypeExcerpt": {
+                        "tokens": [
+                          {
+                            "kind": "Content",
+                            "text": "() => string"
+                          }
+                        ],
+                        "tokenRange": {
+                          "startIndex": 0,
+                          "endIndex": 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/privateInheritance.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"PrivateDerived\\\\\\\"]\\\",\\\"extends\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/containers.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Store\\\\\\\"]\\\",\\\"Store\\\"]\",\"revision\"]",
+                "references": [],
+                "visibility": "protected",
+                "typeExcerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "number"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                },
+                "name": "revision",
+                "referenceName": "revision",
+                "type": "number",
+                "optional": false,
+                "readonly": false,
+                "sources": [
+                  {
+                    "packageName": "@scenario/primary",
+                    "file": "lib/containers.d.ts",
+                    "start": 805,
+                    "kind": "PropertyDeclaration",
+                    "text": "\n    /** Protected subclass state. */\n    protected revision: number;",
+                    "documentation": "/** Protected subclass state. */",
+                    "excerpt": {
+                      "tokens": [
+                        {
+                          "kind": "Content",
+                          "text": "\n    /** Protected subclass state. */\n    protected revision: number;"
+                        }
+                      ],
+                      "tokenRange": {
+                        "startIndex": 0,
+                        "endIndex": 1
+                      }
+                    }
+                  }
+                ],
+                "signatures": []
+              },
+              {
+                "id": "member:[\"heritage:[\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/privateInheritance.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"PrivateDerived\\\\\\\"]\\\",\\\"extends\\\",\\\"[[\\\\\\\"[\\\\\\\\\\\\\\\"@scenario/primary\\\\\\\\\\\\\\\",\\\\\\\\\\\\\\\"lib/containers.d.ts\\\\\\\\\\\\\\\"]\\\\\\\"],\\\\\\\"Store\\\\\\\"]\\\",\\\"Store\\\"]\",\"value\"]",
+                "references": [],
+                "typeExcerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "string"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                },
+                "name": "value",
+                "referenceName": "value",
+                "type": "string",
+                "optional": false,
+                "readonly": false,
+                "sources": [
+                  {
+                    "packageName": "@scenario/primary",
+                    "file": "lib/containers.d.ts",
+                    "start": 997,
+                    "kind": "GetAccessor",
+                    "text": "\n    /** Stored value. */\n    get value(): string;",
+                    "documentation": "/** Stored value. */",
+                    "excerpt": {
+                      "tokens": [
+                        {
+                          "kind": "Content",
+                          "text": "\n    /** Stored value. */\n    get value(): string;"
+                        }
+                      ],
+                      "tokenRange": {
+                        "startIndex": 0,
+                        "endIndex": 1
+                      }
+                    }
+                  },
+                  {
+                    "packageName": "@scenario/primary",
+                    "file": "lib/containers.d.ts",
+                    "start": 1047,
+                    "kind": "SetAccessor",
+                    "text": "\n    set value(value: string);",
+                    "excerpt": {
+                      "tokens": [
+                        {
+                          "kind": "Content",
+                          "text": "\n    set value(value: string);"
+                        }
+                      ],
+                      "tokenRange": {
+                        "startIndex": 0,
+                        "endIndex": 1
+                      }
+                    }
+                  }
+                ],
+                "signatures": []
+              }
+            ]
+          }
+        ],
+        "exports": []
+      },
+      {
         "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
         "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
         "references": [],
@@ -7045,6 +7806,10 @@
     {
       "file": "lib/namespaceExport.d.ts",
       "sha256": "01c0fa7d34f3a966d0b453d15ecdaba547836d73c313688686f953699302c0f6"
+    },
+    {
+      "file": "lib/privateInheritance.d.ts",
+      "sha256": "1b52bf8a73ea1ec846e50eba18faea40ed634800b19d74cc84deeb7996c5e576"
     },
     {
       "file": "lib/types.d.ts",
@@ -8820,6 +9585,45 @@
       }
     },
     {
+      "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+      "name": "PrivateDerived",
+      "kind": "ClassDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "ClassDeclaration"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/privateInheritance.d.ts",
+        "start": 40
+      },
+      "typeParameters": [],
+      "metadata": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "documentation": "/**\n * Derived store with inherited private and protected state.\n *\n * @public\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
       "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"Choice\"]",
       "name": "Choice",
@@ -10236,6 +11040,121 @@
       }
     },
     {
+      "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+      "name": "current",
+      "kind": "PropertyDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "PropertyDeclaration"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/containers.d.ts",
+        "start": 784
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": false,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+      "name": "get",
+      "kind": "MethodDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "MethodDeclaration"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/containers.d.ts",
+        "start": 1077
+      },
+      "parameters": [],
+      "typeParameters": [],
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "documentation": "/**\n * Returns the stored value.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+      "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]",
+      "name": "revision",
+      "kind": "PropertyDeclaration",
+      "labels": [],
+      "declarationKinds": [
+        "PropertyDeclaration"
+      ],
+      "origin": {
+        "packageName": "@scenario/primary",
+        "file": "lib/containers.d.ts",
+        "start": 805
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+            "packageName": "@scenario/primary",
+            "section": "summary"
+          }
+        ],
+        "packageName": "@scenario/primary",
+        "documentation": "/**\n * Protected subclass state.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
       "id": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/types.d.ts\\\\\\\"]\\\"],\\\"OptionalRecord\\\"]\",\"count\"]",
       "declarationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/types.d.ts\\\"]\"],\"OptionalRecord\"]",
       "name": "count",
@@ -11262,6 +12181,52 @@
         "[[\"[\\\"@scenario/primary\\\",\\\"lib/values.d.ts\\\"]\"],\"version\"]"
       ],
       "typeOnly": false
+    },
+    {
+      "entrypoint": "./inheritance",
+      "path": [
+        "PrivateDerived"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/privateInheritance.d.ts\\\"]\"],\"PrivateDerived\"]"
+      ],
+      "typeOnly": false
+    },
+    {
+      "entrypoint": "./inheritance",
+      "path": [
+        "PrivateDerived",
+        "current"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"current\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": "./inheritance",
+      "path": [
+        "PrivateDerived",
+        "get"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"get\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": "./inheritance",
+      "path": [
+        "PrivateDerived",
+        "revision"
+      ],
+      "items": [
+        "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
     },
     {
       "entrypoint": "./namespace",

@@ -90,6 +90,7 @@ Status: open; follow-up to the [Stage 0 findings](../README.md#stage-0-results).
 
 - Create a minimal standalone reproduction of the async native-process termination issue. Show that the pending request does not reject as expected.
 - Create minimal reproductions for other suspected TypeScript defects encountered during this project. Remove repository-specific dependencies and unrelated behavior.
+- Investigate a public native-checker query for instantiated accessor write types. A generic getter/setter pair can have different read/write types; the current report retains that pair through heritage and records an empty inherited accessor view instead of narrowing the setter. See the [member contract](../README.md#effective-member-identities-and-signatures).
 - Record the compiler version, Node.js version, operating system, reproduction command, and expected and actual results. Retest against the latest published tooling without changing the project's pinned dependency merely to prepare a report.
 - Check existing upstream issues before filing. Add evidence to an applicable report or file a new TypeScript bug when appropriate. Distinguish missing API capabilities from implementation defects.
 - Link upstream reports to the local regression tests and findings. Keep unresolved cases visible and verify fixes before closing them locally.

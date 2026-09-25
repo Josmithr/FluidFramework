@@ -34,6 +34,8 @@ import {
 	updateParameterDeclaration,
 	updateInterfaceDeclaration,
 	createHeritageClause,
+	updateGetAccessorDeclaration,
+	updateSetAccessorDeclaration,
 } from "typescript/unstable/ast/factory";
 import {
 	isExportDeclaration,
@@ -62,6 +64,8 @@ import {
 	isImportTypeNode,
 	isExpressionWithTypeArguments,
 	isComputedPropertyName,
+	isGetAccessorDeclaration,
+	isSetAccessorDeclaration,
 } from "typescript/unstable/ast/is";
 import {
 	API,
@@ -1753,6 +1757,19 @@ export function extractMembers(
 			const sourceDeclarations = property.declarations.map((handle) =>
 				extractSourceDeclaration(locations, handle, compiler),
 			);
+			const visibility = getMemberVisibility(nodes);
+			const accessorView =
+				state === undefined
+					? {}
+					: extractInheritedAccessors(
+							compiler,
+							locations,
+							state,
+							property,
+							propertyType,
+							owner,
+							nodes,
+						);
 			const propertyContext =
 				state &&
 				nodes.length > 0 &&
@@ -1781,6 +1798,8 @@ export function extractMembers(
 					: [];
 			return {
 				id,
+				...(visibility === undefined ? {} : { visibility }),
+				...accessorView,
 				imports: [
 					...nameImports,
 					...(typeNode === undefined
@@ -1845,6 +1864,171 @@ export function extractMembers(
 			};
 		})
 		.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+}
+
+/**
+ * Reads original accessibility without interpreting compiler-printed text.
+ * @param nodes - Original declarations contributing to an effective member.
+ * @returns Non-public visibility, or undefined for ordinary public members.
+ */
+function getMemberVisibility(nodes: readonly Node[]): MemberFact["visibility"] {
+	for (const node of nodes) {
+		// ECMAScript private names have no private modifier, but must not appear as derived declarations.
+		if (
+			"name" in node &&
+			(node.name as Node | undefined)?.kind === SyntaxKind.PrivateIdentifier
+		) {
+			return "private";
+		}
+		if ("modifiers" in node && Array.isArray(node.modifiers)) {
+			if (
+				node.modifiers.some((modifier: Node) => modifier.kind === SyntaxKind.PrivateKeyword)
+			) {
+				return "private";
+			}
+			if (
+				node.modifiers.some((modifier: Node) => modifier.kind === SyntaxKind.ProtectedKeyword)
+			) {
+				return "protected";
+			}
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Joins inherited getter/setter syntax to original declaring-member metadata.
+ * @param compiler - Active compiler services.
+ * @param locations - Original package ownership settings.
+ * @param state - Invocation-owned declaration collection.
+ * @param property - Effective property symbol, including generic substitution.
+ * @param propertyType - Effective read type, or write type for a setter-only property.
+ * @param owner - Receiving declaration or heritage-view identity.
+ * @param nodes - Original member declarations.
+ * @returns Inherited accessor syntax; an empty view retains unresolved write types through heritage.
+ */
+function extractInheritedAccessors(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	property: CompilerSymbol,
+	propertyType: Type,
+	owner: ApiItemId,
+	nodes: readonly Node[],
+): Pick<MemberFact, "accessors" | "declaringContainer"> {
+	const original = nodes[0];
+	if (
+		original === undefined ||
+		!nodes.every((node) => isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node))
+	) {
+		return {};
+	}
+	const declaringContainer = collectDeclaringContainer(compiler, locations, state, original);
+
+	// Direct accessors already have declared-member records; only inherited views need substituted syntax.
+	if (declaringContainer === undefined || declaringContainer === owner) {
+		return {};
+	}
+	const getter = nodes.find(isGetAccessorDeclaration);
+	const setter = nodes.find(isSetAccessorDeclaration);
+	let writeType = propertyType;
+	if (getter !== undefined && setter !== undefined) {
+		// Compare types in the original declaration before reusing the receiver's substituted read type.
+		// A setter may accept more values than the getter returns.
+		const originalSymbol = assertDefined(compiler.checker.getSymbolAtLocation(getter.name));
+		const readType = compiler.checker.getTypeOfSymbol(originalSymbol);
+		const setterType = compiler.checker.getTypeOfSymbolAtLocation(property, setter.name);
+		if (readType?.id !== setterType.id) {
+			// TODO: Expand distinct generic setter types when the native checker exposes their instantiated write type.
+			// The native write-type query retains original type parameters. Keep these accessors in the base
+			// instead of narrowing the setter to the substituted read type or emitting an unbound parameter.
+			if (
+				"typeParameters" in setter.parent &&
+				((setter.parent.typeParameters as readonly Node[] | undefined)?.length ?? 0) > 0
+			) {
+				return { declaringContainer, accessors: [] };
+			}
+			writeType = setterType;
+		}
+	}
+	const accessors = nodes.map((node) => {
+		assert(
+			isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node),
+			"Accessor views require accessor declarations.",
+		);
+		const effectiveType = isGetAccessorDeclaration(node) ? propertyType : writeType;
+		const typeNode = assertDefined(
+			compiler.checker.typeToTypeNode(effectiveType, node, NodeBuilderFlags.NoTruncation),
+		);
+
+		// Identity uses original syntax, not the substituted type, so all receivers share the source docs.
+		const clone = getSynthesizedDeepClone(node);
+		const printedOriginal = compiler.emitter.printNode(clone).trim();
+		const id = `${declaringContainer}:declared:${createHash("sha256").update(printedOriginal).digest("hex")}`;
+		const source = getOrigin(locations, node.getSourceFile().fileName, node.pos);
+
+		// Reuse completed source records when available; recursive collection may still be building the base.
+		const record =
+			state.declarations
+				.get(declaringContainer)
+				?.container?.declaredMembers.find((member) => member.id === id) ??
+			createDeclaredMemberRecord(
+				compiler,
+				locations,
+				state,
+				node,
+				source,
+				id,
+				printedOriginal,
+			);
+		let effective: Node;
+		if (isGetAccessorDeclaration(clone)) {
+			effective = updateGetAccessorDeclaration(
+				clone,
+				clone.modifiers,
+				clone.name,
+				undefined,
+				clone.parameters,
+				typeNode,
+				undefined,
+			);
+		} else {
+			assert(isSetAccessorDeclaration(clone), "Setter clones must retain their syntax kind.");
+			effective = updateSetAccessorDeclaration(
+				clone,
+				clone.modifiers,
+				clone.name,
+				undefined,
+				clone.parameters.map((parameter) =>
+					updateParameterDeclaration(
+						parameter,
+						parameter.modifiers,
+						parameter.dotDotDotToken,
+						parameter.name,
+						parameter.questionToken,
+						typeNode,
+						undefined,
+					),
+				),
+				undefined,
+				undefined,
+			);
+		}
+
+		// Display syntax and its imports can change after substitution; source text and metadata must not.
+		return {
+			...record,
+			printed: compiler.emitter.printNode(effective).trim(),
+			imports:
+				captureImports(
+					compiler,
+					effective,
+					node,
+					createExcerptTargetResolver(compiler, locations),
+				).imports ?? [],
+		};
+	});
+	return { declaringContainer, accessors };
 }
 
 /**
@@ -3095,18 +3279,14 @@ function extractContainerSyntax(
  */
 function needsDeclaredMemberRecord(member: Node): boolean {
 	return (
+		getMemberVisibility([member]) !== undefined ||
 		(member.kind !== SyntaxKind.PropertyDeclaration &&
 			member.kind !== SyntaxKind.PropertySignature &&
 			member.kind !== SyntaxKind.MethodDeclaration &&
 			member.kind !== SyntaxKind.MethodSignature) ||
 		("modifiers" in member &&
 			Array.isArray(member.modifiers) &&
-			member.modifiers.some(
-				(modifier: Node) =>
-					modifier.kind === SyntaxKind.StaticKeyword ||
-					modifier.kind === SyntaxKind.PrivateKeyword ||
-					modifier.kind === SyntaxKind.ProtectedKeyword,
-			))
+			member.modifiers.some((modifier: Node) => modifier.kind === SyntaxKind.StaticKeyword))
 	);
 }
 
@@ -3152,8 +3332,19 @@ function createDeclaredMemberRecord(
 			resolveSymbolTarget(compiler.checker, symbol),
 		);
 	}
+	const documentationContext = createReferenceContext(
+		compiler,
+		locations,
+		state,
+		member,
+		location,
+		id,
+		documentation,
+	);
+	const pairedAccessor = getPairedAccessorId(compiler, member, documentationContext.container);
 	return {
 		...location,
+		...(pairedAccessor === undefined ? {} : { pairedAccessor }),
 		...captureImports(
 			compiler,
 			member,
@@ -3171,16 +3362,44 @@ function createDeclaredMemberRecord(
 		documentation,
 		id,
 		printed,
-		documentationContext: createReferenceContext(
-			compiler,
-			locations,
-			state,
-			member,
-			location,
-			id,
-			documentation,
-		),
+		documentationContext,
 	};
+}
+
+/**
+ * Identifies the other accessor from compiler declarations instead of comparing displayed member names.
+ * @param compiler - Active checker and emitter.
+ * @param member - Original member declaration.
+ * @param container - Original declaring-container identity; undefined means no pair can be recorded.
+ * @returns The other accessor's declared-member identity, or undefined for an unpaired member.
+ */
+function getPairedAccessorId(
+	compiler: CompilerContext,
+	member: Node,
+	container: ApiItemId | undefined,
+): ApiItemId | undefined {
+	if (
+		container === undefined ||
+		!(isGetAccessorDeclaration(member) || isSetAccessorDeclaration(member))
+	) {
+		return undefined;
+	}
+	const partnerKind = isGetAccessorDeclaration(member)
+		? SyntaxKind.SetAccessor
+		: SyntaxKind.GetAccessor;
+
+	// Symbol identity distinguishes static, instance, and computed keys; the parent check keeps ownership local.
+	const symbol = compiler.checker.getSymbolAtLocation(member.name);
+	const partner = symbol?.declarations
+		.map((handle) => handle.resolve())
+		.find((node) => node?.kind === partnerKind && node.parent === member.parent);
+	if (partner === undefined) {
+		return undefined;
+	}
+
+	// Match the original declared-member ID even if the partner has not been collected yet.
+	const printed = compiler.emitter.printNode(getSynthesizedDeepClone(partner)).trim();
+	return `${container}:declared:${createHash("sha256").update(printed).digest("hex")}`;
 }
 
 /**

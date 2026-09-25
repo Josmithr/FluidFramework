@@ -5,6 +5,7 @@
     { "name": ".", "path": "lib/index.d.ts" },
     { "name": "./values", "path": "lib/values.d.ts" },
     { "name": "./namespace", "path": "lib/namespaceExport.d.ts" },
+    { "name": "./inheritance", "path": "lib/privateInheritance.d.ts" },
     { "name": "./empty", "path": "lib/empty.d.ts" }
   ],
   "customModifierTags": ["@exampleTag"]

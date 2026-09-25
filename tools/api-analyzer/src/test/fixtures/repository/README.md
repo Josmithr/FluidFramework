@@ -65,17 +65,10 @@ The documented [module namespace entrypoint](primary/packages/primary/src/namesp
 The scenario loop checks complete/public reports, full model and documentation-index snapshots, and detached reuse for both declaration producers, including the [TS6 namespace report](../../snapshots/repository/primary/typescript6/primary.namespace.public.md) and [TS7 namespace report](../../snapshots/repository/primary/typescript/primary.namespace.public.md).
 Cross-package aliases, type-only paths, defaults, documentation links, and release validation are covered by the [suite tests](../../suite.test.ts).
 
-## Known report gaps
-
-These cases have non-skipped tests that require the current report rejection.
-Those tests make the limitations visible; they do not establish successful support or waive acceptance requirements.
-Convert each to successful artifact and consumer coverage when the corresponding behavior is implemented.
-
-| Input | Observed limitation |
-| --- | --- |
-| [privateInheritance.ts](primary/packages/primary/src/privateInheritance.ts) | A class inheriting private/protected members produces an unsupported-container report error. The successful primary example retains non-public members on the original class and uses a public abstract base for its derived-class example. |
-
-No production changes or validation opt-outs were added to make these cases pass.
+The [inherited-member entrypoint](primary/packages/primary/src/privateInheritance.ts) also participates in the primary scenario.
+Its public and complete reports preserve protected visibility and inherited getter/setter syntax without redeclaring base-private state.
+The model and source-free index retain the original accessor documentation identities.
+Generic accessor consumer checks and the distinct generic setter fallback are covered by the [suite fixtures](../suite/README.md).
 Trimmed declaration rollups and their TS6/TS7 consumer matrix remain Stage 4 work.
 
 ## Artifacts and isolation

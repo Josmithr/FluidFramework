@@ -7215,7 +7215,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/modelGraph.d.ts",
-              "start": 7391
+              "start": 8830
             }
           }
         ],
@@ -7224,7 +7224,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/modelGraph.d.ts",
-            "start": 7243,
+            "start": 8682,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * Portable declaration shape with effective members and explicit graph relationships.\n * @public\n */\nexport interface ModelDeclaration extends ModelItem {\n    /**\n     * Original name, independent of exported aliases.\n     */\n    readonly name: string;\n    /**\n     * Original declarations in compiler order, including all merged parts.\n     */\n    readonly sources: readonly ModelSource[];\n    /**\n     * Compiler-printed type for documentation display.\n     */\n    readonly type: string;\n    /**\n     * Unique-symbol key identity.\n     * @defaultValue Omitted for declarations with ordinary names.\n     */\n    readonly symbolId?: string | undefined;\n    /**\n     * Atomic alias or variable syntax around its name.\n     * @defaultValue Omitted for other declaration forms.\n     */\n    readonly statement?: ModelDeclarationStatement | undefined;\n    /**\n     * Container syntax and separately declared members.\n     * @defaultValue Omitted for non-container declarations or unsupported container syntax.\n     */\n    readonly container?: {\n        /**\n         * Declaration form.\n         */\n        readonly kind: \"class\" | \"interface\" | \"enum\";\n        /**\n         * Keywords before the name.\n         */\n        readonly prefix: string;\n        /**\n         * Type parameters and heritage after the name.\n         */\n        readonly suffix: string;\n        /**\n         * Whether the syntax is supported for review rendering.\n         */\n        readonly supported: boolean;\n        /**\n         * Separate interface header for a callable class augmentation.\n         * @defaultValue Omitted when no separate interface is needed.\n         */\n        readonly interfaceSuffix?: string | undefined;\n        /**\n         * Source-ordered members that supplement the effective member view.\n         */\n        readonly declaredMembers: readonly ModelDeclaredMember[];\n    } | undefined;\n    /**\n     * Completeness within the supported extraction subset, not all TypeScript type features.\n     */\n    readonly memberView: \"complete\" | \"partial\";\n    /**\n     * Reasons a reader must not present a partial member list as complete.\n     */\n    readonly limitations: readonly AnalyzerDiagnostic[];\n    /**\n     * Effective members, including inherited generic substitutions.\n     */\n    readonly members: readonly ModelMember[];\n    /**\n     * Callable overloads in compiler order.\n     */\n    readonly signatures: readonly ModelSignature[];\n    /**\n     * Direct base declaration identities in compiler order.\n     */\n    readonly baseDeclarations: readonly string[];\n    /**\n     * Direct implemented contract identities in compiler order.\n     */\n    readonly implementedDeclarations: readonly string[];\n    /**\n     * Direct instantiated heritage views; recursive ancestry is followed through target declarations.\n     * Receiving members already retain transitive substitutions without reconstructing type arguments downstream.\n     */\n    readonly heritage: readonly {\n        /**\n         * Relationship to the receiving declaration.\n         */\n        readonly kind: \"extends\" | \"implements\";\n        /**\n         * Original target before substitution.\n         */\n        readonly target: string;\n        /**\n         * Target members instantiated for the receiver.\n         */\n        readonly members: readonly ModelMember[];\n    }[];\n    /**\n     * Namespace exports and aliases, including possible recursive references.\n     */\n    readonly exports: readonly ModelExport[];\n}",
             "documentation": "/**\n * Portable declaration shape with effective members and explicit graph relationships.\n * @public\n */",
@@ -7360,7 +7360,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9688,
+                "start": 11127,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Direct base declaration identities in compiler order.\n     */\n    readonly baseDeclarations: readonly string[];",
                 "documentation": "/**\n     * Direct base declaration identities in compiler order.\n     */",
@@ -7391,7 +7391,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 9094
+                  "start": 10533
                 }
               }
             ],
@@ -7425,7 +7425,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 8094,
+                "start": 9533,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Container syntax and separately declared members.\n     * @defaultValue Omitted for non-container declarations or unsupported container syntax.\n     */\n    readonly container?: {\n        /**\n         * Declaration form.\n         */\n        readonly kind: \"class\" | \"interface\" | \"enum\";\n        /**\n         * Keywords before the name.\n         */\n        readonly prefix: string;\n        /**\n         * Type parameters and heritage after the name.\n         */\n        readonly suffix: string;\n        /**\n         * Whether the syntax is supported for review rendering.\n         */\n        readonly supported: boolean;\n        /**\n         * Separate interface header for a callable class augmentation.\n         * @defaultValue Omitted when no separate interface is needed.\n         */\n        readonly interfaceSuffix?: string | undefined;\n        /**\n         * Source-ordered members that supplement the effective member view.\n         */\n        readonly declaredMembers: readonly ModelDeclaredMember[];\n    } | undefined;",
                 "documentation": "/**\n     * Container syntax and separately declared members.\n     * @defaultValue Omitted for non-container declarations or unsupported container syntax.\n     */",
@@ -7557,7 +7557,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 10719
+                  "start": 12158
                 }
               }
             ],
@@ -7591,7 +7591,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 10593,
+                "start": 12032,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Namespace exports and aliases, including possible recursive references.\n     */\n    readonly exports: readonly ModelExport[];",
                 "documentation": "/**\n     * Namespace exports and aliases, including possible recursive references.\n     */",
@@ -7631,7 +7631,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 10569
+                  "start": 12008
                 }
               }
             ],
@@ -7665,7 +7665,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9953,
+                "start": 11392,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Direct instantiated heritage views; recursive ancestry is followed through target declarations.\n     * Receiving members already retain transitive substitutions without reconstructing type arguments downstream.\n     */\n    readonly heritage: readonly {\n        /**\n         * Relationship to the receiving declaration.\n         */\n        readonly kind: \"extends\" | \"implements\";\n        /**\n         * Original target before substitution.\n         */\n        readonly target: string;\n        /**\n         * Target members instantiated for the receiver.\n         */\n        readonly members: readonly ModelMember[];\n    }[];",
                 "documentation": "/**\n     * Direct instantiated heritage views; recursive ancestry is followed through target declarations.\n     * Receiving members already retain transitive substitutions without reconstructing type arguments downstream.\n     */",
@@ -7766,7 +7766,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9815,
+                "start": 11254,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Direct implemented contract identities in compiler order.\n     */\n    readonly implementedDeclarations: readonly string[];",
                 "documentation": "/**\n     * Direct implemented contract identities in compiler order.\n     */",
@@ -7797,7 +7797,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 9422
+                  "start": 10861
                 }
               }
             ],
@@ -7831,7 +7831,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9295,
+                "start": 10734,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Reasons a reader must not present a partial member list as complete.\n     */\n    readonly limitations: readonly AnalyzerDiagnostic[];",
                 "documentation": "/**\n     * Reasons a reader must not present a partial member list as complete.\n     */",
@@ -7886,7 +7886,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9136,
+                "start": 10575,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Completeness within the supported extraction subset, not all TypeScript type features.\n     */\n    readonly memberView: \"complete\" | \"partial\";",
                 "documentation": "/**\n     * Completeness within the supported extraction subset, not all TypeScript type features.\n     */",
@@ -7917,7 +7917,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 9560
+                  "start": 10999
                 }
               }
             ],
@@ -7951,7 +7951,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9444,
+                "start": 10883,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Effective members, including inherited generic substitutions.\n     */\n    readonly members: readonly ModelMember[];",
                 "documentation": "/**\n     * Effective members, including inherited generic substitutions.\n     */",
@@ -8006,7 +8006,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 7403,
+                "start": 8842,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Original name, independent of exported aliases.\n     */\n    readonly name: string;",
                 "documentation": "/**\n     * Original name, independent of exported aliases.\n     */",
@@ -8111,7 +8111,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 9670
+                  "start": 11109
                 }
               }
             ],
@@ -8145,7 +8145,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 9575,
+                "start": 11014,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Callable overloads in compiler order.\n     */\n    readonly signatures: readonly ModelSignature[];",
                 "documentation": "/**\n     * Callable overloads in compiler order.\n     */",
@@ -8185,7 +8185,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 7624
+                  "start": 9063
                 }
               }
             ],
@@ -8219,7 +8219,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 7501,
+                "start": 8940,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Original declarations in compiler order, including all merged parts.\n     */\n    readonly sources: readonly ModelSource[];",
                 "documentation": "/**\n     * Original declarations in compiler order, including all merged parts.\n     */",
@@ -8259,7 +8259,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 8055
+                  "start": 9494
                 }
               }
             ],
@@ -8289,7 +8289,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 7900,
+                "start": 9339,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Atomic alias or variable syntax around its name.\n     * @defaultValue Omitted for other declaration forms.\n     */\n    readonly statement?: ModelDeclarationStatement | undefined;",
                 "documentation": "/**\n     * Atomic alias or variable syntax around its name.\n     * @defaultValue Omitted for other declaration forms.\n     */",
@@ -8344,7 +8344,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 7738,
+                "start": 9177,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Unique-symbol key identity.\n     * @defaultValue Omitted for declarations with ordinary names.\n     */\n    readonly symbolId?: string | undefined;",
                 "documentation": "/**\n     * Unique-symbol key identity.\n     * @defaultValue Omitted for declarations with ordinary names.\n     */",
@@ -8390,7 +8390,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 7639,
+                "start": 9078,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Compiler-printed type for documentation display.\n     */\n    readonly type: string;",
                 "documentation": "/**\n     * Compiler-printed type for documentation display.\n     */",
@@ -8629,7 +8629,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/modelGraph.d.ts",
-            "start": 6748,
+            "start": 8187,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * Type-alias or variable declaration syntax split around the declaration's name.\n * @remarks\n * The prefix and suffix exclude the name, which is stored on the containing declaration.\n * @public\n */\nexport interface ModelDeclarationStatement {\n    /**\n     * Declaration keyword and trailing whitespace before the name.\n     */\n    readonly prefix: string;\n    /**\n     * Syntax after the name, including any type parameters and terminating semicolon.\n     */\n    readonly suffix: string;\n}",
             "documentation": "/**\n * Type-alias or variable declaration syntax split around the declaration's name.\n * @remarks\n * The prefix and suffix exclude the name, which is stored on the containing declaration.\n * @public\n */",
@@ -8684,7 +8684,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 6996,
+                "start": 8435,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Declaration keyword and trailing whitespace before the name.\n     */\n    readonly prefix: string;",
                 "documentation": "/**\n     * Declaration keyword and trailing whitespace before the name.\n     */",
@@ -8730,7 +8730,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 7109,
+                "start": 8548,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Syntax after the name, including any type parameters and terminating semicolon.\n     */\n    readonly suffix: string;",
                 "documentation": "/**\n     * Syntax after the name, including any type parameters and terminating semicolon.\n     */",
@@ -8739,6 +8739,410 @@
                     {
                       "kind": "Content",
                       "text": "\n    /**\n     * Syntax after the name, including any type parameters and terminating semicolon.\n     */\n    readonly suffix: string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          }
+        ],
+        "signatures": [],
+        "baseDeclarations": [],
+        "implementedDeclarations": [],
+        "heritage": [],
+        "exports": []
+      },
+      {
+        "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+        "documentationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+        "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
+        "references": [
+          {
+            "text": "ModelSource",
+            "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelSource\"]",
+            "origin": {
+              "packageName": "api-analyzer",
+              "file": "lib/analysis-types/modelGraph.d.ts",
+              "start": 7740
+            }
+          }
+        ],
+        "name": "source",
+        "sources": [
+          {
+            "packageName": "api-analyzer",
+            "file": "lib/analysis-types/modelGraph.d.ts",
+            "start": 7659,
+            "kind": "PropertySignature",
+            "text": "\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: ModelSource;",
+            "documentation": "/**\n     * Original member syntax and location.\n     */",
+            "excerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: "
+                },
+                {
+                  "kind": "Reference",
+                  "text": "ModelSource",
+                  "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelSource\"]"
+                },
+                {
+                  "kind": "Content",
+                  "text": ";"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 3
+              }
+            }
+          }
+        ],
+        "type": "ModelSource",
+        "memberView": "complete",
+        "limitations": [],
+        "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"documentation\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"documentation\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelSource\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string | undefined"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "documentation",
+            "referenceName": "documentation",
+            "type": "string | undefined",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 995,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Original comment, or undefined when absent; effective comments are stored separately.\n     */\n    readonly documentation: string | undefined;",
+                "documentation": "/**\n     * Original comment, or undefined when absent; effective comments are stored separately.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Original comment, or undefined when absent; effective comments are stored separately.\n     */\n    readonly documentation: string | undefined;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"excerpt\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"excerpt\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelSource\"]",
+            "references": [
+              {
+                "text": "CodeExcerpt",
+                "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/excerpt.d.ts\\\"]\"],\"CodeExcerpt\"]",
+                "origin": {
+                  "packageName": "api-analyzer",
+                  "file": "lib/analysis-types/modelGraph.d.ts",
+                  "start": 780
+                }
+              }
+            ],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "import(\"./excerpt.js\")."
+                },
+                {
+                  "kind": "Reference",
+                  "text": "CodeExcerpt",
+                  "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/excerpt.d.ts\\\"]\"],\"CodeExcerpt\"]"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 2
+              }
+            },
+            "name": "excerpt",
+            "referenceName": "excerpt",
+            "type": "CodeExcerpt",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 649,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Original source text with producer-resolved type references; comments remain content.\n     */\n    readonly excerpt: CodeExcerpt;",
+                "documentation": "/**\n     * Original source text with producer-resolved type references; comments remain content.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Original source text with producer-resolved type references; comments remain content.\n     */\n    readonly excerpt: "
+                    },
+                    {
+                      "kind": "Reference",
+                      "text": "CodeExcerpt",
+                      "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/excerpt.d.ts\\\"]\"],\"CodeExcerpt\"]"
+                    },
+                    {
+                      "kind": "Content",
+                      "text": ";"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 3
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"file\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"file\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelOrigin\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "file",
+            "referenceName": "file",
+            "type": "string",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 329,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Input file path relative to the owning package.\n     */\n    readonly file: string;",
+                "documentation": "/**\n     * Input file path relative to the owning package.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Input file path relative to the owning package.\n     */\n    readonly file: string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"kind\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"kind\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelSource\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "kind",
+            "referenceName": "kind",
+            "type": "string",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 793,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Compiler syntax-kind name.\n     */\n    readonly kind: string;",
+                "documentation": "/**\n     * Compiler syntax-kind name.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Compiler syntax-kind name.\n     */\n    readonly kind: string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"packageName\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"packageName\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelOrigin\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "packageName",
+            "referenceName": "packageName",
+            "type": "string",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 218,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Owning package name, including for inherited sources.\n     */\n    readonly packageName: string;",
+                "documentation": "/**\n     * Owning package name, including for inherited sources.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Owning package name, including for inherited sources.\n     */\n    readonly packageName: string;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"start\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"start\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelOrigin\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "number"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "start",
+            "referenceName": "start",
+            "type": "number",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 427,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Source offset, not a line number.\n     */\n    readonly start: number;",
+                "documentation": "/**\n     * Source offset, not a line number.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Source offset, not a line number.\n     */\n    readonly start: number;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"text\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"text\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelSource\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "text",
+            "referenceName": "text",
+            "type": "string",
+            "optional": false,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 870,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Original source text, including trivia; not a standalone declaration file.\n     */\n    readonly text: string;",
+                "documentation": "/**\n     * Original source text, including trivia; not a standalone declaration file.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Original source text, including trivia; not a standalone declaration file.\n     */\n    readonly text: string;"
                     }
                   ],
                   "tokenRange": {
@@ -8767,7 +9171,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/analysis-types/modelGraph.d.ts",
-              "start": 6331
+              "start": 7077
             }
           }
         ],
@@ -8776,9 +9180,9 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/modelGraph.d.ts",
-            "start": 6158,
+            "start": 6904,
             "kind": "InterfaceDeclaration",
-            "text": "\n/**\n * Separate source member syntax for constructors, accessors, statics, enum members, and special signatures.\n * @public\n */\nexport interface ModelDeclaredMember extends ModelItem {\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: ModelSource;\n    /**\n     * Compiler-printed member declaration without source trivia.\n     */\n    readonly printed: string;\n    /**\n     * Collected declaration for a static or enum member.\n     * @defaultValue Omitted when there is no separate declaration target.\n     */\n    readonly staticTarget?: string | undefined;\n}",
+            "text": "\n/**\n * Separate source member syntax for constructors, accessors, statics, enum members, and special signatures.\n * @public\n */\nexport interface ModelDeclaredMember extends ModelItem {\n    /**\n     * Identity of the paired getter or setter in the original container's declared members.\n     *\n     * @remarks\n     * The relationship is reciprocal and preserved on inherited accessor views.\n     * Resolve each accessor's documentationId in the selected model set and treat the pair as documented\n     * when either documentation record has documented set to true. Do not replace the individual comments or tags.\n     *\n     * @defaultValue Omitted for standalone accessors and other member kinds.\n     */\n    readonly pairedAccessor?: string | undefined;\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: ModelSource;\n    /**\n     * Compiler-printed member declaration without source trivia.\n     * Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.\n     */\n    readonly printed: string;\n    /**\n     * Collected declaration for a static or enum member.\n     * @defaultValue Omitted when there is no separate declaration target.\n     */\n    readonly staticTarget?: string | undefined;\n}",
             "documentation": "/**\n * Separate source member syntax for constructors, accessors, statics, enum members, and special signatures.\n * @public\n */",
             "excerpt": {
               "tokens": [
@@ -8793,7 +9197,7 @@
                 },
                 {
                   "kind": "Content",
-                  "text": " {\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: "
+                  "text": " {\n    /**\n     * Identity of the paired getter or setter in the original container's declared members.\n     *\n     * @remarks\n     * The relationship is reciprocal and preserved on inherited accessor views.\n     * Resolve each accessor's documentationId in the selected model set and treat the pair as documented\n     * when either documentation record has documented set to true. Do not replace the individual comments or tags.\n     *\n     * @defaultValue Omitted for standalone accessors and other member kinds.\n     */\n    readonly pairedAccessor?: string | undefined;\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: "
                 },
                 {
                   "kind": "Reference",
@@ -8802,7 +9206,7 @@
                 },
                 {
                   "kind": "Content",
-                  "text": ";\n    /**\n     * Compiler-printed member declaration without source trivia.\n     */\n    readonly printed: string;\n    /**\n     * Collected declaration for a static or enum member.\n     * @defaultValue Omitted when there is no separate declaration target.\n     */\n    readonly staticTarget?: string | undefined;\n}"
+                  "text": ";\n    /**\n     * Compiler-printed member declaration without source trivia.\n     * Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.\n     */\n    readonly printed: string;\n    /**\n     * Collected declaration for a static or enum member.\n     * @defaultValue Omitted when there is no separate declaration target.\n     */\n    readonly staticTarget?: string | undefined;\n}"
                 }
               ],
               "tokenRange": {
@@ -8962,6 +9366,52 @@
             "signatures": []
           },
           {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "string | undefined"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "pairedAccessor",
+            "referenceName": "pairedAccessor",
+            "type": "string | undefined",
+            "optional": true,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 7089,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Identity of the paired getter or setter in the original container's declared members.\n     *\n     * @remarks\n     * The relationship is reciprocal and preserved on inherited accessor views.\n     * Resolve each accessor's documentationId in the selected model set and treat the pair as documented\n     * when either documentation record has documented set to true. Do not replace the individual comments or tags.\n     *\n     * @defaultValue Omitted for standalone accessors and other member kinds.\n     */\n    readonly pairedAccessor?: string | undefined;",
+                "documentation": "/**\n     * Identity of the paired getter or setter in the original container's declared members.\n     *\n     * @remarks\n     * The relationship is reciprocal and preserved on inherited accessor views.\n     * Resolve each accessor's documentationId in the selected model set and treat the pair as documented\n     * when either documentation record has documented set to true. Do not replace the individual comments or tags.\n     *\n     * @defaultValue Omitted for standalone accessors and other member kinds.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Identity of the paired getter or setter in the original container's declared members.\n     *\n     * @remarks\n     * The relationship is reciprocal and preserved on inherited accessor views.\n     * Resolve each accessor's documentationId in the selected model set and treat the pair as documented\n     * when either documentation record has documented set to true. Do not replace the individual comments or tags.\n     *\n     * @defaultValue Omitted for standalone accessors and other member kinds.\n     */\n    readonly pairedAccessor?: string | undefined;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
             "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"printed\"]",
             "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"printed\"]",
             "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
@@ -8987,15 +9437,15 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 6437,
+                "start": 7753,
                 "kind": "PropertySignature",
-                "text": "\n    /**\n     * Compiler-printed member declaration without source trivia.\n     */\n    readonly printed: string;",
-                "documentation": "/**\n     * Compiler-printed member declaration without source trivia.\n     */",
+                "text": "\n    /**\n     * Compiler-printed member declaration without source trivia.\n     * Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.\n     */\n    readonly printed: string;",
+                "documentation": "/**\n     * Compiler-printed member declaration without source trivia.\n     * Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.\n     */",
                 "excerpt": {
                   "tokens": [
                     {
                       "kind": "Content",
-                      "text": "\n    /**\n     * Compiler-printed member declaration without source trivia.\n     */\n    readonly printed: string;"
+                      "text": "\n    /**\n     * Compiler-printed member declaration without source trivia.\n     * Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.\n     */\n    readonly printed: string;"
                     }
                   ],
                   "tokenRange": {
@@ -9092,7 +9542,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 6424
+                  "start": 7740
                 }
               }
             ],
@@ -9118,7 +9568,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 6343,
+                "start": 7659,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Original member syntax and location.\n     */\n    readonly source: ModelSource;",
                 "documentation": "/**\n     * Original member syntax and location.\n     */",
@@ -9173,7 +9623,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 6549,
+                "start": 7988,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Collected declaration for a static or enum member.\n     * @defaultValue Omitted when there is no separate declaration target.\n     */\n    readonly staticTarget?: string | undefined;",
                 "documentation": "/**\n     * Collected declaration for a static or enum member.\n     * @defaultValue Omitted when there is no separate declaration target.\n     */",
@@ -9595,7 +10045,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/analysis-types/modelGraph.d.ts",
-            "start": 10736,
+            "start": 12175,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * Source-free documentation graph, not a restored analysis or declaration rollup.\n * @public\n */\nexport interface ModelGraph {\n    /**\n     * Entrypoints and their direct exported bindings, including empty entrypoints.\n     */\n    readonly surfaces: readonly ModelSurface[];\n    /**\n     * Collected declaration shapes sorted by identity, including unexported and referenced suite declarations.\n     * Foreign documentation remains owned by the selected package's model.\n     */\n    readonly declarations: readonly ModelDeclaration[];\n}",
             "documentation": "/**\n * Source-free documentation graph, not a restored analysis or declaration rollup.\n * @public\n */",
@@ -9653,7 +10103,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 11256
+                  "start": 12695
                 }
               }
             ],
@@ -9687,7 +10137,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 11016,
+                "start": 12455,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Collected declaration shapes sorted by identity, including unexported and referenced suite declarations.\n     * Foreign documentation remains owned by the selected package's model.\n     */\n    readonly declarations: readonly ModelDeclaration[];",
                 "documentation": "/**\n     * Collected declaration shapes sorted by identity, including unexported and referenced suite declarations.\n     * Foreign documentation remains owned by the selected package's model.\n     */",
@@ -9727,7 +10177,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 11000
+                  "start": 12439
                 }
               }
             ],
@@ -9761,7 +10211,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 10868,
+                "start": 12307,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Entrypoints and their direct exported bindings, including empty entrypoints.\n     */\n    readonly surfaces: readonly ModelSurface[];",
                 "documentation": "/**\n     * Entrypoints and their direct exported bindings, including empty entrypoints.\n     */",
@@ -10084,7 +10534,7 @@
             "file": "lib/analysis-types/modelGraph.d.ts",
             "start": 4714,
             "kind": "InterfaceDeclaration",
-            "text": "\n/**\n * Effective property or method on a receiving declaration or instantiated heritage view.\n * @public\n */\nexport interface ModelMember extends ModelItem {\n    /**\n     * Complete compiler-printed type excerpt with resolved reference tokens.\n     * Formatting can differ from the compact type string; tokens are authoritative for linked display.\n     */\n    readonly typeExcerpt: CodeExcerpt;\n    /**\n     * Printed property name, including quoted or computed syntax.\n     */\n    readonly name: string;\n    /**\n     * Unquoted reference lookup name.\n     * @defaultValue Omitted when no separate lookup name is available.\n     */\n    readonly referenceName?: string | undefined;\n    /**\n     * Unique-symbol key identity, including well-known symbol keys.\n     * @defaultValue Omitted for ordinary names.\n     */\n    readonly symbolId?: string | undefined;\n    /**\n     * Effective compiler-printed type; not a structured type algebra.\n     */\n    readonly type: string;\n    /**\n     * Whether the member can be omitted.\n     */\n    readonly optional: boolean;\n    /**\n     * Resolved readonly state; null denotes an unknown state.\n     */\n    readonly readonly: boolean | null;\n    /**\n     * Original declarations in compiler order, including inherited source locations.\n     */\n    readonly sources: readonly ModelSource[];\n    /**\n     * Callable overloads in compiler order.\n     */\n    readonly signatures: readonly ModelSignature[];\n}",
+            "text": "\n/**\n * Effective property or method on a receiving declaration or instantiated heritage view.\n * @public\n */\nexport interface ModelMember extends ModelItem {\n    /**\n     * Original non-public accessibility, independent of the receiving type.\n     * @defaultValue Omitted for public members or unavailable source modifiers.\n     */\n    readonly visibility?: \"private\" | \"protected\" | undefined;\n    /**\n     * Inherited accessor syntax with effective types and original declaring-member identities.\n     *\n     * @remarks\n     * An empty array means the accessors remain represented by the base relationship and original sources.\n     * The compiler could not safely expand a distinct generic setter type into the receiving declaration.\n     *\n     * @defaultValue Omitted for ordinary members and directly declared accessors.\n     */\n    readonly accessors?: readonly ModelDeclaredMember[] | undefined;\n    /**\n     * Complete compiler-printed type excerpt with resolved reference tokens.\n     * Formatting can differ from the compact type string; tokens are authoritative for linked display.\n     */\n    readonly typeExcerpt: CodeExcerpt;\n    /**\n     * Printed property name, including quoted or computed syntax.\n     */\n    readonly name: string;\n    /**\n     * Unquoted reference lookup name.\n     * @defaultValue Omitted when no separate lookup name is available.\n     */\n    readonly referenceName?: string | undefined;\n    /**\n     * Unique-symbol key identity, including well-known symbol keys.\n     * @defaultValue Omitted for ordinary names.\n     */\n    readonly symbolId?: string | undefined;\n    /**\n     * Effective compiler-printed type; not a structured type algebra.\n     */\n    readonly type: string;\n    /**\n     * Whether the member can be omitted.\n     */\n    readonly optional: boolean;\n    /**\n     * Resolved readonly state; null denotes an unknown state.\n     */\n    readonly readonly: boolean | null;\n    /**\n     * Original declarations in compiler order, including inherited source locations.\n     */\n    readonly sources: readonly ModelSource[];\n    /**\n     * Callable overloads in compiler order.\n     */\n    readonly signatures: readonly ModelSignature[];\n}",
             "documentation": "/**\n * Effective property or method on a receiving declaration or instantiated heritage view.\n * @public\n */",
             "excerpt": {
               "tokens": [
@@ -10099,7 +10549,16 @@
                 },
                 {
                   "kind": "Content",
-                  "text": " {\n    /**\n     * Complete compiler-printed type excerpt with resolved reference tokens.\n     * Formatting can differ from the compact type string; tokens are authoritative for linked display.\n     */\n    readonly typeExcerpt: "
+                  "text": " {\n    /**\n     * Original non-public accessibility, independent of the receiving type.\n     * @defaultValue Omitted for public members or unavailable source modifiers.\n     */\n    readonly visibility?: \"private\" | \"protected\" | undefined;\n    /**\n     * Inherited accessor syntax with effective types and original declaring-member identities.\n     *\n     * @remarks\n     * An empty array means the accessors remain represented by the base relationship and original sources.\n     * The compiler could not safely expand a distinct generic setter type into the receiving declaration.\n     *\n     * @defaultValue Omitted for ordinary members and directly declared accessors.\n     */\n    readonly accessors?: readonly "
+                },
+                {
+                  "kind": "Reference",
+                  "text": "ModelDeclaredMember",
+                  "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]"
+                },
+                {
+                  "kind": "Content",
+                  "text": "[] | undefined;\n    /**\n     * Complete compiler-printed type excerpt with resolved reference tokens.\n     * Formatting can differ from the compact type string; tokens are authoritative for linked display.\n     */\n    readonly typeExcerpt: "
                 },
                 {
                   "kind": "Reference",
@@ -10131,7 +10590,7 @@
               ],
               "tokenRange": {
                 "startIndex": 0,
-                "endIndex": 9
+                "endIndex": 11
               }
             }
           }
@@ -10147,6 +10606,80 @@
         "memberView": "complete",
         "limitations": [],
         "members": [
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelMember\"]",
+            "references": [
+              {
+                "text": "ModelDeclaredMember",
+                "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
+                "origin": {
+                  "packageName": "api-analyzer",
+                  "file": "lib/analysis-types/modelGraph.d.ts",
+                  "start": 5583
+                }
+              }
+            ],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "readonly "
+                },
+                {
+                  "kind": "Reference",
+                  "text": "ModelDeclaredMember",
+                  "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]"
+                },
+                {
+                  "kind": "Content",
+                  "text": "[] | undefined"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 3
+              }
+            },
+            "name": "accessors",
+            "referenceName": "accessors",
+            "type": "readonly ModelDeclaredMember[] | undefined",
+            "optional": true,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 5109,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Inherited accessor syntax with effective types and original declaring-member identities.\n     *\n     * @remarks\n     * An empty array means the accessors remain represented by the base relationship and original sources.\n     * The compiler could not safely expand a distinct generic setter type into the receiving declaration.\n     *\n     * @defaultValue Omitted for ordinary members and directly declared accessors.\n     */\n    readonly accessors?: readonly ModelDeclaredMember[] | undefined;",
+                "documentation": "/**\n     * Inherited accessor syntax with effective types and original declaring-member identities.\n     *\n     * @remarks\n     * An empty array means the accessors remain represented by the base relationship and original sources.\n     * The compiler could not safely expand a distinct generic setter type into the receiving declaration.\n     *\n     * @defaultValue Omitted for ordinary members and directly declared accessors.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Inherited accessor syntax with effective types and original declaring-member identities.\n     *\n     * @remarks\n     * An empty array means the accessors remain represented by the base relationship and original sources.\n     * The compiler could not safely expand a distinct generic setter type into the receiving declaration.\n     *\n     * @defaultValue Omitted for ordinary members and directly declared accessors.\n     */\n    readonly accessors?: readonly "
+                    },
+                    {
+                      "kind": "Reference",
+                      "text": "ModelDeclaredMember",
+                      "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]"
+                    },
+                    {
+                      "kind": "Content",
+                      "text": "[] | undefined;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 3
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
           {
             "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"declaringContainer\"]",
             "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"declaringContainer\"]",
@@ -10311,7 +10844,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5109,
+                "start": 5855,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Printed property name, including quoted or computed syntax.\n     */\n    readonly name: string;",
                 "documentation": "/**\n     * Printed property name, including quoted or computed syntax.\n     */",
@@ -10357,7 +10890,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5687,
+                "start": 6433,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether the member can be omitted.\n     */\n    readonly optional: boolean;",
                 "documentation": "/**\n     * Whether the member can be omitted.\n     */",
@@ -10403,7 +10936,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5777,
+                "start": 6523,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Resolved readonly state; null denotes an unknown state.\n     */\n    readonly readonly: boolean | null;",
                 "documentation": "/**\n     * Resolved readonly state; null denotes an unknown state.\n     */",
@@ -10449,7 +10982,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5219,
+                "start": 5965,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Unquoted reference lookup name.\n     * @defaultValue Omitted when no separate lookup name is available.\n     */\n    readonly referenceName?: string | undefined;",
                 "documentation": "/**\n     * Unquoted reference lookup name.\n     * @defaultValue Omitted when no separate lookup name is available.\n     */",
@@ -10554,7 +11087,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 6138
+                  "start": 6884
                 }
               }
             ],
@@ -10588,7 +11121,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 6043,
+                "start": 6789,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Callable overloads in compiler order.\n     */\n    readonly signatures: readonly ModelSignature[];",
                 "documentation": "/**\n     * Callable overloads in compiler order.\n     */",
@@ -10628,7 +11161,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 6028
+                  "start": 6774
                 }
               }
             ],
@@ -10662,7 +11195,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5895,
+                "start": 6641,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Original declarations in compiler order, including inherited source locations.\n     */\n    readonly sources: readonly ModelSource[];",
                 "documentation": "/**\n     * Original declarations in compiler order, including inherited source locations.\n     */",
@@ -10717,7 +11250,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5395,
+                "start": 6141,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Unique-symbol key identity, including well-known symbol keys.\n     * @defaultValue Omitted for ordinary names.\n     */\n    readonly symbolId?: string | undefined;",
                 "documentation": "/**\n     * Unique-symbol key identity, including well-known symbol keys.\n     * @defaultValue Omitted for ordinary names.\n     */",
@@ -10763,7 +11296,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 5573,
+                "start": 6319,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Effective compiler-printed type; not a structured type algebra.\n     */\n    readonly type: string;",
                 "documentation": "/**\n     * Effective compiler-printed type; not a structured type algebra.\n     */",
@@ -10794,7 +11327,7 @@
                 "origin": {
                   "packageName": "api-analyzer",
                   "file": "lib/analysis-types/modelGraph.d.ts",
-                  "start": 5096
+                  "start": 5842
                 }
               }
             ],
@@ -10824,7 +11357,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/analysis-types/modelGraph.d.ts",
-                "start": 4872,
+                "start": 5618,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Complete compiler-printed type excerpt with resolved reference tokens.\n     * Formatting can differ from the compact type string; tokens are authoritative for linked display.\n     */\n    readonly typeExcerpt: CodeExcerpt;",
                 "documentation": "/**\n     * Complete compiler-printed type excerpt with resolved reference tokens.\n     * Formatting can differ from the compact type string; tokens are authoritative for linked display.\n     */",
@@ -10847,6 +11380,52 @@
                   "tokenRange": {
                     "startIndex": 0,
                     "endIndex": 3
+                  }
+                }
+              }
+            ],
+            "signatures": []
+          },
+          {
+            "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+            "documentationId": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+            "declaringContainer": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelMember\"]",
+            "references": [],
+            "typeExcerpt": {
+              "tokens": [
+                {
+                  "kind": "Content",
+                  "text": "\"private\" | \"protected\" | undefined"
+                }
+              ],
+              "tokenRange": {
+                "startIndex": 0,
+                "endIndex": 1
+              }
+            },
+            "name": "visibility",
+            "referenceName": "visibility",
+            "type": "\"private\" | \"protected\" | undefined",
+            "optional": true,
+            "readonly": true,
+            "sources": [
+              {
+                "packageName": "api-analyzer",
+                "file": "lib/analysis-types/modelGraph.d.ts",
+                "start": 4872,
+                "kind": "PropertySignature",
+                "text": "\n    /**\n     * Original non-public accessibility, independent of the receiving type.\n     * @defaultValue Omitted for public members or unavailable source modifiers.\n     */\n    readonly visibility?: \"private\" | \"protected\" | undefined;",
+                "documentation": "/**\n     * Original non-public accessibility, independent of the receiving type.\n     * @defaultValue Omitted for public members or unavailable source modifiers.\n     */",
+                "excerpt": {
+                  "tokens": [
+                    {
+                      "kind": "Content",
+                      "text": "\n    /**\n     * Original non-public accessibility, independent of the receiving type.\n     * @defaultValue Omitted for public members or unavailable source modifiers.\n     */\n    readonly visibility?: \"private\" | \"protected\" | undefined;"
+                    }
+                  ],
+                  "tokenRange": {
+                    "startIndex": 0,
+                    "endIndex": 1
                   }
                 }
               }
@@ -19094,7 +19673,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/report-generation/reviewReport.d.ts",
-            "start": 19353,
+            "start": 19539,
             "kind": "PropertySignature",
             "text": "\n    /**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */\n    readonly additionalTags?: readonly string[];",
             "documentation": "/**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */",
@@ -19136,7 +19715,7 @@
           {
             "packageName": "api-analyzer",
             "file": "lib/report-generation/reviewReport.d.ts",
-            "start": 18143,
+            "start": 18329,
             "kind": "InterfaceDeclaration",
             "text": "\n/**\n * Presentation settings that do not change classification, selection, or validation.\n * @public\n */\nexport interface ReviewPresentationOptions {\n    /**\n     * Whether imports referenced by the selected declarations appear before the APIs.\n     *\n     * @remarks\n     * Imports used only by trimmed declarations are omitted.\n     * Re-exporting a declaration from another package in the suite does not add an import for that declaration.\n     * A false value hides imports without changing selection or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeImports?: boolean;\n    /**\n     * Whether classified release tags appear on top-level declarations and standalone overloads.\n     *\n     * @remarks\n     * A false value hides these annotations without changing classification or selection.\n     * Container members omit release annotations, including nested namespace exports.\n     * Other member annotations remain controlled by their respective presentation settings.\n     * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeReleaseTags?: boolean;\n    /**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */\n    readonly additionalTags?: readonly string[];\n    /**\n     * Whether items without descriptive documentation receive an `(undocumented)` annotation.\n     *\n     * @remarks\n     * A false value suppresses the notice without changing effective documentation status or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeUndocumentedNotice?: boolean;\n}",
             "documentation": "/**\n * Presentation settings that do not change classification, selection, or validation.\n * @public\n */",
@@ -19191,7 +19770,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 19353,
+                "start": 19539,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */\n    readonly additionalTags?: readonly string[];",
                 "documentation": "/**\n     * Additional recognized tag names to display, including `@`, such as `@sealed`, `@legacy`, or `@deprecated`.\n     *\n     * @remarks\n     * Names are matched exactly against report metadata. Unknown or absent names display nothing.\n     * Does not register tags with TSDoc. Release tags are controlled by `includeReleaseTags`.\n     * A supplied list replaces the defaults; an empty list hides all additional tag annotations.\n     * Standard tags retain API Extractor's order: sealed, virtual, override, eventProperty, deprecated.\n     * Other configured tags follow in the supplied order. Repeated names appear once.\n     *\n     * @defaultValue `[\"@sealed\", \"@virtual\", \"@override\", \"@eventProperty\", \"@deprecated\"]`\n     *\n     * @example Show deprecation annotations without release annotations\n     * These settings display `@deprecated` when present in an item's metadata and hide release tags.\n     * They do not change which APIs are selected or display the deprecation message itself.\n     *\n     * ```typescript\n     * const options = {\n     *     includeReleaseTags: false,\n     *     additionalTags: [\"@deprecated\"],\n     * };\n     * ```\n     */",
@@ -19237,7 +19816,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 18293,
+                "start": 18479,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether imports referenced by the selected declarations appear before the APIs.\n     *\n     * @remarks\n     * Imports used only by trimmed declarations are omitted.\n     * Re-exporting a declaration from another package in the suite does not add an import for that declaration.\n     * A false value hides imports without changing selection or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeImports?: boolean;",
                 "documentation": "/**\n     * Whether imports referenced by the selected declarations appear before the APIs.\n     *\n     * @remarks\n     * Imports used only by trimmed declarations are omitted.\n     * Re-exporting a declaration from another package in the suite does not add an import for that declaration.\n     * A false value hides imports without changing selection or validation.\n     *\n     * @defaultValue `true`\n     */",
@@ -19283,7 +19862,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 18745,
+                "start": 18931,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether classified release tags appear on top-level declarations and standalone overloads.\n     *\n     * @remarks\n     * A false value hides these annotations without changing classification or selection.\n     * Container members omit release annotations, including nested namespace exports.\n     * Other member annotations remain controlled by their respective presentation settings.\n     * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeReleaseTags?: boolean;",
                 "documentation": "/**\n     * Whether classified release tags appear on top-level declarations and standalone overloads.\n     *\n     * @remarks\n     * A false value hides these annotations without changing classification or selection.\n     * Container members omit release annotations, including nested namespace exports.\n     * Other member annotations remain controlled by their respective presentation settings.\n     * Release tags cannot be enabled through {@link ReviewPresentationOptions.additionalTags} when this option is false.\n     *\n     * @defaultValue `true`\n     */",
@@ -19329,7 +19908,7 @@
               {
                 "packageName": "api-analyzer",
                 "file": "lib/report-generation/reviewReport.d.ts",
-                "start": 20570,
+                "start": 20756,
                 "kind": "PropertySignature",
                 "text": "\n    /**\n     * Whether items without descriptive documentation receive an `(undocumented)` annotation.\n     *\n     * @remarks\n     * A false value suppresses the notice without changing effective documentation status or validation.\n     *\n     * @defaultValue `true`\n     */\n    readonly includeUndocumentedNotice?: boolean;",
                 "documentation": "/**\n     * Whether items without descriptive documentation receive an `(undocumented)` annotation.\n     *\n     * @remarks\n     * A false value suppresses the notice without changing effective documentation status or validation.\n     *\n     * @defaultValue `true`\n     */",
@@ -19388,11 +19967,11 @@
     },
     {
       "file": "lib/analysis-types/facts.d.ts",
-      "sha256": "cbfe3f96e3f2164a14c250ada6cf9fecd771ccf88c3dc3cdc5a5072efa9651aa"
+      "sha256": "f00638db0f7947f5be7f6fcfa09728fd9a741c940eb3309b45c6338cf0697389"
     },
     {
       "file": "lib/analysis-types/modelGraph.d.ts",
-      "sha256": "c5cfb76fd9fdf53ada79633a10ce3f83d12343762b9eac9ccabc7322d7093049"
+      "sha256": "19739dd79a000f3b48cd10570448a1700cc6518e33bc91ecfb63a7919935d299"
     },
     {
       "file": "lib/analysis-types/referencePolicy.d.ts",
@@ -19428,7 +20007,7 @@
     },
     {
       "file": "lib/report-generation/reviewReport.d.ts",
-      "sha256": "2434b0213c0e2609a1c6d0f714256d5750c4a6235044a00e9d7bcc3c07f53a3d"
+      "sha256": "f829776b7562ea8f6410116be3758cc5820d96aae90a2df0d73c327a2f2b9edd"
     }
   ],
   "dependencyModels": [],
@@ -20774,7 +21353,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7243
+        "start": 8682
       },
       "typeParameters": [],
       "metadata": {
@@ -20813,7 +21392,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6748
+        "start": 8187
       },
       "typeParameters": [],
       "metadata": {
@@ -20848,6 +21427,44 @@
       }
     },
     {
+      "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "source",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 7659
+      },
+      "metadata": {
+        "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+        "sections": [
+          {
+            "source": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Original member syntax and location.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
       "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
       "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
       "name": "ModelDeclaredMember",
@@ -20859,7 +21476,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6158
+        "start": 6904
       },
       "typeParameters": [],
       "metadata": {
@@ -20937,7 +21554,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 10736
+        "start": 12175
       },
       "typeParameters": [],
       "metadata": {
@@ -24754,7 +25371,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 19353
+        "start": 19539
       },
       "metadata": {
         "id": "[[\"[\\\"api-analyzer\\\",\\\"lib/report-generation/reviewReport.d.ts\\\"]\"],\"ReviewPresentationOptions\",\"additionalTags\"]",
@@ -24811,7 +25428,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 18143
+        "start": 18329
       },
       "typeParameters": [],
       "metadata": {
@@ -28912,7 +29529,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6996
+        "start": 8435
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclarationStatement\\\"]\",\"prefix\"]",
@@ -28950,7 +29567,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7109
+        "start": 8548
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclarationStatement\\\"]\",\"suffix\"]",
@@ -28988,7 +29605,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9688
+        "start": 11127
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"baseDeclarations\"]",
@@ -29026,7 +29643,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 8094
+        "start": 9533
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"container\"]",
@@ -29161,7 +29778,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 10593
+        "start": 12032
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"exports\"]",
@@ -29199,7 +29816,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9953
+        "start": 11392
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"heritage\"]",
@@ -29275,7 +29892,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9815
+        "start": 11254
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"implementedDeclarations\"]",
@@ -29313,7 +29930,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9295
+        "start": 10734
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"limitations\"]",
@@ -29351,7 +29968,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9136
+        "start": 10575
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"memberView\"]",
@@ -29389,7 +30006,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9444
+        "start": 10883
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"members\"]",
@@ -29427,7 +30044,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7403
+        "start": 8842
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"name\"]",
@@ -29503,7 +30120,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 9575
+        "start": 11014
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"signatures\"]",
@@ -29541,7 +30158,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7501
+        "start": 8940
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"sources\"]",
@@ -29579,7 +30196,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7900
+        "start": 9339
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"statement\"]",
@@ -29624,7 +30241,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7738
+        "start": 9177
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"symbolId\"]",
@@ -29669,7 +30286,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 7639
+        "start": 9078
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaration\\\"]\",\"type\"]",
@@ -29689,6 +30306,272 @@
         ],
         "packageName": "api-analyzer",
         "documentation": "/**\n * Compiler-printed type for documentation display.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"documentation\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "documentation",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 995
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"documentation\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"documentation\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"documentation\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Original comment, or undefined when absent; effective comments are stored separately.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"excerpt\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "excerpt",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 649
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"excerpt\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"excerpt\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"excerpt\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Original source text with producer-resolved type references; comments remain content.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"file\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "file",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 329
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"file\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"file\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"file\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Input file path relative to the owning package.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"kind\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "kind",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 793
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"kind\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"kind\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"kind\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Compiler syntax-kind name.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"packageName\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "packageName",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 218
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"packageName\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"packageName\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"packageName\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Owning package name, including for inherited sources.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"start\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "start",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 427
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"start\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"start\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"start\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Source offset, not a line number.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"text\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+      "name": "text",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 870
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"text\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"text\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\",\\\"source\\\"]\",\"text\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Original source text, including trivia; not a standalone declaration file.\n */\n",
         "inheritedFrom": [],
         "links": [],
         "documented": true,
@@ -29824,6 +30707,57 @@
       }
     },
     {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
+      "name": "pairedAccessor",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 7089
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          },
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+            "packageName": "api-analyzer",
+            "section": "@remarks"
+          },
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"pairedAccessor\"]",
+            "packageName": "api-analyzer",
+            "section": "@defaultValue"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Identity of the paired getter or setter in the original container's declared members.\n *\n * @remarks\n *\n * The relationship is reciprocal and preserved on inherited accessor views. Resolve each accessor's documentationId in the selected model set and treat the pair as documented when either documentation record has documented set to true. Do not replace the individual comments or tags.\n *\n * @defaultValue Omitted for standalone accessors and other member kinds.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": [
+          "@remarks",
+          "@defaultValue"
+        ]
+      }
+    },
+    {
       "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"printed\"]",
       "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\"]",
       "name": "printed",
@@ -29835,7 +30769,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6437
+        "start": 7753
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"printed\"]",
@@ -29854,9 +30788,22 @@
           }
         ],
         "packageName": "api-analyzer",
-        "documentation": "/**\n * Compiler-printed member declaration without source trivia.\n */\n",
+        "documentation": "/**\n * Compiler-printed member declaration without source trivia. Inherited accessor views use effective receiver types; source syntax remains on {@link ModelDeclaredMember.source}.\n */\n",
         "inheritedFrom": [],
-        "links": [],
+        "links": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"printed\"]",
+            "linkIndex": 0,
+            "reference": "ModelDeclaredMember.source",
+            "target": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+            "targetSignature": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelDeclaredMember\",\"source\"]",
+            "origin": {
+              "packageName": "api-analyzer",
+              "file": "lib/analysis-types/modelGraph.d.ts",
+              "start": 7753
+            }
+          }
+        ],
         "documented": true,
         "originalBlockTags": []
       }
@@ -29911,7 +30858,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6343
+        "start": 7659
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"source\"]",
@@ -29949,7 +30896,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6549
+        "start": 7988
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelDeclaredMember\\\"]\",\"staticTarget\"]",
@@ -30108,7 +31055,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 11016
+        "start": 12455
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelGraph\\\"]\",\"declarations\"]",
@@ -30146,7 +31093,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 10868
+        "start": 12307
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelGraph\\\"]\",\"surfaces\"]",
@@ -30339,6 +31286,57 @@
       }
     },
     {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelMember\"]",
+      "name": "accessors",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 5109
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          },
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+            "packageName": "api-analyzer",
+            "section": "@remarks"
+          },
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"accessors\"]",
+            "packageName": "api-analyzer",
+            "section": "@defaultValue"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Inherited accessor syntax with effective types and original declaring-member identities.\n *\n * @remarks\n *\n * An empty array means the accessors remain represented by the base relationship and original sources. The compiler could not safely expand a distinct generic setter type into the receiving declaration.\n *\n * @defaultValue Omitted for ordinary members and directly declared accessors.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": [
+          "@remarks",
+          "@defaultValue"
+        ]
+      }
+    },
+    {
       "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"declaringContainer\"]",
       "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelMember\"]",
       "name": "declaringContainer",
@@ -30478,7 +31476,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5109
+        "start": 5855
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"name\"]",
@@ -30516,7 +31514,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5687
+        "start": 6433
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"optional\"]",
@@ -30554,7 +31552,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5777
+        "start": 6523
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"readonly\"]",
@@ -30592,7 +31590,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5219
+        "start": 5965
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"referenceName\"]",
@@ -30675,7 +31673,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 6043
+        "start": 6789
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"signatures\"]",
@@ -30713,7 +31711,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5895
+        "start": 6641
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"sources\"]",
@@ -30751,7 +31749,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5395
+        "start": 6141
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"symbolId\"]",
@@ -30796,7 +31794,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 5573
+        "start": 6319
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"type\"]",
@@ -30834,7 +31832,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/analysis-types/modelGraph.d.ts",
-        "start": 4872
+        "start": 5618
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"typeExcerpt\"]",
@@ -30858,6 +31856,51 @@
         "links": [],
         "documented": true,
         "originalBlockTags": []
+      }
+    },
+    {
+      "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+      "declarationId": "[[\"[\\\"api-analyzer\\\",\\\"lib/analysis-types/modelGraph.d.ts\\\"]\"],\"ModelMember\"]",
+      "name": "visibility",
+      "kind": "PropertySignature",
+      "labels": [],
+      "declarationKinds": [
+        "PropertySignature"
+      ],
+      "origin": {
+        "packageName": "api-analyzer",
+        "file": "lib/analysis-types/modelGraph.d.ts",
+        "start": 4872
+      },
+      "metadata": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+        "releaseLevel": 0,
+        "modifierTags": [
+          "@public"
+        ]
+      },
+      "documentation": {
+        "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+        "sections": [
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+            "packageName": "api-analyzer",
+            "section": "summary"
+          },
+          {
+            "source": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/analysis-types/modelGraph.d.ts\\\\\\\"]\\\"],\\\"ModelMember\\\"]\",\"visibility\"]",
+            "packageName": "api-analyzer",
+            "section": "@defaultValue"
+          }
+        ],
+        "packageName": "api-analyzer",
+        "documentation": "/**\n * Original non-public accessibility, independent of the receiving type.\n *\n * @defaultValue Omitted for public members or unavailable source modifiers.\n */\n",
+        "inheritedFrom": [],
+        "links": [],
+        "documented": true,
+        "originalBlockTags": [
+          "@defaultValue"
+        ]
       }
     },
     {
@@ -32918,7 +33961,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 19353
+        "start": 19539
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"additionalTags\"]",
@@ -32975,7 +34018,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 18293
+        "start": 18479
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"includeImports\"]",
@@ -33026,7 +34069,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 18745
+        "start": 18931
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"includeReleaseTags\"]",
@@ -33067,7 +34110,7 @@
             "origin": {
               "packageName": "api-analyzer",
               "file": "lib/report-generation/reviewReport.d.ts",
-              "start": 18745
+              "start": 18931
             }
           }
         ],
@@ -33090,7 +34133,7 @@
       "origin": {
         "packageName": "api-analyzer",
         "file": "lib/report-generation/reviewReport.d.ts",
-        "start": 20570
+        "start": 20756
       },
       "metadata": {
         "id": "member:[\"[[\\\"[\\\\\\\"api-analyzer\\\\\\\",\\\\\\\"lib/report-generation/reviewReport.d.ts\\\\\\\"]\\\"],\\\"ReviewPresentationOptions\\\"]\",\"includeUndocumentedNotice\"]",

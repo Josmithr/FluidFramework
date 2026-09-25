@@ -1,4 +1,4 @@
-/* Records the current report limitation for inherited non-public class members. */
+/* Exercises inherited accessors and visibility without redeclaring base-private state. */
 import { Store } from "./containers.js";
 /**
  * Derived store with inherited private and protected state.

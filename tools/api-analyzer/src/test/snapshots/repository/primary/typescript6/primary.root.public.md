@@ -148,7 +148,6 @@ export class Store implements Box<string> {
     constructor(value: string);
     static create(): Store;
     get value(): string;
-    // (undocumented)
     set value(value: string);
     get(): string;
 }

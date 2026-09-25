@@ -19,6 +19,7 @@ import { decodeDependencyModels } from "../model.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 import { compareReviewBaseline } from "../report-generation/reviewBaseline.js";
 import type { DependencyApi } from "../analysis-types/dependencyModel.js";
+import type { ModelDeclaredMember } from "../analysis-types/modelGraph.js";
 
 describe("Dependency suite models", () => {
 	let directory: string;
@@ -51,6 +52,150 @@ describe("Dependency suite models", () => {
 		);
 	});
 	afterEach(() => rmSync(directory, { recursive: true, force: true }));
+
+	it("shares accessor-pair documentation status without replacing original comments", async () => {
+		// Same-named static and instance pairs must stay separate; declaration order must not choose the docs.
+		cpSync(
+			new URL("../../src/test/fixtures/suite/accessor-documentation.d.ts", import.meta.url),
+			path.join(directory, "index.d.ts"),
+		);
+		const result = await analyzeAPIs(
+			{
+				packageName: "consumer",
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+			},
+			directory,
+		);
+		assert(result.ok, JSON.stringify(result));
+		const report = result.value.generateReport(".", {
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert(report.ok, JSON.stringify(report));
+		assert(!report.value.includes("// (undocumented)\n    set value(input: string);"));
+		assert(!report.value.includes("// (undocumented)\n    get fromSetter(): string;"));
+		assert(report.value.includes("// (undocumented)\n    static set value(input: string);"));
+		assert(report.value.includes("// (undocumented)\n    set setOnly(input: string);"));
+		assertSnapshot(report.value, "report.accessor-documentation.md");
+
+		// A model-only reader must reproduce pair status without parsing source text or merging comments.
+		const text = result.value.generateModel();
+		const model = decodeDependencyModel(text, "consumer");
+		assert(model.ok, JSON.stringify(model));
+		const owner = model.value.graph.declarations.find(
+			(declaration) => declaration.name === "Accessors",
+		);
+		const members = owner?.container?.declaredMembers;
+		assert(owner !== undefined && members !== undefined);
+		const metadata = new Map(model.value.apis.map((api) => [api.id, api.documentation]));
+		for (const [printed, ownDocumented, pairDocumented] of [
+			["get value(): string;", true, true],
+			["set value(input: string);", false, true],
+			["get fromSetter(): string;", false, true],
+			["set fromSetter(input: string);", true, true],
+			["get both(): string;", true, true],
+			["set both(input: string);", true, true],
+			["get blank(): string;", false, false],
+			["set blank(input: string);", false, false],
+			["get tagOnly(): string;", false, false],
+			["set tagOnly(input: string);", false, false],
+			["get neither(): string;", false, false],
+			["set neither(input: string);", false, false],
+			["static get value(): string;", false, false],
+			["static set value(input: string);", false, false],
+			["get [key](): string;", true, true],
+			["set [key](input: string);", false, true],
+			["set reversed(input: string);", true, true],
+			["get reversed(): string;", false, true],
+		] as const) {
+			const member: ModelDeclaredMember | undefined = members.find(
+				(item) => item.printed === printed,
+			);
+			assert(member?.documentationId !== undefined, printed);
+			const partner: ModelDeclaredMember | undefined = members.find(
+				(item) => item.id === member.pairedAccessor,
+			);
+			assert(partner?.documentationId !== undefined, printed);
+			assert.equal(partner.pairedAccessor, member.id);
+			assert.equal(metadata.get(member.documentationId)?.documented, ownDocumented, printed);
+			assert.equal(
+				metadata.get(member.documentationId)?.documented === true ||
+					metadata.get(partner.documentationId)?.documented === true,
+				pairDocumented,
+				printed,
+			);
+
+			// The tag-only getter shares its notice line with @sealed; the full snapshot checks that combined line.
+			assert.equal(
+				report.value.includes(`// (undocumented)\n    ${printed}`),
+				!pairDocumented && !printed.startsWith("get tagOnly"),
+				printed,
+			);
+		}
+		for (const printed of ["set setOnly(input: string);", "get getOnly(): string;"]) {
+			assert.equal(
+				members.find((item) => item.printed === printed)?.pairedAccessor,
+				undefined,
+			);
+			assert(report.value.includes(`// (undocumented)\n    ${printed}`));
+		}
+
+		// Shared report status must not manufacture setter documentation or receiver-specific accessor identities.
+		const getter = members.find((item) => item.printed === "get value(): string;");
+		assert(getter !== undefined);
+		const setter = members.find((item) => item.id === getter.pairedAccessor);
+		assert(setter?.documentationId !== undefined);
+		assert.equal(metadata.get(setter.documentationId)?.documentation, undefined);
+		const derived = model.value.graph.declarations.find(
+			(declaration) => declaration.name === "Derived",
+		);
+		assert(derived !== undefined);
+		assert(
+			derived.members
+				.flatMap((member) => member.accessors ?? [])
+				.some((member) => member.id === getter.id && member.pairedAccessor === setter.id),
+		);
+
+		// Pair corruption must fail decoding before consumers use it to determine documentation presence.
+		const staticSetter = members.find(
+			(item) => item.printed === "static set value(input: string);",
+		);
+		assert(staticSetter !== undefined);
+		for (const pairedAccessor of ["missing", getter.id, staticSetter.id]) {
+			const invalid = {
+				...model.value,
+				graph: {
+					...model.value.graph,
+					declarations: model.value.graph.declarations.map((declaration) =>
+						declaration.id === owner.id
+							? {
+									...declaration,
+									container: {
+										...declaration.container,
+										declaredMembers: members.map((member) =>
+											member.id === getter.id ? { ...member, pairedAccessor } : member,
+										),
+									},
+								}
+							: declaration,
+					),
+				},
+			};
+			assert(!decodeDependencyModel(JSON.stringify(invalid), "consumer").ok, pairedAccessor);
+		}
+
+		// Neither decoding nor rendering may depend on the declaration file after analysis has completed.
+		rmSync(path.join(directory, "index.d.ts"));
+		assert(decodeDependencyModel(text, "consumer").ok);
+		assert.deepEqual(
+			result.value.generateReport(".", {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			}),
+			report,
+		);
+	});
 
 	it("rejects re-export release changes without replacing source documentation", async () => {
 		// Build the dependency model first so consumers validate against the source API's metadata.
@@ -193,6 +338,200 @@ describe("Dependency suite models", () => {
 	});
 
 	for (const compilerPackage of ["typescript6", "typescript"]) {
+		it(`preserves inherited accessors and visibility with ${compilerPackage} inputs`, async () => {
+			const root = path.join(directory, "node_modules", "dependency");
+			const require = createRequire(import.meta.url);
+			const compiler = path.join(
+				path.dirname(require.resolve(`${compilerPackage}/package.json`)),
+				"bin/tsc",
+			);
+			for (const [cwd, fixture] of [
+				[root, "inherited-accessors-base"],
+				[directory, "inherited-accessors"],
+			] as const) {
+				cpSync(
+					new URL(`../../src/test/fixtures/suite/${fixture}.ts`, import.meta.url),
+					path.join(cwd, "index.ts"),
+				);
+				writeFileSync(
+					path.join(cwd, "package.json"),
+					JSON.stringify({
+						name: cwd === root ? "dependency" : "consumer",
+						type: "module",
+						types: "index.d.ts",
+						...(cwd === root ? {} : { dependencies: { dependency: "1.0.0" } }),
+					}),
+				);
+				execFileSync(
+					process.execPath,
+					[
+						compiler,
+						"index.ts",
+						"--ignoreConfig",
+						"--declaration",
+						"--emitDeclarationOnly",
+						"--strict",
+						"--module",
+						"NodeNext",
+						"--target",
+						"ES2022",
+					],
+					{ cwd, stdio: "inherit" },
+				);
+				rmSync(path.join(cwd, "index.ts"));
+			}
+			const common = {
+				project: "tsconfig.json",
+				entrypoints: [{ name: ".", path: "index.d.ts" }],
+			};
+			const dependency = await analyzeAPIs({ ...common, packageName: "dependency" }, root);
+			assert(dependency.ok, JSON.stringify(dependency));
+			writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+			const result = await analyzeAPIs(
+				{
+					...common,
+					packageName: "consumer",
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			const report = result.value.generateReport(".", {
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert(report.ok, JSON.stringify(report));
+			assert(report.value.includes("protected state: string;"));
+			assert(report.value.includes("protected convert(input: string): string;"));
+			assert(report.value.includes("get value(): string;"));
+			assert(report.value.includes("set value(input: string);"));
+			assert(report.value.includes("protected get secret(): string;"));
+			assert(report.value.includes("set value(input: string | number);"));
+			assert(!report.value.includes("hidden"));
+			assert(!report.value.includes("#private"));
+
+			// The wider generic setter stays available through extends; expanding it with the read type would narrow it.
+			assert(!report.value.includes("flexible"));
+			assertSnapshot(report.value, "report.inherited-accessors.md");
+
+			// Both declaration forms must preserve protected access and accessor read/write assignability.
+			cpSync(
+				new URL(
+					"../../src/test/fixtures/suite/inherited-accessors-consumer.ts",
+					import.meta.url,
+				),
+				path.join(directory, "consumer.ts"),
+			);
+			const originalDeclarations = readFileSync(path.join(directory, "index.d.ts"), "utf8");
+			const reportDeclarations = report.value.split("```ts\n")[1]?.split("\n```")[0];
+			assert(reportDeclarations !== undefined);
+			for (const declarations of [originalDeclarations, reportDeclarations]) {
+				writeFileSync(path.join(directory, "index.d.ts"), declarations);
+				execFileSync(
+					process.execPath,
+					[
+						compiler,
+						"consumer.ts",
+						"--ignoreConfig",
+						"--noEmit",
+						"--strict",
+						"--module",
+						"NodeNext",
+						"--target",
+						"ES2022",
+					],
+					{ cwd: directory, stdio: "inherit" },
+				);
+			}
+			writeFileSync(path.join(directory, "index.d.ts"), originalDeclarations);
+
+			// Report omission is not data loss: models keep private source members and the explicit accessor fallback.
+			const text = result.value.generateModel();
+			const model = decodeDependencyModel(text, "consumer");
+			assert(model.ok, JSON.stringify(model));
+			const leaf = model.value.graph.declarations.find((item) => item.name === "Leaf");
+			assert(leaf !== undefined);
+			assert.equal(leaf.members.find((item) => item.name === "hidden")?.visibility, "private");
+			assert.equal(
+				leaf.members.find((item) => item.name === "state")?.visibility,
+				"protected",
+			);
+			assert.deepEqual(leaf.members.find((item) => item.name === "flexible")?.accessors, []);
+			const value = leaf.members.find((item) => item.name === "value");
+			assert(value?.accessors !== undefined);
+			assert.deepEqual(
+				value.accessors.map((item) => item.printed),
+				["get value(): string;", "set value(input: string);"],
+			);
+			assert(value.accessors.every((item) => item.source.packageName === "dependency"));
+			const models = decodeDependencyModels([
+				{ packageName: "consumer", text },
+				{ packageName: "dependency", text: dependency.value.generateModel() },
+			]);
+			assert(models.ok, JSON.stringify(models));
+			const base = models.value.find((item) => item.packageName === "dependency");
+			assert(base !== undefined);
+			assert(
+				value.accessors.every((item) =>
+					base.apis.some((api) => api.id === item.documentationId),
+				),
+			);
+
+			// Pair links and separate source documentation survive cross-package generic substitution.
+			const getter = value.accessors.find((item) => item.source.kind === "GetAccessor");
+			const setter = value.accessors.find((item) => item.source.kind === "SetAccessor");
+			assert(getter !== undefined && setter !== undefined);
+			assert.equal(getter.pairedAccessor, setter.id);
+			assert.equal(setter.pairedAccessor, getter.id);
+			assert.equal(
+				base.apis.find((api) => api.id === getter.documentationId)?.documentation.documented,
+				true,
+			);
+			assert.equal(
+				base.apis.find((api) => api.id === setter.documentationId)?.documentation.documented,
+				false,
+			);
+
+			// Reject detached views that no longer identify a declared accessor on the original base.
+			const invalidText = JSON.stringify({
+				...model.value,
+				graph: {
+					...model.value.graph,
+					declarations: model.value.graph.declarations.map((declaration) =>
+						declaration.id === leaf.id
+							? {
+									...declaration,
+									members: declaration.members.map((member) =>
+										member.id === value.id
+											? {
+													...member,
+													accessors: value.accessors?.map((accessor) => ({
+														...accessor,
+														id: "missing",
+													})),
+												}
+											: member,
+									),
+								}
+							: declaration,
+					),
+				},
+			});
+			assert(!decodeDependencyModel(invalidText, "consumer").ok);
+
+			// Remove both packages' inputs to prove that cross-package provenance is retained in completed data.
+			rmSync(path.join(directory, "index.d.ts"));
+			rmSync(path.join(root, "index.d.ts"));
+			assert.deepEqual(
+				result.value.generateReport(".", {
+					name: "public",
+					releaseLevels: [ReleaseLevel.Public],
+				}),
+				report,
+			);
+			assert.equal(result.value.generateModel(), text);
+		});
+
 		it(`preserves documented module namespaces with ${compilerPackage} inputs`, async () => {
 			const root = path.join(directory, "node_modules", "dependency");
 			const require = createRequire(import.meta.url);

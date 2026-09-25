@@ -118,6 +118,17 @@ function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 		assert(report.includes("// @public\nexport namespace Values {"));
 	}
 
+	// Derived reports retain accessor syntax and protected visibility without exposing base-private state.
+	for (const selection of ["public", "complete"]) {
+		const report = reports[`inheritance.${selection}`];
+		assert(report !== undefined);
+		assert(report.includes("protected revision: number;"));
+		assert(report.includes("get value(): string;"));
+		assert(report.includes("set value(value: string);"));
+		assert(!report.includes("current"));
+		assert(report.includes("// Inherited from `Store`"));
+	}
+
 	// This standalone package must not acquire dependency records from compiler libraries or traversal.
 	assert.deepEqual(model.external, []);
 	assert.deepEqual(model.dependencyModels, []);

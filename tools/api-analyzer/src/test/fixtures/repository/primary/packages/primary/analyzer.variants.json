@@ -1,7 +1,0 @@
-{
-  "packageName": "@scenario/primary",
-  "project": "tsconfig.variants.json",
-  "entrypoints": [
-    { "name": "./private", "path": "lib/privateInheritance.d.ts" }
-  ]
-}

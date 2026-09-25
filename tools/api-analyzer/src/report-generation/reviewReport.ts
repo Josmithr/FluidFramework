@@ -9,6 +9,7 @@ import type {
 	ApiItemId,
 	ExportFact,
 	DeclarationFact,
+	DeclaredMemberFact,
 	DeclarationStatementFact,
 	DocumentationReferenceContext,
 	ImportFact,
@@ -71,6 +72,8 @@ export interface ReviewSignature {
 	 *
 	 * @remarks
 	 * Absent, empty, and metadata-only comments are undocumented, including empty inherited content.
+	 * A getter/setter pair is documented when either accessor has descriptive content.
+	 * Both report records use that shared status; individual comments and tags are not combined.
 	 * Inheritance requests must resolve successfully before a report is constructed.
 	 * Measures content presence, not documentation quality or completeness.
 	 */
@@ -720,13 +723,43 @@ function prepareContainer(
 		};
 	}
 
+	/**
+	 * Shares documentation presence across an accessor pair without copying comments or metadata.
+	 * @param member - Original declared member or inherited accessor view.
+	 * @returns Prepared syntax with pair-level documentation status and original provenance.
+	 */
+	function prepareDeclaredMember(member: DeclaredMemberFact): PreparedSignature {
+		const prepared = prepareMember(
+			member.id,
+			member.printed,
+			member.documentationContext,
+			member.imports,
+		);
+		if (member.pairedAccessor === undefined) {
+			return prepared;
+		}
+		const partner = documentation.get(member.pairedAccessor);
+		assert(
+			partner !== undefined,
+			"Paired accessors must have completed original documentation.",
+		);
+
+		// Share only presentation status; the model keeps each comment, tag, and documentation origin intact.
+		return { ...prepared, documented: prepared.documented || partner.documented };
+	}
+
 	// Accessors and visibility-specific declarations can also appear in the effective member view.
 	// Keep their declared syntax once, rather than rendering a second property representation.
+	// Base-private state is not a new declaration on the receiver; the base relationship preserves it.
 	const effectiveMembers = declaration.members.filter(
 		(member) =>
+			member.visibility !== "private" &&
 			!syntax.declaredMembers.some((record) =>
 				member.declarations.some(
-					(source) => source.file === record.file && source.start === record.start,
+					(source) =>
+						source.packageName === record.packageName &&
+						source.file === record.file &&
+						source.start === record.start,
 				),
 			),
 	);
@@ -742,7 +775,10 @@ function prepareContainer(
 					(limitation) => limitation.code !== DiagnosticCode.MemberExpansionOutsideSuite,
 				))) ||
 		effectiveMembers.some(
-			(member) => member.signatures.length === 0 && !documentation.has(member.id),
+			(member) =>
+				member.accessors === undefined &&
+				member.signatures.length === 0 &&
+				!documentation.has(member.id),
 		)
 	) {
 		return undefined;
@@ -756,29 +792,34 @@ function prepareContainer(
 	const members = [
 		...syntax.declaredMembers
 			.filter((member) => !augmentationMembers.includes(member))
-			.map((member) => ({
-				...prepareItem(member.id, member.printed),
-				...(member.imports === undefined ? {} : { imports: member.imports }),
-			})),
-		...effectiveMembers.flatMap((member) =>
-			member.signatures.length > 0 && member.documentationContext === undefined
-				? member.signatures.map((signature) =>
-						prepareMember(
-							signature.id,
-							`${member.name}${member.optional ? "?" : ""}${signature.normalized.callSignatureText}`,
-							signature.documentationContext,
-							signature.normalized.imports,
-						),
-					)
-				: [
-						prepareMember(
-							member.id,
-							`${member.readonly === true ? "readonly " : ""}${member.name}${member.optional ? "?" : ""}: ${member.type};`,
-							member.documentationContext,
-							member.imports,
-						),
-					],
-		),
+			.map(prepareDeclaredMember),
+		...effectiveMembers.flatMap((member) => {
+			if (member.accessors !== undefined) {
+				// An empty accessor view intentionally leaves unresolved write types on the base declaration.
+				return member.accessors.map(prepareDeclaredMember);
+			}
+			const visibility = member.visibility === "protected" ? "protected " : "";
+
+			// Callable properties own property documentation; do not turn them into method declarations.
+			if (member.signatures.length > 0 && member.documentationContext === undefined) {
+				return member.signatures.map((signature) =>
+					prepareMember(
+						signature.id,
+						`${visibility}${member.name}${member.optional ? "?" : ""}${signature.normalized.callSignatureText}`,
+						signature.documentationContext,
+						signature.normalized.imports,
+					),
+				);
+			}
+			return [
+				prepareMember(
+					member.id,
+					`${visibility}${member.readonly === true ? "readonly " : ""}${member.name}${member.optional ? "?" : ""}: ${member.type};`,
+					member.documentationContext,
+					member.imports,
+				),
+			];
+		}),
 	];
 	return {
 		...prepareItem(declaration.id, ""),
