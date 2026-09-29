@@ -1312,6 +1312,18 @@ Model snapshots may change only for the syntax contract and dependent artifact f
 
 #### Approved re-export policy
 
+The 2026-09-29 review fixes preserve public namespace alias names and references to imported namespace members.
+They also preserve local import types, module type queries, quoted external export names, and global augmentations.
+The generator keeps global augmentations even when the selection contains no entrypoint exports.
+It emits these augmentations outside the shared namespace and qualifies references to local supporting declarations.
+The official scanner distinguishes `declare global` from an ordinary module named `global`.
+The pinned compiler's native syntax tree uses the same module keyword for both forms.
+Models generated from implementation files omit optional function syntax data.
+Models generated from declaration files keep validated source ranges and reference bindings.
+Consumer tests compile original and generated declarations with TypeScript 6 and TypeScript 7.
+The tests check that selected dependency overloads keep the identity of nested class types.
+These fixes do not establish full Stage 4 acceptance.
+
 Approved on 2026-09-25; implementation remains Stage 4 work.
 Preserve cross-package re-exports as references to their defining packages rather than requiring dependency declarations to be bundled.
 The approved partial-overload exception above applies only to safe standalone function redeclarations.

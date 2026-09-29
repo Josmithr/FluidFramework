@@ -1,6 +1,8 @@
 /* Supplies a mixed-release overload set whose package reference cannot select one signature. */
 
 import type { Result as ImportedResult } from "./types.js";
+import type { NestedValue as ImportedNestedValue } from "./types.js";
+export { NS } from "./types.js";
 export { Result as ResultValue } from "./types.js";
 export type { Result as Output } from "./types.js";
 
@@ -21,7 +23,7 @@ export declare function convert(value: boolean): boolean;
 export declare function convert(value: number): number;
 
 /** Preserves a generic nominal constraint. @public */
-export declare function preserve<Value extends ImportedResult>(value: Value): Value;
+export declare function preserve<Value extends ImportedResult>(value: Value, nested?: import("./types.js").NS.Value, alias?: ImportedNestedValue): Value;
 
 /** Preview nominal overload. @beta */
 export declare function preserve(value: number): ImportedResult;

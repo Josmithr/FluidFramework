@@ -21,6 +21,12 @@ export interface RollupFragment {
  */
 export interface RollupDeclaration {
 	/**
+	 * Whether fragments must remain in the global scope for every export selection.
+	 * @defaultValue Omitted for ordinary module declarations.
+	 */
+	readonly globalAugmentation?: true;
+
+	/**
 	 * Original comments for a synthesized namespace wrapper, without private remarks.
 	 * @defaultValue Omitted when documentation is absent or retained in original syntax.
 	 */

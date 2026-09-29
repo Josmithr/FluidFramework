@@ -11,6 +11,7 @@ import type {
 import type {
 	ModelGraph,
 	ModelDeclaration,
+	ModelDeclarationSyntax,
 	ModelDeclaredMember,
 	ModelItem,
 	ModelMember,
@@ -129,6 +130,16 @@ const signatureSchema = itemSchema
 				importTypes: z.array(
 					z.strictObject({ prefix: syntaxRangeSchema, isTypeOf: z.boolean() }),
 				),
+				shorthandExports: z.array(syntaxRangeSchema).optional(),
+				referencePaths: z
+					.array(
+						z.strictObject({
+							range: syntaxRangeSchema,
+							path: z.array(z.string().min(1)).min(1),
+						}),
+					)
+					.optional(),
+				moduleQueries: z.array(syntaxRangeSchema).optional(),
 				variable: z
 					.strictObject({ list: syntaxRangeSchema, binding: syntaxRangeSchema })
 					.optional(),
@@ -157,11 +168,23 @@ const signatureSchema = itemSchema
 						})),
 				),
 			})
-			.transform(({ variable, anonymousNameOffset, ...syntax }) => ({
-				...syntax,
-				...(variable === undefined ? {} : { variable }),
-				...(anonymousNameOffset === undefined ? {} : { anonymousNameOffset }),
-			}))
+			.transform(
+				({
+					variable,
+					anonymousNameOffset,
+					shorthandExports,
+					referencePaths,
+					moduleQueries,
+					...syntax
+				}) => ({
+					...syntax,
+					...(shorthandExports === undefined ? {} : { shorthandExports }),
+					...(referencePaths === undefined ? {} : { referencePaths }),
+					...(moduleQueries === undefined ? {} : { moduleQueries }),
+					...(variable === undefined ? {} : { variable }),
+					...(anonymousNameOffset === undefined ? {} : { anonymousNameOffset }),
+				}),
+			)
 			.optional(),
 		source: sourceSchema.optional(),
 		effective: signatureTextSchema,
@@ -263,11 +286,8 @@ export const modelGraphSchema: z.ZodType<ModelGraph> = z.strictObject({
  */
 function collectFunctionSyntax(
 	graph: CompletedAnalysis,
-): ReadonlyMap<string, NonNullable<ModelSignature["declarationSyntax"]>> {
-	const syntaxBySignature = new Map<
-		string,
-		NonNullable<ModelSignature["declarationSyntax"]>
-	>();
+): ReadonlyMap<string, ModelDeclarationSyntax> {
+	const syntaxBySignature = new Map<string, ModelDeclarationSyntax>();
 	const syntax = graph.facts.declarationSyntax;
 	for (const declaration of graph.facts.declarations) {
 		if (
@@ -286,6 +306,11 @@ function collectFunctionSyntax(
 			continue;
 		}
 		for (const fragment of captured.fragments) {
+			// Function bodies can reference private helpers that are not in the semantic graph.
+			// The decoder would reject a model that contains references to those missing declarations.
+			if (!fragment.syntax.isDeclarationFile) {
+				continue;
+			}
 			const targets = new Set(
 				fragment.syntax.excerpt.tokens.flatMap((token) =>
 					token.kind === "Reference" ? [token.target] : [],

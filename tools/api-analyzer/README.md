@@ -1112,6 +1112,13 @@ Do not publish only the thin entrypoints: their declarations depend on the share
 The shared module preserves class identity across entrypoints, including private members.
 Required supporting declarations are retained but do not become entrypoint exports.
 Names are allocated deterministically to avoid collisions with other declarations and lexical names.
+Namespace aliases keep their public names.
+This includes shorthand exports and aliases for imported namespace members.
+The generator replaces relative paths in local import types and module type queries, such as `typeof import("./local.js")`.
+The generator uses named imports for quoted external export names that cannot appear in a reference such as `Namespace.Member`.
+The generator keeps global augmentation declarations outside the shared namespace.
+It keeps these declarations even when the selection contains no entrypoint exports.
+Their supporting declarations remain in the shared module.
 Standalone overloads follow the selection independently; classes, interfaces, enums, namespaces, and compound containers remain atomic.
 Imports needed only by excluded declarations are removed.
 Cross-package exports remain package references, with suite-owned bindings selected by metadata and outside-suite bindings retained unconditionally.
@@ -1150,7 +1157,11 @@ Referenced dependency types use published export bindings from the models; nomin
 Missing producer syntax or an inaccessible referenced type returns `rollup-unsupported` rather than an unsafe declaration.
 Regenerate dependency models with declaration inputs to supply the optional `ModelSignature.declarationSyntax` data.
 It stores original syntax, bound reference tokens, modifier and documentation ranges, required external imports, and lexical identifiers.
-Standalone functions retain this data whether they have one signature or several overloads.
+Standalone functions from declaration files include this data for one signature or for multiple overloads.
+Models generated from implementation files omit this optional syntax data.
+Function bodies can reference private helpers that are not in the model's declaration graph.
+Analysis records namespace member paths, shorthand export positions, and module type queries without qualifiers.
+The generator uses these facts to change local references without changing public names.
 The decoder validates source ownership, source-text agreement, non-overlapping ranges, import identities, and reference targets.
 Analysis retains this information in the required `AnalysisFacts.declarationSyntax` collection, including unexported supporting declarations.
 These facts describe the source; they do not contain selected output, rewritten modifiers, or a trimming policy.

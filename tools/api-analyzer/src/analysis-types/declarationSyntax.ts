@@ -19,6 +19,23 @@ export interface SyntaxRange {
 }
 
 /**
+ * Source range and member path for a namespace reference.
+ * @sealed
+ * @public
+ */
+export interface DeclarationReferencePath {
+	/**
+	 * Source range of the original reference.
+	 */
+	readonly range: SyntaxRange;
+
+	/**
+	 * Member names from the captured target to the referenced declaration.
+	 */
+	readonly path: readonly string[];
+}
+
+/**
  * Original documentation and parser-resolved private section boundaries.
  * @sealed
  * @public
@@ -124,6 +141,31 @@ export interface DeclarationSyntax {
 	}[];
 
 	/**
+	 * Source ranges for shorthand export names.
+	 * @remarks
+	 * Each name also references a captured local binding.
+	 * @defaultValue Omitted when no shorthand exports reference captured bindings.
+	 */
+	readonly shorthandExports?: readonly SyntaxRange[];
+
+	/**
+	 * Paths to namespace members.
+	 * @remarks
+	 * Each reference token identifies a captured enclosing declaration.
+	 * The path identifies a member relative to that declaration.
+	 * @defaultValue Omitted when references do not need member paths.
+	 */
+	readonly referencePaths?: readonly DeclarationReferencePath[];
+
+	/**
+	 * Source ranges for module type queries without qualifiers.
+	 * @remarks
+	 * Each range covers one reference token that identifies a source-file module.
+	 * @defaultValue Omitted when no module queries reference captured source files.
+	 */
+	readonly moduleQueries?: readonly SyntaxRange[];
+
+	/**
 	 * Variable list and this record's individual binding within it.
 	 * @defaultValue Omitted for non-variable declarations.
 	 */
@@ -150,6 +192,12 @@ export interface DeclarationSyntax {
  * Original syntax parts associated with semantic declaration and overload identities.
  */
 export interface DeclarationSyntaxFact {
+	/**
+	 * Whether this declaration is a global augmentation.
+	 * @defaultValue Omitted for ordinary declarations.
+	 */
+	readonly globalAugmentation?: true;
+
 	/**
 	 * Original declaration identity.
 	 */

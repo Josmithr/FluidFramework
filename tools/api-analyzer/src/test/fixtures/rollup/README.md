@@ -11,6 +11,8 @@ They are not compiled as a standalone workspace.
 - `suite-overloads.d.ts` and `suite-reexport.d.ts` test model-backed partial overload redeclarations and unchanged complete or foreign exports.
 - `suite-types.d.ts` and `suite-consumer.ts` verify generic nominal identity, aliases, type-only exports, and excluded calls with both consumer compilers.
 - `suite-private-overloads.d.ts` requires a diagnostic for an inaccessible nominal type rather than a copied class declaration.
+- `aliases.d.ts`, `aliases-local.d.ts`, and `aliases-external.d.ts` test namespace aliases, module type queries, nested import types, quoted external names, and global augmentations.
+- `aliases-consumer.ts` checks public names and class identity against original and generated declarations with TypeScript 6 and TypeScript 7.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.

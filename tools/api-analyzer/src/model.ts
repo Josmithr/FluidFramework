@@ -20,10 +20,12 @@ export type {
 } from "./analysis-types/dependencyModel.js";
 export type {
 	ModelDeclaration,
+	ModelDeclarationSyntax,
 	ModelDeclarationStatement,
 	ModelDeclaredMember,
 	ModelExport,
 	ModelGraph,
+	ModelImportBinding,
 	ModelItem,
 	ModelMember,
 	ModelOrigin,
@@ -38,4 +40,8 @@ export type {
 	ExcerptToken,
 	ExcerptTokenRange,
 } from "./analysis-types/excerpt.js";
-export type { DeclarationSyntax, SyntaxRange } from "./analysis-types/declarationSyntax.js";
+export type {
+	DeclarationSyntax,
+	DeclarationReferencePath,
+	SyntaxRange,
+} from "./analysis-types/declarationSyntax.js";

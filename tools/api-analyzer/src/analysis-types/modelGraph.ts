@@ -185,61 +185,78 @@ export interface ModelItem {
 }
 
 /**
+ * External import binding used by captured declaration syntax.
+ * @sealed
+ * @public
+ */
+export interface ModelImportBinding {
+	/**
+	 * Identity used by reference tokens; distinct from declaration identities.
+	 */
+	readonly id: string;
+
+	/**
+	 * Original local binding name before collision resolution.
+	 */
+	readonly name: string;
+
+	/**
+	 * Import syntax used by the binding.
+	 */
+	readonly kind: "named" | "default" | "namespace";
+
+	/**
+	 * Non-relative module specifier preserved from the producer.
+	 */
+	readonly moduleSpecifier: string;
+
+	/**
+	 * Named export to import.
+	 * @defaultValue Omitted for namespace imports; optional for default imports.
+	 */
+	readonly importedName?: string;
+
+	/**
+	 * Whether the binding exposes only a type.
+	 */
+	readonly typeOnly: boolean;
+}
+
+/**
+ * Captured function syntax and import bindings from the defining package.
+ * @sealed
+ * @public
+ */
+export interface ModelDeclarationSyntax extends DeclarationSyntax {
+	/**
+	 * Lexical identifiers not represented by replaceable reference tokens.
+	 */
+	readonly lexicalNames: readonly string[];
+
+	/**
+	 * External import bindings used by reference tokens in this overload.
+	 */
+	readonly imports: readonly ModelImportBinding[];
+}
+
+/**
  * Ordered callable display views and optional original declaration syntax.
  * @public
  */
 export interface ModelSignature extends ModelItem {
 	/**
-	 * Original standalone function syntax and compiler-resolved boundaries from the defining package.
+	 * Original syntax for a standalone function from the defining package.
 	 *
 	 * @remarks
-	 * Reference tokens identify declarations or entries in `imports`, including the function's own name.
-	 * Source text is not self-contained; reference tokens require their recorded bindings.
+	 * The compiler supplies the source boundaries.
+	 * Reference tokens identify declarations or entries in `imports`.
+	 * These tokens include the function's own name.
+	 * Use the recorded bindings to resolve source references.
 	 * Original modifiers and private remarks remain in the excerpt.
-	 * @defaultValue Omitted for non-standalone signatures or unavailable source capture.
+	 * @defaultValue Omitted for implementation files and signatures that are not standalone functions.
+	 * Also omitted when source syntax is unavailable.
 	 */
-	readonly declarationSyntax?: DeclarationSyntax & {
-		/**
-		 * Lexical identifiers not represented by replaceable reference tokens.
-		 */
-		readonly lexicalNames: readonly string[];
-
-		/**
-		 * External import bindings used by reference tokens in this overload.
-		 */
-		readonly imports: readonly {
-			/**
-			 * Identity used by reference tokens; distinct from declaration identities.
-			 */
-			readonly id: string;
-
-			/**
-			 * Original local binding name before collision resolution.
-			 */
-			readonly name: string;
-
-			/**
-			 * Import syntax used by the binding.
-			 */
-			readonly kind: "named" | "default" | "namespace";
-
-			/**
-			 * Non-relative module specifier preserved from the producer.
-			 */
-			readonly moduleSpecifier: string;
-
-			/**
-			 * Named export to import.
-			 * @defaultValue Omitted for namespace imports; optional for default imports.
-			 */
-			readonly importedName?: string;
-
-			/**
-			 * Whether the binding exposes only a type.
-			 */
-			readonly typeOnly: boolean;
-		}[];
-	};
+	readonly declarationSyntax?: ModelDeclarationSyntax;
 
 	/**
 	 * Original input syntax before substitution.

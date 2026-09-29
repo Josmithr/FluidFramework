@@ -122,6 +122,31 @@ describe("One-shot API analysis and adapter facts", () => {
 		assert.equal(Object.isFrozen(capture), true);
 	});
 
+	it("round-trips implementation-source models with body-only references", async () => {
+		const entrypoint = path.join(directory, "src/implementation.ts");
+		writeFileSync(
+			entrypoint,
+			'function helper(): string { return "value"; }\n/** Reads a value. @public */\nexport function read(): string { return helper(); }\n',
+		);
+		const result = await analyzeAPIs({
+			...configuration,
+			entrypoints: [{ name: ".", path: entrypoint }],
+		});
+		assert(result.ok, JSON.stringify(result));
+		const decoded = publicAPI.decodeDependencyModel(result.value.generateModel(), "example");
+		assert(decoded.ok, JSON.stringify(decoded));
+
+		// Decoding must succeed without adding the private helper to the API declaration graph.
+		assert.deepEqual(
+			decoded.value.graph.declarations.map((item) => item.name),
+			["read"],
+		);
+		assert.equal(
+			decoded.value.graph.declarations[0]?.signatures[0]?.declarationSyntax,
+			undefined,
+		);
+	});
+
 	it("returns completed analysis without a public compiler lifecycle", async () => {
 		assert.deepEqual(
 			Object.entries(publicAPI)

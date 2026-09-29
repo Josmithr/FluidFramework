@@ -278,7 +278,19 @@ describe("Dependency suite models", () => {
 				?.declarationSyntax !== undefined,
 			true,
 		);
+
+		// Keep the producer text valid and make the relocation metadata invalid.
+		// The decoder must reject the model before generation uses it.
 		for (const corrupted of [
+			{ ...originalSignature.declarationSyntax, shorthandExports: [{ start: 0, end: 1 }] },
+			{
+				...originalSignature.declarationSyntax,
+				moduleQueries: [{ start: 0, end: sourceText.length + 1 }],
+			},
+			{
+				...originalSignature.declarationSyntax,
+				referencePaths: [{ range: { start: 0, end: 1 }, path: ["Value"] }],
+			},
 			{ ...originalSignature.declarationSyntax, declarationStart: sourceText.length + 1 },
 			{
 				...originalSignature.declarationSyntax,
@@ -389,6 +401,8 @@ describe("Dependency suite models", () => {
 				assert.equal(selected.ok, true, JSON.stringify(selected));
 				const shared = selected.value["__api.d.ts"] ?? "";
 				assert.doesNotMatch(shared, /privateRemarks|Producer-only detail/);
+				assert.doesNotMatch(shared, /\.\/types\.js/);
+				assert.match(shared, /nested\?: NS\.Value, alias\?: NS\.Value/);
 				assert.match(shared, /function convert\(value: string\): string/);
 				assert.match(shared, /function convert\(value: boolean\): boolean/);
 				assert.equal(shared.split("// Redeclared to omit excluded overloads;").length - 1, 3);

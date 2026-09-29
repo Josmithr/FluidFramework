@@ -19,6 +19,10 @@ import {
 	isQualifiedName,
 	isPropertyAccessExpression,
 	isImportTypeNode,
+	isExportSpecifier,
+	isImportEqualsDeclaration,
+	isModuleDeclaration,
+	isLiteralTypeNode,
 } from "typescript/unstable/ast/is";
 import {
 	SymbolFlags,
@@ -28,6 +32,7 @@ import {
 import type { DeclarationFact, ApiItemId, ImportFact } from "../analysis-types/facts.js";
 import type {
 	DeclarationSyntax,
+	DeclarationReferencePath,
 	DeclarationExportFact,
 	DeclarationSyntaxFact,
 	DeclarationSyntaxFacts,
@@ -75,6 +80,34 @@ interface DeclarationName {
 	 * Original name, `default` for anonymous declarations, or empty for source-file modules.
 	 */
 	readonly name: string;
+
+	/**
+	 * Member path from the indexed root to an imported nested declaration.
+	 *
+	 * @example Nested namespace member
+	 * For an import that resolves to `NS.Inner.Value`, the record uses the identity and name of `NS`.
+	 * The path contains `Inner` followed by `Value`.
+	 * It does not include the root name, `NS`.
+	 * ```typescript
+	 * declare const namespaceId: ApiItemId;
+	 * const nested: DeclarationName = {
+	 *     id: namespaceId,
+	 *     name: "NS",
+	 *     path: ["Inner", "Value"],
+	 * };
+	 * ```
+	 *
+	 * @example Direct root binding
+	 * For an import that resolves directly to `NS`, the record omits the path.
+	 * An import alias does not change this rule.
+	 * ```typescript
+	 * declare const rootId: ApiItemId;
+	 * const direct: DeclarationName = { id: rootId, name: "NS" };
+	 * ```
+	 *
+	 * @defaultValue Omitted for direct root bindings.
+	 */
+	readonly path?: readonly string[];
 }
 
 /**
@@ -106,6 +139,9 @@ export function captureDeclarationSyntax(
 	const records = new Map<ApiItemId, DeclarationSyntaxFact>();
 	const indexed = indexDeclarations(project, sources, identity);
 	const localRoots = new Map(indexed.roots);
+
+	// Module type queries need an identity for the whole source file.
+	// The file has no declaration fragment, so its record contains only export bindings.
 	for (const source of sources) {
 		const symbol = project.checker.getSymbolAtLocation(source);
 		if (symbol !== undefined) {
@@ -126,6 +162,7 @@ export function captureDeclarationSyntax(
 		const previous = records.get(root.id);
 		records.set(root.id, {
 			...root,
+			...(isGlobalAugmentation(input.node) ? { globalAugmentation: true as const } : {}),
 			fragments: [...(previous?.fragments ?? []), captured.fragment],
 		});
 	}
@@ -292,7 +329,7 @@ function indexImports(
 					continue;
 				}
 				const target = project.checker.getAliasedSymbol(symbol);
-				const local = roots.get(target.id);
+				const local = findLocalBinding(project, target, localRoots);
 				if (local !== undefined) {
 					roots.set(symbol.id, local);
 				} else if (!statement.moduleSpecifier.text.startsWith(".")) {
@@ -317,6 +354,44 @@ function indexImports(
 		}
 	}
 	return { roots, imports: [...imports.values()] };
+}
+
+/**
+ * Finds the indexed root and member path for a resolved symbol.
+ * @param project - Active checker.
+ * @param symbol - Resolved local import target.
+ * @param roots - Top-level local bindings.
+ * @returns The root binding and member path, or undefined when no indexed root exists.
+ */
+function findLocalBinding(
+	project: Pick<Project, "checker">,
+	symbol: CompilerSymbol,
+	roots: ReadonlyMap<number, DeclarationName>,
+): DeclarationName | undefined {
+	const direct = roots.get(symbol.id);
+	if (direct !== undefined) {
+		return direct;
+	}
+
+	// The generator emits nested members inside their enclosing namespace.
+	// Walk through parent declarations to find that root.
+	// Add each parent name at the start of the path to keep the original access order.
+	for (const declaration of symbol.declarations ?? []) {
+		const members = [symbol.name];
+		let parent = declaration.resolve()?.parent;
+		while (parent !== undefined) {
+			if (isModuleDeclaration(parent) && isIdentifier(parent.name)) {
+				const enclosing = project.checker.getSymbolAtLocation(parent.name);
+				const root = enclosing === undefined ? undefined : roots.get(enclosing.id);
+				if (root !== undefined) {
+					return { ...root, path: members };
+				}
+				members.unshift(parent.name.text);
+			}
+			parent = parent.parent;
+		}
+	}
+	return undefined;
 }
 
 /**
@@ -403,6 +478,9 @@ function captureDeclaration(
 	const comments = new Set<number>();
 	const commentSyntax: DeclarationSyntax["comments"][number][] = [];
 	const importTypes: DeclarationSyntax["importTypes"][number][] = [];
+	const shorthandExports: SyntaxRange[] = [];
+	const referencePaths: DeclarationReferencePath[] = [];
+	const moduleQueries: SyntaxRange[] = [];
 
 	/**
 	 * Captures original symbol occurrences and documentation section boundaries.
@@ -433,8 +511,34 @@ function captureDeclaration(
 				),
 			});
 		}
+		if (
+			isImportTypeNode(current) &&
+			current.qualifier === undefined &&
+			current.isTypeOf &&
+			isLiteralTypeNode(current.argument)
+		) {
+			const symbol = project.checker.getSymbolAtLocation(current.argument.literal);
+			const target = symbol === undefined ? undefined : roots.get(symbol.id);
+			if (target !== undefined) {
+				// Capture the whole typeof import(...) expression as one module reference.
+				// The generator restores the typeof keyword after it replaces the reference.
+				const range = {
+					start: current.end - current.getText().length - node.pos,
+					end: current.end - node.pos,
+				};
+				references.push({ ...range, target: target.id });
+				moduleQueries.push(range);
+				return;
+			}
+		}
 		if (isImportTypeNode(current) && current.qualifier !== undefined) {
-			const symbol = project.checker.getSymbolAtLocation(current.qualifier);
+			// NS.Member resolves to a nested symbol, not to an indexed root.
+			// Use NS to check whether the generator can remove the import prefix.
+			let qualifier = current.qualifier;
+			while (isQualifiedName(qualifier)) {
+				qualifier = qualifier.left;
+			}
+			const symbol = project.checker.getSymbolAtLocation(qualifier);
 			const target = symbol === undefined ? undefined : roots.get(symbol.id);
 			if (target !== undefined) {
 				importTypes.push({
@@ -451,6 +555,25 @@ function captureDeclaration(
 			isQualifiedName(current) ||
 			isPropertyAccessExpression(current)
 		) {
+			const parent = current.parent;
+
+			// These names define a public binding or the global scope.
+			// Replacing them with a target name would change the API.
+			if (
+				(isExportSpecifier(parent) &&
+					parent.name === current &&
+					parent.propertyName !== undefined) ||
+				(isImportEqualsDeclaration(parent) && parent.name === current) ||
+				(isModuleDeclaration(parent) &&
+					isGlobalAugmentation(parent) &&
+					parent.name === current)
+			) {
+				lexicalNames.add(current.getText());
+				return;
+			}
+
+			// Use the import's binding record first.
+			// The resolved target alone can omit the captured path to a namespace member.
 			const referenced = project.checker.getSymbolAtLocation(current);
 			const resolved =
 				referenced !== undefined && (referenced.flags & SymbolFlags.Alias) !== 0
@@ -462,11 +585,23 @@ function captureDeclaration(
 					: (roots.get(referenced.id) ??
 						(resolved === undefined ? undefined : roots.get(resolved.id)));
 			if (target !== undefined) {
-				references.push({
+				const range = {
 					start: current.end - current.getText().length - node.pos,
 					end: current.end - node.pos,
-					target: target.id,
-				});
+				};
+				references.push({ ...range, target: target.id });
+				if (target.path !== undefined) {
+					referencePaths.push({ range, path: target.path });
+				}
+				if (isExportSpecifier(parent) && parent.propertyName === undefined) {
+					// A shorthand name is both a reference and a public name.
+					// The generator must change the reference without changing the public name.
+					shorthandExports.push({
+						start: current.end - current.getText().length - node.pos,
+						end: current.end - node.pos,
+					});
+					lexicalNames.add(current.getText());
+				}
 				return;
 			}
 			if (isIdentifier(current)) {
@@ -484,6 +619,9 @@ function captureDeclaration(
 			modifiers: modifierSyntax,
 			comments: commentSyntax,
 			importTypes,
+			...(shorthandExports.length === 0 ? {} : { shorthandExports }),
+			...(referencePaths.length === 0 ? {} : { referencePaths }),
+			...(moduleQueries.length === 0 ? {} : { moduleQueries }),
 			...(variableSyntax === undefined ? {} : { variable: variableSyntax }),
 			...(anonymousNameOffset === undefined ? {} : { anonymousNameOffset }),
 		},
@@ -500,6 +638,30 @@ function captureDeclaration(
 				: [],
 	};
 	return { fragment, lexicalNames };
+}
+
+/**
+ * Distinguishes global augmentation from an ordinary module named global.
+ * @remarks
+ * The native syntax tree uses ModuleKeyword for both forms.
+ * The official scanner distinguishes the two forms from their source tokens.
+ * @param node - Original declaration node.
+ * @returns Whether the declaration uses the global keyword without a module or namespace keyword.
+ */
+function isGlobalAugmentation(node: Node): boolean {
+	if (!isModuleDeclaration(node) || !isIdentifier(node.name) || node.name.text !== "global") {
+		return false;
+	}
+	const scanner = createScanner(true, undefined, node.getText());
+	for (let token = scanner.scan(); token !== SyntaxKind.EndOfFile; token = scanner.scan()) {
+		if (token === SyntaxKind.ModuleKeyword || token === SyntaxKind.NamespaceKeyword) {
+			return false;
+		}
+		if (token === SyntaxKind.GlobalKeyword) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**

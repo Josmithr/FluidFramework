@@ -5,3 +5,7 @@ export declare class Result {
 	private state;
 	readonly value: string;
 }
+
+/** @public */
+export declare namespace NS { class Value { private brand; } }
+export import NestedValue = NS.Value;

@@ -122,6 +122,107 @@ describe("Detached declaration rollups", () => {
 		assert.match(nested.value["nested/entry.d.ts"] ?? "", /from "\.\.\/__api.js"/);
 	});
 
+	it("preserves namespace aliases and local import types after relocation", async () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "api-rollup-aliases-"));
+		try {
+			for (const [fixture, file] of [
+				["aliases.d.ts", "index.d.ts"],
+				["aliases-consumer.ts", "consumer.ts"],
+				["aliases-local.d.ts", "local.d.ts"],
+				["right.d.ts", "right.d.ts"],
+				["aliases-external.d.ts", "external.d.ts"],
+			] as const) {
+				cpSync(
+					new URL(`../../src/test/fixtures/rollup/${fixture}`, import.meta.url),
+					path.join(directory, file),
+				);
+			}
+			const foreign = path.join(directory, "node_modules", "foreign");
+			mkdirSync(foreign, { recursive: true });
+			cpSync(
+				new URL("../../src/test/fixtures/rollup/foreign.d.ts", import.meta.url),
+				path.join(foreign, "index.d.ts"),
+			);
+			writeFileSync(
+				path.join(foreign, "package.json"),
+				JSON.stringify({ name: "foreign", type: "module", types: "index.d.ts" }),
+			);
+			writeFileSync(
+				path.join(directory, "package.json"),
+				JSON.stringify({ name: "aliases", type: "module" }),
+			);
+			writeFileSync(
+				path.join(directory, "tsconfig.json"),
+				JSON.stringify({
+					compilerOptions: { strict: true, module: "NodeNext", types: [] },
+					files: ["index.d.ts"],
+				}),
+			);
+			const require = createRequire(import.meta.url);
+			const compile = (): void => {
+				for (const compiler of ["typescript6", "typescript"]) {
+					execFileSync(
+						process.execPath,
+						[
+							path.join(path.dirname(require.resolve(`${compiler}/package.json`)), "bin/tsc"),
+							"consumer.ts",
+							"--ignoreConfig",
+							"--noEmit",
+							"--strict",
+							"--module",
+							"NodeNext",
+							"--target",
+							"ES2022",
+						],
+						{ cwd: directory, stdio: "inherit", timeout: 15000 },
+					);
+				}
+			};
+
+			// Check that both compilers accept the consumer with the original declarations.
+			compile();
+			const result = await analyzeAPIs(
+				{
+					packageName: "aliases",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "index.d.ts" }],
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+
+			// Remove the original files so an unchanged relative path cannot hide a generation error.
+			rmSync(path.join(directory, "index.d.ts"));
+			rmSync(path.join(directory, "local.d.ts"));
+			rmSync(path.join(directory, "right.d.ts"));
+			rmSync(path.join(directory, "external.d.ts"));
+			const generated = result.value.generateRollups({
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert(generated.ok, JSON.stringify(generated));
+			for (const [file, text] of Object.entries(generated.value)) {
+				writeFileSync(path.join(directory, file), text);
+			}
+			compile();
+
+			// An import without named bindings must still apply global augmentations when the export selection is empty.
+			const empty = result.value.generateRollups({ name: "empty", releaseLevels: [] });
+			assert(empty.ok, JSON.stringify(empty));
+			for (const [file, text] of Object.entries(empty.value)) {
+				writeFileSync(path.join(directory, file), text);
+			}
+			assert.doesNotMatch(empty.value["index.d.ts"] ?? "", /Aliases|OrdinaryModule/);
+			writeFileSync(
+				path.join(directory, "consumer.ts"),
+				'import "./index.js";\n"".extra();\n',
+			);
+			compile();
+		} finally {
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
 	for (const producer of ["typescript6", "typescript"] as const) {
 		for (const scenario of repositoryScenarios) {
 			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {

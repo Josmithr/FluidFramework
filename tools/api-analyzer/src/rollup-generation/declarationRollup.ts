@@ -7,6 +7,7 @@ import type { RollupData, RollupFragment } from "./rollupTypes.js";
 import { prepareDeclarationSyntax, prepareDeclarationFragment } from "./declarationSyntax.js";
 import type { ModelDeclaration } from "../analysis-types/modelGraph.js";
 import type { DependencyModel } from "../analysis-types/dependencyModel.js";
+import type { ExportFact } from "../analysis-types/facts.js";
 
 /**
  * Selected fragments and external bindings required by an artifact set.
@@ -288,6 +289,13 @@ function collectDeclarations(
 			.filter((binding) => binding.external === undefined)
 			.map((binding) => ({ id: binding.target, whole: false })),
 	);
+
+	// Importing an entrypoint applies its global augmentations even when the selection excludes all named exports.
+	pending.push(
+		...data.declarations
+			.filter((declaration) => declaration.globalAugmentation === true)
+			.map((declaration) => ({ id: declaration.id, whole: true })),
+	);
 	const selectedRoots = new Set(pending.map((item) => item.id));
 	while (pending.length > 0) {
 		const next = pending.pop();
@@ -321,15 +329,9 @@ function collectDeclarations(
 		fragments.set(id, selectedFragments);
 		for (const binding of declaration.exports ?? []) {
 			if (binding.external !== undefined) {
-				const importId = `namespace-import:${binding.external.moduleSpecifier}`;
-				imports.set(importId, {
-					id: importId,
-					kind: "namespace",
-					name: "foreignNamespace",
-					moduleSpecifier: binding.external.moduleSpecifier,
-					typeOnly: false,
-				});
-				requiredImports.add(importId);
+				const imported = getNamespaceImport(binding.external);
+				imports.set(imported.id, imported);
+				requiredImports.add(imported.id);
 			}
 		}
 		pending.push(
@@ -410,18 +412,25 @@ function renderSharedModule(
 		);
 	}
 	const body: string[] = [];
+	const augmentations: string[] = [];
 	for (const id of [...closure.fragments.keys()].sort()) {
+		const declaration = declarations.get(id);
+		const globalAugmentation = declaration?.globalAugmentation === true;
+
+		// Augmentations are outside __api, so references to local declarations need the __api prefix.
+		// References to module-level imports do not need this prefix.
 		for (const fragment of closure.fragments.get(id) ?? []) {
-			body.push(
+			(globalAugmentation ? augmentations : body).push(
 				fragment.excerpt.tokens
 					.map((token) =>
-						token.kind === "Content" ? token.text : getName(names, token.target),
+						token.kind === "Content"
+							? token.text
+							: `${globalAugmentation && !closure.imports.has(token.target) ? "__api." : ""}${getName(names, token.target)}`,
 					)
 					.join("")
 					.trim(),
 			);
 		}
-		const declaration = declarations.get(id);
 		if (declaration?.exports !== undefined) {
 			if (declaration.documentation !== undefined) {
 				body.push(declaration.documentation);
@@ -429,10 +438,19 @@ function renderSharedModule(
 			body.push(
 				`export namespace ${getName(names, id)} {\n${declaration.exports
 					.map((binding, index) => {
-						const target =
+						const imported =
 							binding.external === undefined
+								? undefined
+								: getNamespaceImport(binding.external);
+						if (imported?.kind === "named") {
+							// A named import can refer to a constant.
+							// A constant cannot be the namespace target in import alias = value, so export the binding directly.
+							return `export ${binding.typeOnly ? "type " : ""}{ ${getName(names, imported.id)} as ${exportName(binding.name)} };`;
+						}
+						const target =
+							imported === undefined
 								? `__api.${getName(names, binding.target)}`
-								: `${getName(names, `namespace-import:${binding.external.moduleSpecifier}`)}${binding.external.importedName === undefined ? "" : `.${binding.external.importedName}`}`;
+								: `${getName(names, imported.id)}${binding.external?.importedName === undefined ? "" : `.${binding.external.importedName}`}`;
 						return `import alias_${index} = ${target};\nexport ${binding.typeOnly ? "type " : ""}{ alias_${index} as ${exportName(binding.name)} };`;
 					})
 					.join("\n")}\n}`,
@@ -440,6 +458,7 @@ function renderSharedModule(
 		}
 	}
 	output.push(`export declare namespace __api {\n${body.join("\n\n")}\n}`);
+	output.push(...augmentations);
 	return `${output.join("\n\n")}\n`;
 }
 
@@ -508,4 +527,34 @@ function getName(names: ReadonlyMap<string, string>, id: string): string {
  */
 function exportName(name: string): string {
 	return /^[$A-Z_a-z][\w$]*$/.test(name) ? name : JSON.stringify(name);
+}
+
+/**
+ * Selects import syntax for an external namespace member.
+ * @param binding - Original external export binding.
+ * @returns A namespace import, or a named import for a quoted export name.
+ */
+function getNamespaceImport(
+	binding: NonNullable<ExportFact["external"]>,
+): RollupData["imports"][number] {
+	const importedName = binding.importedName;
+
+	// Named imports support quoted export names.
+	// Import alias targets do not support quoted names after a dot.
+	return importedName !== undefined && exportName(importedName) !== importedName
+		? {
+				id: `namespace-member:${JSON.stringify([binding.moduleSpecifier, importedName])}`,
+				kind: "named",
+				name: "foreignExport",
+				importedName,
+				moduleSpecifier: binding.moduleSpecifier,
+				typeOnly: false,
+			}
+		: {
+				id: `namespace-import:${binding.moduleSpecifier}`,
+				kind: "namespace",
+				name: "foreignNamespace",
+				moduleSpecifier: binding.moduleSpecifier,
+				typeOnly: false,
+			};
 }

@@ -38,6 +38,9 @@ export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupD
 		})),
 		declarations: facts.declarations.map((declaration) => ({
 			id: declaration.id,
+			...(declaration.globalAugmentation === undefined
+				? {}
+				: { globalAugmentation: declaration.globalAugmentation }),
 			name:
 				declaration.name === ""
 					? "moduleNamespace"
@@ -48,7 +51,12 @@ export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupD
 						: declaration.name,
 			fragments: declaration.fragments.map((fragment) => ({
 				signatures: fragment.signatures,
-				excerpt: prepareDeclarationFragment(fragment.syntax, declaration.id, declaration.name),
+				excerpt: prepareDeclarationFragment(
+					fragment.syntax,
+					declaration.id,
+					declaration.name,
+					declaration.globalAugmentation === true,
+				),
 			})),
 			...(declaration.exports === undefined
 				? {}
@@ -83,26 +91,34 @@ function prepareExportBinding(binding: DeclarationExportFact): ExportFact {
 }
 
 /**
- * Applies declaration-output policy without parsing source or resolving identities again.
+ * Applies declaration output rules to captured syntax.
+ * @remarks
+ * This operation does not parse source text or resolve identities again.
  * @param syntax - Original source and compiler-derived boundaries.
  * @param id - Declaration identity for an anonymous default name.
  * @param name - Preferred name for an anonymous default declaration.
- * @returns Relocatable output tokens retaining all reference identities.
+ * @param globalAugmentation - Whether to retain global declaration syntax. Defaults to false.
+ * @returns Output tokens that keep their recorded reference identities.
  */
 export function prepareDeclarationFragment(
 	syntax: DeclarationSyntax,
 	id: string,
 	name: string,
+	globalAugmentation = false,
 ): CodeExcerpt {
-	const edits: SyntaxEdit[] = [
-		{
-			start: syntax.declarationStart,
-			end: syntax.declarationStart,
-			tokens: [{ kind: "Content", text: "export " }],
-		},
-	];
+	// Global augmentations remain at module scope.
+	// Keep their declare keyword and do not add an export keyword.
+	const edits: SyntaxEdit[] = globalAugmentation
+		? []
+		: [
+				{
+					start: syntax.declarationStart,
+					end: syntax.declarationStart,
+					tokens: [{ kind: "Content", text: "export " }],
+				},
+			];
 	for (const modifier of syntax.modifiers) {
-		if (["export", "default", "declare"].includes(modifier.keyword)) {
+		if (!globalAugmentation && ["export", "default", "declare"].includes(modifier.keyword)) {
 			edits.push({ start: modifier.range.start, end: modifier.trailingEnd, tokens: [] });
 		}
 	}
@@ -117,6 +133,48 @@ export function prepareDeclarationFragment(
 		edits.push({
 			...imported.prefix,
 			tokens: imported.isTypeOf ? [{ kind: "Content", text: "typeof " }] : [],
+		});
+	}
+
+	// In export { Name }, the local reference can change, but the public name must not change.
+	for (const range of syntax.shorthandExports ?? []) {
+		const text = syntax.excerpt.tokens.map((token) => token.text).join("");
+		edits.push({
+			start: range.end,
+			end: range.end,
+			tokens: [{ kind: "Content", text: ` as ${text.slice(range.start, range.end)}` }],
+		});
+	}
+
+	// A module type query without a qualifier occupies one reference token.
+	// Replacing that token removes the original typeof keyword, so add the keyword here.
+	for (const range of syntax.moduleQueries ?? []) {
+		edits.push({
+			start: range.start,
+			end: range.start,
+			tokens: [{ kind: "Content", text: "typeof " }],
+		});
+	}
+
+	// Rename only the enclosing root.
+	// Keep the member names unchanged so each path still refers to the same declaration.
+	for (const reference of syntax.referencePaths ?? []) {
+		let offset = 0;
+		const token = syntax.excerpt.tokens.find((candidate) => {
+			const start = offset;
+			offset += candidate.text.length;
+			return start === reference.range.start && offset === reference.range.end;
+		});
+		assert(
+			token?.kind === "Reference",
+			"Member paths must belong to complete reference tokens.",
+		);
+		edits.push({
+			...reference.range,
+			tokens: [
+				token,
+				{ kind: "Content", text: reference.path.map((member) => `.${member}`).join("") },
+			],
 		});
 	}
 	if (syntax.variable !== undefined) {
@@ -195,6 +253,10 @@ function applySyntaxEdits(excerpt: CodeExcerpt, edits: readonly SyntaxEdit[]): C
 			}
 		}
 	}
+
+	// At the same offset, insert text before removing text.
+	// This order lets export replace an original leading modifier.
+	// All positions refer to the original excerpt, not to the output under construction.
 	for (const edit of [...edits].sort(
 		(left, right) => left.start - right.start || left.end - right.end,
 	)) {
