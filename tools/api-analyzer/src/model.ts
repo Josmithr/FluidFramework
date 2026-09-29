@@ -38,3 +38,4 @@ export type {
 	ExcerptToken,
 	ExcerptTokenRange,
 } from "./analysis-types/excerpt.js";
+export type { DeclarationSyntax, SyntaxRange } from "./analysis-types/declarationSyntax.js";

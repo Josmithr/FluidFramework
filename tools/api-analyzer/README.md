@@ -8,7 +8,7 @@ Publication remains a separate decision.
 ## Module support
 
 The library is ECMAScript module (ESM) only, and package analysis supports ESM entrypoints only.
-CommonJS package inputs and TypeScript `export =` declarations are out of scope for analysis, API reports, portable models, and future declaration rollups.
+CommonJS package inputs and TypeScript `export =` declarations are out of scope for analysis, API reports, portable models, and declaration rollups.
 CommonJS support is not planned work or a stage-acceptance requirement.
 Node, browser, and custom package-resolution conditions remain supported within ESM entrypoints.
 This scope does not promise a dedicated diagnostic for every unsupported CommonJS input.
@@ -18,7 +18,8 @@ This scope does not promise a dedicated diagnostic for every unsupported CommonJ
 Stage 2 is complete as of 2026-09-20 under the accepted review and validation scope.
 The [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) retains the known parser limitation and optional investigations for after the remaining library implementation.
 Stage 3 adds portable documentation models and source-free readers.
-Declaration rollups remain Stage 4; repository documenter and historical-artifact migration remain Stage 5.
+Stage 4 adds experimental detached declaration generation; its acceptance audit is in progress.
+Repository documenter and historical-artifact migration remain Stage 5.
 
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
@@ -97,7 +98,8 @@ Unexpected extraction errors are propagated after cleanup; if connection cleanup
 The asynchronous entrypoint still blocks the Node.js event loop during synchronous compiler work.
 An active compiler call cannot be canceled.
 The accepted Stage 2 declaration and reference-validation scope is implemented.
-Models retain portable declaration and documentation data; declaration rollups remain required by Stage 4.
+Models retain portable declaration and documentation data.
+Declaration generation consumes separately captured syntax, as described in [Declaration rollups](#declaration-rollups).
 These limitations do not waive the corresponding delivery requirements.
 
 Failure diagnostics describe only user-caused issues, including invalid input, configuration, and caller actions.
@@ -248,7 +250,7 @@ Other re-export documentation, including links, is ignored.
 The analyzer validates package-owned intermediate export statements as well as entrypoint exports.
 Conflicts cannot be disabled through missing-tag or TSDoc-syntax options.
 The [suite tests](src/test/suite.test.ts) cover these rules and detached model/report reuse with both declaration producers.
-Declaration-rollup compilation remains separate Stage 4 work; successful report generation is not proof of a compilable rollup.
+Separate [rollup consumer tests](src/test/rollup.test.ts) check declaration compilation; successful report generation is not proof of a compilable rollup.
 
 ### Type-only enum and constant exports
 
@@ -357,7 +359,7 @@ Namespace aliases must expose targets with the namespace's release level; aliasi
 These checks do not disable configured reference/exposure policies or make partial member extraction complete.
 The [container fixture](src/test/fixtures/native/container-members.ts) covers complete output and original ownership with both supported input compilers.
 Pure tests cover release-level pairs, nested ownership, untagged roots, repeated inherited views, and custom-tag selections.
-Later declaration rollups must follow the same selection invariant; rollups are not implemented by this change.
+Declaration rollups follow the same atomic-selection invariant.
 Additional selection flexibility remains a [post-V1 investigation](docs/api-extractor-replacement-follow-ups.md#flexible-container-member-selection).
 
 ### Original and resolved signature text
@@ -460,7 +462,7 @@ The [architecture proposal](docs/Architecture-Proposal.md) defines the layer dep
 `utilities` contains only generic assertions and freezing helpers.
 `model-generation` owns versioned dependency model encoding, decoding, and artifact validation.
 The root composition reads artifacts and supplies validated model data to analysis.
-Declaration rollup generation remains pending; no empty rollup layer is introduced.
+The `rollup-generation` layer consumes detached syntax and compiler-bound name references.
 
 Each public invocation creates one internal `AnalysisContext` from immutable compiler facts.
 Context creation validates declaration and signature identities, indexes declarations, and classifies original comments.
@@ -1090,9 +1092,77 @@ Package exports are limited to anticipated user-facing workflows.
 The exported functions are `analyzeAPIs`, `decodeDependencyModel`, and `decodeDependencyModels`.
 The main entrypoint also exports `ReleaseLevel`, `DiagnosticCode`, and supporting types.
 Configuration resolution, classification, selection, documentation processing, report rendering, and baseline comparison are internal operations.
-The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, `generateReport(entrypoint, selection, presentation?)`, and `generateModel()`.
+The returned `APIAnalysis` exposes immutable effective `configuration`, `getStatistics()`, `generateReport(entrypoint, selection, presentation?)`, `generateModel()`, and `generateRollups(selection)`.
 `generateModel()` returns version 1 portable documentation as JSON with a final newline, independently of report selections.
-Declaration-rollup methods remain required future work; no placeholder methods are exposed.
+`generateRollups(selection)` returns the complete declaration artifact set described below.
+
+### Declaration rollups
+
+Analyze untrimmed declaration files with preserved comments before generating rollups.
+`generateRollups(selection): Result<Readonly<Record<string, string>>>` returns file content keyed by package-relative output path.
+Generation is synchronous and performs no file access, compiler queries, comment parsing, or shared validation.
+The returned result is deeply frozen.
+
+Each successful result contains `__api.d.ts` and one declaration file per configured entrypoint.
+The `.` entrypoint maps to `index.d.ts`; `./feature` maps to `feature.d.ts`; `./nested/feature` maps to `nested/feature.d.ts`.
+Entrypoints import the shared module using relative `.js` specifiers.
+Write the complete set without changing its relative paths, and point the package's type exports to those entrypoint files.
+Do not publish only the thin entrypoints: their declarations depend on the shared file.
+
+The shared module preserves class identity across entrypoints, including private members.
+Required supporting declarations are retained but do not become entrypoint exports.
+Names are allocated deterministically to avoid collisions with other declarations and lexical names.
+Standalone overloads follow the selection independently; classes, interfaces, enums, namespaces, and compound containers remain atomic.
+Imports needed only by excluded declarations are removed.
+Cross-package exports remain package references, with suite-owned bindings selected by metadata and outside-suite bindings retained unconditionally.
+
+Original declaration and member comments are copied without resolving inherited prose into them.
+During analysis, the official TSDoc parser records private section ranges without changing the source text.
+The rollup generator removes those ranges; other comment text remains unchanged.
+Package documentation is retained separately and copied to each generated entrypoint without private remarks.
+
+This example generates public declaration content from an existing completed analysis.
+The caller decides where and when to write the returned files.
+
+```typescript
+import { ReleaseLevel, type APIAnalysis } from "api-analyzer";
+
+declare const analysis: APIAnalysis;
+const output = analysis.generateRollups({
+	name: "public",
+	releaseLevels: [ReleaseLevel.Public],
+});
+if (output.ok) {
+	// Publish every file together, with the returned relative paths unchanged.
+	for (const [relativePath, content] of Object.entries(output.value)) {
+		console.log(relativePath, content);
+	}
+}
+```
+
+Invalid selections return the shared selection diagnostics.
+Unsafe or colliding output paths return `rollup-configuration`; `__api.d.ts` is reserved, and `.` conflicts with `./index`.
+Selected implementation-source inputs return `rollup-unsupported`; build declarations before analysis.
+Partially selected standalone suite functions are redeclared using original overload syntax from the defining package's decoded API model.
+Each generated overload has an ordinary comment explaining that a direct re-export would expose excluded overloads.
+Complete bindings, compound containers, and foreign APIs remain ordinary package re-exports.
+Referenced dependency types use published export bindings from the models; nominal declarations are never copied for this transformation.
+Missing producer syntax or an inaccessible referenced type returns `rollup-unsupported` rather than an unsafe declaration.
+Regenerate dependency models with declaration inputs to supply the optional `ModelSignature.declarationSyntax` data.
+It stores original syntax, bound reference tokens, modifier and documentation ranges, required external imports, and lexical identifiers.
+Standalone functions retain this data whether they have one signature or several overloads.
+The decoder validates source ownership, source-text agreement, non-overlapping ranges, import identities, and reference targets.
+Analysis retains this information in the required `AnalysisFacts.declarationSyntax` collection, including unexported supporting declarations.
+These facts describe the source; they do not contain selected output, rewritten modifiers, or a trimming policy.
+The generator owns modifier rewriting, private-section removal, generated names, namespace wrappers, and re-export selection.
+Generation uses these decoded facts without reparsing dependency code or API comments.
+This does not remove the dependency declarations needed by the initial semantic analysis.
+See the [approved overload policy](docs/api-extractor-replacement-implementation-plan.md#partial-suite-overload-re-exports).
+This experimental API does not establish production readiness.
+
+[Rollup tests](src/test/rollup.test.ts) compile complete and public outputs from both TS6 and TS7 producers with both consumer compilers.
+They remove original package inputs before generation and retain exact snapshots plus positive and negative consumer assertions.
+[Lifecycle tests](src/test/session.test.ts) check output-order independence and no compiler or parser calls during generation.
 
 The following example analyzes a package once and generates public report text without writing a file.
 The configured project must include the declaration entrypoint and its dependencies.
@@ -1513,10 +1583,10 @@ Per-directory `fence.json` files define permitted imports and exported modules.
 Analysis and reporting can import shared contracts and utilities but cannot import one another or the root API.
 Shared contracts cannot import compiler or parser implementations.
 Test helpers are accessible only to tagged tests, not production modules.
-The boundary regression uses temporary import probes with the real fence files, including `.js` specifiers, type-only imports, and re-exports.
+`pnpm check:fences` enforces these rules against the package source, and `pnpm lint` includes that check.
 
 `good-fences` 0.10.0 is pinned as an MIT-licensed development dependency.
-The JavaScript project is no longer maintained upstream; changes to its version require the boundary regression to pass.
+The JavaScript project is no longer maintained upstream; changes to its version require `pnpm check:fences` to pass.
 Version 1.2.0 was blocked by a Git-hosted transitive dependency under the current supply-chain policy.
 Version 1.1.0 requires native `nodegit` even for a full check; 0.10.0 avoids that dependency and runs without additional build permissions.
 No supply-chain policy exceptions or compiler-version overrides were added for this tool.

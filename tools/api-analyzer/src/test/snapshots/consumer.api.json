@@ -449,6 +449,65 @@
             "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** {@inheritDoc dependency#source} @public */\n// Tests replace this qualified reference to exercise missing, internal, peer, and transitive targets.\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "consumer",
+                    "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"consumer\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 152,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 152,
+                    "end": 158
+                  },
+                  "trailingEnd": 159
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 159,
+                    "end": 166
+                  },
+                  "trailingEnd": 167
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 2,
+                    "end": 48
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "operation",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "consumer",
               "file": "index.d.ts",
@@ -595,6 +654,65 @@
             "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Links across the suite. See {@link dependency#target}. @public */\n// Public-to-beta links remain valid even when a public-only report excludes the target.\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "linked",
+                    "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"linked\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 161,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 161,
+                    "end": 167
+                  },
+                  "trailingEnd": 168
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 168,
+                    "end": 175
+                  },
+                  "trailingEnd": 176
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 2,
+                    "end": 71
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "operation",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "consumer",
               "file": "index.d.ts",
@@ -741,6 +859,65 @@
             "id": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Same-named consumer target must not replace the dependency target. @internal */\n// Resolving inherited links in consumer scope would incorrectly select this internal API.\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "target",
+                    "target": "[[\"[\\\"consumer\\\",\\\"index.d.ts\\\"]\"],\"target\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 177,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 177,
+                    "end": 183
+                  },
+                  "trailingEnd": 184
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 184,
+                    "end": 191
+                  },
+                  "trailingEnd": 192
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 2,
+                    "end": 85
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "operation",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "consumer",
               "file": "index.d.ts",
@@ -1358,7 +1535,7 @@
   "dependencyModels": [
     {
       "packageName": "dependency",
-      "sha256": "2ac2cc7beb583a0198828b23b7f70410205617857d567d3582272e21108031be"
+      "sha256": "f7ffad3d9bd9712a4704ee68aed37c104041d2afbdfb01e2575dc0b7adc47465"
     }
   ],
   "modifierTags": [

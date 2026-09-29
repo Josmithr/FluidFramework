@@ -113,6 +113,7 @@ import {
 import { mergeDocumentationComments } from "./mergedDocumentation.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
 import { getDeclarationSelectorKind } from "./dependencyReferences.js";
+import { captureDeclarationSyntax } from "./declarationCapture.js";
 import {
 	createSourceExcerpt,
 	captureImports,
@@ -498,10 +499,61 @@ function extractFacts(
 	});
 
 	// Sort the result independently of traversal order before making it immutable.
+	const declarationSyntax = captureDeclarationSyntax(
+		project,
+		project.program.getSourceFileNames().flatMap((file) => {
+			const source = project.program.getSourceFile(file);
+			return source !== undefined &&
+				!project.program.isSourceFileDefaultLibrary(source) &&
+				getOrigin(locations, file, 0).packageName === configuration.packageName
+				? [source]
+				: [];
+		}),
+		state.declarations,
+		(symbol) => getDeclarationId(locations, symbol),
+		parser,
+		(moduleSymbol) =>
+			project.checker.getExportsOfModule(moduleSymbol).map((exported) => {
+				const resolved = resolveSymbolTarget(project.checker, exported);
+				const target =
+					(resolved.flags & SymbolFlags.Alias) === 0
+						? resolved
+						: project.checker.getAliasedSymbol(resolved);
+				const external = findExternalExport(project, moduleSymbol, exported);
+				return {
+					name: exported.name,
+					target: getDeclarationId(locations, target),
+					typeOnly: isTypeOnlyExport(project.checker, locations, moduleSymbol, exported.name),
+					...(external === undefined ? {} : { moduleReference: external }),
+				};
+			}),
+		packageComment?.documentation,
+	);
 	return freezeData({
 		ok: true,
 		value: {
 			packageName: configuration.packageName,
+			declarationSyntax: {
+				...declarationSyntax,
+				surfaces: surfaces.map((surface) => {
+					const moduleSymbol = assertDefined(entrypoints.get(surface.name));
+					const symbols = project.checker.getExportsOfModule(moduleSymbol);
+					return {
+						...surface,
+						exports: surface.exports.map((binding) => {
+							const { external: outsideBinding, ...resolved } = binding;
+							const symbol = assertDefined(symbols.find((item) => item.name === binding.name));
+							const moduleReference =
+								outsideBinding ?? findExternalExport(project, moduleSymbol, symbol);
+							return {
+								...resolved,
+								...(moduleReference === undefined ? {} : { moduleReference }),
+								outsideSuite: outsideBinding !== undefined,
+							};
+						}),
+					};
+				}),
+			},
 			...(reexports.length === 0 ? {} : { reexports }),
 			...(packageComment === undefined ? {} : { packageDocumentation: packageComment }),
 			compilerVersion: "7.0.2",

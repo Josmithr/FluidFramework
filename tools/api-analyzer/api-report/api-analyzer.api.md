@@ -10,6 +10,7 @@ export interface APIAnalysis {
     readonly configuration: EffectiveConfiguration;
     generateModel(): string;
     generateReport(entrypoint: string, selection: ApiItemSelection, presentation?: ReviewPresentationOptions): Result<string>;
+    generateRollups(selection: ApiItemSelection): Result<Readonly<Record<string, string>>>;
     getStatistics(): APIStatistics;
 }
 
@@ -82,6 +83,8 @@ export interface DependencyModel {
 
 // @public
 export enum DiagnosticCode {
+    RollupConfiguration = "rollup-configuration",
+    RollupUnsupported = "rollup-unsupported",
     PackageDocumentationInvalid = "package-documentation-invalid",
     PackageDocumentationMissing = "package-documentation-missing",
     ClassificationContainerMismatch = "classification-container-mismatch",

@@ -1,16 +1,17 @@
 # `api-analyzer` Architecture Proposal
 
 Status: architecture direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
-`utilities`, `analysis-types`, `analysis`, `report-generation`, and `model-generation` have enforced boundaries.
+`utilities`, `analysis-types`, `analysis`, `report-generation`, `model-generation`, and `rollup-generation` have enforced boundaries.
 The completed graph covers supported declarations, effective members, merged documentation, suite references, and configured policies.
-The model layer implements portable declaration and documentation graphs with source-free readers; declaration rollups remain Stage 4.
+The model layer implements portable declaration and documentation graphs with source-free readers.
+The rollup layer implements experimental detached declaration generation; Stage 4 acceptance is in progress.
 The [API proposal](API-Proposal.md) defines the public workflow.
 The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery stages and capability gates.
 
 ## Public workflow
 
 1. The caller passes ordinary configuration to `analyzeAPIs` and awaits `Result<APIAnalysis>`.
-2. Successful analysis returns an object that provides portable-model generation, API report generation, and API statistics. The final contract also requires declaration rollup generation, scheduled for Stage 4.
+2. Successful analysis returns an object that provides portable-model generation, API report generation, declaration rollup generation, and API statistics.
 3. The caller requests outputs from that object without repeating analysis or shared validation.
 
 Compiler resources are released before analysis returns success or failure.
@@ -25,6 +26,8 @@ Its output is one completed analysis graph, not only raw compiler facts.
 
 **Declaration rollup generation** reads the completed graph and configured surface selections to produce complete or trimmed entrypoint declarations.
 It does not query a live compiler or repeat semantic analysis.
+The artifact set contains shared local definitions and thin entrypoint modules to preserve nominal identity.
+Cross-package re-exports remain package references under the approved suite-selection policy.
 
 **API model generation** encodes graph data in an explicit, versioned JSON format for dependency analysis and documentation tools.
 The same layer decodes artifacts and validates their format, identities, references, and completeness.
@@ -84,7 +87,6 @@ Follow the per-directory `fence.json` conventions in `api-markdown-documenter`, 
 Use tags, allowed imports, and exported entrypoints to express the dependencies in the table above.
 Configure root composition and test boundaries explicitly; production layers must not depend on test helpers or bypass layer boundaries through root exports.
 `pnpm check:fences` runs the installed `good-fences` checker, and `pnpm lint` includes that check.
-The [boundary regression](../src/test/architecture.test.ts) verifies allowed imports and rejected cross-layer imports, type-only imports, re-exports, root-barrel access, and production access to test helpers.
 See the [tooling notes](../README.md#dependency-boundaries) for the selected version and compatibility limitations.
 Keep ESLint for coding conventions; do not duplicate the layer dependency rules in ESLint or a custom checker.
 Create directories when their implementations are needed, not as empty scaffolding.
@@ -117,6 +119,23 @@ It receives checker/emitter services and a reference-target callback; the adapte
 The excerpt module does not import the adapter or retain its state.
 [Boundary tests](../src/analysis/test/compilerExcerpt.test.ts) exercise it directly, while end-to-end model tests and snapshots preserve output behavior.
 
+Declaration capture is isolated in [declarationCapture.ts](../src/analysis/declarationCapture.ts).
+The adapter passes compiler services, package-owned files, identity and export callbacks, and the configured TSDoc parser explicitly.
+Capture uses original AST spans and checker bindings to retain source text, required imports, and replaceable name occurrences.
+The required `AnalysisFacts.declarationSyntax` collection records modifier, variable-list, import-type, and documentation boundaries without rewriting source text.
+It retains unexported supporting declarations separately from independently classified APIs, linked by declaration and signature identities.
+Original package bindings use `moduleReference`; `outsideSuite` records target ownership, not a trimming instruction.
+No compiler nodes or callbacks survive completion.
+The defining package's model encoder projects standalone function syntax into `ModelSignature.declarationSyntax`, including single-signature functions.
+The model retains private remarks as original source and records their parser-resolved ranges.
+The decoder checks ownership, exact source text, ranges, and reference targets before a consumer uses these facts.
+Downstream rollups consume this data from validated dependency models rather than repeat declaration capture on dependency code.
+Required nominal types remain imports through producer export bindings; an unavailable binding produces a diagnostic.
+[Declaration generation](../src/rollup-generation/declarationRollup.ts) separates selection, dependency closure, name allocation, and rendering into pure transformations.
+Its [syntax transformation](../src/rollup-generation/declarationSyntax.ts) applies output-specific modifier edits, variable splitting, import-type relocation, and private-section removal using the recorded ranges.
+Rollup-specific records and policy remain inside `rollup-generation`, not in the shared analysis domain.
+Mutation is limited to invocation-owned maps, sets, and output builders.
+
 Expected input failures return diagnostics through the public result contract.
 Internal assertions and unexpected operational failures remain exceptions, with cleanup preserving the original failure.
 Output-specific request validation remains separate from completed shared semantic validation.
@@ -144,8 +163,8 @@ Shared classification, reference resolution, and documentation validation now re
 Documentation completion runs in `analysis/completeAnalysis.ts`; report preparation is a synchronous transformation of completed graph data.
 Mutable extraction and documentation contexts remain private to analysis; the graph contains no compiler or parser objects.
 Existing implementations and layer tests have moved into their owning directories, while composition tests and shared fixtures remain under the source-root test directory.
-The model layer owns the implemented dependency format. No empty rollup directory has been created.
-The portable model projects this graph into versioned public data contracts; introduce the rollup layer in Stage 4.
+The model layer owns the implemented dependency format.
+The portable model projects this graph into versioned public data contracts; the rollup layer consumes separately captured declaration syntax.
 Keep the public API narrow and preserve existing validated behavior during the migration.
 The package's self-artifact script is a root-level I/O caller of the same public analysis workflow.
 It generates the checked-in report and development model from one analysis, without a dependency from one generator into another.

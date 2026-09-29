@@ -1,5 +1,6 @@
 import type { AnalyzerDiagnostic } from "./result.js";
 import type { CodeExcerpt } from "./excerpt.js";
+import type { DeclarationSyntaxFacts } from "./declarationSyntax.js";
 import type { ModelExport } from "./modelGraph.js";
 
 /**
@@ -1291,6 +1292,11 @@ export interface ReexportFact {
  * They remain usable after the compiler snapshot or analysis session closes.
  */
 export interface AnalysisFacts {
+	/**
+	 * Original declaration syntax, source boundaries, and resolved bindings.
+	 */
+	readonly declarationSyntax: DeclarationSyntaxFacts;
+
 	/**
 	 * Explicit release tags on ordinary re-export statements, retained only for validation.
 	 * @defaultValue Omitted when no re-export statement has release tags.

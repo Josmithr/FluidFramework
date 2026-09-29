@@ -260,6 +260,66 @@
             "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Core source documentation. See {@link target}.\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "source",
+                    "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"source\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 70,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 70,
+                    "end": 76
+                  },
+                  "trailingEnd": 77
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 77,
+                    "end": 84
+                  },
+                  "trailingEnd": 85
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 69
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "TValue",
+                "convert",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/core",
               "file": "lib/index.d.ts",
@@ -406,6 +466,66 @@
             "id": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "/**\n * Core target documentation.\n * @beta\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "target",
+                    "target": "[[\"[\\\"@scenario/core\\\",\\\"lib/index.d.ts\\\"]\"],\"target\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 47,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 47,
+                    "end": 53
+                  },
+                  "trailingEnd": 54
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 54,
+                    "end": 61
+                  },
+                  "trailingEnd": 62
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 0,
+                    "end": 46
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "TValue",
+                "convert",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/core",
               "file": "lib/index.d.ts",

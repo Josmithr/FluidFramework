@@ -1873,6 +1873,64 @@
             "id": "[[\"[\\\"@scenario/service\\\",\\\"lib/index.d.ts\\\"]\"],\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"@scenario/service\\\",\\\"lib/index.d.ts\\\"]\"],\"operation\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * {@inheritDoc @scenario/domain#inherited}\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "operation",
+                    "target": "[[\"[\\\"@scenario/service\\\",\\\"lib/index.d.ts\\\"]\"],\"operation\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 64,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 64,
+                    "end": 70
+                  },
+                  "trailingEnd": 71
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 71,
+                    "end": 78
+                  },
+                  "trailingEnd": 79
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 63
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/service",
               "file": "lib/index.d.ts",
@@ -1998,15 +2056,15 @@
   "dependencyModels": [
     {
       "packageName": "@scenario/adapter",
-      "sha256": "d24a29acf2f00d29117e6510aa59479070380a7d157363a306081d9a0c88865e"
+      "sha256": "dd13401a66f0f80a73e67ec8a9347f9067225463c6b4f6116e4786b4d8af0d72"
     },
     {
       "packageName": "@scenario/core",
-      "sha256": "86eaefd19e9c65ff21aadf97ae09d9a41c60dad2f900945a0c7fab9ff587d491"
+      "sha256": "85c9ba5ce67dfaa9b445f94e34893b91543c4bd5538b7556b02be2ff7b444046"
     },
     {
       "packageName": "@scenario/domain",
-      "sha256": "d54ac58695f43e1a18f5312164a00f4ae5baf749afaed6d927f96e542b471b40"
+      "sha256": "7d2a056fade4a835b24e67c85ad46bf5890c77912487aaca52499ce46b31e152"
     },
     {
       "packageName": "@scenario/unused",

@@ -289,6 +289,82 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/anonymousDefault.d.ts\\\"]\"],\"default\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/anonymousDefault.d.ts\\\"]\"],\"default\"]:cd8a51f4d43c131b4f0231e8f478e1d8983b3d11f0fd097e2f6baa269fed0495",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "/**\n * Anonymous default function.\n * @public\n */\nexport default function (): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 1
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 50,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 50,
+                    "end": 56
+                  },
+                  "trailingEnd": 57
+                },
+                {
+                  "keyword": "default",
+                  "range": {
+                    "start": 57,
+                    "end": 64
+                  },
+                  "trailingEnd": 65
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 0,
+                    "end": 49
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "anonymousNameOffset": 73,
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/anonymousDefault.d.ts",
@@ -3212,6 +3288,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"assertText\"]:2971ad064f9d3c204fd9addf4430cd3d56fae6d909cbc8bf0a7535a695619c9f",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"assertText\"]:2971ad064f9d3c204fd9addf4430cd3d56fae6d909cbc8bf0a7535a695619c9f",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Requires text.\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "assertText",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"assertText\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: unknown): asserts value is string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 38,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 38,
+                    "end": 44
+                  },
+                  "trailingEnd": 45
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 45,
+                    "end": 52
+                  },
+                  "trailingEnd": 53
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 37
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -3507,6 +3667,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"collect\"]:3385e097a58c2cfef80a2c1bd4043a74f516662b3ca3c8c9703b022cd42681e2",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"collect\"]:3385e097a58c2cfef80a2c1bd4043a74f516662b3ca3c8c9703b022cd42681e2",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Accepts optional and rest arguments.\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "collect",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"collect\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(first?: string, ...rest: string[]): string[];"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 60,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 60,
+                    "end": 66
+                  },
+                  "trailingEnd": 67
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 67,
+                    "end": 74
+                  },
+                  "trailingEnd": 75
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 59
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -3653,6 +3897,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"experiment\"]:bb294253172c400781d8bd25c82fb55482e36696d3c6bf70d184f7c7c2a6c501",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"experiment\"]:bb294253172c400781d8bd25c82fb55482e36696d3c6bf70d184f7c7c2a6c501",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Experimental operation.\n * @alpha\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "experiment",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"experiment\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(): void;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 46,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 46,
+                    "end": 52
+                  },
+                  "trailingEnd": 53
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 53,
+                    "end": 60
+                  },
+                  "trailingEnd": 61
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 45
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -3819,6 +4147,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Formats text.\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "format",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 37,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 37,
+                    "end": 43
+                  },
+                  "trailingEnd": 44
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 44,
+                    "end": 51
+                  },
+                  "trailingEnd": 52
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 36
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -3928,6 +4340,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]:a8f63d0c8bd7feacf987f771508da35629ab42173ae2c630320889be8d553f59",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]:a8f63d0c8bd7feacf987f771508da35629ab42173ae2c630320889be8d553f59",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Formats a preview numeric value.\n * @beta\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "format",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"format\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: number): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 54,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 54,
+                    "end": 60
+                  },
+                  "trailingEnd": 61
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 61,
+                    "end": 68
+                  },
+                  "trailingEnd": 69
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 53
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -4074,6 +4570,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"hidden\"]:bb294253172c400781d8bd25c82fb55482e36696d3c6bf70d184f7c7c2a6c501",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"hidden\"]:bb294253172c400781d8bd25c82fb55482e36696d3c6bf70d184f7c7c2a6c501",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Implementation-only operation.\n * @internal\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "hidden",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"hidden\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(): void;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 56,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 56,
+                    "end": 62
+                  },
+                  "trailingEnd": 63
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 63,
+                    "end": 70
+                  },
+                  "trailingEnd": 71
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 55
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -4220,6 +4800,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"identity\"]:7305264eec12f8728603d268d951c0f2b1c47e3b0fad9b0473845930b579f223",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"identity\"]:7305264eec12f8728603d268d951c0f2b1c47e3b0fad9b0473845930b579f223",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "/**\n * Copies a value.\n * @public\n * @exampleTag\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "identity",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"identity\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "<TValue>(value: TValue): TValue;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 53,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 53,
+                    "end": 59
+                  },
+                  "trailingEnd": 60
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 60,
+                    "end": 67
+                  },
+                  "trailingEnd": 68
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 0,
+                    "end": 52
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",
@@ -4366,6 +5030,90 @@
             "id": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"isText\"]:ec6e4866ce2babea67ece7d981aa6331a8c25618cd39e06c2c2fb37e940a1a44",
             "documentationId": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"isText\"]:ec6e4866ce2babea67ece7d981aa6331a8c25618cd39e06c2c2fb37e940a1a44",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * Identifies text.\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "isText",
+                    "target": "[[\"[\\\"@scenario/primary\\\",\\\"lib/functions.d.ts\\\"]\"],\"isText\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: unknown): value is string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 40,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 40,
+                    "end": 46
+                  },
+                  "trailingEnd": 47
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 47,
+                    "end": 54
+                  },
+                  "trailingEnd": 55
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 39
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Nested",
+                "None",
+                "Off",
+                "On",
+                "Partial",
+                "Read",
+                "Readonly",
+                "Ready",
+                "TItem",
+                "TKey",
+                "TValue",
+                "count",
+                "create",
+                "current",
+                "description",
+                "extra",
+                "first",
+                "get",
+                "initial",
+                "label",
+                "name",
+                "rest",
+                "revision",
+                "second",
+                "text",
+                "value",
+                "version"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/primary",
               "file": "lib/functions.d.ts",

@@ -9,6 +9,7 @@ Do not compile this directory as one project: some files require shared inputs o
 | [Shared inputs](shared/README.md) | Common API shapes for compiler, session, report, and lifecycle tests. |
 | [Native compiler inputs](native/README.md) | Documentation lookup, inheritance boundaries, and comment retention through declaration emit. |
 | [Declaration consumer](consumer/README.md) | Type-check printed declarations with both consumer compilers. |
+| [Detached declaration rollups](rollup/README.md) | Compile selected artifact sets after original inputs are removed, including aliases, support types, comments, and nominal identity. |
 | [Analysis inputs](session/README.md) | Export chains, changed inputs, and conditional dependency resolution. |
 | [Dependency suite inputs](suite/README.md) | Model loading, cross-package documentation, and real Node/browser conditional-export parity. |
 | [Repository workflow inputs](repository/README.md) | Complete checked-in workspaces, including code and configuration, for report/model generation and source-free consumption. |

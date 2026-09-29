@@ -321,6 +321,66 @@
             "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Internal documentation source. @internal */\n// Used by negative link tests and the configurable explicit-inheritance visibility rule.\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "internalSource",
+                    "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"internalSource\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 140,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 140,
+                    "end": 146
+                  },
+                  "trailingEnd": 147
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 147,
+                    "end": 154
+                  },
+                  "trailingEnd": 155
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 2,
+                    "end": 49
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Value",
+                "operation",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "dependency",
               "file": "index.d.ts",
@@ -467,6 +527,66 @@
             "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Source documentation. See {@link target}. @public */\n// Models must preserve the unqualified link's original package through inheritance and re-exports.\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "source",
+                    "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"source\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 159,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 159,
+                    "end": 165
+                  },
+                  "trailingEnd": 166
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 166,
+                    "end": 173
+                  },
+                  "trailingEnd": 174
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 2,
+                    "end": 58
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Value",
+                "operation",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "dependency",
               "file": "index.d.ts",
@@ -613,6 +733,66 @@
             "id": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n\n/** Original target. @beta */\n// This target's original release level permits links from public APIs.\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "target",
+                    "target": "[[\"[\\\"dependency\\\",\\\"index.d.ts\\\"]\"],\"target\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 104,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 104,
+                    "end": 110
+                  },
+                  "trailingEnd": 111
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 111,
+                    "end": 118
+                  },
+                  "trailingEnd": 119
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 2,
+                    "end": 31
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "Value",
+                "operation",
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "dependency",
               "file": "index.d.ts",

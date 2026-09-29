@@ -20,6 +20,7 @@ import type {
 } from "../analysis-types/modelGraph.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import type { CodeExcerpt } from "../analysis-types/excerpt.js";
+import { hasValidSyntaxRanges } from "./syntaxValidation.js";
 
 const originSchema = z.strictObject({
 	packageName: z.string().min(1),
@@ -98,12 +99,79 @@ const sourceSchema = originSchema
 		"Source excerpts must preserve original source text.",
 	)
 	.transform((value) => ({ ...value, documentation: value.documentation }));
-const signatureSchema = itemSchema.extend({
-	source: sourceSchema.optional(),
-	effective: signatureTextSchema,
-	reduced: signatureTextSchema,
-	normalized: signatureTextSchema,
-});
+const syntaxRangeSchema = z
+	.strictObject({
+		start: z.number().int().nonnegative(),
+		end: z.number().int().nonnegative(),
+	})
+	.refine((range) => range.start <= range.end);
+const signatureSchema = itemSchema
+	.extend({
+		declarationSyntax: z
+			.strictObject({
+				excerpt: excerptSchema,
+				isDeclarationFile: z.boolean(),
+				declarationStart: z.number().int().nonnegative(),
+				modifiers: z.array(
+					z.strictObject({
+						keyword: z.string().min(1),
+						range: syntaxRangeSchema,
+						trailingEnd: z.number().int().nonnegative(),
+					}),
+				),
+				comments: z.array(
+					z.strictObject({
+						range: syntaxRangeSchema,
+						packageDocumentation: z.boolean(),
+						privateRemarks: z.array(syntaxRangeSchema),
+					}),
+				),
+				importTypes: z.array(
+					z.strictObject({ prefix: syntaxRangeSchema, isTypeOf: z.boolean() }),
+				),
+				variable: z
+					.strictObject({ list: syntaxRangeSchema, binding: syntaxRangeSchema })
+					.optional(),
+				anonymousNameOffset: z.number().int().nonnegative().optional(),
+				lexicalNames: z.array(z.string()),
+				imports: z.array(
+					z
+						.strictObject({
+							id: z.string(),
+							name: z.string().min(1),
+							kind: z.enum(["named", "default", "namespace"]),
+							moduleSpecifier: z
+								.string()
+								.min(1)
+								.refine(
+									(value) =>
+										!value.startsWith(".") && !value.startsWith("/") && !value.includes("\\"),
+								),
+							importedName: z.string().optional(),
+							typeOnly: z.boolean(),
+						})
+						.refine((value) => value.kind !== "named" || value.importedName !== undefined)
+						.transform(({ importedName, ...binding }) => ({
+							...binding,
+							...(importedName === undefined ? {} : { importedName }),
+						})),
+				),
+			})
+			.transform(({ variable, anonymousNameOffset, ...syntax }) => ({
+				...syntax,
+				...(variable === undefined ? {} : { variable }),
+				...(anonymousNameOffset === undefined ? {} : { anonymousNameOffset }),
+			}))
+			.optional(),
+		source: sourceSchema.optional(),
+		effective: signatureTextSchema,
+		reduced: signatureTextSchema,
+		normalized: signatureTextSchema,
+	})
+	.transform(({ declarationSyntax, ...signature }) => ({
+		...signature,
+		...(declarationSyntax === undefined ? {} : { declarationSyntax }),
+	}));
 const declaredMemberSchema = itemSchema.extend({
 	pairedAccessor: z.string().optional(),
 	source: sourceSchema,
@@ -189,7 +257,54 @@ export const modelGraphSchema: z.ZodType<ModelGraph> = z.strictObject({
 });
 
 /**
- * Projects completed facts into portable display data without serializing analysis lookup state.
+ * Projects producer-owned standalone function syntax into portable signature records.
+ * @param graph - Completed immutable analysis.
+ * @returns Original syntax and binding facts indexed by signature identity.
+ */
+function collectFunctionSyntax(
+	graph: CompletedAnalysis,
+): ReadonlyMap<string, NonNullable<ModelSignature["declarationSyntax"]>> {
+	const syntaxBySignature = new Map<
+		string,
+		NonNullable<ModelSignature["declarationSyntax"]>
+	>();
+	const syntax = graph.facts.declarationSyntax;
+	for (const declaration of graph.facts.declarations) {
+		if (
+			declaration.signatures.length === 0 ||
+			declaration.documentationContext !== undefined ||
+			declaration.declarations.some(
+				(source) =>
+					source.kind !== "FunctionDeclaration" ||
+					source.packageName !== graph.facts.packageName,
+			)
+		) {
+			continue;
+		}
+		const captured = syntax.declarations.find((item) => item.id === declaration.id);
+		if (captured === undefined) {
+			continue;
+		}
+		for (const fragment of captured.fragments) {
+			const targets = new Set(
+				fragment.syntax.excerpt.tokens.flatMap((token) =>
+					token.kind === "Reference" ? [token.target] : [],
+				),
+			);
+			for (const signature of fragment.signatures) {
+				syntaxBySignature.set(signature, {
+					...fragment.syntax,
+					lexicalNames: syntax.lexicalNames,
+					imports: syntax.imports.filter((binding) => targets.has(binding.id)),
+				});
+			}
+		}
+	}
+	return syntaxBySignature;
+}
+
+/**
+ * Projects completed facts into portable display data and captured overload syntax.
  * @param graph - Completed immutable analysis.
  * @param documentationIds - Available local and external documentation identities.
  * @returns Detached declaration graph with ordered member and signature views.
@@ -198,6 +313,8 @@ export function createModelGraph(
 	graph: CompletedAnalysis,
 	documentationIds: ReadonlySet<string>,
 ): ModelGraph {
+	const syntaxBySignature = collectFunctionSyntax(graph);
+
 	/**
 	 * Selects portable identity and resolved reference fields.
 	 * @param id - Item identity.
@@ -226,8 +343,10 @@ export function createModelGraph(
 	 * @returns Portable signature views.
 	 */
 	function createSignature(signature: SignatureFact): ModelSignature {
+		const declarationSyntax = syntaxBySignature.get(signature.id);
 		return {
 			...createItem(signature.id, signature.documentationContext),
+			...(declarationSyntax === undefined ? {} : { declarationSyntax }),
 			...(signature.source === undefined
 				? {}
 				: { source: createModelSource(signature.source) }),
@@ -596,6 +715,12 @@ export function validateModelGraph(
 		}
 		if ("effective" in item && "reduced" in item && "normalized" in item) {
 			const signature = item as ModelSignature;
+			if (!hasValidDeclarationSyntax(signature, containers, packageName)) {
+				return reportFailure(
+					DiagnosticCode.DependencyModel,
+					`Dependency ${packageName}: function ${signature.id} has invalid source syntax, ownership, imports, or references. Regenerate its model.`,
+				);
+			}
 			if (signature.source !== undefined) {
 				excerpts.push(signature.source.excerpt);
 			}
@@ -629,4 +754,49 @@ export function validateModelGraph(
 				`Dependency ${packageName}: incomplete declaration graph or inconsistent identity ${invalid?.id ?? missing ?? "(duplicate)"}. Regenerate its model.`,
 			)
 		: { ok: true };
+}
+
+/**
+ * Checks standalone producer ownership, source boundaries, and reference targets.
+ * @param signature - Decoded callable signature.
+ * @param declarations - Available declaration identities and records.
+ * @param packageName - Defining package required for syntax capture.
+ * @returns Whether optional capture has valid ownership, imports, and reference targets.
+ */
+function hasValidDeclarationSyntax(
+	signature: ModelSignature,
+	declarations: ReadonlyMap<string, ModelDeclaration>,
+	packageName: string,
+): boolean {
+	const syntax = signature.declarationSyntax;
+	if (syntax === undefined) {
+		return true;
+	}
+	const owner = [...declarations.values()].find((declaration) =>
+		declaration.signatures.some((candidate) => candidate.id === signature.id),
+	);
+	const importIds = new Set(syntax.imports.map((binding) => binding.id));
+	const targets = syntax.excerpt.tokens.flatMap((token) =>
+		token.kind === "Reference" ? [token.target] : [],
+	);
+	return (
+		owner !== undefined &&
+		owner.signatures.length > 0 &&
+		owner.declaringContainer === undefined &&
+		owner.exports.length === 0 &&
+		owner.sources.every(
+			(source) => source.kind === "FunctionDeclaration" && source.packageName === packageName,
+		) &&
+		hasValidSyntaxRanges(syntax) &&
+		signature.source !== undefined &&
+		syntax.isDeclarationFile === /\.d\.[cm]?ts$/.test(signature.source.file) &&
+		syntax.excerpt.tokens.map((token) => token.text).join("") === signature.source.text &&
+		syntax.variable === undefined &&
+		importIds.size === syntax.imports.length &&
+		syntax.imports.every(
+			(binding) => !declarations.has(binding.id) && targets.includes(binding.id),
+		) &&
+		(targets.includes(owner.id) || syntax.anonymousNameOffset !== undefined) &&
+		targets.every((target) => declarations.has(target) || importIds.has(target))
+	);
 }

@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "mocha";
-import { analyzeAPIs, DiagnosticCode, ReleaseLevel } from "../index.js";
+import { analyzeAPIs, DiagnosticCode, ReleaseLevel, type Result } from "../index.js";
 import { decodeDependencyModel } from "../model-generation/dependencyModel.js";
 import {
 	decodeDependencyModels,
@@ -215,6 +215,320 @@ describe("Dependency suite models", () => {
 		);
 	});
 
+	it("redeclares only partially selected standalone suite overloads", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/rollup/suite-overloads.d.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		cpSync(
+			new URL("../../src/test/fixtures/rollup/suite-types.d.ts", import.meta.url),
+			path.join(root, "types.d.ts"),
+		);
+		writeFileSync(
+			path.join(directory, "package.json"),
+			JSON.stringify({
+				name: "consumer",
+				type: "module",
+				dependencies: { dependency: "1.0.0" },
+			}),
+		);
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				name: "dependency",
+				version: "1.0.0",
+				type: "module",
+				types: "index.d.ts",
+			}),
+		);
+		cpSync(
+			new URL("../../src/test/fixtures/rollup/suite-reexport.d.ts", import.meta.url),
+			path.join(directory, "index.d.ts"),
+		);
+		const configuration = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs(
+			{ ...configuration, packageName: "dependency" },
+			root,
+		);
+		assert(dependency.ok, JSON.stringify(dependency));
+		const decoded = decodeDependencyModel(dependency.value.generateModel(), "dependency");
+		assert(decoded.ok, JSON.stringify(decoded));
+		assert.equal(
+			decoded.value.graph.declarations
+				.find((item) => item.name === "convert")
+				?.signatures.every((signature) => signature.declarationSyntax !== undefined),
+			true,
+		);
+		const originalSignature = decoded.value.graph.declarations.find(
+			(item) => item.name === "convert",
+		)?.signatures[0];
+		assert(originalSignature?.declarationSyntax !== undefined);
+		const sourceText = originalSignature.declarationSyntax.excerpt.tokens
+			.map((token) => token.text)
+			.join("");
+		assert.equal(sourceText, originalSignature.source?.text);
+		assert.match(sourceText, /export declare function convert/);
+		assert.match(sourceText, /@privateRemarks Producer-only detail/);
+		assert.equal(
+			decoded.value.graph.declarations.find((item) => item.name === "single")?.signatures[0]
+				?.declarationSyntax !== undefined,
+			true,
+		);
+		for (const corrupted of [
+			{ ...originalSignature.declarationSyntax, declarationStart: sourceText.length + 1 },
+			{
+				...originalSignature.declarationSyntax,
+				modifiers: [
+					{
+						keyword: "export",
+						range: { start: 0, end: 6 },
+						trailingEnd: sourceText.length + 1,
+					},
+				],
+			},
+			{
+				...originalSignature.declarationSyntax,
+				comments: [
+					{
+						range: { start: 0, end: 1 },
+						packageDocumentation: false,
+						privateRemarks: [{ start: 0, end: 2 }],
+					},
+				],
+			},
+			{
+				...originalSignature.declarationSyntax,
+				importTypes: [{ prefix: { start: 0, end: sourceText.length + 1 }, isTypeOf: false }],
+			},
+			{
+				...originalSignature.declarationSyntax,
+				excerpt: {
+					...originalSignature.declarationSyntax.excerpt,
+					tokens: [{ kind: "Reference", text: "missing", target: "missing" }],
+				},
+			},
+			{
+				...originalSignature.declarationSyntax,
+				imports: [
+					{
+						id: "duplicate",
+						name: "Value",
+						kind: "named",
+						moduleSpecifier: "foreign",
+						importedName: "Value",
+						typeOnly: true,
+					},
+					{
+						id: "duplicate",
+						name: "Other",
+						kind: "named",
+						moduleSpecifier: "foreign",
+						importedName: "Other",
+						typeOnly: true,
+					},
+				],
+			},
+		]) {
+			const invalid: unknown = {
+				...decoded.value,
+				graph: {
+					...decoded.value.graph,
+					declarations: decoded.value.graph.declarations.map((declaration) => ({
+						...declaration,
+						signatures: declaration.signatures.map((signature) =>
+							signature.id === originalSignature.id
+								? {
+										...signature,
+										declarationSyntax: {
+											...corrupted,
+											excerpt: {
+												...corrupted.excerpt,
+												tokenRange: {
+													startIndex: 0,
+													endIndex: corrupted.excerpt.tokens.length,
+												},
+											},
+										},
+									}
+								: signature,
+						),
+					})),
+				},
+			};
+			assert.equal(decodeDependencyModel(JSON.stringify(invalid), "dependency").ok, false);
+		}
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		for (const inSuite of [true, false]) {
+			const result = await analyzeAPIs(
+				{
+					...configuration,
+					packageName: "consumer",
+					...(inSuite
+						? { suite: { packages: ["dependency"], modelFile: "api-model.json" } }
+						: {}),
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			const complete = result.value.generateRollups({
+				name: "complete",
+				releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
+			});
+			assert(complete.ok, JSON.stringify(complete));
+			assert.doesNotMatch(complete.value["__api.d.ts"] ?? "", /Redeclared/);
+			assert.match(complete.value["index.d.ts"] ?? "", /export { convert } from "dependency"/);
+			const selected = result.value.generateRollups({
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			if (inSuite) {
+				assert.equal(selected.ok, true, JSON.stringify(selected));
+				const shared = selected.value["__api.d.ts"] ?? "";
+				assert.doesNotMatch(shared, /privateRemarks|Producer-only detail/);
+				assert.match(shared, /function convert\(value: string\): string/);
+				assert.match(shared, /function convert\(value: boolean\): boolean/);
+				assert.equal(shared.split("// Redeclared to omit excluded overloads;").length - 1, 3);
+				assert.match(
+					shared,
+					/\/\/ Redeclared to omit excluded overloads; a direct re-export would expose them\./,
+				);
+				assert.doesNotMatch(shared, /value: number/);
+				assert.doesNotMatch(shared, /class Result|namespace compound/);
+				assert.match(
+					selected.value["index.d.ts"] ?? "",
+					/export { compound } from "dependency"/,
+				);
+				assert.match(
+					selected.value["index.d.ts"] ?? "",
+					/export { ResultValue } from "dependency"/,
+				);
+				assert.match(shared, /import type { Output as Result } from "dependency"/);
+				const original = readFileSync(path.join(root, "index.d.ts"), "utf8");
+				rmSync(path.join(root, "index.d.ts"));
+				rmSync(path.join(root, "types.d.ts"));
+				assert.deepEqual(
+					result.value.generateRollups({
+						name: "public",
+						releaseLevels: [ReleaseLevel.Public],
+					}),
+					selected,
+				);
+				writeFileSync(path.join(root, "index.d.ts"), original);
+				cpSync(
+					new URL("../../src/test/fixtures/rollup/suite-types.d.ts", import.meta.url),
+					path.join(root, "types.d.ts"),
+				);
+				for (const [file, text] of Object.entries(selected.value)) {
+					writeFileSync(path.join(directory, file), text);
+				}
+				cpSync(
+					new URL("../../src/test/fixtures/rollup/suite-consumer.ts", import.meta.url),
+					path.join(directory, "consumer.ts"),
+				);
+				const require = createRequire(import.meta.url);
+				for (const compiler of ["typescript6", "typescript"]) {
+					const compilerRoot = path.dirname(require.resolve(`${compiler}/package.json`));
+					execFileSync(
+						process.execPath,
+						[
+							path.join(compilerRoot, "bin/tsc"),
+							"consumer.ts",
+							"--ignoreConfig",
+							"--noEmit",
+							"--strict",
+							"--module",
+							"NodeNext",
+							"--target",
+							"ES2022",
+						],
+						{ cwd: directory, stdio: "inherit", timeout: 15000 },
+					);
+				}
+				cpSync(
+					new URL("../../src/test/fixtures/rollup/suite-reexport.d.ts", import.meta.url),
+					path.join(directory, "index.d.ts"),
+				);
+			} else {
+				assert.equal(selected.ok, true);
+				assert.match(
+					selected.value["index.d.ts"] ?? "",
+					/export { convert } from "dependency"/,
+				);
+			}
+		}
+	});
+
+	it("does not copy inaccessible nominal types for partial suite overloads", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		cpSync(
+			new URL("../../src/test/fixtures/rollup/suite-private-overloads.d.ts", import.meta.url),
+			path.join(root, "index.d.ts"),
+		);
+		const configuration = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs(
+			{ ...configuration, packageName: "dependency" },
+			root,
+		);
+		assert(dependency.ok, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		writeFileSync(
+			path.join(directory, "index.d.ts"),
+			'export { convert } from "dependency";\n',
+		);
+		const result = await analyzeAPIs(
+			{
+				...configuration,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert(result.ok, JSON.stringify(result));
+		const complete = result.value.generateRollups({
+			name: "complete",
+			releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta],
+		});
+		assert.equal(complete.ok, true);
+		const selected = result.value.generateRollups({
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert.equal(selected.ok, false);
+		assert.equal(selected.diagnostics[0]?.code, DiagnosticCode.RollupUnsupported);
+		assert.match(selected.diagnostics[0]?.message ?? "", /Hidden.*no published binding/);
+		const withoutCapture = JSON.parse(
+			dependency.value.generateModel(),
+			(key: string, value: unknown): unknown =>
+				key === "declarationSyntax" ? undefined : value,
+		) as unknown;
+		writeFileSync(path.join(root, "api-model.json"), JSON.stringify(withoutCapture));
+		const uncaptured = await analyzeAPIs(
+			{
+				...configuration,
+				packageName: "consumer",
+				suite: { packages: ["dependency"], modelFile: "api-model.json" },
+			},
+			directory,
+		);
+		assert(uncaptured.ok, JSON.stringify(uncaptured));
+		const missing = uncaptured.value.generateRollups({
+			name: "public",
+			releaseLevels: [ReleaseLevel.Public],
+		});
+		assert.equal(missing.ok, false);
+		assert.match(
+			missing.diagnostics[0]?.message ?? "",
+			/needs overload syntax in the API model/,
+		);
+	});
+
 	it("renders suite re-exports as definitions and foreign re-exports without trimming", async () => {
 		const root = path.join(directory, "node_modules", "dependency");
 		const configuration = {
@@ -249,6 +563,28 @@ describe("Dependency suite models", () => {
 					releaseLevels: [level],
 				});
 				assert(report.ok, JSON.stringify(report));
+				const rollup: Result<Readonly<Record<string, string>>> = result.value.generateRollups({
+					name: "selected",
+					releaseLevels: [level],
+				});
+				assert(rollup.ok, JSON.stringify(rollup));
+				const entry: string = rollup.value["index.d.ts"] ?? "";
+				assert.equal(
+					entry.includes('export { source } from "dependency"'),
+					!inSuite || level === ReleaseLevel.Public,
+				);
+				assert.equal(
+					entry.includes('export { target as preview } from "dependency"'),
+					!inSuite || level === ReleaseLevel.Beta,
+				);
+				assert.equal(
+					entry.includes('export { internalSource } from "dependency"'),
+					!inSuite || level === ReleaseLevel.Internal,
+				);
+				assert.equal(
+					entry.includes('export type { Contract as PublicContract } from "dependency"'),
+					!inSuite || level === ReleaseLevel.Public,
+				);
 				if (inSuite) {
 					assert.equal(
 						report.value.includes("function source("),

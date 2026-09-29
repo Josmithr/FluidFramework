@@ -18,6 +18,27 @@
 // - Roll-up generation
 export enum DiagnosticCode {
 	/**
+	 * Declaration generation cannot assign unique package-relative output paths.
+	 *
+	 * @remarks
+	 * Use distinct entrypoint paths that do not escape the output directory.
+	 * The shared `__api.d.ts` path is reserved; `.` and `./index` cannot both map to `index.d.ts`.
+	 */
+	RollupConfiguration = "rollup-configuration",
+
+	/**
+	 * Declaration inputs cannot be transformed into a complete rollup with the supported syntax contract.
+	 *
+	 * @remarks
+	 * Build untrimmed declaration files with preserved comments before analysis.
+	 * The diagnostic identifies the declaration or input that cannot be generated.
+	 * Partially selected suite functions require captured overload syntax in the defining package's API model.
+	 * Regenerate that model if the syntax is absent. Referenced types need accessible published bindings;
+	 * the generator does not copy dependency nominal types to make them accessible.
+	 */
+	RollupUnsupported = "rollup-unsupported",
+
+	/**
 	 * Package documentation is duplicated, misplaced, or contains an invalid package-level tag combination.
 	 *
 	 * @remarks

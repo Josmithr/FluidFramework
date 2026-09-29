@@ -17,6 +17,7 @@ import { freezeData } from "./utilities/freezeData.js";
 import type { Result } from "./analysis-types/result.js";
 import { encodeDependencyModel } from "./model-generation/dependencyModel.js";
 import { loadDependencyModels } from "./suite.js";
+import { generateDeclarationRollups } from "./rollup-generation/declarationRollup.js";
 
 /**
  * Counts of declarations and callable signatures retained by this analysis.
@@ -51,6 +52,21 @@ export interface APIStatistics {
  * @public
  */
 export interface APIAnalysis {
+	/**
+	 * Generates selected declaration files from retained declaration inputs.
+	 *
+	 * @remarks
+	 * Uses detached syntax after compiler disposal. The caller writes the complete artifact set.
+	 * Keys are package-relative paths. Keep these paths unchanged when writing the files.
+	 * Entrypoints share a declaration module to preserve nominal type identity.
+	 * Required supporting declarations do not become entrypoint exports.
+	 * Original documentation is retained without private remarks.
+	 *
+	 * @param selection - Release and modifier selection for exported APIs.
+	 * @returns Declaration-file content keyed by path, or an unsupported-input or selection diagnostic.
+	 */
+	generateRollups(selection: ApiItemSelection): Result<Readonly<Record<string, string>>>;
+
 	/**
 	 * Generates the versioned portable documentation artifact without compiler or file access.
 	 *
@@ -150,7 +166,6 @@ export async function analyzeAPIs(
 		}
 		const prepared = prepareReviewReport(completed.value);
 
-		// TODO (Stage 4): Retain rollup data without requiring a live compiler or repeating analysis.
 		const statistics = freezeData({
 			entrypoints: facts.surfaces.length,
 			declarations: facts.declarations.length,
@@ -162,6 +177,8 @@ export async function analyzeAPIs(
 				configuration: configured.value,
 				generateModel: () => encodeDependencyModel(completed.value),
 				getStatistics: () => statistics,
+				generateRollups: (selection: ApiItemSelection) =>
+					freezeData(generateDeclarationRollups(completed.value, selection)),
 				generateReport(
 					entrypoint: string,
 					selection: ApiItemSelection,

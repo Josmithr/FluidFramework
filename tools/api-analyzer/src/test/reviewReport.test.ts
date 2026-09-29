@@ -16,6 +16,7 @@ import { mock } from "node:test";
 const facts: AnalysisFacts = {
 	packageName: "example",
 	compilerVersion: "not-in-the-report",
+	declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 	surfaces: [
 		{
 			name: ".",

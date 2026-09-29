@@ -610,7 +610,7 @@
   "dependencyModels": [
     {
       "packageName": "@scenario/core",
-      "sha256": "86eaefd19e9c65ff21aadf97ae09d9a41c60dad2f900945a0c7fab9ff587d491"
+      "sha256": "85c9ba5ce67dfaa9b445f94e34893b91543c4bd5538b7556b02be2ff7b444046"
     }
   ],
   "modifierTags": [

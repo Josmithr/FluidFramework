@@ -20,7 +20,8 @@ Architecture direction agreed on 2026-09-17: follow the [layered architecture pr
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
 Analysis completion owns documentation resolution and returns a frozen graph for the supported declaration and member scope.
 Reporting consumes that graph without compiler or parser access.
-The model layer owns versioned declaration/documentation encoding, decoding, and single-model and cross-model validation; rollups remain pending.
+The model layer owns versioned declaration/documentation encoding, decoding, and single-model and cross-model validation.
+Experimental detached rollup generation is implemented; Stage 4 acceptance is in progress.
 `good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
 
 Historical checkpoint: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session passed 29 focused contract tests on 2026-09-15.
@@ -182,7 +183,7 @@ Tests must verify that changing task order cannot mutate or corrupt shared analy
 The dependency rules in the architecture proposal apply to source imports, not only directory names.
 Use `good-fences` to enforce those rules as implementations move into layers, following the per-directory fence conventions in `api-markdown-documenter`.
 Define layer tags, allowed imports, and exported entrypoints, with explicit root-composition and test boundaries.
-The initial migration pins `good-fences` 0.10.0 and integrates `check:fences` into lint; the boundary regression verifies allowed and forbidden imports under the package's TypeScript and ESM conventions.
+The package pins `good-fences` 0.10.0 and integrates `check:fences` into lint to enforce dependency boundaries against the package source.
 See the [tooling notes](../README.md#dependency-boundaries) for upstream maintenance and native-dependency limitations.
 Keep ESLint for coding conventions rather than duplicating directory dependency rules.
 Keep generic utilities free of release policy and graph-specific traversal.
@@ -428,7 +429,7 @@ The documentation audit validated 633 production TSDoc blocks, type-checked 21 s
 | B2 type-only exports | Native class/function/enum/constant fixtures and isolated consumer tests distinguish ordinary, type-only, forwarded, and star-export paths and reject forbidden value use. | Implemented review-output coverage. |
 | B6 built-in shadows | Native report fixtures include and exclude exported `performance` declarations without leaving excluded alias exports. | Implemented review-output coverage. |
 | Parity and repository pilot | Suite tests compare actual Node/browser resolution, including an intentional mismatch, without accepting a baseline. The core-utils pilot uses repository declarations and configured policy. | Implemented initial pilot; broad repository adoption remains later work. |
-| Detached reuse and boundaries | [Session tests](../src/test/session.test.ts) generate outputs after removing inputs; [architecture tests](../src/test/architecture.test.ts) and `good-fences` enforce layer boundaries. | Implemented; no compiler lifecycle or automatic cache added to the public API. |
+| Detached reuse and boundaries | [Session tests](../src/test/session.test.ts) generate outputs after removing inputs; `pnpm check:fences`, included in `pnpm lint`, enforces layer boundaries. | Implemented; no compiler lifecycle or automatic cache added to the public API. |
 
 #### Remaining Stage 2 decisions
 
@@ -1200,10 +1201,120 @@ Report any newly exposed unsupported behavior as a blocker or an explicit scope 
 
 ### Stage 4. Deliver declarations and entrypoint capabilities
 
+#### Generation strategy review
+
+Status (2026-09-28): the user approved the detached-fragment generation strategy below.
+Experimental detached rollup generation is implemented; production readiness and Stage 4 acceptance are not established.
+Stage 3 acceptance and the approved re-export policies remain unchanged.
+
+A probe against the pinned TypeScript 7.0.2 API confirmed the following capabilities:
+
+- `Program` exposes neither `emit` nor `getDeclarationEmit`.
+- The emitter exposes `printNode`, and the public AST factories can update declaration nodes.
+- Printing a cloned declaration succeeds after snapshot disposal while the API connection remains open.
+- Printing the same clone after `API.close()` fails with `SyncRpcChannel is closed`.
+- The exported AST module supplies neither a standalone printer nor a source-file parser.
+
+The probe opened this package's compiler project, cloned the `ModelOrigin` interface with `getSynthesizedDeepClone`, and compared printing before and after disposal.
+Snapshot disposal alone does not prove compiler-free generation.
+Retaining the emitter or opening another compiler connection during generation would violate the approved completion contract.
+These results do not prove that all declaration-generation strategies are impossible.
+
+Approved approach:
+
+1. Use public TS7 semantic queries and AST factories during analysis to capture the required declaration syntax, import and export bindings, supporting-declaration relationships, and compiler-resolved name occurrences.
+2. Capture original declaration syntax using compiler-provided AST spans while the connection is open, then retain immutable fragments with explicit identity references rather than compiler nodes or callbacks.
+3. Implement selection, dependency closure, collision-safe naming, and artifact assembly in `rollup-generation` over those detached records.
+	Reuse shared release-selection rules and the approved cross-package re-export policy.
+	Do not parse printed type strings or introduce another type checker.
+4. Preserve original TSDoc and record `@privateRemarks` ranges with the official TSDoc parser during analysis. The generator removes those ranges without parsing again, as required by the [rollup documentation task](../TODOs.md#copy-comments-to-generated-rollup-files).
+5. Prove complete and trimmed output with both TS6 and TS7 consumer compilers after compiler disposal and removal of original package inputs.
+	Cover supporting declarations, same-named declarations from different modules, aliases, standalone overloads, atomic namespaces, imports used only by excluded APIs, and shared nominal identity across entrypoints.
+
+This approach requires ownership of declaration transformations beyond the current report renderer.
+The user approved this maintenance scope on 2026-09-28, with documentation-driven development, test-driven development, and functional implementation required.
+The [tooling research](api-extractor-replacement-tooling-research.md) records the previously evaluated alternatives; it does not establish a compatible reusable rollup component.
+An alternative compiler version or generation dependency requires separate capability, maintenance, and license evaluation.
+Do not add a placeholder rollup API or claim Stage 4 completion before this gate passes.
+
+The first implementation gate must preserve private supporting declarations and original comments, remove `@privateRemarks`, and compile a selected declaration artifact after source removal.
+Generation must return deterministic artifact content without compiler handles, filesystem access, or a second semantic analysis.
+Selection must not export supporting declarations or retain standalone overloads excluded by the requested release levels.
+
+Implementation contract: `APIAnalysis.generateRollups(selection)` returns a result containing declaration-file content keyed by package-relative output path.
+The artifact set contains one shared declaration module and one thin export module for each configured entrypoint.
+The root entrypoint uses `index.d.ts`; subpath entrypoints retain their path with a `.d.ts` extension.
+Shared declarations preserve nominal identity across entrypoints and avoid copying private classes into separate declaration files.
+The caller must write the complete artifact set with its relative paths unchanged.
+Generators do not write files, reopen the compiler, or repeat metadata validation.
+
+Current evidence is in [rollup.test.ts](../src/test/rollup.test.ts).
+The repository matrix generates complete and public outputs from both compiler producers and checks both consumer compilers after original package inputs are removed.
+Focused consumers cover private support types, name collisions, multiple variable bindings, local import types and module namespaces, type-only aliases, standalone overload trimming, atomic namespace callables, external imports, and shared nominal identity.
+Exact snapshots retain original comments except for private remarks; package comments are copied to each entrypoint.
+Lifecycle and architecture tests cover no compiler or parser calls during generation and independent generator boundaries.
+The acceptance audit must still distinguish this evidence from unsupported syntax and cross-package selection cases.
+
+Validation for the initial rollup increment, before the partial-overload extension: 334 tests pass, with the three existing compiler probes pending.
+The package build, CLI lint, formatting, architecture checks, API report/model freshness checks, and `git diff --check` pass.
+The official TSDoc parser accepts the 115 checked implementation comments, and the new README example type-checks against the built API.
+Editor ESLint still reports unresolved imported types in the adapter and suite test, although fresh CLI lint and compilation pass; editor state has not been refreshed.
+The API report adds only `generateRollups` and its two diagnostics; existing export bindings remain unchanged in the generated model.
+No changeset is required for this private internal-only experimental package.
+
+#### Partial suite overload re-exports
+
+Decision approved on 2026-09-28: redeclare partially selected standalone suite function overloads when their referenced types can be relocated without changing identity.
+Keep ordinary package re-exports for complete bindings, atomic containers, and foreign APIs.
+Each generated overload declaration must have an ordinary comment explaining that a direct re-export would expose excluded overloads.
+Retain original TSDoc except private remarks, generic binders, overload order, aliases, and type-only export behavior.
+Capture the required syntax and reference bindings during analysis; generation must not reopen the compiler.
+The defining package captures this data in its facts and API model.
+Downstream packages use the decoded model rather than reparsing dependency source to construct overload declarations.
+Persist explicit reference tokens, external import bindings, and lexical-name reservations for eligible overloads.
+Validate the new model fields and reference identities before generation uses them.
+Never copy dependency classes, enums, unique-symbol declarations, or compound containers to implement this exception.
+Return an explicit diagnostic if a selected signature cannot retain its dependency references safely.
+Consumer tests must verify selected and excluded calls and dependency nominal identity with TS6 and TS7.
+
+The local selected-overload approach is implemented using producer model data.
+The [suite regression](../src/test/suite.test.ts) proves that a public-only selection of a mixed public/beta overload set cannot be represented by an unchanged package re-export.
+TypeScript exposes every overload reachable through that dependency binding.
+The defining package projects original standalone function syntax into optional `ModelSignature.declarationSyntax` records, including single-signature functions.
+The model codec validates standalone ownership, original source-text agreement, import identities, syntax boundaries, complete excerpt ranges, and reference targets.
+The rollup generator consumes those decoded records and adds only the selected overloads to its shared declaration module.
+It retains parameter and return type identity through published dependency bindings, including renamed and type-only exports.
+Missing producer capture and inaccessible support types return `rollup-unsupported`; the generator does not copy those types.
+Complete overload sets, compound containers, and outside-suite exports remain package references.
+TS6 and TS7 consumer checks cover excluded calls, generic nominal constraints, aliases, and type-only function exports.
+Generation remains usable after dependency inputs are removed.
+Selection-aware dependency entrypoint mappings are not required by this decision.
+Broader Stage 4 acceptance remains separate from this focused policy implementation.
+
+Validation before the neutral syntax refactor: 335 tests pass, with the three existing compiler probes pending.
+After formatting-only corrections, the package rebuild and both focused overload regressions pass.
+CLI lint, architecture checks, formatting, generated model/report freshness, and `git diff --check` pass.
+The primary repository snapshots add only producer overload capture; existing model data, reports, and documentation indexes remain unchanged.
+The official TSDoc parser accepts 228 checked source comments, and links in the seven affected guides resolve.
+Editor diagnostics still report unresolved imported types despite clean compilation and CLI lint.
+
+#### Analysis syntax boundary
+
+Decision approved on 2026-09-28: analysis describes original declarations rather than rollup output.
+Replace `AnalysisFacts.rollup` with required `AnalysisFacts.declarationSyntax` source and binding facts.
+Capture exact source text, reference identities, lexical names, original module bindings, and compiler- or parser-resolved ranges.
+Retain source modifiers and private remarks; do not apply publication policy during capture or model encoding.
+Keep generator-specific selection, re-export decisions, modifier edits, name allocation, namespace wrappers, and private-section removal in `rollup-generation`.
+Portable models carry original standalone function syntax rather than pre-rendered redeclarations.
+Generation remains compiler-free and parser-free, and no general-purpose TypeScript AST is introduced.
+The migration must preserve existing rollup bytes, report bytes, nominal identity, and release selection.
+Model snapshots may change only for the syntax contract and dependent artifact fingerprints.
+
 #### Approved re-export policy
 
 Approved on 2026-09-25; implementation remains Stage 4 work.
 Preserve cross-package re-exports as references to their defining packages rather than requiring dependency declarations to be bundled.
+The approved partial-overload exception above applies only to safe standalone function redeclarations.
 Suite membership determines release-tag filtering, not dependency inclusion in the rollup.
 Re-exports of APIs defined in another suite package must follow the release-tag selection rules.
 Re-exports of APIs defined outside the suite are implicitly public and must never be trimmed by rollup selection.
@@ -1217,7 +1328,7 @@ The policy for explicit documentation references outside the suite is unchanged.
 
 #### Implementation and exit criteria
 
-- Productize the generation path proven in Stage 0 using the shared facts and selected surfaces.
+- Prove and implement the reviewed generation strategy using shared facts and selected surfaces; Stage 0 printing tests alone do not prove a rollup path.
 - Generate entrypoint declaration rollups from completed `APIAnalysis` data without live compiler resources or full reanalysis. This capability remains required by the revised API scope.
 - Keep `rollup-generation` independent of analysis implementation and the other generators, using only the shared graph contract and generic utilities.
 - Preserve required imports, remove excluded-only imports, and retain namespace and alias semantics.

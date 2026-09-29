@@ -72,6 +72,56 @@ describe("One-shot API analysis and adapter facts", () => {
 		rmSync(directory, { recursive: true, force: true });
 	});
 
+	it("captures original declaration syntax without applying output policy", () => {
+		const entrypoint = path.join(directory, "src/syntax.d.ts");
+		for (const [fixture, target] of [
+			["suite-overloads.d.ts", entrypoint],
+			["suite-types.d.ts", path.join(directory, "src/types.d.ts")],
+		] as const) {
+			cpSync(new URL(`../../src/test/fixtures/rollup/${fixture}`, import.meta.url), target);
+		}
+		const extracted = analyzeDeclarations({
+			...configuration,
+			entrypoints: [{ name: ".", path: entrypoint }],
+		});
+		assert(extracted.ok, JSON.stringify(extracted));
+		assert.equal("rollup" in extracted.value, false);
+		const capture = extracted.value.declarationSyntax;
+		const convertId = extracted.value.declarations.find(
+			(item) =>
+				item.name === "convert" &&
+				item.declarations.some((source) => source.file === "src/syntax.d.ts"),
+		)?.id;
+		assert(convertId !== undefined);
+		const convert = capture.declarations.find((item) => item.id === convertId)?.fragments[0]
+			?.syntax;
+		assert(convert !== undefined);
+		const original = convert.excerpt.tokens.map((token) => token.text).join("");
+		assert.equal(readFileSync(entrypoint, "utf8").includes(original), true);
+		assert.match(original, /export declare function convert/);
+		assert.match(original, /@privateRemarks Producer-only detail/);
+		assert.deepEqual(
+			convert.modifiers.map((modifier) =>
+				original.slice(modifier.range.start, modifier.range.end),
+			),
+			["export", "declare"],
+		);
+		assert.equal(
+			convert.comments.some((comment) => comment.privateRemarks.length > 0),
+			true,
+		);
+		const preserve = capture.declarations.find((item) => item.name === "preserve")
+			?.fragments[0]?.syntax;
+		assert(preserve !== undefined);
+		assert.equal(
+			preserve.excerpt.tokens.some(
+				(token) => token.kind === "Reference" && token.text === "ImportedResult",
+			),
+			true,
+		);
+		assert.equal(Object.isFrozen(capture), true);
+	});
+
 	it("returns completed analysis without a public compiler lifecycle", async () => {
 		assert.deepEqual(
 			Object.entries(publicAPI)
@@ -180,6 +230,7 @@ describe("One-shot API analysis and adapter facts", () => {
 		const facts: AnalysisFacts = {
 			packageName: "example",
 			compilerVersion: "test",
+			declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 			surfaces: [],
 			declarations: [],
 		};
@@ -272,7 +323,7 @@ describe("One-shot API analysis and adapter facts", () => {
 	});
 
 	// Design requirements: W6, W11.
-	it("reuses completed analysis for reports after inputs are removed", async () => {
+	it("reuses completed analysis for all artifacts after inputs are removed", async () => {
 		const entrypoint = path.join(directory, "src/public.d.ts");
 		writeFileSync(
 			entrypoint,
@@ -285,6 +336,9 @@ describe("One-shot API analysis and adapter facts", () => {
 		assert.equal(result.ok, true);
 		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
 		const first = result.value.generateReport(".", selection);
+		const model = result.value.generateModel();
+		const rollup = result.value.generateRollups(selection);
+		assert.equal(rollup.ok, true);
 		assert.equal(first.ok, true);
 		assert.equal(first.value.includes("convert(value: string): string;"), true);
 		const statistics = result.value.getStatistics();
@@ -298,6 +352,13 @@ describe("One-shot API analysis and adapter facts", () => {
 				true,
 			);
 			assert.deepEqual(result.value.generateReport(".", selection), first);
+			assert.deepEqual(result.value.generateRollups(selection), rollup);
+			assert.equal(result.value.generateModel(), model);
+			assert.equal(
+				result.value.generateRollups({ name: "empty", releaseLevels: [] }).ok,
+				true,
+			);
+			assert.deepEqual(result.value.generateRollups(selection), rollup);
 			assert.equal(parse.mock.callCount(), 0);
 			assert.equal(snapshot.mock.callCount(), 0);
 		} finally {
@@ -307,6 +368,7 @@ describe("One-shot API analysis and adapter facts", () => {
 		assert.deepEqual(result.value.getStatistics(), statistics);
 		assert.equal(result.value.generateReport("missing", selection).ok, false);
 		assert.equal(result.value.generateReport(".", { ...selection, name: " " }).ok, false);
+		assert.equal(result.value.generateRollups({ ...selection, name: " " }).ok, false);
 	});
 
 	// Design regressions: B1, B2.

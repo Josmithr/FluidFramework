@@ -6,7 +6,7 @@ import type { Linter } from "eslint";
 
 const config: Linter.Config[] = [
 	// Generated output and compiler fixture inputs are not product-code lint targets.
-	{ ignores: ["lib/**", "src/test/fixtures/**"] },
+	{ ignores: ["lib/**", "src/test/fixtures/**", "src/test/snapshots/**"] },
 	...strict,
 	{
 		files: ["**/*.{ts,mts}"],

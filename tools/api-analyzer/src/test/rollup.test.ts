@@ -1,0 +1,348 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, it } from "mocha";
+import { analyzeAPIs, ReleaseLevel } from "../index.js";
+import {
+	analyzeRepository,
+	compilePackage,
+	createRepository,
+	getPackageRoot,
+} from "./repositoryUtils.js";
+import { primaryExports, repositoryScenarios } from "./repositoryScenarios.js";
+import { createProgram, ModuleKind, ScriptTarget } from "typescript6";
+import type { CompletedAnalysis } from "../analysis-types/completedGraph.js";
+import type { DeclarationSyntaxFacts } from "../analysis-types/declarationSyntax.js";
+import { DiagnosticCode } from "../analysis-types/result.js";
+import { generateDeclarationRollups } from "../rollup-generation/declarationRollup.js";
+import { freezeData } from "../utilities/freezeData.js";
+import { assertSnapshot } from "./snapshotUtils.js";
+
+describe("Detached declaration rollups", () => {
+	it("accepts empty capture and rejects invalid paths and unsupported selected declarations", () => {
+		const empty: DeclarationSyntaxFacts = {
+			lexicalNames: [],
+			imports: [],
+			surfaces: [],
+			declarations: [],
+		};
+		const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+		const graph: CompletedAnalysis = freezeData({
+			facts: {
+				packageName: "test",
+				compilerVersion: "7.0.2",
+				declarationSyntax: empty,
+				surfaces: [],
+				declarations: [],
+			},
+			classification: { items: [], modifierTags: [] },
+			documentation: [],
+		});
+		const emptyResult = generateDeclarationRollups(graph, selection);
+		assert.equal(emptyResult.ok, true);
+		assert.deepEqual(Object.keys(emptyResult.value), ["__api.d.ts"]);
+		for (const name of ["./../outside", "./__api", "./index", "/absolute", "./a//b"]) {
+			const invalid = generateDeclarationRollups(
+				{
+					...graph,
+					facts: {
+						...graph.facts,
+						declarationSyntax: {
+							...empty,
+							surfaces: [
+								{ name: ".", exports: [] },
+								{ name, exports: [] },
+							],
+						},
+					},
+				},
+				selection,
+			);
+			assert.equal(invalid.ok, false, name);
+			assert.equal(invalid.diagnostics[0]?.code, DiagnosticCode.RollupConfiguration, name);
+		}
+		const unsupported = generateDeclarationRollups(
+			{
+				...graph,
+				facts: {
+					...graph.facts,
+					declarationSyntax: {
+						...empty,
+						surfaces: [
+							{
+								name: ".",
+								exports: [
+									{ name: "value", target: "value", typeOnly: false, outsideSuite: true },
+								],
+							},
+						],
+						declarations: [
+							{
+								id: "value",
+								name: "value",
+								fragments: [
+									{
+										signatures: [],
+										syntax: {
+											excerpt: {
+												tokens: [{ kind: "Content", text: "const value = 1;" }],
+												tokenRange: { startIndex: 0, endIndex: 1 },
+											},
+											isDeclarationFile: false,
+											declarationStart: 0,
+											modifiers: [],
+											comments: [],
+											importTypes: [],
+										},
+									},
+								],
+							},
+						],
+					},
+				},
+			},
+			selection,
+		);
+		assert.equal(unsupported.ok, false);
+		assert.equal(unsupported.diagnostics[0]?.code, DiagnosticCode.RollupUnsupported);
+		const nested = generateDeclarationRollups(
+			{
+				...graph,
+				facts: {
+					...graph.facts,
+					declarationSyntax: { ...empty, surfaces: [{ name: "./nested/entry", exports: [] }] },
+				},
+			},
+			selection,
+		);
+		assert.equal(nested.ok, true);
+		assert.match(nested.value["nested/entry.d.ts"] ?? "", /from "\.\.\/__api.js"/);
+	});
+
+	for (const producer of ["typescript6", "typescript"] as const) {
+		for (const scenario of repositoryScenarios) {
+			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {
+				const repository = createRepository(producer, scenario);
+				try {
+					for (const name of repository.packages) {
+						compilePackage(repository, name);
+					}
+					const artifacts = await analyzeRepository(repository);
+					const require = createRequire(import.meta.url);
+					for (const artifact of artifacts) {
+						const root = getPackageRoot(repository, artifact.name);
+						rmSync(path.join(root, "src"), { recursive: true });
+						rmSync(path.join(root, "lib"), { recursive: true });
+					}
+					for (const complete of [true, false]) {
+						for (const artifact of artifacts) {
+							const root = getPackageRoot(repository, artifact.name);
+							const output = artifact.analysis.generateRollups({
+								name: complete ? "complete" : "public",
+								releaseLevels: complete
+									? [
+											ReleaseLevel.Public,
+											ReleaseLevel.Beta,
+											ReleaseLevel.Alpha,
+											ReleaseLevel.Internal,
+										]
+									: [ReleaseLevel.Public],
+							});
+							assert(output.ok, JSON.stringify(output));
+							assert.equal(artifact.analysis.generateModel(), artifact.text);
+							for (const [file, text] of Object.entries(output.value)) {
+								mkdirSync(path.dirname(path.join(root, "lib", file)), { recursive: true });
+								writeFileSync(path.join(root, "lib", file), text);
+							}
+							if (scenario === "primary") {
+								const program = createProgram([path.join(root, "lib/index.d.ts")], {
+									module: ModuleKind.NodeNext,
+									target: ScriptTarget.ES2022,
+									types: [],
+								});
+								const source = program.getSourceFile(path.join(root, "lib/index.d.ts"));
+								assert(source !== undefined);
+								const moduleSymbol = program.getTypeChecker().getSymbolAtLocation(source);
+								assert(moduleSymbol !== undefined);
+								const names = program
+									.getTypeChecker()
+									.getExportsOfModule(moduleSymbol)
+									.map((symbol) => symbol.name)
+									.sort();
+								assert.deepEqual(
+									names,
+									primaryExports
+										.filter((name) => complete || !["experiment", "hidden"].includes(name))
+										.sort(),
+								);
+							}
+							for (const consumer of ["typescript6", "typescript"]) {
+								const compilerRoot = path.dirname(require.resolve(`${consumer}/package.json`));
+								execFileSync(
+									process.execPath,
+									[
+										path.join(compilerRoot, "bin/tsc"),
+										...Object.keys(output.value).map((file) => `lib/${file}`),
+										"--ignoreConfig",
+										"--noEmit",
+										"--strict",
+										"--module",
+										"NodeNext",
+										"--target",
+										"ES2022",
+									],
+									{ cwd: root, stdio: "inherit", timeout: 15000 },
+								);
+							}
+						}
+					}
+				} finally {
+					rmSync(repository.directory, { recursive: true, force: true });
+				}
+			}).timeout(90000);
+		}
+	}
+
+	it("retains private support types and documentation without publishing excluded APIs", async () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "api-rollup-"));
+		try {
+			const foreign = path.join(directory, "node_modules", "foreign");
+			mkdirSync(foreign, { recursive: true });
+			cpSync(
+				new URL("../../src/test/fixtures/rollup/foreign.d.ts", import.meta.url),
+				path.join(foreign, "index.d.ts"),
+			);
+			writeFileSync(
+				path.join(foreign, "package.json"),
+				JSON.stringify({ name: "foreign", type: "module", types: "index.d.ts" }),
+			);
+			cpSync(
+				new URL("../../src/test/fixtures/rollup/index.d.ts", import.meta.url),
+				path.join(directory, "index.d.ts"),
+			);
+			cpSync(
+				new URL("../../src/test/fixtures/rollup/second.d.ts", import.meta.url),
+				path.join(directory, "second.d.ts"),
+			);
+			for (const file of ["left", "right"]) {
+				cpSync(
+					new URL(`../../src/test/fixtures/rollup/${file}.d.ts`, import.meta.url),
+					path.join(directory, `${file}.d.ts`),
+				);
+			}
+			writeFileSync(
+				path.join(directory, "package.json"),
+				JSON.stringify({ name: "rollup-test", type: "module" }),
+			);
+			writeFileSync(
+				path.join(directory, "tsconfig.json"),
+				JSON.stringify({
+					compilerOptions: { strict: true, module: "NodeNext", types: [] },
+					files: ["index.d.ts", "second.d.ts"],
+				}),
+			);
+			const result = await analyzeAPIs(
+				{
+					packageName: "rollup-test",
+					project: "tsconfig.json",
+					entrypoints: [
+						{ name: ".", path: "index.d.ts" },
+						{ name: "./second", path: "second.d.ts" },
+					],
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			const analysis = result.value;
+			rmSync(path.join(directory, "index.d.ts"));
+			rmSync(path.join(directory, "second.d.ts"));
+			for (const file of ["left", "right"]) {
+				rmSync(path.join(directory, `${file}.d.ts`));
+			}
+			const model = analysis.generateModel();
+			const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
+			const generated = analysis.generateRollups(selection);
+			assert(generated.ok, JSON.stringify(generated));
+			const shared = generated.value["__api.d.ts"] ?? "";
+			assert.doesNotMatch(shared, /\*[\t ]+\r?\n/);
+			assert.doesNotMatch(shared, /^export[\t ]{2,}/m);
+			assert.match(shared, /export function external\(input: Input\): string;/);
+			assert.equal(
+				shared.includes(
+					"export // Preserve the line-comment boundary.\n\tfunction read_1(input: Support): string;",
+				),
+				true,
+			);
+			for (const name of ["first", "second"]) {
+				assert.equal(
+					shared.includes(
+						`export /* Preserve  modifier comment spacing. */ const ${name}: "${name}";`,
+					),
+					true,
+				);
+			}
+			for (const file of ["index.d.ts", "second.d.ts"]) {
+				assert.match(generated.value[file] ?? "", /Package overview retained/);
+				assert.doesNotMatch(generated.value[file] ?? "", /privateRemarks|Private package/);
+			}
+			assert.match(shared, /interface Support/);
+			assert.match(shared, /Reads a value/);
+			assert.equal(
+				shared.includes(
+					"/**\n * Reads a value.\n * @param input - Value to read.\n * @returns The stored text.",
+				),
+				true,
+			);
+			assert.match(shared, /Reads the value/);
+			assert.match(shared, /Selected namespace with a type-only class alias/);
+			assert.doesNotMatch(
+				shared,
+				/privateRemarks|implementation note|function preview|PreviewOnly|\.\/left\.js/,
+			);
+			assert.equal(analysis.generateModel(), model);
+			assert.deepEqual(analysis.generateRollups(selection), generated);
+			for (const [file, text] of Object.entries(generated.value)) {
+				assertSnapshot(text, `rollup-public-${file}`);
+				writeFileSync(path.join(directory, file), text);
+			}
+			cpSync(
+				new URL("../../src/test/fixtures/rollup/consumer.ts", import.meta.url),
+				path.join(directory, "consumer.ts"),
+			);
+			const require = createRequire(import.meta.url);
+			for (const compiler of ["typescript6", "typescript"]) {
+				const compilerRoot = path.dirname(require.resolve(`${compiler}/package.json`));
+				execFileSync(
+					process.execPath,
+					[
+						path.join(compilerRoot, "bin/tsc"),
+						"consumer.ts",
+						"--ignoreConfig",
+						"--noEmit",
+						"--strict",
+						"--module",
+						"NodeNext",
+						"--target",
+						"ES2022",
+					],
+					{ cwd: directory, stdio: "inherit", timeout: 15000 },
+				);
+			}
+			assert.equal(readFileSync(path.join(directory, "__api.d.ts"), "utf8"), shared);
+			const atomic = analysis.generateRollups({ ...selection, requireTags: ["@sealed"] });
+			assert(atomic.ok, JSON.stringify(atomic));
+			assert.match(atomic.value["__api.d.ts"] ?? "", /function atomic\(value: string\)/);
+			assert.match(atomic.value["__api.d.ts"] ?? "", /function atomic\(value: number\)/);
+			assert.doesNotMatch(atomic.value["index.d.ts"] ?? "", /as atomic/);
+			const empty = analysis.generateRollups({ name: "empty", releaseLevels: [] });
+			assert(empty.ok, JSON.stringify(empty));
+			assert.match(empty.value["index.d.ts"] ?? "", /export \* as Foreign from "foreign"/);
+			assert.doesNotMatch(empty.value["__api.d.ts"] ?? "", /class Store/);
+		} finally {
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+});

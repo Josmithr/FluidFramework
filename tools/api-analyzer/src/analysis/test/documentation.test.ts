@@ -108,6 +108,7 @@ function createLinkFacts(declarations: readonly DeclarationFact[]): AnalysisFact
 	return {
 		packageName: "reexporting-package",
 		compilerVersion: "test",
+		declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 		surfaces: [],
 		declarations,
 	};
@@ -293,6 +294,7 @@ describe("Documentation link binding", () => {
 		const facts: AnalysisFacts = {
 			packageName: "reexporting-package",
 			compilerVersion: "test",
+			declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 			surfaces: [],
 			declarations: [
 				createFunctionFact("source", "/** {@link target} {@link target | Again} @public */", [
@@ -1387,6 +1389,7 @@ describe("Explicit documentation inheritance", () => {
 		const facts = {
 			packageName: "example",
 			compilerVersion: "test",
+			declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 			surfaces: [],
 			declarations: [],
 		};

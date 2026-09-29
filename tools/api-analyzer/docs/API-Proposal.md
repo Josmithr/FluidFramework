@@ -2,7 +2,7 @@
 
 Status: API direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
 Declaration reports, portable documentation models, source-free readers, and API counts are implemented.
-Declaration rollups remain Stage 4.
+Experimental declaration rollups are implemented; the Stage 4 acceptance audit is in progress.
 The [README](../README.md#experimental-api) describes the implemented subset and remaining limitations.
 The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
@@ -42,7 +42,12 @@ The initial report method and API counts are documented in the README.
 Format and identity versions remain 1 during initial development, with no backward compatibility requirements when their definitions change.
 `decodeDependencyModel(text, packageName)` validates one artifact; `decodeDependencyModels(inputs)` additionally validates a complete package set.
 Both readers are also exported from `api-analyzer/model`, which does not load compiler-backed analysis.
-Rollup method signatures and broader statistics remain to be specified.
+`generateRollups(selection): Result<Readonly<Record<string, string>>>` returns declaration artifacts for all configured entrypoints.
+The artifact set uses one shared `__api.d.ts` module to preserve nominal identity across entrypoints.
+The root entrypoint maps to `index.d.ts`; subpaths map to their relative path with a `.d.ts` extension.
+Callers must write every returned file with those relative paths unchanged.
+See the [declaration-generation contract](../README.md#declaration-rollups) for selection, comments, and diagnostics.
+Broader statistics remain to be specified.
 API statistics are distinct from analysis timing and cache counters.
 
 ## Completion and outputs

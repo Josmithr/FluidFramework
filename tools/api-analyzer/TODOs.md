@@ -108,12 +108,13 @@ Investigate a public output containing the string overload and namespace, and a 
 Check `typeof convert`, overload ordering, namespace member references, and type-only re-exports in both outputs.
 This is part of the [future container-selection investigation](docs/api-extractor-replacement-follow-ups.md#flexible-container-member-selection), not an exception to the current atomic-container rule.
 
-## (Future stage) Copy comments to generated rollup files
+## Copy comments to generated rollup files
 
-TSDoc comments should be preserved in the generated rollup files.
-Eventually, we will want to add the ability to transform the docs that end up here and in other derived artifacts (see [](#long-term-doc-transformations)).
+Stage 4 preserves original declaration, member, namespace-export, and package comments in generated rollup files.
+The official TSDoc parser identifies `@privateRemarks` content for removal without reprinting the remaining comment.
+The [rollup consumer tests](src/test/rollup.test.ts) check comment preservation alongside compilation and selection behavior.
 
-For v1, we should copy as-is, but we should strip `@privateRemarks` blocks out. These comments are meant for local developers only.
+Configurable documentation transformations remain [long-term work](#doc-transformations).
 
 ## TSDoc reference conformance
 

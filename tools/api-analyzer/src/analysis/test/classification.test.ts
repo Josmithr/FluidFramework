@@ -62,6 +62,7 @@ function createContainerFacts(
 	return {
 		packageName: "example",
 		compilerVersion: "test",
+		declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 		surfaces: [],
 		declarations: [member, container],
 	};
@@ -277,6 +278,7 @@ function createMergedReleaseFacts(
 	return {
 		packageName: "example",
 		compilerVersion: "test",
+		declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 		surfaces: [],
 		declarations: [
 			{

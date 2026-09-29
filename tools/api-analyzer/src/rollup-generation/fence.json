@@ -1,0 +1,6 @@
+{
+	"tags": ["rollup-generation"],
+	"exports": ["declarationRollup"],
+	"imports": ["analysis-types", "utilities", "test"],
+	"dependencies": ["node:assert/strict", "node:path"]
+}

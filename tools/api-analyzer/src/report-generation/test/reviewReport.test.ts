@@ -19,6 +19,7 @@ const graph: CompletedAnalysis = freezeData({
 	facts: {
 		packageName: "example",
 		compilerVersion: "test",
+		declarationSyntax: { declarations: [], surfaces: [], imports: [], lexicalNames: [] },
 		surfaces: [{ name: ".", exports: [{ name: "value", target: "value", typeOnly: false }] }],
 		declarations: [
 			{

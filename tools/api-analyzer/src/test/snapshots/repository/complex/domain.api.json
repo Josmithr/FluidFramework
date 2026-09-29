@@ -933,6 +933,64 @@
             "id": "[[\"[\\\"@scenario/domain\\\",\\\"lib/index.d.ts\\\"]\"],\"inherited\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "documentationId": "[[\"[\\\"@scenario/domain\\\",\\\"lib/index.d.ts\\\"]\"],\"inherited\"]:86cc9fc680e3a2e7d40dc579cba8530e135c870fe06743a35117d5dbf12aabe7",
             "references": [],
+            "declarationSyntax": {
+              "excerpt": {
+                "tokens": [
+                  {
+                    "kind": "Content",
+                    "text": "\n/**\n * {@inheritDoc @scenario/core#source}\n * @public\n */\nexport declare function "
+                  },
+                  {
+                    "kind": "Reference",
+                    "text": "inherited",
+                    "target": "[[\"[\\\"@scenario/domain\\\",\\\"lib/index.d.ts\\\"]\"],\"inherited\"]"
+                  },
+                  {
+                    "kind": "Content",
+                    "text": "(value: string): string;"
+                  }
+                ],
+                "tokenRange": {
+                  "startIndex": 0,
+                  "endIndex": 3
+                }
+              },
+              "isDeclarationFile": true,
+              "declarationStart": 59,
+              "modifiers": [
+                {
+                  "keyword": "export",
+                  "range": {
+                    "start": 59,
+                    "end": 65
+                  },
+                  "trailingEnd": 66
+                },
+                {
+                  "keyword": "declare",
+                  "range": {
+                    "start": 66,
+                    "end": 73
+                  },
+                  "trailingEnd": 74
+                }
+              ],
+              "comments": [
+                {
+                  "range": {
+                    "start": 1,
+                    "end": 58
+                  },
+                  "packageDocumentation": false,
+                  "privateRemarks": []
+                }
+              ],
+              "importTypes": [],
+              "lexicalNames": [
+                "value"
+              ],
+              "imports": []
+            },
             "source": {
               "packageName": "@scenario/domain",
               "file": "lib/index.d.ts",
@@ -1058,7 +1116,7 @@
   "dependencyModels": [
     {
       "packageName": "@scenario/core",
-      "sha256": "86eaefd19e9c65ff21aadf97ae09d9a41c60dad2f900945a0c7fab9ff587d491"
+      "sha256": "85c9ba5ce67dfaa9b445f94e34893b91543c4bd5538b7556b02be2ff7b444046"
     }
   ],
   "modifierTags": [
