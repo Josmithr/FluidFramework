@@ -1377,7 +1377,7 @@ Suite probes generated and loaded the dependency model before analyzing the cons
 | W5: complete and trimmed declaration output | The [rollup matrix](../src/test/rollup.test.ts) covers both producer compilers, both consumer compilers, and source removal. Its general repository loop compiles generated declaration files directly; it does not establish all package-export consumer assertions. | The relative-augmentation reproduction now passes; the remaining consumer-coverage follow-ups still apply. |
 | W5: entrypoints, identity, and custom tags | A fresh package-export probe imports one nominal class from root and subpath entrypoints, rejects structural substitution, and excludes an API without `@sealed` using `requireTags: ["@sealed"]`. | Pass for the probed root/subpath configuration. |
 | W5: prior audit fixes | [Alias](../src/test/fixtures/rollup/aliases.d.ts) and [module-effect](../src/test/fixtures/rollup/effects.d.ts) regressions retain namespace-member aliases, shared nominal identity, external side-effect imports, and external module augmentations. Empty selections retain module effects. | Permanent consumer coverage exists in the rollup tests. |
-| B1: dependency export aliases | Two fresh suite probes consume an aliased dependency class with and without a consumer re-export. Original and generated consumers use the published alias and retain its nominal identity. | Both pass. |
+| B1: dependency export aliases | Two permanent [rollup tests](../src/test/rollup.test.ts) use the [dependency-alias fixtures](../src/test/fixtures/rollup/dependency-alias/consumer.ts) with and without a consumer re-export. Original and generated package consumers retain the dependency's nominal identity under TS6 and TS7 after the consumer package's original declarations are removed. | Both pass; permanent consumer coverage exists. |
 | B4: excluded and shared imports | A fresh probe uses one import in both public and beta declarations and another only in the beta declaration. Public rollups retain the shared import, omit the excluded import, and reject access to the excluded API. Changing the beta-only imported type leaves the public report unchanged. | Pass. |
 | B5: namespace re-exports | Four fresh probes cover named namespaces and `export * as Namespace`, each inside and outside the suite. Consumers use class, interface, constant, and nested namespace export-list members. Suite beta namespaces are absent from public output; foreign namespaces remain available even for an empty selection. | All four pass. |
 | B6: names that shadow built-ins | A fresh probe retains an internal `performance` export in complete output and rejects it in public output. Public artifacts contain neither its declaration nor an alias for it. | Pass. |
@@ -1416,9 +1416,16 @@ No compiler, parser, or file access is added to generation.
 The permanent `relocates relative module augmentations with their local declarations` regression compiles original and generated consumers under both compilers after source removal.
 It covers generic interfaces, class/interface merges and private identity across entrypoints, repeated augmentation paths, namespaces, same-named declarations from other modules, module type queries, supporting types, private remarks, and empty selection.
 
+Dependency-alias coverage follow-up (2026-09-30): the permanent `preserves dependency aliases` tests cover both B1 probe variants with static source, consumer, and configuration fixtures.
+Each test generates and installs the dependency model before analyzing the consumer package.
+The consumer checks preserve parameter and return identity, require bidirectional assignment through the consumer's optional re-export, reject structural substitutes, and reject unintended exports.
+The generated consumer output must not contain a copied class or a reference to the removed local API module.
+Both focused regressions pass with original and generated package consumers under TypeScript 6.0.3 and TypeScript 7.0.2.
+This closes the recorded B1 consumer-coverage gap, not the remaining Stage 4 acceptance work.
+
 Before requesting Stage 4 acceptance:
 
-1. Promote the missing disposable B1/B4/B5/B6 rollup assertions and remaining custom-tag package-export assertions into the existing regression suites.
+1. Promote the missing disposable B4/B5/B6 rollup assertions and remaining custom-tag package-export assertions into the existing regression suites.
 	Keep report-only coverage distinct from generated-declaration consumer coverage.
 2. Repeat the affected acceptance checks and record the resulting decision before starting Stage 5.
 

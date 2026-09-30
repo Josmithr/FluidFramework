@@ -358,6 +358,67 @@ describe("Detached declaration rollups", () => {
 		});
 	});
 
+	for (const reexport of [false, true]) {
+		it(`preserves dependency aliases ${reexport ? "with" : "without"} consumer re-exports`, async () => {
+			await withRollupProject("api-rollup-dependency-alias-", async (directory) => {
+				const consumer = reexport ? "consumer-reexport.ts" : "consumer-no-reexport.ts";
+				copyRollupFixtures(
+					directory,
+					(
+						[
+							[reexport ? "index-reexport.d.ts" : "index.d.ts", "index.d.ts"],
+							["api.d.ts", "api.d.ts"],
+							["consumer.ts", "consumer.ts"],
+							[consumer, consumer],
+							["package.json", "package.json"],
+							["tsconfig.json", "tsconfig.json"],
+							["dependency/index.d.ts", "node_modules/alias-dependency/index.d.ts"],
+							["dependency/package.json", "node_modules/alias-dependency/package.json"],
+							["tsconfig.json", "node_modules/alias-dependency/tsconfig.json"],
+						] as const
+					).map(([fixture, destination]) => [`dependency-alias/${fixture}`, destination]),
+				);
+				const consumers = ["consumer.ts", consumer];
+				compileRollupFiles(directory, consumers);
+				const configuration = {
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "index.d.ts" }],
+				};
+				const dependencyRoot = path.join(directory, "node_modules", "alias-dependency");
+				const dependency = await analyzeAPIs(
+					{ ...configuration, packageName: "alias-dependency" },
+					dependencyRoot,
+				);
+				assert(dependency.ok, JSON.stringify(dependency));
+				writeFileSync(
+					path.join(dependencyRoot, "api-model.json"),
+					dependency.value.generateModel(),
+				);
+				const result = await analyzeAPIs(
+					{
+						...configuration,
+						packageName: "alias-package",
+						suite: { packages: ["alias-dependency"], modelFile: "api-model.json" },
+					},
+					directory,
+				);
+				assert(result.ok, JSON.stringify(result));
+
+				// Only the consumer inputs are removed; dependency references must resolve to the installed package.
+				rmSync(path.join(directory, "index.d.ts"));
+				rmSync(path.join(directory, "api.d.ts"));
+				const generated = result.value.generateRollups({
+					name: "public",
+					releaseLevels: [ReleaseLevel.Public],
+				});
+				assert(generated.ok, JSON.stringify(generated));
+				assert.doesNotMatch(generated.value["__api.d.ts"] ?? "", /\bclass\b|\.\/api\.js/);
+				writeRollupArtifacts(directory, generated.value);
+				compileRollupFiles(directory, consumers);
+			});
+		});
+	}
+
 	for (const producer of ["typescript6", "typescript"] as const) {
 		for (const scenario of repositoryScenarios) {
 			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {

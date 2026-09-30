@@ -1,0 +1,6 @@
+{
+	"name": "alias-package",
+	"type": "module",
+	"dependencies": { "alias-dependency": "1.0.0" },
+	"exports": { ".": { "types": "./index.d.ts" } }
+}

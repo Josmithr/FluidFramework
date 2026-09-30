@@ -19,6 +19,10 @@ They are not compiled as a standalone workspace.
 - `relative-augmentation/` supplies local targets, two augmentation modules, a separate same-named interface, root and subpath entrypoints, and a package consumer.
 	These fixtures verify generic and namespace merges, nominal identity, module queries, supporting types, private remarks, and relocation after the original declarations are removed.
 	Its package manifest and TypeScript configuration define the temporary project's exports and analysis inputs.
+- `dependency-alias/` supplies an installed dependency with a privately branded class exported only as `Published`, plus consumer-package entrypoints with and without a second alias, `Forwarded`.
+	The tests generate the dependency model before analyzing the consumer package and remove the consumer package's original declarations before generating its public rollup.
+	Both compiler versions check parameter and return identity, bidirectional re-export assignment, rejected structural substitutes, and absent unintended exports through package exports.
+	The dependency declarations remain installed because the generated consumer must reference that package instead of copying its class.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.
