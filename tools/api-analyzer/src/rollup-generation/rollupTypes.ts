@@ -21,10 +21,10 @@ export interface RollupFragment {
  */
 export interface RollupDeclaration {
 	/**
-	 * Whether fragments must remain in the global scope for every export selection.
+	 * Whether augmentation fragments must remain outside the shared namespace for every selection.
 	 * @defaultValue Omitted for ordinary module declarations.
 	 */
-	readonly globalAugmentation?: true;
+	readonly moduleScope?: true;
 
 	/**
 	 * Original comments for a synthesized namespace wrapper, without private remarks.
@@ -64,6 +64,12 @@ export interface RollupDeclaration {
  * Generator-owned declaration inputs prepared from neutral analysis facts.
  */
 export interface RollupData {
+	/**
+	 * External imports retained independently of named-export selection.
+	 * @defaultValue Omitted when no external imports without bindings occur.
+	 */
+	readonly sideEffectImports?: readonly string[];
+
 	/**
 	 * Original package comment without private remarks.
 	 * @defaultValue Omitted when the analyzed package has no package documentation.

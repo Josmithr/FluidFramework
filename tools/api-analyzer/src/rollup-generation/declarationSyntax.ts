@@ -27,6 +27,9 @@ interface SyntaxEdit extends SyntaxRange {
  */
 export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupData {
 	return {
+		...(facts.sideEffectImports === undefined
+			? {}
+			: { sideEffectImports: facts.sideEffectImports }),
 		reservedNames: facts.lexicalNames,
 		imports: facts.imports,
 		surfaces: facts.surfaces.map((surface) => ({
@@ -38,9 +41,10 @@ export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupD
 		})),
 		declarations: facts.declarations.map((declaration) => ({
 			id: declaration.id,
-			...(declaration.globalAugmentation === undefined
+			...(declaration.globalAugmentation === undefined &&
+			declaration.moduleAugmentation === undefined
 				? {}
-				: { globalAugmentation: declaration.globalAugmentation }),
+				: { moduleScope: true as const }),
 			name:
 				declaration.name === ""
 					? "moduleNamespace"
@@ -55,7 +59,8 @@ export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupD
 					fragment.syntax,
 					declaration.id,
 					declaration.name,
-					declaration.globalAugmentation === true,
+					declaration.globalAugmentation === true ||
+						declaration.moduleAugmentation !== undefined,
 				),
 			})),
 			...(declaration.exports === undefined
@@ -68,6 +73,12 @@ export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupD
 				? {
 						unsupported:
 							"Declaration rollups require declaration-file inputs. Build declarations before analysis.",
+					}
+				: {}),
+			...(declaration.moduleAugmentation?.startsWith(".") === true
+				? {
+						unsupported:
+							"Relative module augmentations require module-target relocation before declaration rollups can be generated.",
 					}
 				: {}),
 		})),
@@ -97,18 +108,18 @@ function prepareExportBinding(binding: DeclarationExportFact): ExportFact {
  * @param syntax - Original source and compiler-derived boundaries.
  * @param id - Declaration identity for an anonymous default name.
  * @param name - Preferred name for an anonymous default declaration.
- * @param globalAugmentation - Whether to retain global declaration syntax. Defaults to false.
+ * @param moduleScope - Whether to retain augmentation syntax outside the shared namespace. Defaults to false.
  * @returns Output tokens that keep their recorded reference identities.
  */
 export function prepareDeclarationFragment(
 	syntax: DeclarationSyntax,
 	id: string,
 	name: string,
-	globalAugmentation = false,
+	moduleScope = false,
 ): CodeExcerpt {
-	// Global augmentations remain at module scope.
+	// Global and external module augmentations remain at module scope.
 	// Keep their declare keyword and do not add an export keyword.
-	const edits: SyntaxEdit[] = globalAugmentation
+	const edits: SyntaxEdit[] = moduleScope
 		? []
 		: [
 				{
@@ -118,7 +129,7 @@ export function prepareDeclarationFragment(
 				},
 			];
 	for (const modifier of syntax.modifiers) {
-		if (!globalAugmentation && ["export", "default", "declare"].includes(modifier.keyword)) {
+		if (!moduleScope && ["export", "default", "declare"].includes(modifier.keyword)) {
 			edits.push({ start: modifier.range.start, end: modifier.trailingEnd, tokens: [] });
 		}
 	}

@@ -6,6 +6,8 @@ import {
 	SyntaxKind,
 	createScanner,
 	getLeadingCommentRanges,
+	type Identifier,
+	type ImportClause,
 	type Node,
 	type SourceFile,
 } from "typescript/unstable/ast";
@@ -65,6 +67,32 @@ interface DeclarationInput {
 	 * Original source containing the statement.
 	 */
 	readonly source: SourceFile;
+}
+
+/**
+ * One import binding normalized from source syntax, used only during capture.
+ */
+interface ImportBinding {
+	/**
+	 * Original local identifier used for compiler symbol lookup.
+	 */
+	readonly name: Identifier;
+
+	/**
+	 * Import form represented by this binding.
+	 */
+	readonly kind: ImportFact["kind"];
+
+	/**
+	 * Original export name, or `default` for a default binding.
+	 * @defaultValue Omitted for namespace bindings.
+	 */
+	readonly importedName?: string;
+
+	/**
+	 * Whether the clause or the individual named binding is type-only.
+	 */
+	readonly typeOnly: boolean;
 }
 
 /**
@@ -150,7 +178,7 @@ export function captureDeclarationSyntax(
 			records.set(root.id, { ...root, fragments: [], exports: getExports(symbol) });
 		}
 	}
-	const { roots, imports } = indexImports(project, sources, localRoots);
+	const { roots, imports, sideEffectImports } = indexImports(project, sources, localRoots);
 	const lexicalNames = new Set<string>();
 	for (const input of indexed.statements) {
 		const root = roots.get(input.symbol.id);
@@ -163,9 +191,13 @@ export function captureDeclarationSyntax(
 		records.set(root.id, {
 			...root,
 			...(isGlobalAugmentation(input.node) ? { globalAugmentation: true as const } : {}),
+			...(isModuleDeclaration(input.node) && isStringLiteral(input.node.name)
+				? { moduleAugmentation: input.node.name.text }
+				: {}),
 			fragments: [...(previous?.fragments ?? []), captured.fragment],
 		});
 	}
+	captureMemberAliases(project, sources, roots, records, identity, parser);
 	for (const fact of facts.values()) {
 		if (
 			!records.has(fact.id) &&
@@ -195,8 +227,59 @@ export function captureDeclarationSyntax(
 				}),
 		declarations: [...records.values()],
 		imports,
+		...(sideEffectImports.length === 0 ? {} : { sideEffectImports }),
 		lexicalNames: [...lexicalNames].sort(),
 	};
+}
+
+/**
+ * Captures top-level aliases whose targets are members of indexed namespaces.
+ * @remarks
+ * Export selection uses the target identity, while the original import alias preserves its member path.
+ * Existing root declarations take precedence so aliases do not duplicate their targets.
+ * @param project - Active checker.
+ * @param sources - Package-owned source files.
+ * @param roots - Indexed declaration and import bindings.
+ * @param records - Invocation-owned output records, updated with missing alias syntax.
+ * @param identity - Resolves original declaration identities.
+ * @param parser - Parser for original documentation.
+ */
+function captureMemberAliases(
+	project: Pick<Project, "checker">,
+	sources: readonly SourceFile[],
+	roots: ReadonlyMap<number, DeclarationName>,
+	records: Map<ApiItemId, DeclarationSyntaxFact>,
+	identity: (symbol: CompilerSymbol) => ApiItemId,
+	parser: TSDocParser,
+): void {
+	for (const source of sources) {
+		for (const node of source.statements) {
+			if (!isImportEqualsDeclaration(node)) {
+				continue;
+			}
+			const symbol = project.checker.getSymbolAtLocation(node.name);
+			if (symbol === undefined) {
+				continue;
+			}
+			const target = project.checker.getAliasedSymbol(symbol);
+			const binding = findLocalBinding(project, target, roots);
+			const id = identity(target);
+			if (binding?.path === undefined || records.has(id)) {
+				continue;
+			}
+			const name = node.name.text;
+			const bindings = new Map(roots);
+			bindings.set(symbol.id, { id, name });
+			const captured = captureDeclaration(
+				project,
+				{ node, symbol, source },
+				bindings,
+				undefined,
+				parser,
+			);
+			records.set(id, { id, name, fragments: [captured.fragment] });
+		}
+	}
 }
 
 /**
@@ -243,7 +326,12 @@ function indexDeclarations(
 					}
 					continue;
 				}
-				if (!("name" in node) || node.name === undefined || !isIdentifier(node.name)) {
+				const stringNamedModule = isModuleDeclaration(node) && isStringLiteral(node.name);
+				if (
+					!("name" in node) ||
+					node.name === undefined ||
+					(!isIdentifier(node.name) && !stringNamedModule)
+				) {
 					continue;
 				}
 				const name = node.name as Node;
@@ -281,59 +369,67 @@ function indexImports(
 ): {
 	readonly roots: ReadonlyMap<number, DeclarationName>;
 	readonly imports: DeclarationSyntaxFacts["imports"];
+	readonly sideEffectImports: readonly string[];
 } {
 	const roots = new Map(localRoots);
 	const imports = new Map<string, ImportFact & { id: string }>();
+	const sideEffectImports = new Set<string>();
 	for (const source of sources) {
 		for (const statement of source.statements) {
-			if (
-				!isImportDeclaration(statement) ||
-				!isStringLiteral(statement.moduleSpecifier) ||
-				statement.importClause === undefined
-			) {
+			// Import-equals aliases can target nested local members.
+			// Retain the enclosing root and member path so references can follow relocation.
+			if (isImportEqualsDeclaration(statement)) {
+				const symbol = project.checker.getSymbolAtLocation(statement.name);
+				if (symbol !== undefined) {
+					const target = project.checker.getAliasedSymbol(symbol);
+					const local = findLocalBinding(project, target, localRoots);
+					if (local !== undefined) {
+						roots.set(symbol.id, local);
+					}
+				}
+
+				// This syntax has no import clause for the binding extraction below.
+				continue;
+			}
+			if (!isImportDeclaration(statement) || !isStringLiteral(statement.moduleSpecifier)) {
+				// The remaining path needs an import declaration with a literal module specifier.
 				continue;
 			}
 			const clause = statement.importClause;
-			const elements = [
-				...(clause.name === undefined
-					? []
-					: [
-							{
-								name: clause.name,
-								kind: "default" as const,
-								importedName: "default",
-								typeOnly: clause.phaseModifier === SyntaxKind.TypeKeyword,
-							},
-						]),
-				...(clause.namedBindings === undefined
-					? []
-					: isNamedImports(clause.namedBindings)
-						? clause.namedBindings.elements.map((element) => ({
-								name: element.name,
-								kind: "named" as const,
-								importedName: (element.propertyName ?? element.name).text,
-								typeOnly:
-									element.isTypeOnly || clause.phaseModifier === SyntaxKind.TypeKeyword,
-							}))
-						: [
-								{
-									name: clause.namedBindings.name,
-									kind: "namespace" as const,
-									typeOnly: clause.phaseModifier === SyntaxKind.TypeKeyword,
-								},
-							]),
-			];
-			for (const element of elements) {
+
+			// Bare imports and empty value import lists can load global declarations or augmentations.
+			if (
+				clause === undefined ||
+				(clause.phaseModifier !== SyntaxKind.TypeKeyword &&
+					clause.name === undefined &&
+					clause.namedBindings !== undefined &&
+					isNamedImports(clause.namedBindings) &&
+					clause.namedBindings.elements.length === 0)
+			) {
+				// Keep the original external import syntax, including attributes.
+				// Relative module contents are captured from package-owned sources instead.
+				if (!statement.moduleSpecifier.text.startsWith(".")) {
+					sideEffectImports.add(statement.getText());
+				}
+
+				// There are no imported names to resolve below.
+				continue;
+			}
+
+			for (const element of getImportBindings(clause)) {
 				const symbol = project.checker.getSymbolAtLocation(element.name);
 				if (symbol === undefined) {
+					// Without a compiler symbol, this binding cannot be associated with a target.
 					continue;
 				}
 				const target = project.checker.getAliasedSymbol(symbol);
 				const local = findLocalBinding(project, target, localRoots);
 				if (local !== undefined) {
+					// Local aliases use the captured declaration, not a separate external import.
 					roots.set(symbol.id, local);
 				} else if (!statement.moduleSpecifier.text.startsWith(".")) {
-					const importedName = "importedName" in element ? element.importedName : undefined;
+					// Use the external target, not the local alias, to identify repeated imports.
+					const importedName = element.importedName;
 					const id = JSON.stringify([
 						"import",
 						statement.moduleSpecifier.text,
@@ -353,7 +449,57 @@ function indexImports(
 			}
 		}
 	}
-	return { roots, imports: [...imports.values()] };
+	return { roots, imports: [...imports.values()], sideEffectImports: [...sideEffectImports] };
+}
+
+/**
+ * Normalizes an import clause into individual bindings without resolving symbols.
+ * @remarks
+ * The default binding comes first, followed by named bindings in source order or a namespace binding.
+ * Local identifiers retain their original compiler nodes for later symbol lookup.
+ * Named bindings retain the original export name even when a local alias is present.
+ * A binding is type-only when either its clause or its individual import specifier is type-only.
+ * The input is not changed; only the returned array and its records are created here.
+ * @param clause - Original import clause. Bare imports have no clause and are handled by the caller.
+ * @returns A new binding array, empty for a clause with no bindings.
+ */
+function getImportBindings(clause: ImportClause): readonly ImportBinding[] {
+	const bindings: ImportBinding[] = [];
+
+	// A clause-level type modifier applies to every binding in the clause.
+	const typeOnly = clause.phaseModifier === SyntaxKind.TypeKeyword;
+
+	// Add the default binding first because it can accompany named or namespace imports.
+	if (clause.name !== undefined) {
+		bindings.push({
+			name: clause.name,
+			kind: "default",
+			importedName: "default",
+			typeOnly,
+		});
+	}
+	const namedBindings = clause.namedBindings;
+	if (namedBindings === undefined) {
+		// No named or namespace bindings remain; keep any default binding already collected.
+		return bindings;
+	}
+	if (isNamedImports(namedBindings)) {
+		// Keep source order and distinguish each local alias from its original export name.
+		for (const element of namedBindings.elements) {
+			bindings.push({
+				name: element.name,
+				kind: "named",
+				importedName: (element.propertyName ?? element.name).text,
+
+				// An individual type modifier also applies when the clause permits value imports.
+				typeOnly: element.isTypeOnly || typeOnly,
+			});
+		}
+	} else {
+		// A namespace binding represents the whole module, so it has no individual export name.
+		bindings.push({ name: namedBindings.name, kind: "namespace", typeOnly });
+	}
+	return bindings;
 }
 
 /**
@@ -557,17 +703,7 @@ function captureDeclaration(
 		) {
 			const parent = current.parent;
 
-			// These names define a public binding or the global scope.
-			// Replacing them with a target name would change the API.
-			if (
-				(isExportSpecifier(parent) &&
-					parent.name === current &&
-					parent.propertyName !== undefined) ||
-				(isImportEqualsDeclaration(parent) && parent.name === current) ||
-				(isModuleDeclaration(parent) &&
-					isGlobalAugmentation(parent) &&
-					parent.name === current)
-			) {
+			if (mustPreserveLexicalName(current, node)) {
 				lexicalNames.add(current.getText());
 				return;
 			}
@@ -638,6 +774,87 @@ function captureDeclaration(
 				: [],
 	};
 	return { fragment, lexicalNames };
+}
+
+/**
+ * Identifies names that must remain lexical instead of becoming target references.
+ *
+ * @remarks
+ * Preserves explicit export alias names, nested import-equals alias names, and the global augmentation name.
+ * Import-equals aliases captured as standalone declarations remain eligible for output-name allocation.
+ * Shorthand exports also remain eligible for reference capture because they combine a target reference and a public name.
+ * The caller records preserved names and stops traversal for them; this helper does not change capture state.
+ *
+ * @example Explicit and shorthand exports
+ * The helper returns `true` for `PublicName` and `false` for both exported occurrences of `Original`.
+ * The caller handles the public name of a shorthand export separately from its target reference.
+ * ```typescript
+ * declare class Original {}
+ * // Preserve PublicName while allowing the reference to Original to change.
+ * export { Original as PublicName };
+ * // Capture Original as a reference, but also retain its public export name.
+ * export { Original };
+ * ```
+ *
+ * @example Nested and standalone import-equals aliases
+ * When `Aliases` is the captured declaration, the helper returns `true` for the nested alias name `PublicItem`.
+ * When the standalone import-equals statement is captured, it returns `false` for `StandaloneItem`.
+ * ```typescript
+ * declare namespace Source {
+ *     interface Item { value: string; }
+ * }
+ * declare namespace Aliases {
+ *     // Preserve this alias name inside the captured namespace.
+ *     export import PublicItem = Source.Item;
+ * }
+ * // Allocate an output name for this alias when capturing its own statement.
+ * export import StandaloneItem = Source.Item;
+ * ```
+ *
+ * @example Global augmentation and an ordinary namespace
+ * The helper returns `true` for `global` in the augmentation and `false` for the namespace name.
+ * The spelling alone does not determine whether the name must be preserved.
+ * ```typescript
+ * export {};
+ * // This global keyword selects the scope to augment; it cannot be renamed.
+ * declare global {
+ *     interface String { exampleMarker?: string; }
+ * }
+ * // This global identifier names an ordinary namespace and can be renamed.
+ * declare namespace global {
+ *     interface Item { value: string; }
+ * }
+ * ```
+ *
+ * @param current - Identifier, qualified name, or property access being visited in the original syntax tree.
+ * @param declaration - Root statement currently being captured.
+ * @returns Whether the name must bypass target-reference capture.
+ */
+function mustPreserveLexicalName(current: Node, declaration: Node): boolean {
+	const parent = current.parent;
+
+	// In an explicit export alias, the public name must not follow target renaming.
+	if (
+		isExportSpecifier(parent) &&
+		parent.name === current &&
+		parent.propertyName !== undefined
+	) {
+		return true;
+	}
+
+	// Nested import-equals aliases keep their names inside the captured declaration.
+	// A standalone alias is the captured root itself and must remain eligible for renaming.
+	if (isImportEqualsDeclaration(parent) && parent !== declaration && parent.name === current) {
+		return true;
+	}
+
+	// The global augmentation name denotes a scope, not a relocatable declaration.
+	if (isModuleDeclaration(parent) && isGlobalAugmentation(parent) && parent.name === current) {
+		return true;
+	}
+
+	// Other names still need symbol lookup, including the reference side of shorthand exports.
+	return false;
 }
 
 /**

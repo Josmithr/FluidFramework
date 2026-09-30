@@ -1322,6 +1322,10 @@ Models generated from implementation files omit optional function syntax data.
 Models generated from declaration files keep validated source ranges and reference bindings.
 Consumer tests compile original and generated declarations with TypeScript 6 and TypeScript 7.
 The tests check that selected dependency overloads keep the identity of nested class types.
+The acceptance-audit fixes also retain external imports without bindings and external module augmentations, including when no named exports are selected.
+Top-level import-equals aliases retain their original member paths, including references from other declarations and shared class identity across aliases.
+Consumer regressions compile the original and generated declarations with both compilers after source removal.
+Relative module augmentations now return an explicit unsupported diagnostic; relocating their module targets remains unimplemented.
 These fixes do not establish full Stage 4 acceptance.
 
 Approved on 2026-09-25; implementation remains Stage 4 work.

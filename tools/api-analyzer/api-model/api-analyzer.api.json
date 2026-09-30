@@ -22933,6 +22933,7 @@
                 "models",
                 "modifierTags",
                 "modifiers",
+                "moduleAugmentation",
                 "moduleQueries",
                 "moduleReference",
                 "moduleSpecifier",
@@ -22984,6 +22985,7 @@
                 "selection",
                 "sha256",
                 "shorthandExports",
+                "sideEffectImports",
                 "signatures",
                 "source",
                 "sources",
@@ -23609,6 +23611,7 @@
                 "models",
                 "modifierTags",
                 "modifiers",
+                "moduleAugmentation",
                 "moduleQueries",
                 "moduleReference",
                 "moduleSpecifier",
@@ -23660,6 +23663,7 @@
                 "selection",
                 "sha256",
                 "shorthandExports",
+                "sideEffectImports",
                 "signatures",
                 "source",
                 "sources",
@@ -24222,6 +24226,7 @@
                 "models",
                 "modifierTags",
                 "modifiers",
+                "moduleAugmentation",
                 "moduleQueries",
                 "moduleReference",
                 "moduleSpecifier",
@@ -24273,6 +24278,7 @@
                 "selection",
                 "sha256",
                 "shorthandExports",
+                "sideEffectImports",
                 "signatures",
                 "source",
                 "sources",
@@ -24838,7 +24844,7 @@
     },
     {
       "file": "lib/analysis-types/declarationSyntax.d.ts",
-      "sha256": "141b33d5ba0065332e3e499d904c28965add3c9d326582313b350d1932c690b6"
+      "sha256": "520900d952da870748f576e68ac626d723f3d868d6ca147c904c863853b625d4"
     },
     {
       "file": "lib/analysis-types/dependencyModel.d.ts",

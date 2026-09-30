@@ -290,10 +290,10 @@ function collectDeclarations(
 			.map((binding) => ({ id: binding.target, whole: false })),
 	);
 
-	// Importing an entrypoint applies its global augmentations even when the selection excludes all named exports.
+	// Importing an entrypoint applies its augmentations even when the selection excludes all named exports.
 	pending.push(
 		...data.declarations
-			.filter((declaration) => declaration.globalAugmentation === true)
+			.filter((declaration) => declaration.moduleScope === true)
 			.map((declaration) => ({ id: declaration.id, whole: true })),
 	);
 	const selectedRoots = new Set(pending.map((item) => item.id));
@@ -396,7 +396,7 @@ function renderSharedModule(
 	names: ReadonlyMap<string, string>,
 ): string {
 	const declarations = new Map(data.declarations.map((item) => [item.id, item]));
-	const output: string[] = [];
+	const output: string[] = [...(data.sideEffectImports ?? [])];
 	for (const [id, binding] of [...closure.imports].sort(([left], [right]) =>
 		left.localeCompare(right),
 	)) {
@@ -415,17 +415,17 @@ function renderSharedModule(
 	const augmentations: string[] = [];
 	for (const id of [...closure.fragments.keys()].sort()) {
 		const declaration = declarations.get(id);
-		const globalAugmentation = declaration?.globalAugmentation === true;
+		const moduleScope = declaration?.moduleScope === true;
 
 		// Augmentations are outside __api, so references to local declarations need the __api prefix.
 		// References to module-level imports do not need this prefix.
 		for (const fragment of closure.fragments.get(id) ?? []) {
-			(globalAugmentation ? augmentations : body).push(
+			(moduleScope ? augmentations : body).push(
 				fragment.excerpt.tokens
 					.map((token) =>
 						token.kind === "Content"
 							? token.text
-							: `${globalAugmentation && !closure.imports.has(token.target) ? "__api." : ""}${getName(names, token.target)}`,
+							: `${moduleScope && !closure.imports.has(token.target) ? "__api." : ""}${getName(names, token.target)}`,
 					)
 					.join("")
 					.trim(),

@@ -193,6 +193,12 @@ export interface DeclarationSyntax {
  */
 export interface DeclarationSyntaxFact {
 	/**
+	 * Original module specifier of a string-named module declaration.
+	 * @defaultValue Omitted for declarations without a string module name.
+	 */
+	readonly moduleAugmentation?: string;
+
+	/**
 	 * Whether this declaration is a global augmentation.
 	 * @defaultValue Omitted for ordinary declarations.
 	 */
@@ -240,6 +246,13 @@ export interface DeclarationSyntaxFact {
  * Package-owned syntax and binding facts, including unexported supporting declarations.
  */
 export interface DeclarationSyntaxFacts {
+	/**
+	 * Original external import statements without bindings, including import attributes.
+	 * These imports can load global declarations or module augmentations.
+	 * @defaultValue Omitted when no external imports without bindings occur.
+	 */
+	readonly sideEffectImports?: readonly string[];
+
 	/**
 	 * Captured source declarations and module bindings.
 	 */

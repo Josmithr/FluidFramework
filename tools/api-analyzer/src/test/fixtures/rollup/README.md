@@ -13,6 +13,9 @@ They are not compiled as a standalone workspace.
 - `suite-private-overloads.d.ts` requires a diagnostic for an inaccessible nominal type rather than a copied class declaration.
 - `aliases.d.ts`, `aliases-local.d.ts`, and `aliases-external.d.ts` test namespace aliases, module type queries, nested import types, quoted external names, and global augmentations.
 - `aliases-consumer.ts` checks public names and class identity against original and generated declarations with TypeScript 6 and TypeScript 7.
+- The aliases fixtures also check top-level import-equals aliases, references through those aliases, and collisions with a type parameter.
+- `effects.d.ts` and `effects-consumer.ts` check external imports without bindings, module augmentations, private supporting types, and empty export selections through a package entrypoint.
+- `effects-external.d.ts` provides an imported global type; `effects-foreign.d.ts` provides the interface extended by the augmentation.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.

@@ -1114,13 +1114,16 @@ Required supporting declarations are retained but do not become entrypoint expor
 Names are allocated deterministically to avoid collisions with other declarations and lexical names.
 Namespace aliases keep their public names.
 This includes shorthand exports and aliases for imported namespace members.
+Top-level import-equals aliases retain their namespace-member paths and type or value identity.
 The generator replaces relative paths in local import types and module type queries, such as `typeof import("./local.js")`.
 The generator uses named imports for quoted external export names that cannot appear in a reference such as `Namespace.Member`.
-The generator keeps global augmentation declarations outside the shared namespace.
+The generator keeps global and external module augmentation declarations outside the shared namespace.
 It keeps these declarations even when the selection contains no entrypoint exports.
 Their supporting declarations remain in the shared module.
+External imports without bindings remain in the shared module because they can load global declarations or module augmentations.
+This includes empty value import lists; original import attributes are retained.
 Standalone overloads follow the selection independently; classes, interfaces, enums, namespaces, and compound containers remain atomic.
-Imports needed only by excluded declarations are removed.
+Named imports needed only by excluded declarations are removed.
 Cross-package exports remain package references, with suite-owned bindings selected by metadata and outside-suite bindings retained unconditionally.
 
 Original declaration and member comments are copied without resolving inherited prose into them.
@@ -1150,6 +1153,7 @@ if (output.ok) {
 Invalid selections return the shared selection diagnostics.
 Unsafe or colliding output paths return `rollup-configuration`; `__api.d.ts` is reserved, and `.` conflicts with `./index`.
 Selected implementation-source inputs return `rollup-unsupported`; build declarations before analysis.
+Relative module augmentations return `rollup-unsupported` because their module targets require relocation.
 Partially selected standalone suite functions are redeclared using original overload syntax from the defining package's decoded API model.
 Each generated overload has an ordinary comment explaining that a direct re-export would expose excluded overloads.
 Complete bindings, compound containers, and foreign APIs remain ordinary package re-exports.

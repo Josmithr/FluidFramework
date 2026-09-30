@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -120,6 +120,82 @@ describe("One-shot API analysis and adapter facts", () => {
 			true,
 		);
 		assert.equal(Object.isFrozen(capture), true);
+	});
+
+	it("normalizes import bindings in source order with original names and type-only status", () => {
+		const dependency = path.join(directory, "node_modules/bindings");
+		mkdirSync(dependency, { recursive: true });
+		writeFileSync(
+			path.join(dependency, "package.json"),
+			JSON.stringify({
+				name: "bindings",
+				type: "module",
+				exports: { "./*": { types: "./index.d.ts" } },
+			}),
+		);
+		writeFileSync(
+			path.join(dependency, "index.d.ts"),
+			[
+				"/* Provides targets for each import binding form. */",
+				"export default class Default {}",
+				"export declare const value: string;",
+				"export interface Shape { readonly value: string; }",
+				"declare const quoted: string;",
+				'export { quoted as "quoted-name" };',
+			].join("\n"),
+		);
+		const entrypoint = path.join(directory, "src/imports.d.ts");
+		writeFileSync(
+			entrypoint,
+			[
+				"/* Exercises binding order, aliases, type-only modifiers, and imports without bindings. */",
+				'import Default, { value, type Shape as LocalShape, "quoted-name" as quoted } from "bindings/mixed";',
+				'import SecondDefault, * as Namespace from "bindings/namespace";',
+				'import type TypeDefault from "bindings/type-default";',
+				'import type * as TypeNamespace from "bindings/type-namespace";',
+				'import type { Shape } from "bindings/type-named";',
+				'import {} from "bindings/empty";',
+				'import type {} from "bindings/empty-type";',
+				'import "bindings/bare";',
+				"export {};",
+			].join("\n"),
+		);
+		const extracted = analyzeDeclarations({
+			...configuration,
+			entrypoints: [{ name: ".", path: entrypoint }],
+		});
+		assert(extracted.ok, JSON.stringify(extracted));
+		const capture = extracted.value.declarationSyntax;
+		assert.deepEqual(
+			capture.imports.map(({ moduleSpecifier, name, kind, importedName, typeOnly }) => [
+				moduleSpecifier,
+				name,
+				kind,
+				importedName,
+				typeOnly,
+			]),
+			[
+				["bindings/mixed", "Default", "default", "default", false],
+				["bindings/mixed", "value", "named", "value", false],
+				["bindings/mixed", "LocalShape", "named", "Shape", true],
+				["bindings/mixed", "quoted", "named", "quoted-name", false],
+				["bindings/namespace", "SecondDefault", "default", "default", false],
+				["bindings/namespace", "Namespace", "namespace", undefined, false],
+				["bindings/type-default", "TypeDefault", "default", "default", true],
+				["bindings/type-namespace", "TypeNamespace", "namespace", undefined, true],
+				["bindings/type-named", "Shape", "named", "Shape", true],
+			],
+		);
+		assert.equal(
+			capture.imports
+				.filter((binding) => binding.kind === "namespace")
+				.every((binding) => !("importedName" in binding)),
+			true,
+		);
+		assert.deepEqual(capture.sideEffectImports, [
+			'import {} from "bindings/empty";',
+			'import "bindings/bare";',
+		]);
 	});
 
 	it("round-trips implementation-source models with body-only references", async () => {

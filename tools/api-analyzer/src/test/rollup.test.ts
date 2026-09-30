@@ -108,6 +108,32 @@ describe("Detached declaration rollups", () => {
 		);
 		assert.equal(unsupported.ok, false);
 		assert.equal(unsupported.diagnostics[0]?.code, DiagnosticCode.RollupUnsupported);
+		const relativeAugmentation = generateDeclarationRollups(
+			{
+				...graph,
+				facts: {
+					...graph.facts,
+					declarationSyntax: {
+						...empty,
+						declarations: [
+							{
+								id: "augmentation",
+								name: "local",
+								moduleAugmentation: "./local.js",
+								fragments: [],
+							},
+						],
+					},
+				},
+			},
+			selection,
+		);
+		assert.equal(relativeAugmentation.ok, false);
+		assert.equal(relativeAugmentation.diagnostics[0]?.code, DiagnosticCode.RollupUnsupported);
+		assert.match(
+			relativeAugmentation.diagnostics[0]?.message ?? "",
+			/Relative module augmentations/,
+		);
 		const nested = generateDeclarationRollups(
 			{
 				...graph,
@@ -218,6 +244,95 @@ describe("Detached declaration rollups", () => {
 				'import "./index.js";\n"".extra();\n',
 			);
 			compile();
+		} finally {
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
+	it("preserves side-effect imports and module augmentations without selected exports", async () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "api-rollup-effects-"));
+		try {
+			for (const [fixture, file] of [
+				["effects.d.ts", "index.d.ts"],
+				["effects-consumer.ts", "consumer.ts"],
+				["effects-external.d.ts", "node_modules/effects/index.d.ts"],
+				["effects-foreign.d.ts", "node_modules/foreign/index.d.ts"],
+			] as const) {
+				mkdirSync(path.dirname(path.join(directory, file)), { recursive: true });
+				cpSync(
+					new URL(`../../src/test/fixtures/rollup/${fixture}`, import.meta.url),
+					path.join(directory, file),
+				);
+			}
+			for (const name of ["effects", "foreign"]) {
+				writeFileSync(
+					path.join(directory, "node_modules", name, "package.json"),
+					JSON.stringify({ name, type: "module", types: "index.d.ts" }),
+				);
+			}
+			writeFileSync(
+				path.join(directory, "package.json"),
+				JSON.stringify({
+					name: "effects-package",
+					type: "module",
+					exports: { ".": { types: "./index.d.ts" } },
+				}),
+			);
+			writeFileSync(
+				path.join(directory, "tsconfig.json"),
+				JSON.stringify({
+					compilerOptions: { strict: true, module: "NodeNext", types: [] },
+					files: ["index.d.ts"],
+				}),
+			);
+			const require = createRequire(import.meta.url);
+			const compile = (): void => {
+				for (const compiler of ["typescript6", "typescript"]) {
+					execFileSync(
+						process.execPath,
+						[
+							path.join(path.dirname(require.resolve(`${compiler}/package.json`)), "bin/tsc"),
+							"consumer.ts",
+							"--ignoreConfig",
+							"--noEmit",
+							"--strict",
+							"--module",
+							"NodeNext",
+						],
+						{ cwd: directory, stdio: "inherit", timeout: 15000 },
+					);
+				}
+			};
+			compile();
+			const result = await analyzeAPIs(
+				{
+					packageName: "effects-package",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "index.d.ts" }],
+					rules: { requireReleaseLevel: false },
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			rmSync(path.join(directory, "index.d.ts"));
+			for (const releaseLevels of [[ReleaseLevel.Public], []]) {
+				const generated = result.value.generateRollups({ name: "selected", releaseLevels });
+				assert(generated.ok, JSON.stringify(generated));
+				assert.match(generated.value["__api.d.ts"] ?? "", /import "effects"/);
+				assert.match(generated.value["__api.d.ts"] ?? "", /declare module "foreign"/);
+				assert.doesNotMatch(
+					generated.value["__api.d.ts"] ?? "",
+					/privateRemarks|must not be published/,
+				);
+				assert.doesNotMatch(generated.value["index.d.ts"] ?? "", /Support/);
+				if (releaseLevels.length === 0) {
+					assert.doesNotMatch(generated.value["index.d.ts"] ?? "", /Value/);
+				}
+				for (const [file, text] of Object.entries(generated.value)) {
+					writeFileSync(path.join(directory, file), text);
+				}
+				compile();
+			}
 		} finally {
 			rmSync(directory, { recursive: true, force: true });
 		}
