@@ -1,5 +1,23 @@
 # TODOs
 
+## Tests
+
+### Consistent use of fixtures and snapshots
+
+We have mixed use of input fixtures vs code-as-strings in tests.
+I would like for us to be consistent in our use of fixture files / directories for sample code input being tested.
+Dynamic code-as-strings in tests should only be used for very trivial test cases.
+
+Similarly, we should lean on snapshot testing for outputs more consistently.
+Targeted tests can and should leverage assertions for particular cases, but we should avoid lengthy sequences of assertions to validate generated content when a snapshot would suffice (and be easier to review changes to over time).
+
+#### Add common fixture-reading and snapshot writing/comparing test utilities
+
+Most test suites that leverage input fixtures currently define their own custom inline infrastructure for reading and copying files.
+We should ensure consistent patterns and reduce code duplication via a common set of fixture utilities.
+
+Similarly, we should make sure that tests leveraging snapshots are using consistent, shared infrastructure and patterns.
+
 ## Consistent terminology for local vs foreign, package vs suite
 
 We should audit our code and docs to consistently use "foreign" and "local" when referring to API origin within a scope, and "package" and "suite" to refer to the relevant scopes.
