@@ -24,6 +24,7 @@ import {
 	isExportSpecifier,
 	isImportEqualsDeclaration,
 	isModuleDeclaration,
+	isModuleBlock,
 	isLiteralTypeNode,
 } from "typescript/unstable/ast/is";
 import {
@@ -188,12 +189,17 @@ export function captureDeclarationSyntax(
 			lexicalNames.add(name);
 		}
 		const previous = records.get(root.id);
+		const augmentationMembers = indexed.augmentationMembers.get(input.symbol.id);
 		records.set(root.id, {
+			...previous,
 			...root,
 			...(isGlobalAugmentation(input.node) ? { globalAugmentation: true as const } : {}),
 			...(isModuleDeclaration(input.node) && isStringLiteral(input.node.name)
 				? { moduleAugmentation: input.node.name.text }
 				: {}),
+			...(augmentationMembers === undefined
+				? {}
+				: { moduleAugmentationMembers: augmentationMembers }),
 			fragments: [...(previous?.fragments ?? []), captured.fragment],
 		});
 	}
@@ -287,7 +293,7 @@ function captureMemberAliases(
  * @param project - Active checker.
  * @param sources - Local source files.
  * @param identity - Declaration identity policy.
- * @returns Original statement inputs and their symbol identities.
+ * @returns Original statement inputs, their symbol identities, and local augmentation members.
  */
 function indexDeclarations(
 	project: Pick<Project, "checker">,
@@ -296,6 +302,7 @@ function indexDeclarations(
 ): {
 	readonly statements: readonly DeclarationInput[];
 	readonly roots: ReadonlyMap<number, DeclarationName>;
+	readonly augmentationMembers: ReadonlyMap<number, readonly ApiItemId[]>;
 } {
 	const roots = new Map<number, DeclarationName>();
 	const statements: DeclarationInput[] = [];
@@ -352,7 +359,100 @@ function indexDeclarations(
 			}
 		}
 	}
-	return { roots, statements };
+	const augmentationMembers = indexLocalAugmentations(
+		project,
+		sources,
+		statements,
+		roots,
+		identity,
+	);
+	return { roots, statements, augmentationMembers };
+}
+
+/**
+ * Indexes relative augmentation members under their compiler-merged declaration identities.
+ * @remarks
+ * Only augmentations of captured source-file modules can be relocated into local declarations.
+ * The wrapper remains captured as source syntax; generation decides whether to omit it.
+ * If any member cannot be indexed, the wrapper has no member mapping and generation rejects it.
+ * @param project - Active checker for original symbol identities.
+ * @param sources - Package-owned source files defining the relocation boundary.
+ * @param statements - Invocation-owned statement inputs, extended with augmentation members.
+ * @param roots - Invocation-owned binding index, extended with merged member bindings.
+ * @param identity - Declaration identity policy.
+ * @returns Complete member identities for each captured local augmentation target.
+ */
+function indexLocalAugmentations(
+	project: Pick<Project, "checker">,
+	sources: readonly SourceFile[],
+	statements: DeclarationInput[],
+	roots: Map<number, DeclarationName>,
+	identity: (symbol: CompilerSymbol) => ApiItemId,
+): ReadonlyMap<number, readonly ApiItemId[]> {
+	const augmentationMembers = new Map<number, readonly ApiItemId[]>();
+	const unsupported = new Set<number>();
+	for (const input of [...statements]) {
+		const node = input.node;
+
+		// Relative paths can also target external files. Do not copy those declarations into this package.
+		if (
+			!isModuleDeclaration(node) ||
+			!isStringLiteral(node.name) ||
+			!node.name.text.startsWith(".") ||
+			node.body === undefined ||
+			!isModuleBlock(node.body) ||
+			!input.symbol.declarations?.some((handle) => {
+				const declaration = handle.resolve();
+				return (
+					declaration?.kind === SyntaxKind.SourceFile &&
+					sources.includes(declaration as SourceFile)
+				);
+			})
+		) {
+			continue;
+		}
+		const members: ApiItemId[] = [];
+		for (const statement of node.body.statements) {
+			if (statement.kind === SyntaxKind.EmptyStatement) {
+				continue;
+			}
+			const nodes = isVariableStatement(statement)
+				? statement.declarationList.declarations
+				: [statement];
+			for (const member of nodes) {
+				const name = "name" in member ? (member.name as Node | undefined) : undefined;
+				const symbol =
+					name === undefined || !isIdentifier(name)
+						? undefined
+						: project.checker.getSymbolAtLocation(name);
+				if (symbol === undefined || name === undefined) {
+					unsupported.add(input.symbol.id);
+					continue;
+				}
+				const id = identity(symbol);
+
+				// Existing declarations and augmentation parts share the same compiler symbol.
+				// Keep the original preferred name when the target has already been indexed.
+				if (!roots.has(symbol.id)) {
+					roots.set(symbol.id, { id, name: name.getText() });
+				}
+				statements.push({
+					node: statement,
+					symbol,
+					source: input.source,
+					...(isVariableStatement(statement) ? { variable: member } : {}),
+				});
+				members.push(id);
+			}
+		}
+		augmentationMembers.set(input.symbol.id, [
+			...new Set([...(augmentationMembers.get(input.symbol.id) ?? []), ...members]),
+		]);
+	}
+	for (const id of unsupported) {
+		augmentationMembers.delete(id);
+	}
+	return augmentationMembers;
 }
 
 /**

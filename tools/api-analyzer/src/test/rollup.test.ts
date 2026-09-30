@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -22,6 +30,27 @@ import { freezeData } from "../utilities/freezeData.js";
 import { assertSnapshot } from "./snapshotUtils.js";
 
 describe("Detached declaration rollups", () => {
+	it("cleans temporary projects after asynchronous success and failure", async () => {
+		const failure = new Error("Fixture operation failed");
+		for (const shouldFail of [false, true]) {
+			let projectDirectory: string | undefined;
+			const run = withRollupProject("api-rollup-cleanup-", async (directory) => {
+				projectDirectory = directory;
+				await Promise.resolve();
+				assert(
+					existsSync(directory),
+					"The project must remain available until the work completes.",
+				);
+				if (shouldFail) {
+					throw failure;
+				}
+			});
+			await (shouldFail ? assert.rejects(run, (error: unknown) => error === failure) : run);
+			assert(projectDirectory !== undefined);
+			assert.equal(existsSync(projectDirectory), false);
+		}
+	});
+
 	it("accepts empty capture and rejects invalid paths and unsupported selected declarations", () => {
 		const empty: DeclarationSyntaxFacts = {
 			lexicalNames: [],
@@ -149,26 +178,16 @@ describe("Detached declaration rollups", () => {
 	});
 
 	it("preserves namespace aliases and local import types after relocation", async () => {
-		const directory = mkdtempSync(path.join(tmpdir(), "api-rollup-aliases-"));
-		try {
-			for (const [fixture, file] of [
+		await withRollupProject("api-rollup-aliases-", async (directory) => {
+			copyRollupFixtures(directory, [
 				["aliases.d.ts", "index.d.ts"],
 				["aliases-consumer.ts", "consumer.ts"],
 				["aliases-local.d.ts", "local.d.ts"],
 				["right.d.ts", "right.d.ts"],
 				["aliases-external.d.ts", "external.d.ts"],
-			] as const) {
-				cpSync(
-					new URL(`../../src/test/fixtures/rollup/${fixture}`, import.meta.url),
-					path.join(directory, file),
-				);
-			}
+				["foreign.d.ts", "node_modules/foreign/index.d.ts"],
+			]);
 			const foreign = path.join(directory, "node_modules", "foreign");
-			mkdirSync(foreign, { recursive: true });
-			cpSync(
-				new URL("../../src/test/fixtures/rollup/foreign.d.ts", import.meta.url),
-				path.join(foreign, "index.d.ts"),
-			);
 			writeFileSync(
 				path.join(foreign, "package.json"),
 				JSON.stringify({ name: "foreign", type: "module", types: "index.d.ts" }),
@@ -184,29 +203,9 @@ describe("Detached declaration rollups", () => {
 					files: ["index.d.ts"],
 				}),
 			);
-			const require = createRequire(import.meta.url);
-			const compile = (): void => {
-				for (const compiler of ["typescript6", "typescript"]) {
-					execFileSync(
-						process.execPath,
-						[
-							path.join(path.dirname(require.resolve(`${compiler}/package.json`)), "bin/tsc"),
-							"consumer.ts",
-							"--ignoreConfig",
-							"--noEmit",
-							"--strict",
-							"--module",
-							"NodeNext",
-							"--target",
-							"ES2022",
-						],
-						{ cwd: directory, stdio: "inherit", timeout: 15000 },
-					);
-				}
-			};
 
 			// Check that both compilers accept the consumer with the original declarations.
-			compile();
+			compileRollupFiles(directory, ["consumer.ts"], "ES2022");
 			const result = await analyzeAPIs(
 				{
 					packageName: "aliases",
@@ -227,43 +226,30 @@ describe("Detached declaration rollups", () => {
 				releaseLevels: [ReleaseLevel.Public],
 			});
 			assert(generated.ok, JSON.stringify(generated));
-			for (const [file, text] of Object.entries(generated.value)) {
-				writeFileSync(path.join(directory, file), text);
-			}
-			compile();
+			writeRollupArtifacts(directory, generated.value);
+			compileRollupFiles(directory, ["consumer.ts"], "ES2022");
 
 			// An import without named bindings must still apply global augmentations when the export selection is empty.
 			const empty = result.value.generateRollups({ name: "empty", releaseLevels: [] });
 			assert(empty.ok, JSON.stringify(empty));
-			for (const [file, text] of Object.entries(empty.value)) {
-				writeFileSync(path.join(directory, file), text);
-			}
+			writeRollupArtifacts(directory, empty.value);
 			assert.doesNotMatch(empty.value["index.d.ts"] ?? "", /Aliases|OrdinaryModule/);
 			writeFileSync(
 				path.join(directory, "consumer.ts"),
 				'import "./index.js";\n"".extra();\n',
 			);
-			compile();
-		} finally {
-			rmSync(directory, { recursive: true, force: true });
-		}
+			compileRollupFiles(directory, ["consumer.ts"], "ES2022");
+		});
 	});
 
 	it("preserves side-effect imports and module augmentations without selected exports", async () => {
-		const directory = mkdtempSync(path.join(tmpdir(), "api-rollup-effects-"));
-		try {
-			for (const [fixture, file] of [
+		await withRollupProject("api-rollup-effects-", async (directory) => {
+			copyRollupFixtures(directory, [
 				["effects.d.ts", "index.d.ts"],
 				["effects-consumer.ts", "consumer.ts"],
 				["effects-external.d.ts", "node_modules/effects/index.d.ts"],
 				["effects-foreign.d.ts", "node_modules/foreign/index.d.ts"],
-			] as const) {
-				mkdirSync(path.dirname(path.join(directory, file)), { recursive: true });
-				cpSync(
-					new URL(`../../src/test/fixtures/rollup/${fixture}`, import.meta.url),
-					path.join(directory, file),
-				);
-			}
+			]);
 			for (const name of ["effects", "foreign"]) {
 				writeFileSync(
 					path.join(directory, "node_modules", name, "package.json"),
@@ -285,25 +271,7 @@ describe("Detached declaration rollups", () => {
 					files: ["index.d.ts"],
 				}),
 			);
-			const require = createRequire(import.meta.url);
-			const compile = (): void => {
-				for (const compiler of ["typescript6", "typescript"]) {
-					execFileSync(
-						process.execPath,
-						[
-							path.join(path.dirname(require.resolve(`${compiler}/package.json`)), "bin/tsc"),
-							"consumer.ts",
-							"--ignoreConfig",
-							"--noEmit",
-							"--strict",
-							"--module",
-							"NodeNext",
-						],
-						{ cwd: directory, stdio: "inherit", timeout: 15000 },
-					);
-				}
-			};
-			compile();
+			compileRollupFiles(directory, ["consumer.ts"]);
 			const result = await analyzeAPIs(
 				{
 					packageName: "effects-package",
@@ -328,14 +296,66 @@ describe("Detached declaration rollups", () => {
 				if (releaseLevels.length === 0) {
 					assert.doesNotMatch(generated.value["index.d.ts"] ?? "", /Value/);
 				}
-				for (const [file, text] of Object.entries(generated.value)) {
-					writeFileSync(path.join(directory, file), text);
-				}
-				compile();
+				writeRollupArtifacts(directory, generated.value);
+				compileRollupFiles(directory, ["consumer.ts"]);
 			}
-		} finally {
-			rmSync(directory, { recursive: true, force: true });
-		}
+		});
+	});
+
+	it("relocates relative module augmentations with their local declarations", async () => {
+		await withRollupProject("api-rollup-relative-", async (directory) => {
+			const files = [
+				"local.d.ts",
+				"augmentation.d.ts",
+				"other.d.ts",
+				"second.d.ts",
+				"nested/augmentation.d.ts",
+				"index.d.ts",
+			];
+			copyRollupFixtures(
+				directory,
+				[...files, "consumer.ts", "package.json", "tsconfig.json"].map((file) => [
+					`relative-augmentation/${file}`,
+					file,
+				]),
+			);
+			compileRollupFiles(directory, ["consumer.ts"]);
+			const result = await analyzeAPIs(
+				{
+					packageName: "relative-package",
+					project: "tsconfig.json",
+					entrypoints: [
+						{ name: ".", path: "index.d.ts" },
+						{ name: "./second", path: "second.d.ts" },
+					],
+					rules: { requireReleaseLevel: false },
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			for (const file of files) {
+				rmSync(path.join(directory, file));
+			}
+			const generated = result.value.generateRollups({
+				name: "public",
+				releaseLevels: [ReleaseLevel.Public],
+			});
+			assert(generated.ok, JSON.stringify(generated));
+			assert.doesNotMatch(generated.value["__api.d.ts"] ?? "", /\.\/local\.js/);
+			assert.doesNotMatch(
+				generated.value["__api.d.ts"] ?? "",
+				/privateRemarks|Local augmentation secret/,
+			);
+			assert.match(generated.value["__api.d.ts"] ?? "", /Returns supporting state/);
+			writeRollupArtifacts(directory, generated.value);
+			compileRollupFiles(directory, ["consumer.ts"]);
+			const empty = result.value.generateRollups({ name: "empty", releaseLevels: [] });
+			assert(empty.ok, JSON.stringify(empty));
+			assert.doesNotMatch(
+				empty.value["__api.d.ts"] ?? "",
+				/class Store|interface Item|Support/,
+			);
+		});
 	});
 
 	for (const producer of ["typescript6", "typescript"] as const) {
@@ -347,7 +367,6 @@ describe("Detached declaration rollups", () => {
 						compilePackage(repository, name);
 					}
 					const artifacts = await analyzeRepository(repository);
-					const require = createRequire(import.meta.url);
 					for (const artifact of artifacts) {
 						const root = getPackageRoot(repository, artifact.name);
 						rmSync(path.join(root, "src"), { recursive: true });
@@ -369,10 +388,7 @@ describe("Detached declaration rollups", () => {
 							});
 							assert(output.ok, JSON.stringify(output));
 							assert.equal(artifact.analysis.generateModel(), artifact.text);
-							for (const [file, text] of Object.entries(output.value)) {
-								mkdirSync(path.dirname(path.join(root, "lib", file)), { recursive: true });
-								writeFileSync(path.join(root, "lib", file), text);
-							}
+							writeRollupArtifacts(path.join(root, "lib"), output.value);
 							if (scenario === "primary") {
 								const program = createProgram([path.join(root, "lib/index.d.ts")], {
 									module: ModuleKind.NodeNext,
@@ -395,24 +411,11 @@ describe("Detached declaration rollups", () => {
 										.sort(),
 								);
 							}
-							for (const consumer of ["typescript6", "typescript"]) {
-								const compilerRoot = path.dirname(require.resolve(`${consumer}/package.json`));
-								execFileSync(
-									process.execPath,
-									[
-										path.join(compilerRoot, "bin/tsc"),
-										...Object.keys(output.value).map((file) => `lib/${file}`),
-										"--ignoreConfig",
-										"--noEmit",
-										"--strict",
-										"--module",
-										"NodeNext",
-										"--target",
-										"ES2022",
-									],
-									{ cwd: root, stdio: "inherit", timeout: 15000 },
-								);
-							}
+							compileRollupFiles(
+								root,
+								Object.keys(output.value).map((file) => `lib/${file}`),
+								"ES2022",
+							);
 						}
 					}
 				} finally {
@@ -423,32 +426,19 @@ describe("Detached declaration rollups", () => {
 	}
 
 	it("retains private support types and documentation without publishing excluded APIs", async () => {
-		const directory = mkdtempSync(path.join(tmpdir(), "api-rollup-"));
-		try {
+		await withRollupProject("api-rollup-", async (directory) => {
+			copyRollupFixtures(directory, [
+				["foreign.d.ts", "node_modules/foreign/index.d.ts"],
+				["index.d.ts", "index.d.ts"],
+				["second.d.ts", "second.d.ts"],
+				["left.d.ts", "left.d.ts"],
+				["right.d.ts", "right.d.ts"],
+			]);
 			const foreign = path.join(directory, "node_modules", "foreign");
-			mkdirSync(foreign, { recursive: true });
-			cpSync(
-				new URL("../../src/test/fixtures/rollup/foreign.d.ts", import.meta.url),
-				path.join(foreign, "index.d.ts"),
-			);
 			writeFileSync(
 				path.join(foreign, "package.json"),
 				JSON.stringify({ name: "foreign", type: "module", types: "index.d.ts" }),
 			);
-			cpSync(
-				new URL("../../src/test/fixtures/rollup/index.d.ts", import.meta.url),
-				path.join(directory, "index.d.ts"),
-			);
-			cpSync(
-				new URL("../../src/test/fixtures/rollup/second.d.ts", import.meta.url),
-				path.join(directory, "second.d.ts"),
-			);
-			for (const file of ["left", "right"]) {
-				cpSync(
-					new URL(`../../src/test/fixtures/rollup/${file}.d.ts`, import.meta.url),
-					path.join(directory, `${file}.d.ts`),
-				);
-			}
 			writeFileSync(
 				path.join(directory, "package.json"),
 				JSON.stringify({ name: "rollup-test", type: "module" }),
@@ -522,31 +512,10 @@ describe("Detached declaration rollups", () => {
 			assert.deepEqual(analysis.generateRollups(selection), generated);
 			for (const [file, text] of Object.entries(generated.value)) {
 				assertSnapshot(text, `rollup-public-${file}`);
-				writeFileSync(path.join(directory, file), text);
 			}
-			cpSync(
-				new URL("../../src/test/fixtures/rollup/consumer.ts", import.meta.url),
-				path.join(directory, "consumer.ts"),
-			);
-			const require = createRequire(import.meta.url);
-			for (const compiler of ["typescript6", "typescript"]) {
-				const compilerRoot = path.dirname(require.resolve(`${compiler}/package.json`));
-				execFileSync(
-					process.execPath,
-					[
-						path.join(compilerRoot, "bin/tsc"),
-						"consumer.ts",
-						"--ignoreConfig",
-						"--noEmit",
-						"--strict",
-						"--module",
-						"NodeNext",
-						"--target",
-						"ES2022",
-					],
-					{ cwd: directory, stdio: "inherit", timeout: 15000 },
-				);
-			}
+			writeRollupArtifacts(directory, generated.value);
+			copyRollupFixtures(directory, [["consumer.ts", "consumer.ts"]]);
+			compileRollupFiles(directory, ["consumer.ts"], "ES2022");
 			assert.equal(readFileSync(path.join(directory, "__api.d.ts"), "utf8"), shared);
 			const atomic = analysis.generateRollups({ ...selection, requireTags: ["@sealed"] });
 			assert(atomic.ok, JSON.stringify(atomic));
@@ -557,8 +526,102 @@ describe("Detached declaration rollups", () => {
 			assert(empty.ok, JSON.stringify(empty));
 			assert.match(empty.value["index.d.ts"] ?? "", /export \* as Foreign from "foreign"/);
 			assert.doesNotMatch(empty.value["__api.d.ts"] ?? "", /class Store/);
-		} finally {
-			rmSync(directory, { recursive: true, force: true });
-		}
+		});
 	});
 });
+
+/**
+ * Runs a rollup test in an isolated project and removes the project on success or failure.
+ * @remarks
+ * Tests delete copied declarations before writing generated output so stale imports cannot resolve
+ * to the original inputs. The temporary project protects checked-in fixtures from those changes.
+ * Cleanup waits for the test to finish, including asynchronous analysis and consumer checks.
+ * @param prefix - Temporary directory name prefix used to identify the scenario.
+ * @param run - Test steps that own the project contents and assertions.
+ * @returns A promise that completes after the test and cleanup.
+ */
+async function withRollupProject(
+	prefix: string,
+	run: (directory: string) => Promise<void>,
+): Promise<void> {
+	const directory = mkdtempSync(path.join(tmpdir(), prefix));
+	try {
+		await run(directory);
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
+}
+
+/**
+ * Copies selected rollup inputs into a disposable project without changing checked-in fixtures.
+ * @remarks
+ * Tests can rename inputs or install them as dependencies through explicit file mappings.
+ * Parent directories are created without changing the destination paths used by analysis.
+ * @param directory - Temporary project root.
+ * @param files - Pairs of rollup fixture paths and destination paths relative to the project root.
+ */
+function copyRollupFixtures(
+	directory: string,
+	files: readonly (readonly [fixture: string, destination: string])[],
+): void {
+	for (const [fixture, destination] of files) {
+		const output = path.join(directory, destination);
+		mkdirSync(path.dirname(output), { recursive: true });
+		cpSync(new URL(`../../src/test/fixtures/rollup/${fixture}`, import.meta.url), output);
+	}
+}
+
+/**
+ * Checks consumer source or generated declarations with both supported TypeScript compilers.
+ * @remarks
+ * Explicit input files and compiler options keep the check independent of the analysis project.
+ * Its configuration can still list original declarations that the test has removed.
+ * Each compiler runs in a separate process with a timeout; failures propagate to the test.
+ * @param directory - Temporary package root used for package resolution.
+ * @param files - Input file paths relative to the package root.
+ * @param target - Explicit language target, or omitted to retain each compiler's default.
+ */
+function compileRollupFiles(
+	directory: string,
+	files: readonly string[],
+	target?: "ES2022",
+): void {
+	const require = createRequire(import.meta.url);
+	for (const compiler of ["typescript6", "typescript"]) {
+		const compilerRoot = path.dirname(require.resolve(`${compiler}/package.json`));
+		execFileSync(
+			process.execPath,
+			[
+				path.join(compilerRoot, "bin/tsc"),
+				...files,
+				"--ignoreConfig",
+				"--noEmit",
+				"--strict",
+				"--module",
+				"NodeNext",
+				...(target === undefined ? [] : ["--target", target]),
+			],
+			{ cwd: directory, stdio: "inherit", timeout: 15000 },
+		);
+	}
+}
+
+/**
+ * Writes a generated artifact set into a temporary package for consumer compilation.
+ * @remarks
+ * Relative paths, including nested entrypoints, are preserved.
+ * This does not remove original inputs or artifacts from an earlier selection.
+ * Tests control those removals explicitly so missing output cannot be hidden by retained inputs.
+ * @param directory - Destination root for the generated artifact paths.
+ * @param artifacts - Generated file contents keyed by relative path.
+ */
+function writeRollupArtifacts(
+	directory: string,
+	artifacts: Readonly<Record<string, string>>,
+): void {
+	for (const [file, text] of Object.entries(artifacts)) {
+		const output = path.join(directory, file);
+		mkdirSync(path.dirname(output), { recursive: true });
+		writeFileSync(output, text);
+	}
+}

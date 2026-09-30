@@ -16,6 +16,19 @@ They are not compiled as a standalone workspace.
 - The aliases fixtures also check top-level import-equals aliases, references through those aliases, and collisions with a type parameter.
 - `effects.d.ts` and `effects-consumer.ts` check external imports without bindings, module augmentations, private supporting types, and empty export selections through a package entrypoint.
 - `effects-external.d.ts` provides an imported global type; `effects-foreign.d.ts` provides the interface extended by the augmentation.
+- `relative-augmentation/` supplies local targets, two augmentation modules, a separate same-named interface, root and subpath entrypoints, and a package consumer.
+	These fixtures verify generic and namespace merges, nominal identity, module queries, supporting types, private remarks, and relocation after the original declarations are removed.
+	Its package manifest and TypeScript configuration define the temporary project's exports and analysis inputs.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.
+
+## Test lifecycle
+
+The rollup test file defines shared helpers for temporary projects, fixture copying, consumer compilation, and generated artifact writes.
+The standalone tests use `withRollupProject` to remove their temporary project after success or failure.
+`copyRollupFixtures` copies only the requested inputs and preserves each explicit destination path.
+Tests remove original declarations after analysis so unchanged imports cannot hide a generation error.
+They then use `writeRollupArtifacts` to install generated output and `compileRollupFiles` to check it with both supported TypeScript compilers.
+Compiler checks use explicit file paths and options because the analysis configuration can refer to declarations that were removed.
+File-removal choices, analysis settings, and assertions remain in each test.

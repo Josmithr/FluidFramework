@@ -22934,6 +22934,7 @@
                 "modifierTags",
                 "modifiers",
                 "moduleAugmentation",
+                "moduleAugmentationMembers",
                 "moduleQueries",
                 "moduleReference",
                 "moduleSpecifier",
@@ -23612,6 +23613,7 @@
                 "modifierTags",
                 "modifiers",
                 "moduleAugmentation",
+                "moduleAugmentationMembers",
                 "moduleQueries",
                 "moduleReference",
                 "moduleSpecifier",
@@ -24227,6 +24229,7 @@
                 "modifierTags",
                 "modifiers",
                 "moduleAugmentation",
+                "moduleAugmentationMembers",
                 "moduleQueries",
                 "moduleReference",
                 "moduleSpecifier",
@@ -24844,7 +24847,7 @@
     },
     {
       "file": "lib/analysis-types/declarationSyntax.d.ts",
-      "sha256": "520900d952da870748f576e68ac626d723f3d868d6ca147c904c863853b625d4"
+      "sha256": "75db8159fefce30c2c80fbf91f51d8f9f0559a528385219854172152a063b3bf"
     },
     {
       "file": "lib/analysis-types/dependencyModel.d.ts",

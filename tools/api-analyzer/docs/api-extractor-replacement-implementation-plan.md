@@ -1325,7 +1325,9 @@ The tests check that selected dependency overloads keep the identity of nested c
 The acceptance-audit fixes also retain external imports without bindings and external module augmentations, including when no named exports are selected.
 Top-level import-equals aliases retain their original member paths, including references from other declarations and shared class identity across aliases.
 Consumer regressions compile the original and generated declarations with both compilers after source removal.
-Relative module augmentations now return an explicit unsupported diagnostic; relocating their module targets remains unimplemented.
+Relative augmentations of captured package-owned modules now contribute original member fragments under compiler-merged target identities.
+Generation retains module export bindings, combines those fragments with their relocated targets, and omits the original relative wrapper.
+Targets outside the captured package and members that cannot be indexed still return an explicit unsupported diagnostic.
 These fixes do not establish full Stage 4 acceptance.
 
 Approved on 2026-09-25; implementation remains Stage 4 work.
@@ -1353,6 +1355,78 @@ The policy for explicit documentation references outside the suite is unchanged.
 
 Exit: W5 and B4-B5 pass, with B1 and B6 checked where applicable to generated output.
 The existing `flub generate entrypoints` command need not be migrated in this stage.
+
+#### Stage 4 acceptance audit
+
+Audit date: 2026-09-30.
+Status: **not ready for acceptance**.
+The initial relative-module-augmentation blocker is resolved by the implementation follow-up below.
+The missing permanent regression assertions listed below remain an acceptance follow-up.
+Stage 5 integration has not started.
+
+The audit used ten disposable consumer probes in addition to reviewing the checked-in tests.
+The initial run passed nine probes and reproduced one relative-augmentation blocker.
+After the implementation follow-up, all ten probes pass without changing the audit inputs.
+Each probe first compiled a consumer against original declarations with TypeScript 6.0.3 and TypeScript 7.0.2.
+Successful probes then removed the analyzed package's original declarations, generated rollups, and compiled consumers through package exports with both compilers.
+External dependency declarations remained installed, as required by the approved cross-package re-export policy.
+Suite probes generated and loaded the dependency model before analyzing the consumer package.
+
+| Criterion | Evidence | Audit result |
+| --- | --- | --- |
+| W5: complete and trimmed declaration output | The [rollup matrix](../src/test/rollup.test.ts) covers both producer compilers, both consumer compilers, and source removal. Its general repository loop compiles generated declaration files directly; it does not establish all package-export consumer assertions. | The relative-augmentation reproduction now passes; the remaining consumer-coverage follow-ups still apply. |
+| W5: entrypoints, identity, and custom tags | A fresh package-export probe imports one nominal class from root and subpath entrypoints, rejects structural substitution, and excludes an API without `@sealed` using `requireTags: ["@sealed"]`. | Pass for the probed root/subpath configuration. |
+| W5: prior audit fixes | [Alias](../src/test/fixtures/rollup/aliases.d.ts) and [module-effect](../src/test/fixtures/rollup/effects.d.ts) regressions retain namespace-member aliases, shared nominal identity, external side-effect imports, and external module augmentations. Empty selections retain module effects. | Permanent consumer coverage exists in the rollup tests. |
+| B1: dependency export aliases | Two fresh suite probes consume an aliased dependency class with and without a consumer re-export. Original and generated consumers use the published alias and retain its nominal identity. | Both pass. |
+| B4: excluded and shared imports | A fresh probe uses one import in both public and beta declarations and another only in the beta declaration. Public rollups retain the shared import, omit the excluded import, and reject access to the excluded API. Changing the beta-only imported type leaves the public report unchanged. | Pass. |
+| B5: namespace re-exports | Four fresh probes cover named namespaces and `export * as Namespace`, each inside and outside the suite. Consumers use class, interface, constant, and nested namespace export-list members. Suite beta namespaces are absent from public output; foreign namespaces remain available even for an empty selection. | All four pass. |
+| B6: names that shadow built-ins | A fresh probe retains an internal `performance` export in complete output and rejects it in public output. Public artifacts contain neither its declaration nor an alias for it. | Pass. |
+| Detached generation and partial suite overloads | [Session tests](../src/test/session.test.ts) exercise generation after disposal and output-order independence. [Suite tests](../src/test/suite.test.ts) check selected overload calls, nominal dependency references, and explicit failures for unavailable producer syntax or inaccessible types. | Existing evidence supports the approved strategy; this audit introduces no new generation mechanism. |
+
+The relative-augmentation reproduction uses three declaration files and a package export pointing to `index.d.ts`.
+The following input augments a local interface before re-exporting it.
+
+```typescript
+// local.d.ts
+/** @public */
+export interface Item { value: string; }
+
+// augmentation.d.ts
+import "./local.js";
+declare module "./local.js" {
+	 interface Item { extra: number; }
+}
+
+// index.d.ts
+import "./augmentation.js";
+export type { Item } from "./local.js";
+```
+
+A consumer imports `Item` from the package and reads `extra` as a number.
+Both compilers accept the original input.
+Analysis succeeds with `requireReleaseLevel: false`, which is a supported policy option.
+Before the follow-up, complete rollup generation failed with `rollup-unsupported`: `Relative module augmentations require module-target relocation before declaration rollups can be generated.`
+The original diagnostic test used synthetic facts and did not prove relocation or consumable output.
+The [native augmentation fixture](../src/test/fixtures/native/merged-scope-augmentation.ts) also establishes that relative augmentation is already part of the analysis inventory.
+
+Implementation follow-up (2026-09-30): [declaration capture](../src/analysis/declarationCapture.ts) indexes members from relative augmentations of captured source-file modules.
+The neutral facts retain the original wrapper and record the merged member identities in `moduleAugmentationMembers`.
+The [syntax preparation](../src/rollup-generation/declarationSyntax.ts) omits only successfully captured local wrappers; member fragments follow normal declaration closure and selection.
+No compiler, parser, or file access is added to generation.
+The permanent `relocates relative module augmentations with their local declarations` regression compiles original and generated consumers under both compilers after source removal.
+It covers generic interfaces, class/interface merges and private identity across entrypoints, repeated augmentation paths, namespaces, same-named declarations from other modules, module type queries, supporting types, private remarks, and empty selection.
+
+Before requesting Stage 4 acceptance:
+
+1. Promote the missing disposable B1/B4/B5/B6 rollup assertions and remaining custom-tag package-export assertions into the existing regression suites.
+	Keep report-only coverage distinct from generated-declaration consumer coverage.
+2. Repeat the affected acceptance checks and record the resulting decision before starting Stage 5.
+
+The most recent full verification before this audit passed 339 tests with three existing pending compiler probes, plus build, lint, architecture, formatting, and artifact freshness checks.
+Fresh audit validation passes TypeScript compilation and five permanent tests: unsupported inputs, namespace aliases, module effects, partial suite overloads, and inaccessible nominal support types.
+The editor test runner did not discover these tests; the package's Mocha runner executed them successfully.
+The new documentation links resolve, editor diagnostics are clean, and `git diff --check` passes.
+The initial audit did not rerun that full matrix or change production code, snapshots, generated artifacts, or the approved scope.
 
 ### Stage 5. Integrate builds and documentation consumers
 

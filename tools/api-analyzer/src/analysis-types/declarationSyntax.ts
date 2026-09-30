@@ -199,6 +199,16 @@ export interface DeclarationSyntaxFact {
 	readonly moduleAugmentation?: string;
 
 	/**
+	 * Merged declaration identities contributed by a relative augmentation of a package-owned module.
+	 *
+	 * @remarks
+	 * Their original member syntax is also captured under those identities.
+	 *
+	 * @defaultValue Omitted when the augmentation target is not a captured local module.
+	 */
+	readonly moduleAugmentationMembers?: readonly ApiItemId[];
+
+	/**
 	 * Whether this declaration is a global augmentation.
 	 * @defaultValue Omitted for ordinary declarations.
 	 */

@@ -1120,6 +1120,11 @@ The generator uses named imports for quoted external export names that cannot ap
 The generator keeps global and external module augmentation declarations outside the shared namespace.
 It keeps these declarations even when the selection contains no entrypoint exports.
 Their supporting declarations remain in the shared module.
+Relative augmentations of package-owned modules contribute declaration fragments under their compiler-merged target identities.
+The generator emits those fragments with the relocated declarations and omits the original relative module wrapper.
+References retain their original bindings, including references to supporting types from the augmentation file.
+Local augmentation fragments follow the selection and dependency closure of their targets; they do not expose excluded APIs.
+Module type queries retain the target module's export bindings.
 External imports without bindings remain in the shared module because they can load global declarations or module augmentations.
 This includes empty value import lists; original import attributes are retained.
 Standalone overloads follow the selection independently; classes, interfaces, enums, namespaces, and compound containers remain atomic.
@@ -1153,7 +1158,8 @@ if (output.ok) {
 Invalid selections return the shared selection diagnostics.
 Unsafe or colliding output paths return `rollup-configuration`; `__api.d.ts` is reserved, and `.` conflicts with `./index`.
 Selected implementation-source inputs return `rollup-unsupported`; build declarations before analysis.
-Relative module augmentations return `rollup-unsupported` because their module targets require relocation.
+Relative module augmentations return `rollup-unsupported` when the target is not a captured package-owned module or a member cannot be indexed.
+The generator does not copy an external target into the package to satisfy a relative augmentation.
 Partially selected standalone suite functions are redeclared using original overload syntax from the defining package's decoded API model.
 Each generated overload has an ordinary comment explaining that a direct re-export would expose excluded overloads.
 Complete bindings, compound containers, and foreign APIs remain ordinary package re-exports.

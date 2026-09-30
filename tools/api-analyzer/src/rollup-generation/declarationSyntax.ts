@@ -39,49 +39,54 @@ export function prepareDeclarationSyntax(facts: DeclarationSyntaxFacts): RollupD
 				untrimmed: outsideSuite,
 			})),
 		})),
-		declarations: facts.declarations.map((declaration) => ({
-			id: declaration.id,
-			...(declaration.globalAugmentation === undefined &&
-			declaration.moduleAugmentation === undefined
-				? {}
-				: { moduleScope: true as const }),
-			name:
-				declaration.name === ""
-					? "moduleNamespace"
-					: declaration.fragments.some(
-								(fragment) => fragment.syntax.anonymousNameOffset !== undefined,
-							)
-						? "defaultExport"
-						: declaration.name,
-			fragments: declaration.fragments.map((fragment) => ({
-				signatures: fragment.signatures,
-				excerpt: prepareDeclarationFragment(
-					fragment.syntax,
-					declaration.id,
-					declaration.name,
-					declaration.globalAugmentation === true ||
-						declaration.moduleAugmentation !== undefined,
-				),
-			})),
-			...(declaration.exports === undefined
-				? {}
-				: { exports: declaration.exports.map(prepareExportBinding) }),
-			...(declaration.documentation === undefined
-				? {}
-				: { documentation: declaration.documentation.map(renderDocumentation).join("\n") }),
-			...(declaration.fragments.some((fragment) => !fragment.syntax.isDeclarationFile)
-				? {
-						unsupported:
-							"Declaration rollups require declaration-file inputs. Build declarations before analysis.",
-					}
-				: {}),
-			...(declaration.moduleAugmentation?.startsWith(".") === true
-				? {
-						unsupported:
-							"Relative module augmentations require module-target relocation before declaration rollups can be generated.",
-					}
-				: {}),
-		})),
+		declarations: facts.declarations.map((declaration) => {
+			const localAugmentation = declaration.moduleAugmentationMembers !== undefined;
+			const moduleScope =
+				declaration.globalAugmentation === true ||
+				(declaration.moduleAugmentation !== undefined && !localAugmentation);
+
+			// Local augmentation parts are already captured under their merged target identities.
+			// Keep the module's export bindings for type queries, but do not emit its original wrapper.
+			return {
+				id: declaration.id,
+				...(moduleScope ? { moduleScope: true as const } : {}),
+				name:
+					declaration.name === ""
+						? "moduleNamespace"
+						: declaration.fragments.some(
+									(fragment) => fragment.syntax.anonymousNameOffset !== undefined,
+								)
+							? "defaultExport"
+							: declaration.name,
+				fragments: (localAugmentation ? [] : declaration.fragments).map((fragment) => ({
+					signatures: fragment.signatures,
+					excerpt: prepareDeclarationFragment(
+						fragment.syntax,
+						declaration.id,
+						declaration.name,
+						moduleScope,
+					),
+				})),
+				...(declaration.exports === undefined
+					? {}
+					: { exports: declaration.exports.map(prepareExportBinding) }),
+				...(declaration.documentation === undefined
+					? {}
+					: { documentation: declaration.documentation.map(renderDocumentation).join("\n") }),
+				...(declaration.fragments.some((fragment) => !fragment.syntax.isDeclarationFile)
+					? {
+							unsupported:
+								"Declaration rollups require declaration-file inputs. Build declarations before analysis.",
+						}
+					: {}),
+				...(declaration.moduleAugmentation?.startsWith(".") === true && !localAugmentation
+					? {
+							unsupported:
+								"Relative module augmentations require a captured package-owned target and supported member declarations.",
+						}
+					: {}),
+			};
+		}),
 		...(facts.packageDocumentation === undefined
 			? {}
 			: { packageDocumentation: renderDocumentation(facts.packageDocumentation) }),
