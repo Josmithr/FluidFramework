@@ -419,6 +419,89 @@ describe("Detached declaration rollups", () => {
 		});
 	}
 
+	it("retains shared imports and excludes beta-only imports without changing public reports", async () => {
+		await withRollupProject("api-rollup-import-selection-", async (directory) => {
+			const publicReports: string[] = [];
+			const completeReports: string[] = [];
+			const publicArtifacts: Readonly<Record<string, string>>[] = [];
+			for (const importedType of ["BetaOnly", "Alternate"]) {
+				copyRollupFixtures(
+					directory,
+					(
+						[
+							["index.d.ts", "index.d.ts"],
+							["consumer.ts", "consumer.ts"],
+							["consumer-complete.ts", "consumer-complete.ts"],
+							["consumer-public.ts", "consumer-public.ts"],
+							["package.json", "package.json"],
+							["tsconfig.json", "tsconfig.json"],
+							["dependency/index.d.ts", "node_modules/import-dependency/index.d.ts"],
+							["dependency/beta.d.ts", "node_modules/import-dependency/beta.d.ts"],
+							["dependency/package.json", "node_modules/import-dependency/package.json"],
+						] as const
+					).map(([fixture, destination]) => [`import-selection/${fixture}`, destination]),
+				);
+
+				// Keep the local binding and all API signatures fixed; change only the beta import target.
+				if (importedType === "Alternate") {
+					const input = path.join(directory, "index.d.ts");
+					const original = readFileSync(input, "utf8");
+					const changed = original.replace("{ BetaOnly }", "{ Alternate as BetaOnly }");
+					assert.notEqual(changed, original);
+					writeFileSync(input, changed);
+				}
+				compileRollupFiles(directory, ["consumer.ts", "consumer-complete.ts"]);
+				const result = await analyzeAPIs(
+					{
+						packageName: "import-selection",
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "index.d.ts" }],
+					},
+					directory,
+				);
+				assert(result.ok, JSON.stringify(result));
+				rmSync(path.join(directory, "index.d.ts"));
+				for (const complete of [true, false]) {
+					const selection = {
+						name: complete ? "complete" : "public",
+						releaseLevels: complete
+							? [ReleaseLevel.Public, ReleaseLevel.Beta]
+							: [ReleaseLevel.Public],
+					};
+					const report = result.value.generateReport(".", selection);
+					assert(report.ok, JSON.stringify(report));
+					(complete ? completeReports : publicReports).push(report.value);
+					const generated = result.value.generateRollups(selection);
+					assert(generated.ok, JSON.stringify(generated));
+					const text = Object.values(generated.value).join("\n");
+					assert.match(text, /import { Shared(?: as Shared)? } from "import-dependency"/);
+					if (complete) {
+						assert.match(text, /import-dependency\/beta/);
+						assert.equal(text.includes(importedType), true);
+					} else {
+						assert.doesNotMatch(text, /preview|BetaOnly|Alternate|import-dependency\/beta/);
+						assert.doesNotMatch(
+							report.value,
+							/preview|BetaOnly|Alternate|import-dependency\/beta/,
+						);
+						publicArtifacts.push(generated.value);
+
+						// Public consumers must compile even when the beta-only dependency is unavailable.
+						rmSync(path.join(directory, "node_modules", "import-dependency", "beta.d.ts"));
+					}
+					writeRollupArtifacts(directory, generated.value);
+					compileRollupFiles(directory, [
+						"consumer.ts",
+						complete ? "consumer-complete.ts" : "consumer-public.ts",
+					]);
+				}
+			}
+			assert.notEqual(completeReports[0], completeReports[1]);
+			assert.equal(publicReports[0], publicReports[1]);
+			assert.deepEqual(publicArtifacts[0], publicArtifacts[1]);
+		});
+	});
+
 	for (const producer of ["typescript6", "typescript"] as const) {
 		for (const scenario of repositoryScenarios) {
 			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {

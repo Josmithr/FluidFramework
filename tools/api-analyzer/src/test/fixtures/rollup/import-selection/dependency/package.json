@@ -1,0 +1,9 @@
+{
+	"name": "import-dependency",
+	"version": "1.0.0",
+	"type": "module",
+	"exports": {
+		".": { "types": "./index.d.ts" },
+		"./beta": { "types": "./beta.d.ts" }
+	}
+}

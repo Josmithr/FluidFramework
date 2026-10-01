@@ -23,6 +23,11 @@ They are not compiled as a standalone workspace.
 	The tests generate the dependency model before analyzing the consumer package and remove the consumer package's original declarations before generating its public rollup.
 	Both compiler versions check parameter and return identity, bidirectional re-export assignment, rejected structural substitutes, and absent unintended exports through package exports.
 	The dependency declarations remain installed because the generated consumer must reference that package instead of copying its class.
+- `import-selection/` supplies a shared nominal dependency type and a separate beta-only import.
+	The test changes only the beta import target in a temporary copy, keeping its local binding and API signatures fixed.
+	Original, complete, and public package consumers compile with both supported TypeScript versions after each change.
+	Generated output is checked after the original package declarations are removed; public consumers also compile after the beta-only dependency file is removed.
+	The complete report must change, while the public report and rollup must remain identical.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.
