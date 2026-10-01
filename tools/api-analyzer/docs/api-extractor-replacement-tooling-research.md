@@ -6,8 +6,9 @@
 The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery, verification gates, and required documentation-driven, test-driven, and functional development practices.
 This decision replaces the earlier recommendation to evaluate TypeDoc first. The comparative evidence below remains relevant, but does not select an alternative backend.
 Implementation update on 2026-09-20: Stage 2 is accepted, including the package's self-generated complete API report.
-This document remains the dated tooling investigation; use the [acceptance checklist](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist) for current implementation evidence.
-The three original compiler probes remain pending at their assigned stages, and the remaining follow-ups are scheduled after the library implementation.
+This document remains the dated tooling investigation; use the [implementation plan](api-extractor-replacement-implementation-plan.md#status-and-objective) for current implementation evidence.
+The [Stage 4 audit](api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) verifies detached declaration generation and replaces the two obsolete native-emission probes.
+Only the asynchronous-client crash probe remains pending; the remaining follow-ups are scheduled after the library implementation.
 
 The evaluated tools do not provide a proven solution that meets all current requirements with low maintenance cost.
 TypeScript 6 has a mature, in-process compiler API.

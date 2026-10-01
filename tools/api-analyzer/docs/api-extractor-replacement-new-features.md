@@ -13,8 +13,9 @@ Stage 2 was accepted on 2026-09-20 with documented follow-ups deferred until the
 Review and validation evidence is summarized in the [current acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist), including the package's self-generated complete report.
 F4 and B1/B2/B6 have report-level and policy regressions; F1/F2/F3 have the analysis and dependency-model coverage needed for effective review documentation.
 Stage 3 model regressions now cover portable member shapes, source-free readers, and artifact-set integrity.
-The [Stage 3 acceptance audit](api-extractor-replacement-implementation-plan.md#stage-3-acceptance-audit) now includes structured excerpt tokens and source-free linked rendering for W7; final Stage 3 acceptance remains a separate review.
-Declaration-rollup obligations remain open at Stage 4; repository documentation migration remains Stage 5.
+The [Stage 3 acceptance audit](api-extractor-replacement-implementation-plan.md#stage-3-acceptance-audit) includes structured excerpt tokens and source-free linked rendering for W7; the user accepted Stage 3 on 2026-09-25.
+The [Stage 4 acceptance audit](api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) records passing W5, B4-B5, and applicable B1/B6 declaration-output coverage.
+The user accepted Stage 4 on 2026-10-01 within the approved ESM scope and with its documented limitations; repository documentation migration remains Stage 5.
 Passing the Stage 2 subset does not close requirements that also cover those later outputs.
 No Stage 2 policy question remains open; later-stage acceptance details remain attached to their respective outputs.
 The linked issue descriptions were inspected, but their reproductions have not been run as part of this requirements work.
@@ -24,7 +25,8 @@ These versions identify the package build and declaration-consumption test confi
 
 The following paragraphs record historical Stage 0 and initial Stage 1/2 checkpoints, not the latest verification status.
 The [Stage 0 results](../README.md#stage-0-results) and [native capability tests](../src/test/nativeCapabilities.test.ts) initially provided preliminary compiler evidence for F1, F4, and alias/type-only export facts relevant to B1 and B2.
-They do not implement the required artifacts or reproduce the full cross-package regressions. All F1-F4 and B1-B6 entries remain open.
+Those initial checks did not implement the required artifacts or reproduce the full cross-package regressions.
+All F1-F4 and B1-B6 entries remained open at that checkpoint.
 The [Stage 1 session tests](../src/test/session.test.ts) check facts that contain no compiler objects.
 They cover aliases, chained type-only exports, inherited members, overload identifiers, and diagnostics for incomplete member expansion.
 These tests do not satisfy the requirements for generated artifacts.

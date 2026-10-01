@@ -15,6 +15,7 @@ The [analyzer configuration](analyzer.json) selects the dependency's model throu
 - The source-free reader follows inherited link IDs to core using only the two models.
 
 The accepted [model](../../../../../snapshots/repository/dual/consumer.api.json), [public report](../../../../../snapshots/repository/dual/consumer.root.public.md), and [workspace index](../../../../../snapshots/repository/dual/index.json) are shared by both producer compilers.
-Required external imports in declaration rollups remain a future Stage 4 check.
+The [rollup matrix](../../../../../rollup.test.ts) compiles complete and public generated declarations with both consumer compilers after removing original package inputs.
+The dedicated [import-selection fixtures](../../../../rollup/README.md) add package-consumer assertions for required shared imports and excluded-only imports.
 
 See the [fixture guide](../../../README.md) for shared execution and baseline rules.

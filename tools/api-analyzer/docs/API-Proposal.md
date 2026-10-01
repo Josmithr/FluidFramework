@@ -2,7 +2,7 @@
 
 Status: API direction agreed on 2026-09-17; Stage 2 accepted on 2026-09-20 with documented deferred follow-ups.
 Declaration reports, portable documentation models, source-free readers, and API counts are implemented.
-Experimental declaration rollups are implemented; the Stage 4 acceptance audit is in progress.
+Experimental declaration rollups are implemented; [the user accepted Stage 4 on 2026-10-01](api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) within the approved ESM scope and with its documented limitations.
 The [README](../README.md#experimental-api) describes the implemented subset and remaining limitations.
 The agreed [architecture proposal](Architecture-Proposal.md) defines the completed graph, source layers, and dependency boundaries.
 This proposal supersedes the reusable session API direction in the implementation plan.
@@ -29,15 +29,14 @@ const result = await analyzeAPIs(configuration);
 It represents completed analysis with private, immutable data, not a live compiler session.
 It has no `analyze`, `invalidate`, or `close` method.
 
-The final library should offer the following capabilities; not all are implemented in Stage 2:
+The implemented API provides the following capabilities:
 
 - Generate declaration rollups for configured entrypoints.
 - Generate API model artifacts for dependency analysis and documentation generation.
 - Generate API reports.
-- Expose API statistics, such as declaration counts and documentation coverage.
+- Expose API counts.
 
-Declaration rollup generation remains required functionality.
-The initial report method and API counts are documented in the README.
+The report method and API counts are documented in the README.
 `generateModel(): string` returns version 1 portable declaration and documentation data.
 Format and identity versions remain 1 during initial development, with no backward compatibility requirements when their definitions change.
 `decodeDependencyModel(text, packageName)` validates one artifact; `decodeDependencyModels(inputs)` additionally validates a complete package set.
@@ -47,7 +46,7 @@ The artifact set uses one shared `__api.d.ts` module to preserve nominal identit
 The root entrypoint maps to `index.d.ts`; subpaths map to their relative path with a `.d.ts` extension.
 Callers must write every returned file with those relative paths unchanged.
 See the [declaration-generation contract](../README.md#declaration-rollups) for selection, comments, and diagnostics.
-Broader statistics remain to be specified.
+Broader statistics, including documentation coverage, remain to be specified.
 API statistics are distinct from analysis timing and cache counters.
 
 ## Completion and outputs

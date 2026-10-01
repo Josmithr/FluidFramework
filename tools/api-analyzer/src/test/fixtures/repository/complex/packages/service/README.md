@@ -13,6 +13,7 @@ The [facade](../facade/README.md) depends directly on service, making core and t
 - Stale dependency models prevent successful analysis; dependency-first regeneration updates the inherited content.
 
 The accepted [model](../../../../../snapshots/repository/complex/service.api.json), [public report](../../../../../snapshots/repository/complex/service.root.public.md), and [workspace index](../../../../../snapshots/repository/complex/index.json) are shared by both producer compilers.
-Shared nominal class identity in generated declaration rollups remains future coverage; this diamond currently uses interfaces.
+This diamond uses interfaces, so it does not test nominal class assignment across branches.
+The dedicated [rollup fixtures](../../../../rollup/README.md) separately test nominal identity across entrypoints and dependency aliases.
 
 See the [fixture guide](../../../README.md) for the full graph and baseline rules.

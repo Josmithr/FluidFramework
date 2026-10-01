@@ -13,7 +13,8 @@ Its [source entrypoint](src/index.ts) combines a star re-export with a renamed f
 - Reports preserve aliases and release selections; the model and source-free index retain the complete analyzed export paths.
 
 The accepted [model](../../../../../snapshots/repository/reexports/facade.api.json), [public report](../../../../../snapshots/repository/reexports/facade.root.public.md), and [workspace index](../../../../../snapshots/repository/reexports/index.json) are shared by both producer compilers.
-Compiler-consumer checks for these relationships in trimmed rollups remain Stage 4 work.
+The [rollup matrix](../../../../../rollup.test.ts) compiles complete and public generated declarations with both consumer compilers after removing original package inputs.
+Dedicated [rollup fixtures](../../../../rollup/README.md) check dependency aliases, type-only paths, namespace selection, and nominal identity through package exports.
 Module namespace re-exports have successful coverage in the [primary scenario](../../../primary/packages/primary/README.md) and the dependency suite tests.
 
 See the [fixture guide](../../../README.md) for shared execution and baseline rules.

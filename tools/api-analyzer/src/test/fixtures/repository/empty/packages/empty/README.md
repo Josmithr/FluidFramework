@@ -14,6 +14,6 @@ The [source entrypoint](src/index.ts) contains `export {}` so it remains an exte
 
 The accepted [model](../../../../../snapshots/repository/empty/empty.api.json), [public report](../../../../../snapshots/repository/empty/empty.root.public.md), and [documentation index](../../../../../snapshots/repository/empty/index.json) record these outcomes.
 Both producer compilers use the same snapshots.
-An empty declaration rollup is a future Stage 4 check, not implemented coverage.
+The [rollup matrix](../../../../../rollup.test.ts) generates complete and public declaration artifacts for this empty package and compiles them with both consumer compilers after removing original package inputs.
 
 See the [fixture guide](../../../README.md) for the copy-only setup, test commands, and baseline update rules.

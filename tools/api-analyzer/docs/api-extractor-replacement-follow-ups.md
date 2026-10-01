@@ -8,7 +8,8 @@ The plan retains required capability gates, acceptance criteria, and implementat
 Moving an item here does not waive those requirements or mark an unresolved capability as supported.
 Scheduling decision on 2026-09-20: finish the remaining library implementation before pursuing these follow-ups.
 Stage 2 is accepted with the documented unnamed-selector parser limitation and deliberate module-reference exclusion.
-Stage 3 implements portable models; declaration rollups remain required Stage 4 work in the plan, not an optional follow-up.
+Stage 3 is accepted and implements portable models.
+Declaration rollups are implemented and [the user accepted Stage 4 on 2026-10-01](api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) within the approved ESM scope and with its documented limitations; they are not an optional follow-up.
 
 ## Persistent analysis reuse across builds
 
@@ -52,8 +53,8 @@ This item is not a Stage 2 exit requirement and does not defer non-overloaded au
 Status: open; explicitly deferred beyond V1 by the 2026-09-18 container decision.
 
 V1 must keep selected containers intact, including namespace exports, static class members, and constructor signatures.
-That rule is implemented and tested for the supported report and analysis forms; see the [Stage 2 acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist).
-Declaration-rollup selection remains Stage 4 work, not part of this optional follow-up.
+That rule is implemented and tested for analysis, reports, and declaration rollups; see the [Stage 2 acceptance audit](api-extractor-replacement-implementation-plan.md#current-acceptance-checklist) and [Stage 4 acceptance audit](api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit).
+This follow-up concerns optional changes to that rule, not missing V1 selection behavior.
 Investigate whether a later version can permit different member release levels or independent member selection with a clear compatibility contract.
 No namespace or static-member exception is approved for V1.
 The 2026-09-24 [module namespace export decision](api-extractor-replacement-implementation-plan.md#module-namespace-export-policy) confirms the same V1 rules for explicit namespaces and module namespace exports; analysis, reports, and portable models now implement those rules.
@@ -96,7 +97,8 @@ Status: open; follow-up to the [Stage 0 findings](../README.md#stage-0-results).
 - Link upstream reports to the local regression tests and findings. Keep unresolved cases visible and verify fixes before closing them locally.
 
 No upstream bug has been filed as part of this tracked follow-up.
-The declaration-generation capability gate remains in the implementation plan. Deferring upstream reporting does not resolve that gate.
+The declaration-generation strategy is resolved and verified through detached-generation consumer tests.
+Native program emission is not required by that strategy; the asynchronous-client termination issue remains unresolved.
 
 ## Verify and report the TSDoc unnamed-selector mismatch
 

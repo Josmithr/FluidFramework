@@ -1,6 +1,6 @@
 # Repository workflow fixtures
 
-These are complete checked-in workspace inputs for [repository.test.ts](../../repository.test.ts) and [repositoryFailures.test.ts](../../repositoryFailures.test.ts).
+These are complete checked-in workspace inputs for [repository.test.ts](../../repository.test.ts), [repositoryFailures.test.ts](../../repositoryFailures.test.ts), and the repository matrix in [rollup.test.ts](../../rollup.test.ts).
 Each workspace contains source files, package manifests and export maps, compiler projects, analyzer configuration, and a `repository.json` file listing packages in dependency-first order.
 The tests do not synthesize package code or configuration.
 [repositoryUtils.ts](../../repositoryUtils.ts) copies the workspace to a temporary directory and creates local package links under `node_modules/@scenario`.
@@ -69,7 +69,8 @@ The [inherited-member entrypoint](primary/packages/primary/src/privateInheritanc
 Its public and complete reports preserve protected visibility and inherited getter/setter syntax without redeclaring base-private state.
 The model and source-free index retain the original accessor documentation identities.
 Generic and mapped accessor consumer checks, including heritage fallbacks, are covered by the [suite fixtures](../suite/README.md).
-Trimmed declaration rollups and their TS6/TS7 consumer matrix remain Stage 4 work.
+The rollup matrix generates complete and public declarations from both producer compilers, then compiles the generated files with TS6 and TS7 after removing original package sources and declarations.
+That matrix checks declaration compilation; the dedicated [rollup fixtures](../rollup/README.md) provide package-export consumers with positive and negative API assertions.
 
 ## Artifacts and isolation
 

@@ -17,9 +17,9 @@ This scope does not promise a dedicated diagnostic for every unsupported CommonJ
 
 Stage 2 is complete as of 2026-09-20 under the accepted review and validation scope.
 The [follow-up tracker](docs/api-extractor-replacement-follow-ups.md) retains the known parser limitation and optional investigations for after the remaining library implementation.
-Stage 3 adds portable documentation models and source-free readers.
-Stage 4 adds experimental detached declaration generation; its acceptance audit is in progress.
-Repository documenter and historical-artifact migration remain Stage 5.
+Stage 3 is accepted and provides portable documentation models and source-free readers.
+Stage 4 implements experimental detached declaration generation and was [accepted by the user on 2026-10-01](docs/api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) within the approved ESM scope and with its documented limitations.
+Stage 5 has not started; it covers build integration, repository documenter integration, and historical-artifact migration.
 
 Analysis supports original declaration and member metadata, explicit method and property inheritance, conservative automatic member inheritance, and resolved API links.
 Selected dependency models supply already-resolved documentation, link origins, and section provenance.
@@ -1490,7 +1490,7 @@ Check mode also fails for a missing or stale report.
 When checking existing baselines, run compilation and check commands before any artifact-generating build.
 Tests do not update the report; the [pilot regression](src/test/pilot.test.ts) uses check mode.
 The report is a review artifact, not a declaration rollup: references to private support types can remain without their definitions.
-Portable documentation graphs retain these relationships; self-contained consumable declaration output remains a Stage 4 requirement.
+Portable documentation graphs retain these relationships; [declaration rollups](#declaration-rollups) provide consumable declarations with supporting definitions and required dependency references.
 
 ## Package API model
 
@@ -1646,11 +1646,14 @@ The harness terminates the worker process group during cleanup, including after 
 
 ### Blockers and limits
 
+The table records Stage 0 evidence and notes later resolutions where applicable.
+Use the [Stage 4 acceptance audit](docs/api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) for current declaration-generation evidence.
+
 | Finding | Evidence | Consequence |
 | --- | --- | --- |
 | No retained-program declaration emission in the tested API | The Stage 0 investigation found neither `emit` nor `getDeclarationEmit` on the retained program. | The approved [Stage 4 strategy](docs/api-extractor-replacement-implementation-plan.md) captures syntax during analysis and generates from detached facts. The obsolete method-presence probe was removed; [rollup consumer tests](src/test/rollup.test.ts) verify the selected generation path. |
 | Async request does not settle after native termination | The async crash worker exits with code 13 and an unsettled top-level await at `assert.rejects(api.getTimingInfo())`. | Do not select the async client without resolving or containing this failure through an approved design. The test does not establish the behavior of every operation or failure mode. |
-| Reuse evidence is narrow | A cached export query records zero requests; related queries retain their snapshot. | This does not measure compiler-wide recomputation or prove reuse across implemented reports, validation, models, and declarations. Those tasks do not exist yet. |
+| Reuse evidence is narrow | A cached export query records zero requests; related queries retain their snapshot. | This did not measure compiler-wide recomputation or prove reuse across reports, validation, models, and declarations. Those tasks were not implemented at that checkpoint. |
 | Generation evidence is narrow | Existing declaration source files are printed and consumed successfully. Fixture declaration builds invoke the compiler CLI separately. | Neither operation proves trimmed rollups, dependency inclusion, import cleanup, or generation from retained semantic analysis. |
 | Lifecycle evidence is platform-specific | Process checks use Linux `/proc` and process groups. | Windows and macOS lifecycle behavior is unverified. Test cleanup is not a production lifecycle implementation. |
 
@@ -1658,16 +1661,16 @@ At the end of Stage 0, the full semantic fixture suite used the async client and
 Stage 1 reran the full fixture suite through the synchronous client before using it for the experimental session.
 The async crash reproduction remains separate and unresolved.
 
-No full W/F/B requirement is closed by this investigation.
-Cross-package documentation resolution, custom policy, release filtering, stable artifact identities, invalidation, cancellation, and representative repository packages remain untested.
+No full W/F/B requirement was closed by this investigation alone.
+At that checkpoint, cross-package documentation resolution, custom policy, release filtering, stable artifact identities, invalidation, cancellation, and representative repository packages remained untested.
 No production analyzer API, custom compiler bridge, compiler patch, or migration was added.
 
 ### Review decisions
 
 1. **Declaration generation:** Resolved on 2026-09-28 by approval of detached syntax capture and generation. The implementation preserves the shared-analysis requirement without native program emission or TS6 analysis.
-2. **Client selection:** Consider the synchronous client for the next stage, then run the full semantic suite through it and document blocking, cancellation, and crash behavior before approval.
-3. **Capability gate handling:** Keep the reproductions visible. Decide how to separate investigation gates from a future required production test suite without representing unresolved capabilities as passing.
-4. **Upstream follow-up:** Confirm current upstream coverage for both findings and record exact issue links before filing a new report. This resumed verification has not established those links or filed issues.
+2. **Client selection:** Stage 1 selected the synchronous client after rerunning the semantic suite. Its event-loop blocking behavior remains documented; the asynchronous-client termination failure remains unresolved.
+3. **Capability gate handling:** The asynchronous-client crash reproduction remains pending in the normal test suite. Stage 4 consumer tests replaced the obsolete native-emission probes without claiming support for native program emission.
+4. **Upstream follow-up:** Confirm upstream coverage for the remaining compiler limitations and record exact issue links before filing a new report. The [upstream follow-up](docs/api-extractor-replacement-follow-ups.md#upstream-typescript-reports) has not established those links or filed issues.
 
 Stage 0 has produced a scaffold and reproducible capability evidence, including failed gates.
 The declaration-generation strategy is now resolved; the asynchronous-client termination failure remains an open follow-up.
@@ -1701,7 +1704,8 @@ Direct tests cover package locations, aliases, type-only exports, members, signa
 They also check cache separation, repeated collection, and the active-identifier guard.
 
 The implementation uses pure configuration and immutable data, with native communication, filesystem access, and local extraction caches isolated inside the analysis invocation and adapter.
-It does not close the full W/F/B requirements or resolve the Stage 0 declaration-generation limitation.
+The initial Stage 1 implementation did not close the full W/F/B requirements or resolve the declaration-generation strategy.
+Stage 4 later resolved that strategy through detached syntax capture and verified rollup generation.
 
 ## Initial Stage 2 results
 

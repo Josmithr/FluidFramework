@@ -4,7 +4,7 @@ Status: architecture direction agreed on 2026-09-17; Stage 2 accepted on 2026-09
 `utilities`, `analysis-types`, `analysis`, `report-generation`, `model-generation`, and `rollup-generation` have enforced boundaries.
 The completed graph covers supported declarations, effective members, merged documentation, suite references, and configured policies.
 The model layer implements portable declaration and documentation graphs with source-free readers.
-The rollup layer implements experimental detached declaration generation; Stage 4 acceptance is in progress.
+The rollup layer implements experimental detached declaration generation; [the user accepted Stage 4 on 2026-10-01](api-extractor-replacement-implementation-plan.md#stage-4-acceptance-audit) within the approved ESM scope and with its documented limitations.
 The [API proposal](API-Proposal.md) defines the public workflow.
 The [implementation plan](api-extractor-replacement-implementation-plan.md) defines delivery stages and capability gates.
 

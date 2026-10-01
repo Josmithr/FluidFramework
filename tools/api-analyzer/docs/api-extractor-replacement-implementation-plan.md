@@ -12,16 +12,16 @@ The later 2026-09-20 decision explicitly excludes module-based references for no
 Stage 2 is complete as of 2026-09-20 under the user's accepted scope, following the code/documentation audit and package self-report check.
 The user explicitly deferred the remaining follow-ups until the rest of the library is implemented, including the [unnamed-selector parser limitation](api-extractor-replacement-follow-ups.md#verify-and-report-the-tsdoc-unnamed-selector-mismatch).
 This is an accepted limitation, not an assertion of full TSDoc conformance.
-Stage 3 implements portable documentation models and source-free artifact readers; declaration rollups remain Stage 4.
+Stage 3 implements portable documentation models and source-free artifact readers; Stage 4 implements detached declaration rollups.
 The user accepted Stage 3 on 2026-09-25, including its documented limitations and three pending compiler probes.
-Declaration rollups remain required.
+The user accepted Stage 4 on 2026-10-01 within the approved ESM scope and with its documented limitations; Stage 5 has not started.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](Architecture-Proposal.md).
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
 Analysis completion owns documentation resolution and returns a frozen graph for the supported declaration and member scope.
 Reporting consumes that graph without compiler or parser access.
 The model layer owns versioned declaration/documentation encoding, decoding, and single-model and cross-model validation.
-Experimental detached rollup generation is implemented; Stage 4 acceptance is in progress.
+The [Stage 4 acceptance audit](#stage-4-acceptance-audit) records the completed verification and remaining lifecycle limitation.
 `good-fences` enforces the implemented boundaries through package lint, with a positive/negative TypeScript ESM import regression.
 
 Historical checkpoint: The initial Stage 1 configuration resolver, compiler adapter, and reusable synchronous session passed 29 focused contract tests on 2026-09-15.
@@ -36,7 +36,7 @@ See the [Stage 0 results and review decisions](../README.md#stage-0-results) for
 The Stage 0 probe recorded 19 passing checks and 3 failures: missing retained-program declaration emission for both input compilers and async request handling after native termination.
 The [Stage 1 results and experimental API](../README.md#stage-1-results) describe the new tests and limits.
 The full semantic fixture suite now runs through the synchronous client.
-Declaration generation and minimal examples for upstream issue reports remain open tasks.
+Declaration generation is implemented and verified; minimal examples for upstream issue reports remain tracked follow-ups.
 Stage 1 does not depend on an emit method and does not resolve the asynchronous client failure.
 
 Build `api-analyzer`, a standalone, repository-independent API tooling package at `tools/api-analyzer`, using the official native TypeScript 7 tooling.
@@ -955,7 +955,7 @@ Stage 5 still owns documenter integration, stable website URL policies, and migr
 
 #### Module namespace export policy
 
-Status: implemented for analysis, reports, and portable models; declaration rollups remain Stage 4 work.
+Status: implemented for analysis, reports, portable models, and declaration rollups.
 
 V1 applies the explicit-namespace rules to module namespace exports.
 Require a release tag on the namespace export statement.
@@ -1027,8 +1027,9 @@ Pre-Stage 4 review regressions cover anonymous lexical identity, colliding effec
 The report does not replace those accessors with a narrower read type.
 Module namespace exports now have successful report and portable-model coverage under the policy above.
 CommonJS export assignment is outside the agreed ESM-only input scope; it is not a fixture requirement or a remaining report gap.
-The remaining requirements below continue to define acceptance rather than treating these known rejections as completed capabilities.
-Extend the same scenarios with trimmed-rollup checks when Stage 4 provides declaration generation.
+The requirements below define the repository workflow contract; unsupported cases must remain explicit.
+The [rollup matrix](../src/test/rollup.test.ts) now extends the same scenarios with complete and public declaration compilation under both consumer compilers after source removal.
+Dedicated [rollup fixtures](../src/test/fixtures/rollup/README.md) provide package-export consumers with positive and negative API assertions.
 Do not add passing placeholders or new skipped tests for APIs that do not exist yet.
 
 The purpose is to demonstrate complete package workflows, not repeat every compiler edge case in every repository layout.
@@ -1143,12 +1144,12 @@ Normal tests must not update snapshots or checked-in self-artifacts.
 Intentional updates generate producers before consumers, then review semantic changes and the resulting fingerprint changes together.
 Prefer small fixtures over compressed or filtered snapshots, and record artifact sizes and test duration before expanding the matrix.
 
-For future trimming, compile the same positive consumer against both original declarations and the corresponding generated output.
+For trimming regressions, compile the same positive consumer against both original declarations and the corresponding generated output.
 For excluded APIs, use negative consumer tests and verify that failure occurs for the intended missing export or invalid value use, not a missing package or broken test setup.
 For the diamond, assign instances across both branches to catch accidental duplication of private or branded identity.
 Rollups retain cross-package re-exports and the dependencies they reference under the approved Stage 4 policy.
 Consumer tests must use generated outputs for suite packages and installed declarations for outside-suite dependencies.
-Defer exact rollup API calls to the Stage 4 contract rather than inventing an API in these tests now.
+Use `APIAnalysis.generateRollups(selection)` under the declaration-generation contract below.
 
 ##### Failure and recovery cases
 
@@ -1191,13 +1192,14 @@ The first three rows are recommended before Stage 4; the remaining rows can be s
 3. Add the five-package chain and diamond, its stale-transitive recovery test, and selected-but-unused dependency coverage. Show that changing the final export spelling does not change the original owner.
 4. Add the recommended multi-entrypoint, scoped-selector, and peer-dependency variants. Run both producer compilers for successful baseline scenarios; keep the full negative mutation set on the pinned analysis path and add dual-producer coverage where emitted syntax matters.
 5. Review the generated artifacts and documentation indexes as Stage 3 evidence. Link each scenario and expected failure to its test. The user accepted this report/model gate on 2026-09-25.
-6. During Stage 4, add rollup assertions to these same fixtures and run both TS6 and TS7 consumer compilers against each supported producer's outputs. Complete the matrix before claiming trimmed-rollup support; do not treat report compilability as a substitute.
+6. Extend these fixtures with rollup assertions and run both TS6 and TS7 consumer compilers against each supported producer's outputs. The Stage 4 matrix and focused consumer regressions now provide this evidence; see the [acceptance audit](#stage-4-acceptance-audit). Report compilability alone is not sufficient.
 
 The pre-Stage-4 gate requires all five baseline scenarios, the identified variants and failure cases, deterministic artifacts, source-free model-set consumption, and no baseline writes during normal tests.
 Current evidence includes exact artifacts for each successful package and a source-free documentation index, with producer-specific primary baselines only for the observed default-expression declaration-emission difference.
 The complex fixture adds a sixth unused package to the five-package chain and diamond so missing selected-but-unused artifacts are tested without runtime manifest construction.
 New tests must pass the package's normal build, test, lint, formatting, architecture, and self-artifact freshness checks.
-Retain the three existing pending compiler probes with their current explanations; this work must not hide them or claim to resolve Stage 4 capability gaps.
+Retain the pending asynchronous-client crash probe with its explanation.
+The obsolete native-emission probes were replaced by tests of the approved detached-generation strategy; they are not remaining requirements.
 Report any newly exposed unsupported behavior as a blocker or an explicit scope decision, not as an automatically accepted snapshot or an unimplemented passing test.
 
 ### Stage 4. Deliver declarations and entrypoint capabilities
@@ -1205,7 +1207,8 @@ Report any newly exposed unsupported behavior as a blocker or an explicit scope 
 #### Generation strategy review
 
 Status (2026-09-28): the user approved the detached-fragment generation strategy below.
-Experimental detached rollup generation is implemented; production readiness and Stage 4 acceptance are not established.
+The strategy is implemented and verified by the [Stage 4 acceptance audit](#stage-4-acceptance-audit).
+The user accepted Stage 4 on 2026-10-01; production integration is outside Stage 4.
 Stage 3 acceptance and the approved re-export policies remain unchanged.
 
 A probe against the pinned TypeScript 7.0.2 API confirmed the following capabilities:
@@ -1254,7 +1257,7 @@ The repository matrix generates complete and public outputs from both compiler p
 Focused consumers cover private support types, name collisions, multiple variable bindings, local import types and module namespaces, type-only aliases, standalone overload trimming, atomic namespace callables, external imports, and shared nominal identity.
 Exact snapshots retain original comments except for private remarks; package comments are copied to each entrypoint.
 Lifecycle and architecture tests cover no compiler or parser calls during generation and independent generator boundaries.
-The acceptance audit must still distinguish this evidence from unsupported syntax and cross-package selection cases.
+The acceptance audit below distinguishes this evidence from unsupported syntax and documents cross-package selection coverage.
 
 Validation for the initial rollup increment, before the partial-overload extension: 334 tests pass, with the three existing compiler probes pending.
 The package build, CLI lint, formatting, architecture checks, API report/model freshness checks, and `git diff --check` pass.
@@ -1290,7 +1293,7 @@ Complete overload sets, compound containers, and outside-suite exports remain pa
 TS6 and TS7 consumer checks cover excluded calls, generic nominal constraints, aliases, and type-only function exports.
 Generation remains usable after dependency inputs are removed.
 Selection-aware dependency entrypoint mappings are not required by this decision.
-Broader Stage 4 acceptance remains separate from this focused policy implementation.
+This focused policy implementation preceded the full Stage 4 acceptance recorded below.
 
 Validation before the neutral syntax refactor: 335 tests pass, with the three existing compiler probes pending.
 After formatting-only corrections, the package rebuild and both focused overload regressions pass.
@@ -1329,9 +1332,9 @@ Consumer regressions compile the original and generated declarations with both c
 Relative augmentations of captured package-owned modules now contribute original member fragments under compiler-merged target identities.
 Generation retains module export bindings, combines those fragments with their relocated targets, and omits the original relative wrapper.
 Targets outside the captured package and members that cannot be indexed still return an explicit unsupported diagnostic.
-These fixes do not establish full Stage 4 acceptance.
+These fixes form part of the evidence in the acceptance audit below; they do not independently establish Stage 4 acceptance.
 
-Approved on 2026-09-25; implementation remains Stage 4 work.
+Approved on 2026-09-25 and implemented in Stage 4:
 Preserve cross-package re-exports as references to their defining packages rather than requiring dependency declarations to be bundled.
 The approved partial-overload exception above applies only to safe standalone function redeclarations.
 Suite membership determines release-tag filtering, not dependency inclusion in the rollup.
@@ -1361,10 +1364,12 @@ The existing `flub generate entrypoints` command need not be migrated in this st
 
 Audit date: 2026-09-30.
 Acceptance recheck date: 2026-10-01.
-Status: **acceptance recheck in progress**.
+User acceptance date: 2026-10-01.
+Status: **accepted**.
 The initial relative-module-augmentation blocker is resolved by the implementation follow-up below.
 The missing permanent regression assertions are now covered by the follow-ups below.
-Final full verification and the acceptance decision remain pending.
+Final full verification passes for the approved Stage 4 scope.
+The user accepted Stage 4 within the approved ESM scope, including its documented limitations and the one pending asynchronous-client crash probe.
 Stage 5 integration has not started.
 
 The audit used ten disposable consumer probes in addition to reviewing the checked-in tests.
@@ -1377,7 +1382,7 @@ Suite probes generated and loaded the dependency model before analyzing the cons
 
 | Criterion | Evidence | Audit result |
 | --- | --- | --- |
-| W5: complete and trimmed declaration output | The [rollup matrix](../src/test/rollup.test.ts) covers both producer compilers, both consumer compilers, and source removal. Its general repository loop compiles generated declaration files directly; it does not establish all package-export consumer assertions. | The relative-augmentation reproduction now passes; the remaining consumer-coverage follow-ups still apply. |
+| W5: complete and trimmed declaration output | The [rollup matrix](../src/test/rollup.test.ts) covers both producer compilers, both consumer compilers, and source removal. Its general repository loop compiles generated declaration files directly; focused permanent regressions check package-export consumers. | Pass; relative augmentation and the recorded consumer-coverage gaps have permanent regression coverage. |
 | W5: entrypoints, identity, and custom tags | A permanent [rollup regression](../src/test/rollup.test.ts) uses the [tag-selection consumer](../src/test/fixtures/rollup/tag-selection/consumer.ts) to preserve one nominal class through root and subpath package exports. TS6 and TS7 compile original consumers, then generated consumers after source removal. Requiring `@sealed` retains the class and its members but excludes the untagged function from both entrypoints. | Pass; permanent package-export consumer coverage exists. |
 | W5: prior audit fixes | [Alias](../src/test/fixtures/rollup/aliases.d.ts) and [module-effect](../src/test/fixtures/rollup/effects.d.ts) regressions retain namespace-member aliases, shared nominal identity, external side-effect imports, and external module augmentations. Empty selections retain module effects. | Permanent consumer coverage exists in the rollup tests. |
 | B1: dependency export aliases | Two permanent [rollup tests](../src/test/rollup.test.ts) use the [dependency-alias fixtures](../src/test/fixtures/rollup/dependency-alias/consumer.ts) with and without a consumer re-export. Original and generated package consumers retain the dependency's nominal identity under TS6 and TS7 after the consumer package's original declarations are removed. | Both pass; permanent consumer coverage exists. |
@@ -1424,7 +1429,7 @@ Each test generates and installs the dependency model before analyzing the consu
 The consumer checks preserve parameter and return identity, require bidirectional assignment through the consumer's optional re-export, reject structural substitutes, and reject unintended exports.
 The generated consumer output must not contain a copied class or a reference to the removed local API module.
 Both focused regressions pass with original and generated package consumers under TypeScript 6.0.3 and TypeScript 7.0.2.
-This closes the recorded B1 consumer-coverage gap, not the remaining Stage 4 acceptance work.
+This follow-up closed the recorded B1 consumer-coverage gap before final Stage 4 acceptance.
 
 Import-selection coverage follow-up (2026-09-30): the permanent `retains shared imports and excludes beta-only imports without changing public reports` regression covers the B4 probe.
 It checks original, complete, and public package consumers under both compilers for two beta import targets.
@@ -1459,11 +1464,16 @@ Consumers require class identity in both assignment directions, reject structura
 Tagged consumers reject named and namespace access to the untagged function at both entrypoints; all generated artifacts must omit it.
 The focused regression passes without production-code or snapshot changes.
 
-The remaining acceptance step is to repeat the affected checks and record the resulting decision before starting Stage 5.
+Acceptance result (2026-10-01): the user accepted Stage 4 within the approved ESM scope and with the documented limitations below.
+After removal of the obsolete probes, `pnpm build` and the full `pnpm test` run pass with **350 passing tests and 1 pending test**.
+`pnpm lint` (including architecture checks), `pnpm check:format`, `pnpm check:api-models`, and `pnpm check:api-reports` pass.
+The focused native declaration-consumer and custom-tag package-export checks also pass with both supported consumer compilers.
 The two native-emission probes were removed because they tested an unused compiler capability, not the approved detached-syntax generation path.
 Permanent rollup consumer tests replace that investigation gate; native program emission is not a remaining requirement.
 The pending asynchronous-client crash probe remains a separate lifecycle limitation; analysis uses the synchronous client.
 That probe remains visible and is not counted as a passing test.
+Explicit unsupported-generation diagnostics and the approved policy of retaining foreign dependency references remain unchanged.
+This result does not establish production integration readiness or begin Stage 5.
 
 The most recent full verification before this audit passed 339 tests with three existing pending compiler probes, plus build, lint, architecture, formatting, and artifact freshness checks.
 Fresh audit validation passes TypeScript compilation and five permanent tests: unsupported inputs, namespace aliases, module effects, partial suite overloads, and inaccessible nominal support types.
