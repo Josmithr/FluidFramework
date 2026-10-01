@@ -28,6 +28,12 @@ They are not compiled as a standalone workspace.
 	Original, complete, and public package consumers compile with both supported TypeScript versions after each change.
 	Generated output is checked after the original package declarations are removed; public consumers also compile after the beta-only dependency file is removed.
 	The complete report must change, while the public report and rollup must remain identical.
+- `namespace-reexports/` supplies named namespaces and module namespace re-exports, each tested inside and outside the dependency suite.
+	Both compiler versions check classes, interfaces, constants, nested export-list aliases, and nominal identity through original and generated package exports.
+	Suite tests generate and install the dependency model before analyzing the consumer package.
+	After analysis, the tests remove the consumer package's original declaration file but keep dependency declarations installed.
+	Complete output retains the beta namespace; public and empty selections exclude it only when the dependency belongs to the suite.
+	Foreign namespaces remain available for all three selections, and generated output must not copy dependency classes or interfaces.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.

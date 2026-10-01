@@ -502,6 +502,91 @@ describe("Detached declaration rollups", () => {
 		});
 	});
 
+	for (const namespaceKind of ["named", "module"] as const) {
+		for (const inSuite of [true, false]) {
+			it(`preserves ${namespaceKind} namespace re-exports ${inSuite ? "inside" : "outside"} the suite`, async () => {
+				await withRollupProject("api-rollup-namespace-", async (directory) => {
+					const identityConsumer = `consumer-${namespaceKind}.ts`;
+					copyRollupFixtures(
+						directory,
+						(
+							[
+								[`index-${namespaceKind}.d.ts`, "index.d.ts"],
+								["consumer.ts", "consumer.ts"],
+								[identityConsumer, identityConsumer],
+								["consumer-excluded.ts", "consumer-excluded.ts"],
+								["package.json", "package.json"],
+								["tsconfig.json", "tsconfig.json"],
+								[
+									`dependency/${namespaceKind}.d.ts`,
+									"node_modules/namespace-dependency/index.d.ts",
+								],
+								["dependency/package.json", "node_modules/namespace-dependency/package.json"],
+								["tsconfig.json", "node_modules/namespace-dependency/tsconfig.json"],
+							] as const
+						).map(([fixture, destination]) => [`namespace-reexports/${fixture}`, destination]),
+					);
+					const consumers = ["consumer.ts", identityConsumer];
+					compileRollupFiles(directory, consumers);
+					const configuration = {
+						project: "tsconfig.json",
+						entrypoints: [{ name: ".", path: "index.d.ts" }],
+					};
+					if (inSuite) {
+						const dependencyRoot = path.join(
+							directory,
+							"node_modules",
+							"namespace-dependency",
+						);
+						const dependency = await analyzeAPIs(
+							{ ...configuration, packageName: "namespace-dependency" },
+							dependencyRoot,
+						);
+						assert.equal(dependency.ok, true, JSON.stringify(dependency));
+						writeFileSync(
+							path.join(dependencyRoot, "api-model.json"),
+							dependency.value.generateModel(),
+						);
+					}
+					const result = await analyzeAPIs(
+						{
+							...configuration,
+							packageName: "namespace-package",
+							...(inSuite
+								? {
+										suite: { packages: ["namespace-dependency"], modelFile: "api-model.json" },
+									}
+								: {}),
+						},
+						directory,
+					);
+					assert.equal(result.ok, true, JSON.stringify(result));
+
+					// Keep dependency declarations installed to verify identity through package references.
+					rmSync(path.join(directory, "index.d.ts"));
+					for (const selection of [
+						{ name: "complete", releaseLevels: [ReleaseLevel.Public, ReleaseLevel.Beta] },
+						{ name: "public", releaseLevels: [ReleaseLevel.Public] },
+						{ name: "empty", releaseLevels: [] },
+					]) {
+						const generated = result.value.generateRollups(selection);
+						assert.equal(generated.ok, true, JSON.stringify(generated));
+						const text = Object.values(generated.value).join("\n");
+						const included = !inSuite || selection.name === "complete";
+						if (included) {
+							assert.match(text, /namespace-dependency/);
+							assert.doesNotMatch(text, /\b(class|interface)\b/);
+						} else {
+							assert.doesNotMatch(text, /Namespace|namespace-dependency/);
+						}
+						writeRollupArtifacts(directory, generated.value);
+						compileRollupFiles(directory, included ? consumers : ["consumer-excluded.ts"]);
+					}
+				});
+			});
+		}
+	}
+
 	for (const producer of ["typescript6", "typescript"] as const) {
 		for (const scenario of repositoryScenarios) {
 			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {
