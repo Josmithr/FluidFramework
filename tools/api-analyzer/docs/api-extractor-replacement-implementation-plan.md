@@ -1380,7 +1380,7 @@ Suite probes generated and loaded the dependency model before analyzing the cons
 | B1: dependency export aliases | Two permanent [rollup tests](../src/test/rollup.test.ts) use the [dependency-alias fixtures](../src/test/fixtures/rollup/dependency-alias/consumer.ts) with and without a consumer re-export. Original and generated package consumers retain the dependency's nominal identity under TS6 and TS7 after the consumer package's original declarations are removed. | Both pass; permanent consumer coverage exists. |
 | B4: excluded and shared imports | A permanent [rollup regression](../src/test/rollup.test.ts) uses the [import-selection fixtures](../src/test/fixtures/rollup/import-selection/index.d.ts) to retain a shared nominal import and exclude a beta-only import. TS6 and TS7 compile original and generated package consumers, including public consumers after the beta dependency file is removed. Changing only the beta import target changes the complete report but leaves the public report and rollup identical. | Pass; permanent report and consumer coverage exists. |
 | B5: namespace re-exports | Four permanent [rollup regressions](../src/test/rollup.test.ts) use the [namespace-reexport fixtures](../src/test/fixtures/rollup/namespace-reexports/consumer.ts) for named namespaces and `export * as Namespace`, each inside and outside the suite. TS6 and TS7 consumers check member access and nominal identity after source removal. Public and empty selections exclude suite beta namespaces but retain foreign namespaces. | All four pass; permanent consumer coverage exists. |
-| B6: names that shadow built-ins | A fresh probe retains an internal `performance` export in complete output and rejects it in public output. Public artifacts contain neither its declaration nor an alias for it. | Pass. |
+| B6: names that shadow built-ins | A permanent [rollup regression](../src/test/rollup.test.ts) uses the [built-in-shadow fixtures](../src/test/fixtures/rollup/builtin-shadow/index.d.ts) to retain an internal numeric `performance` export in complete output and exclude it from public output. TS6 and TS7 compile package consumers after source removal. Public artifacts contain neither its declaration nor an alias for it, while consumers can still use the global API. | Pass; permanent consumer coverage exists. |
 | Detached generation and partial suite overloads | [Session tests](../src/test/session.test.ts) exercise generation after disposal and output-order independence. [Suite tests](../src/test/suite.test.ts) check selected overload calls, nominal dependency references, and explicit failures for unavailable producer syntax or inaccessible types. | Existing evidence supports the approved strategy; this audit introduces no new generation mechanism. |
 
 The relative-augmentation reproduction uses three declaration files and a package export pointing to `index.d.ts`.
@@ -1440,9 +1440,17 @@ Excluded namespace consumers reject both type and value access.
 Foreign namespaces remain available even for empty selections, and generated output must reference the dependency rather than copy its classes or interfaces.
 All four focused regressions pass without production-code or snapshot changes.
 
+Built-in-shadow coverage follow-up (2026-10-01): the permanent `excludes internal exports that shadow built-ins without leaking aliases` regression covers the B6 probe.
+Both compilers check the original declarations and the complete and public rollups through package exports.
+The test removes the original declaration file before generating output.
+Complete consumers require the numeric `performance` export and reject its use as the global API.
+Public consumers reject named imports and namespace access to the internal export, while retaining the unrelated public marker and global `performance` API.
+An assertion across all public artifacts checks that neither the internal declaration nor an entrypoint alias remains.
+The focused regression passes without production-code or snapshot changes.
+
 Before requesting Stage 4 acceptance:
 
-1. Promote the missing disposable B6 rollup assertions and remaining custom-tag package-export assertions into the existing regression suites.
+1. Promote the remaining custom-tag package-export assertions into the existing regression suites.
 	Keep report-only coverage distinct from generated-declaration consumer coverage.
 2. Repeat the affected acceptance checks and record the resulting decision before starting Stage 5.
 

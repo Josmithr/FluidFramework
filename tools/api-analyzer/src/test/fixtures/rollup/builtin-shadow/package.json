@@ -1,0 +1,5 @@
+{
+	"name": "builtin-shadow",
+	"type": "module",
+	"exports": { ".": { "types": "./index.d.ts" } }
+}

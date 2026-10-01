@@ -34,6 +34,11 @@ They are not compiled as a standalone workspace.
 	After analysis, the tests remove the consumer package's original declaration file but keep dependency declarations installed.
 	Complete output retains the beta namespace; public and empty selections exclude it only when the dependency belongs to the suite.
 	Foreign namespaces remain available for all three selections, and generated output must not copy dependency classes or interfaces.
+- `builtin-shadow/` supplies an internal numeric `performance` export and an unrelated public marker.
+	Both compiler versions check original and generated package consumers after release selection.
+	Generated consumers compile after the original declaration file is removed.
+	Complete output must retain the numeric export without substituting the global API; public output must omit its declaration and entrypoint alias.
+	Public consumers reject named and namespace access to the internal export, while the global `performance` API remains available.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.

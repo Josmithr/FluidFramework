@@ -587,6 +587,54 @@ describe("Detached declaration rollups", () => {
 		}
 	}
 
+	it("excludes internal exports that shadow built-ins without leaking aliases", async () => {
+		await withRollupProject("api-rollup-builtin-shadow-", async (directory) => {
+			copyRollupFixtures(
+				directory,
+				[
+					"index.d.ts",
+					"consumer.ts",
+					"consumer-complete.ts",
+					"consumer-public.ts",
+					"package.json",
+					"tsconfig.json",
+				].map((file) => [`builtin-shadow/${file}`, file]),
+			);
+			compileRollupFiles(directory, ["consumer.ts", "consumer-complete.ts"]);
+			const result = await analyzeAPIs(
+				{
+					packageName: "builtin-shadow",
+					project: "tsconfig.json",
+					entrypoints: [{ name: ".", path: "index.d.ts" }],
+				},
+				directory,
+			);
+			assert.equal(result.ok, true, JSON.stringify(result));
+			rmSync(path.join(directory, "index.d.ts"));
+			for (const complete of [true, false]) {
+				const generated = result.value.generateRollups({
+					name: complete ? "complete" : "public",
+					releaseLevels: complete
+						? [ReleaseLevel.Public, ReleaseLevel.Internal]
+						: [ReleaseLevel.Public],
+				});
+				assert.equal(generated.ok, true, JSON.stringify(generated));
+				const text = Object.values(generated.value).join("\n");
+				if (complete) {
+					assert.match(text, /\bperformance\b/);
+				} else {
+					// Check every artifact, including aliases in the thin entrypoint.
+					assert.doesNotMatch(text, /\bperformance\b/);
+				}
+				writeRollupArtifacts(directory, generated.value);
+				compileRollupFiles(directory, [
+					"consumer.ts",
+					complete ? "consumer-complete.ts" : "consumer-public.ts",
+				]);
+			}
+		});
+	});
+
 	for (const producer of ["typescript6", "typescript"] as const) {
 		for (const scenario of repositoryScenarios) {
 			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {
