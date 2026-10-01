@@ -1,0 +1,4 @@
+{
+	"compilerOptions": { "strict": true, "module": "NodeNext", "types": [] },
+	"files": ["index.d.ts", "second.d.ts"]
+}

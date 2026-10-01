@@ -1,0 +1,8 @@
+{
+	"name": "tag-selection",
+	"type": "module",
+	"exports": {
+		".": { "types": "./index.d.ts" },
+		"./second": { "types": "./second.d.ts" }
+	}
+}

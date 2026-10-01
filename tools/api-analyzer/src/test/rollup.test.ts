@@ -635,6 +635,58 @@ describe("Detached declaration rollups", () => {
 		});
 	});
 
+	it("preserves package-export identity while selecting required tags", async () => {
+		await withRollupProject("api-rollup-tag-selection-", async (directory) => {
+			const declarations = ["index.d.ts", "second.d.ts"];
+			copyRollupFixtures(
+				directory,
+				[
+					...declarations,
+					"consumer.ts",
+					"consumer-unfiltered.ts",
+					"consumer-tagged.ts",
+					"package.json",
+					"tsconfig.json",
+				].map((file) => [`tag-selection/${file}`, file]),
+			);
+			compileRollupFiles(directory, ["consumer.ts", "consumer-unfiltered.ts"]);
+			const result = await analyzeAPIs(
+				{
+					packageName: "tag-selection",
+					project: "tsconfig.json",
+					entrypoints: [
+						{ name: ".", path: "index.d.ts" },
+						{ name: "./second", path: "second.d.ts" },
+					],
+				},
+				directory,
+			);
+			assert.equal(result.ok, true, JSON.stringify(result));
+			for (const file of declarations) {
+				rmSync(path.join(directory, file));
+			}
+			for (const tagged of [false, true]) {
+				const generated = result.value.generateRollups({
+					name: tagged ? "sealed" : "public",
+					releaseLevels: [ReleaseLevel.Public],
+					...(tagged ? { requireTags: ["@sealed"] } : {}),
+				});
+				assert.equal(generated.ok, true, JSON.stringify(generated));
+				const text = Object.values(generated.value).join("\n");
+				if (tagged) {
+					assert.doesNotMatch(text, /\bordinary\b/);
+				} else {
+					assert.match(text, /\bordinary\b/);
+				}
+				writeRollupArtifacts(directory, generated.value);
+				compileRollupFiles(directory, [
+					"consumer.ts",
+					tagged ? "consumer-tagged.ts" : "consumer-unfiltered.ts",
+				]);
+			}
+		});
+	});
+
 	for (const producer of ["typescript6", "typescript"] as const) {
 		for (const scenario of repositoryScenarios) {
 			it(`compiles ${scenario} rollups from ${producer} declarations`, async () => {

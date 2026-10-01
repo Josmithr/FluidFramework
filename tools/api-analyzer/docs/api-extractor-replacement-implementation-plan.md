@@ -749,7 +749,8 @@ Do not infer semantic references by parsing printed type strings. Extend facts t
 Extract the required reference facts before disposing of the snapshot so later policies can reuse detached data without repeating full analysis.
 Documentation-link resolution and inheritance now belong to Stage 2. The function report builder resolves all supplied signature comments before selection and measures effective content.
 An inheritance request alone does not count as documentation. Empty inherited content remains undocumented.
-The declaration-generation gate does not block review and validation work. It remains open for the generation path.
+At this checkpoint, the declaration-generation gate did not block review and validation work and remained open for the generation path.
+Stage 4 later resolved the strategy decision through detached syntax capture and consumer tests, without requiring native program emission.
 The async termination failure also remains open; the planned asynchronous entrypoint may continue using the synchronous adapter with documented blocking behavior.
 
 #### Resolve documentation before report construction
@@ -1359,9 +1360,11 @@ The existing `flub generate entrypoints` command need not be migrated in this st
 #### Stage 4 acceptance audit
 
 Audit date: 2026-09-30.
-Status: **not ready for acceptance**.
+Acceptance recheck date: 2026-10-01.
+Status: **acceptance recheck in progress**.
 The initial relative-module-augmentation blocker is resolved by the implementation follow-up below.
-The missing permanent regression assertions listed below remain an acceptance follow-up.
+The missing permanent regression assertions are now covered by the follow-ups below.
+Final full verification and the acceptance decision remain pending.
 Stage 5 integration has not started.
 
 The audit used ten disposable consumer probes in addition to reviewing the checked-in tests.
@@ -1375,7 +1378,7 @@ Suite probes generated and loaded the dependency model before analyzing the cons
 | Criterion | Evidence | Audit result |
 | --- | --- | --- |
 | W5: complete and trimmed declaration output | The [rollup matrix](../src/test/rollup.test.ts) covers both producer compilers, both consumer compilers, and source removal. Its general repository loop compiles generated declaration files directly; it does not establish all package-export consumer assertions. | The relative-augmentation reproduction now passes; the remaining consumer-coverage follow-ups still apply. |
-| W5: entrypoints, identity, and custom tags | A fresh package-export probe imports one nominal class from root and subpath entrypoints, rejects structural substitution, and excludes an API without `@sealed` using `requireTags: ["@sealed"]`. | Pass for the probed root/subpath configuration. |
+| W5: entrypoints, identity, and custom tags | A permanent [rollup regression](../src/test/rollup.test.ts) uses the [tag-selection consumer](../src/test/fixtures/rollup/tag-selection/consumer.ts) to preserve one nominal class through root and subpath package exports. TS6 and TS7 compile original consumers, then generated consumers after source removal. Requiring `@sealed` retains the class and its members but excludes the untagged function from both entrypoints. | Pass; permanent package-export consumer coverage exists. |
 | W5: prior audit fixes | [Alias](../src/test/fixtures/rollup/aliases.d.ts) and [module-effect](../src/test/fixtures/rollup/effects.d.ts) regressions retain namespace-member aliases, shared nominal identity, external side-effect imports, and external module augmentations. Empty selections retain module effects. | Permanent consumer coverage exists in the rollup tests. |
 | B1: dependency export aliases | Two permanent [rollup tests](../src/test/rollup.test.ts) use the [dependency-alias fixtures](../src/test/fixtures/rollup/dependency-alias/consumer.ts) with and without a consumer re-export. Original and generated package consumers retain the dependency's nominal identity under TS6 and TS7 after the consumer package's original declarations are removed. | Both pass; permanent consumer coverage exists. |
 | B4: excluded and shared imports | A permanent [rollup regression](../src/test/rollup.test.ts) uses the [import-selection fixtures](../src/test/fixtures/rollup/import-selection/index.d.ts) to retain a shared nominal import and exclude a beta-only import. TS6 and TS7 compile original and generated package consumers, including public consumers after the beta dependency file is removed. Changing only the beta import target changes the complete report but leaves the public report and rollup identical. | Pass; permanent report and consumer coverage exists. |
@@ -1448,11 +1451,19 @@ Public consumers reject named imports and namespace access to the internal expor
 An assertion across all public artifacts checks that neither the internal declaration nor an entrypoint alias remains.
 The focused regression passes without production-code or snapshot changes.
 
-Before requesting Stage 4 acceptance:
+Custom-tag coverage follow-up (2026-10-01): the permanent `preserves package-export identity while selecting required tags` regression covers the remaining package-export assertions.
+Static fixtures define root and subpath exports of the same nominal class and a function without `@sealed`.
+Both compilers check original declarations and generated public output with and without `requireTags: ["@sealed"]`.
+The test removes both original declaration files before generation.
+Consumers require class identity in both assignment directions, reject structural substitutes, and retain members of the selected class.
+Tagged consumers reject named and namespace access to the untagged function at both entrypoints; all generated artifacts must omit it.
+The focused regression passes without production-code or snapshot changes.
 
-1. Promote the remaining custom-tag package-export assertions into the existing regression suites.
-	Keep report-only coverage distinct from generated-declaration consumer coverage.
-2. Repeat the affected acceptance checks and record the resulting decision before starting Stage 5.
+The remaining acceptance step is to repeat the affected checks and record the resulting decision before starting Stage 5.
+The two native-emission probes were removed because they tested an unused compiler capability, not the approved detached-syntax generation path.
+Permanent rollup consumer tests replace that investigation gate; native program emission is not a remaining requirement.
+The pending asynchronous-client crash probe remains a separate lifecycle limitation; analysis uses the synchronous client.
+That probe remains visible and is not counted as a passing test.
 
 The most recent full verification before this audit passed 339 tests with three existing pending compiler probes, plus build, lint, architecture, formatting, and artifact freshness checks.
 Fresh audit validation passes TypeScript compilation and five permanent tests: unsupported inputs, namespace aliases, module effects, partial suite overloads, and inaccessible nominal support types.

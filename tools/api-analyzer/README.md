@@ -1619,8 +1619,9 @@ ESLint permits local source paths because good-fences owns layer rules, while ex
 Verified on 2026-09-15 in the Linux codespace after restarting the interrupted session.
 The package build and `pnpm check:format` pass.
 At the end of Stage 0, `pnpm test` reported **19 passing tests and 3 failing tests** and exited unsuccessfully.
-The capability gaps remain unresolved. Their probes now use `it.skip` with stage-specific TODOs.
-A passing test run with these pending probes does not establish readiness for production integration.
+The declaration-emission probe was later superseded by the approved detached-generation strategy and removed.
+The asynchronous-client crash probe remains unresolved and uses `it.skip` with a targeted TODO.
+A passing test run with this pending probe does not establish readiness for production integration.
 
 The analysis engine is TS7 7.0.2. Input builds use TS6 6.0.3 and TS7 7.0.2.
 The package remains private with an independent lockfile; this does not resolve the publication decision.
@@ -1647,7 +1648,7 @@ The harness terminates the worker process group during cleanup, including after 
 
 | Finding | Evidence | Consequence |
 | --- | --- | --- |
-| No retained-program declaration emission in the tested API | The `retained Program exposes declaration emission` test fails for each input compiler because the program exposes neither `emit` nor `getDeclarationEmit`. Its comment identifies it as a temporary W5 capability probe. | Review the generation strategy before production implementation. This is a missing capability in the tested approach, not proof that W5 is impossible through every public API. |
+| No retained-program declaration emission in the tested API | The Stage 0 investigation found neither `emit` nor `getDeclarationEmit` on the retained program. | The approved [Stage 4 strategy](docs/api-extractor-replacement-implementation-plan.md) captures syntax during analysis and generates from detached facts. The obsolete method-presence probe was removed; [rollup consumer tests](src/test/rollup.test.ts) verify the selected generation path. |
 | Async request does not settle after native termination | The async crash worker exits with code 13 and an unsettled top-level await at `assert.rejects(api.getTimingInfo())`. | Do not select the async client without resolving or containing this failure through an approved design. The test does not establish the behavior of every operation or failure mode. |
 | Reuse evidence is narrow | A cached export query records zero requests; related queries retain their snapshot. | This does not measure compiler-wide recomputation or prove reuse across implemented reports, validation, models, and declarations. Those tasks do not exist yet. |
 | Generation evidence is narrow | Existing declaration source files are printed and consumed successfully. Fixture declaration builds invoke the compiler CLI separately. | Neither operation proves trimmed rollups, dependency inclusion, import cleanup, or generation from retained semantic analysis. |
@@ -1663,13 +1664,14 @@ No production analyzer API, custom compiler bridge, compiler patch, or migration
 
 ### Review decisions
 
-1. **Declaration generation:** Decide whether to evaluate a newer published TS7 API or an existing compatible generation component. Preserve the shared-analysis requirement. Do not assume development-only emit APIs are released or silently use TS6 analysis.
+1. **Declaration generation:** Resolved on 2026-09-28 by approval of detached syntax capture and generation. The implementation preserves the shared-analysis requirement without native program emission or TS6 analysis.
 2. **Client selection:** Consider the synchronous client for the next stage, then run the full semantic suite through it and document blocking, cancellation, and crash behavior before approval.
 3. **Capability gate handling:** Keep the reproductions visible. Decide how to separate investigation gates from a future required production test suite without representing unresolved capabilities as passing.
 4. **Upstream follow-up:** Confirm current upstream coverage for both findings and record exact issue links before filing a new report. This resumed verification has not established those links or filed issues.
 
 Stage 0 has produced a scaffold and reproducible capability evidence, including failed gates.
-The declaration-generation strategy and upstream reproductions remain open follow-ups. Stage 1 proceeds independently of those generation gates.
+The declaration-generation strategy is now resolved; the asynchronous-client termination failure remains an open follow-up.
+Stage 1 proceeded independently of the original generation investigation.
 
 ## Stage 1 results
 
@@ -1682,7 +1684,8 @@ The full suite was not rerun for the helper extraction refactor or the test-name
 The [configuration tests](src/test/configuration.test.ts), [one-shot analysis tests](src/test/session.test.ts), [native capability tests](src/test/nativeCapabilities.test.ts), and [lifecycle tests](src/test/lifecycle.test.ts) now cover the revised contracts.
 They verify ordered configuration inheritance, immutable effective settings, fresh analysis after input changes, and cleanup on success and failure.
 The analyzer processes declarations built with TS6 6.0.3 and TS7 7.0.2 through TS7 7.0.2.
-The full synchronous semantic suite also passes the original semantic and printing checks; the missing emit-method gates still fail.
+At that checkpoint, the full synchronous semantic suite passed the original semantic and printing checks; the missing emit-method probes still failed.
+Stage 4 later replaced those probes with tests of the approved generation path.
 
 Additional tests verify chained type-only exports, namespace and merged declaration facts, effective members, separate overload identities, and explicit incomplete expansion.
 Node and browser dependency fixtures retain their distinct types and package origins.

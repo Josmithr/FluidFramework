@@ -4748,15 +4748,5 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				}
 			});
 		});
-
-		// TODO (Stage 0 declaration-generation gate, Stage 4, W5): Re-enable when the selected
-		// compiler API supports retained-program emit, or replace with tests of the approved generation path.
-		// TS7 7.0.2 exposes neither method. Skipping this probe does not remove the rollup requirement.
-		it.skip("retained Program exposes declaration emission", () => {
-			assert(
-				"emit" in project.program || "getDeclarationEmit" in project.program,
-				"TS7 7.0.2 has no public Program declaration emit method; a generation strategy needs review",
-			);
-		});
 	});
 }

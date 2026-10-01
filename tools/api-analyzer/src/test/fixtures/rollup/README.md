@@ -39,6 +39,11 @@ They are not compiled as a standalone workspace.
 	Generated consumers compile after the original declaration file is removed.
 	Complete output must retain the numeric export without substituting the global API; public output must omit its declaration and entrypoint alias.
 	Public consumers reject named and namespace access to the internal export, while the global `performance` API remains available.
+- `tag-selection/` supplies a public `@sealed` class and a public function without that modifier, both exported from the root and a subpath.
+	Both compiler versions check consumers against the original declarations.
+	Generated public and tag-filtered consumers compile after the original declaration files are removed.
+	Consumers require class identity in both assignment directions, reject structural substitutes, and retain members through the selected class.
+	Requiring `@sealed` must remove the untagged function and its aliases from both entrypoints, while release selection alone retains it.
 
 The [rollup tests](../../rollup.test.ts) compare reviewed artifact snapshots and compile this consumer.
 The same tests extend the repository fixture matrix with complete and public declaration outputs from both producer compilers.
