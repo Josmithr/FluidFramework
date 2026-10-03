@@ -180,7 +180,8 @@ Adds support for 2 custom tags:
 
 User-defined analysis rules:
 - An API must not be both `@output` and `@input`
-- An API `extending` or `implementing` another API with either of these tags inherits them by default.
+- An API extending or implementing another API with either of these tags inherits them by default.
+- An API extending or implementing another API with `@input` or `@output` must not specify the other.
 
 ### Doc transformations
 
