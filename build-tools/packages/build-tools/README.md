@@ -42,6 +42,8 @@ detection for a range of tools and multiple workspace (a.k.a. release group) in 
 Usage: fluid-build <options> [(<package regexp>|<path>) ...]
     [<package regexp> ...] Regexp to match the package name (default: all packages)
 Options:
+   --api-report-mode <mode> API report policy: update or check (default: check)
+   --api-output-profile <name> Analyzer output profile (default: all)
      --all                  Operate on all packages/monorepo (default: client monorepo). See also "-g" or "--releaseGroup".
   -c --clean                Same as running build script 'clean' on matched packages (all if package regexp is not specified)
   -d --dep                  Apply actions (clean/force/rebuild) to matched packages and their dependent packages
@@ -112,7 +114,7 @@ This definitions applies to all packages in the repo (but not release group root
 doesn't have to appear on every package and will be ignored if it is not found.
 
 The task definitions is an object with task names as keys, the task dependencies and config to define the action of the task.
-For more details, see the definition `TaskDefinitionsOnDisk` in [./src/common/fluidTaskDefinitions.ts](./src/common/fluidTaskDefinitions.ts)
+For more details, see the definition `TaskDefinitionsOnDisk` in [./src/fluidBuild/fluidTaskDefinitions.ts](./src/fluidBuild/fluidTaskDefinitions.ts).
 
 For example:
 
@@ -214,6 +216,67 @@ Release group root scripts support can be enabled by adding `fluidBuild.tasks` t
 will follow the definition if specified for the task, or it will trigger the root script if the script doesn't invoke `fluid-build`.
 If the script doesn't exist or if it starts with `fluid-build`, then fluid-build will fall back to the default behavior of triggering the task
 on all the packages within the release group. There is no support for "global definitions." Task definitions in `fluidBuild.config.cjs` only apply to packages, not release group roots. Release group root scripts must be defined in the `fluidBuild.tasks` section of the root's `package.json`.
+
+### Experimental programmatic API analysis
+
+A package can opt into a programmatic analyzer task with `kind: "api-analyzer"` under `fluidBuild.tasks`.
+Do not add a matching package script or `script: false`; this task performs work directly.
+The task resolves the private ESM `api-analyzer` package from the target package and requires it to be installed and built.
+Global task defaults do not activate analysis in packages that have not opted in.
+
+The TypeScript task contract is a discriminated union over common scheduling metadata.
+Only the `kind: "api-analyzer"` variant has analyzer settings; script tasks and dependency-only aliases retain their existing configuration.
+Narrow by `kind` before accessing analyzer fields. Analyzer definitions cannot supply `script`; their optional `files` settings configure incremental tracking without replacing programmatic execution.
+The [task factory](src/fluidBuild/tasks/taskFactory.ts) selects concrete programmatic implementations; the build graph uses one registration path for non-script targets.
+Tasks expose their required-dependency policy through the common task abstraction, so graph construction does not depend on a specific tool.
+
+The [checked-in pilot configuration](src/test/data/api-analyzer/package/package.json) illustrates `analyzer`, named `selections`, `profiles`, and `outputs` settings.
+Analysis configuration uses the analyzer's existing object inheritance; named selections and profiles merge by name, and output arrays replace inherited arrays.
+One analysis supplies all requested rollups, the complete model, and selected reports.
+Every analyzer mode generates the complete model, including an empty validation profile.
+A model destination is required; omitted report and rollup categories remain disabled.
+All output paths are package-relative; overlapping destinations, input overwrites, symlinks, and unowned existing generated files are rejected.
+Input declarations must be in a separate directory from outputs.
+
+Use these commands to update eligible baselines locally, check them without changes, or generate only outputs in a configured documentation profile:
+
+```sh
+fluid-build --task api --api-report-mode update
+fluid-build --task api --api-report-mode check
+fluid-build --task api --api-output-profile docs
+```
+
+Report mode defaults to `check`, regardless of the build target's name.
+A report with `mode: "check"` never updates; omitted mode or `mode: "build"` follows the invocation option.
+Missing or different checked reports fail the task, but successfully generated models and rollups are still written.
+Analysis or generation failures prevent artifact publication.
+Writes use atomic per-file replacement, not a transaction across all outputs.
+The `.fluid-build-api.outputs.json` ownership manifest supports recovery and removes only obsolete owned generated files; un-requested configured outputs and accepted report baselines are retained.
+The manifest is not a successful-build or publication marker.
+
+The task holds a package-local `.fluid-build-api.lock` during execution.
+If a process terminates without cleanup, verify that no analyzer build is running before removing the abandoned lock and retrying.
+Do not remove the ownership manifest as part of normal recovery.
+
+Use the existing `dependsOn: ["^api"]` convention, together with raw declaration-build prerequisites, to order local analyzer tasks.
+Shared suite wildcards select Fluid dependencies for analysis; packages without suite dependencies omit the suite setting.
+Analyzer caret prerequisites are required in every matching local graph dependency, rather than silently skipped when a task is absent.
+Missing local producer tasks or model destinations fail the build. Installed dependencies outside the graph must already contain their model artifacts; the analyzer validates availability and freshness.
+No public planning API or duplicate analyzer suite-discovery implementation is needed.
+
+Configure the standard `files.inputGlobs` and `files.outputGlobs` settings to enable hash-based incremental completion.
+Input globs must cover all declaration inputs, project and inherited configuration files, external type inputs, and relevant input membership changes.
+The task additionally tracks package metadata, the package-local analyzer build, Node version, effective settings, report mode, profile, exact requested artifact files, and the ownership manifest.
+Lockfiles are included by default; only disable `includeLockFiles` when the input contract accounts for dependency changes separately.
+Declaration inputs are often gitignored outputs, so the analyzer task does not exclude gitignored inputs by default.
+Task authors remain responsible for a complete input set; there is no inferred compiler input inventory.
+Missing artifacts, changed baselines, and invalidated producer tasks force execution. Failed runs do not write a success marker.
+Tasks without `files` settings always reanalyze rather than claim unsupported incremental correctness.
+
+The current implementation supports one task and one analysis context per package and runs in the main process.
+It does not retry through a shell command or restore cached semantic analysis.
+Worker execution, platform parity, and production workflow migration remain later integration steps.
+Existing extractor tasks and local/CI build wrappers are unchanged.
 
 ### Concurrency
 

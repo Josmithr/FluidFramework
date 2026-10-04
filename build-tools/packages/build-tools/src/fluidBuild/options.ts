@@ -30,6 +30,19 @@ interface FastBuildOptions extends IPackageMatchedOptions {
 	worker: boolean;
 	workerThreads: boolean;
 	/**
+	 * Invocation-wide policy for analyzer reports whose configuration follows the build mode.
+	 * Check-only reports remain read-only in either mode.
+	 * @defaultValue `"check"`
+	 */
+	apiReportMode: "update" | "check";
+
+	/**
+	 * Analyzer output profile applied to each configured task in this invocation.
+	 * The implicit `all` profile requests every configured output category.
+	 * @defaultValue `"all"`
+	 */
+	apiOutputProfile: string;
+	/**
 	 * Per worker, in bytes.
 	 * When a worker is finished with a task, if this is exceeded, a new worker is spawned.
 	 */
@@ -56,6 +69,8 @@ export const options: FastBuildOptions = {
 	all: false,
 	worker: false,
 	workerThreads: false,
+	apiReportMode: "check",
+	apiOutputProfile: "all",
 	// Setting this lower causes more worker restarts, but uses less memory.
 	// Since using too much memory can cause slow downs, and too many worker restarts can also cause slowdowns,
 	// it's a tradeoff.
@@ -73,6 +88,8 @@ function printUsage(): void {
 Usage: fluid-build <options> [(<package regexp>|<path>) ...]
     [<package regexp> ...] Regexp to match the package name (default: all packages)
 Options:
+	--api-report-mode <mode> API report policy: update or check (default: check)
+	--api-output-profile <name> Analyzer output profile (default: all)
      --all                  Operate on all packages/monorepo (default: client monorepo). See also "-g" or "--releaseGroup".
   -c --clean                Same as running build script 'clean' on matched packages (all if package regexp is not specified)
   -d --dep                  Apply actions (clean/force/rebuild) to matched packages and their dependent packages
@@ -138,6 +155,27 @@ export function parseOptions(argv: string[]): void {
 		}
 
 		const arg = process.argv[i];
+
+		// Shared prerequisites can be reached by both local and CI targets; policy belongs to the invocation, not a task name.
+		if (arg === "--api-report-mode" || arg === "--api-output-profile") {
+			const value = argv[++i];
+			if (
+				value === undefined ||
+				value.trim().length === 0 ||
+				value.startsWith("-") ||
+				(arg === "--api-report-mode" && value !== "check" && value !== "update")
+			) {
+				errorLog(`Invalid or missing argument for ${arg}`);
+				error = true;
+				break;
+			}
+			if (arg === "--api-report-mode") {
+				options.apiReportMode = value as "update" | "check";
+			} else {
+				options.apiOutputProfile = value;
+			}
+			continue;
+		}
 
 		if (arg === "-?" || arg === "--help") {
 			printUsage();

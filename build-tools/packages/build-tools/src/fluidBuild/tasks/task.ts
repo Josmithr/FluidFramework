@@ -68,6 +68,18 @@ export abstract class Task {
 		return this.node.pkg;
 	}
 
+	/**
+	 * Whether each declared caret prerequisite must exist in every local dependency package.
+	 *
+	 * @remarks
+	 * Tasks that consume required producer artifacts can opt into strict dependency resolution.
+	 * The default preserves optional caret matching for existing scripts and dependency-only aliases.
+	 * @defaultValue `false`
+	 */
+	public get requireDependencyTasks(): boolean {
+		return false;
+	}
+
 	// Initialize dependent tasks and collect newly created tasks to be initialized iteratively
 	// See `BuildPackage.createTasks`
 	public initializeDependentTasks(pendingInitDep: Task[]): void {

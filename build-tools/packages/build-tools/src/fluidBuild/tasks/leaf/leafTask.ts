@@ -242,7 +242,16 @@ export abstract class LeafTask extends Task {
 		return this.execDone(startTime, BuildResult.Success, ret.worker);
 	}
 
-	private async execCore(): Promise<TaskExecResult> {
+	/**
+	 * Executes the configured worker or shell command without recording task completion.
+	 *
+	 * @remarks
+	 * The default implementation can retry certain worker failures through the command path.
+	 * Programmatic tasks override this method when their execution or retry policy differs.
+	 *
+	 * @returns Execution output and failure information consumed by {@link LeafTask.exec}.
+	 */
+	protected async execCore(): Promise<TaskExecResult> {
 		const workerPool = this.node.context.workerPool;
 		if (workerPool && this.useWorker) {
 			const workerResult = await workerPool.runOnWorker(

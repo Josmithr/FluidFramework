@@ -20,7 +20,7 @@
 		"incremental": true,
 	},
 	"include": ["./**/*"],
-	"exclude": [],
+	"exclude": ["./data/api-analyzer/**"],
 	"references": [
 		{
 			"path": "../..",

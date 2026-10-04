@@ -1,0 +1,56 @@
+{
+	"name": "analyzer-dependent",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {},
+	"dependencies": {
+		"analyzer-pilot": "1.0.0"
+	},
+	"fluidBuild": {
+		"tasks": {
+			"api": {
+				"kind": "api-analyzer",
+				"dependsOn": [
+					"^api"
+				],
+				"files": {
+					"inputGlobs": [
+						"inputs/**",
+						"tsconfig.json",
+						"package.json"
+					],
+					"outputGlobs": [],
+					"includeLockFiles": false
+				},
+				"analyzer": {
+					"packageName": "analyzer-dependent",
+					"project": "tsconfig.json",
+					"entrypoints": [
+						{
+							"name": ".",
+							"path": "inputs/index.d.ts"
+						}
+					],
+					"suite": {
+						"packages": [
+							"analyzer-*"
+						],
+						"modelFile": "model/api.json"
+					}
+				},
+				"profiles": {
+					"docs": [
+						"model"
+					],
+					"validate": []
+				},
+				"outputs": {
+					"model": {
+						"file": "model/api.json"
+					}
+				}
+			}
+		}
+	}
+}

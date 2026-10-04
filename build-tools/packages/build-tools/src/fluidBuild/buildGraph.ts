@@ -157,9 +157,10 @@ export class BuildPackage {
 	private createTask(taskName: string, pendingInitDep: Task[]): Task | undefined {
 		const config = this.getTaskDefinition(taskName);
 		if (config?.script === false) {
-			const task = TaskFactory.CreateTargetTask(this, this.context, taskName);
+			const task = TaskFactory.CreateNonScriptTask(this, this.context, taskName, config);
 			pendingInitDep.push(task);
 			this.tasks.push(task);
+			// Reuse one instance for every reference to this named target, regardless of task kind.
 			this.targetTasks.set(taskName, task);
 			return task;
 		}
@@ -275,11 +276,28 @@ export class BuildPackage {
 		traceTaskDepTask(
 			`Expanding dependsOn: ${task.nameColored} -> ${JSON.stringify(taskConfig.dependsOn)}`,
 		);
-		return this.getMatchedTasks(taskConfig.dependsOn, pendingInitDep);
+		return this.getMatchedTasks(
+			taskConfig.dependsOn,
+			pendingInitDep,
+			task.requireDependencyTasks,
+		);
 	}
 
-	// Create or get the task with names in the `deps` array
-	private getMatchedTasks(deps: readonly string[], pendingInitDep?: Task[]): Task[] {
+	/**
+	 * Resolves configured task dependencies using the existing local package graph.
+	 *
+	 * @param deps - Task dependency expressions to resolve.
+	 * @param pendingInitDep - Queue for newly created tasks; omission only matches already scheduled tasks.
+	 * @param requireDependencyTasks - Whether a missing caret prerequisite is an error in each local dependency.
+	 * Defaults to false; executable tasks can request strict matching through their dependency policy.
+	 * @returns Matching tasks in dependency-expression order.
+	 * @throws If a required task cannot be found.
+	 */
+	private getMatchedTasks(
+		deps: readonly string[],
+		pendingInitDep?: Task[],
+		requireDependencyTasks = false,
+	): Task[] {
 		const matchedTasks: Task[] = [];
 		for (const dep of deps) {
 			// If pendingInitDep is undefined, that mean we don't expect the task to be found, so pretend that we already found it.
@@ -300,6 +318,10 @@ export class BuildPackage {
 						const depTask = depPackage.getTask(taskName, pendingInitDep);
 						if (depTask !== undefined) {
 							matchedTasks.push(depTask);
+						} else if (requireDependencyTasks) {
+							throw new Error(
+								`${this.pkg.nameColored}: Unable to find required task '${taskName}' in local dependency '${depPackage.pkg.name}'`,
+							);
 						}
 					}
 				}

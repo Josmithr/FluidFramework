@@ -7,9 +7,10 @@ import { getExecutableFromCommand } from "../../common/utils.js";
 import type { BuildContext } from "../buildContext.js";
 import type { BuildPackage } from "../buildGraph.js";
 import { validateDeclarativeTaskPathSeparators } from "../fluidBuildConfig.js";
-import type { TaskFileDependencies } from "../fluidTaskDefinitions.js";
+import type { TaskConfig, TaskFileDependencies } from "../fluidTaskDefinitions.js";
 import { isConcurrentlyCommand, parseConcurrentlyCommand } from "../parseCommands.js";
 import { GroupTask } from "./groupTask.js";
+import { ApiAnalyzerTask } from "./leaf/apiAnalyzerTask.js";
 import { ApiExtractorTask } from "./leaf/apiExtractorTask.js";
 import { BiomeTask } from "./leaf/biomeTasks.js";
 import { DeclarativeLeafTask } from "./leaf/declarativeTask.js";
@@ -131,6 +132,37 @@ function getRunScriptName(command: string, packageManager: string): string | und
 }
 
 export class TaskFactory {
+	/**
+	 * Constructs a programmatic task or dependency-only target from its normalized configuration.
+	 *
+	 * @remarks
+	 * Construction stays separate from graph registration and dependency initialization.
+	 * A programmatic kind selects executable work even though no package script is used.
+	 *
+	 * @param node - Package that owns the task.
+	 * @param context - Shared build context.
+	 * @param taskName - Configured task name used for dependency lookup.
+	 * @param config - Normalized non-script task definition.
+	 * @returns The concrete programmatic task or dependency-only group.
+	 * @throws If a script definition is supplied or the selected task cannot be constructed.
+	 */
+	public static CreateNonScriptTask(
+		node: BuildPackage,
+		context: BuildContext,
+		taskName: string,
+		config: TaskConfig,
+	): GroupTask | LeafTask {
+		if (config.script) {
+			throw new Error(`Task '${taskName}' requires script-based construction`);
+		}
+		switch (config.kind) {
+			case "api-analyzer":
+				return new ApiAnalyzerTask(node, context, taskName, config);
+			case undefined:
+				return TaskFactory.CreateTargetTask(node, context, taskName);
+		}
+	}
+
 	public static Create(
 		node: BuildPackage,
 		command: string,

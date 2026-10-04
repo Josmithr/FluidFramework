@@ -1,0 +1,89 @@
+{
+	"name": "analyzer-pilot",
+	"version": "1.0.0",
+	"private": true,
+	"homepage": "https://fluidframework.com",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/microsoft/FluidFramework.git",
+		"directory": "build-tools/packages/build-tools/src/test/data/api-analyzer/package"
+	},
+	"license": "MIT",
+	"author": "Microsoft and contributors",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./inputs/index.d.ts"
+		}
+	},
+	"scripts": {},
+	"fluidBuild": {
+		"tasks": {
+			"api": {
+				"kind": "api-analyzer",
+				"files": {
+					"inputGlobs": [
+						"inputs/**",
+						"tsconfig.json",
+						"package.json"
+					],
+					"outputGlobs": [],
+					"includeLockFiles": false
+				},
+				"analyzer": {
+					"packageName": "analyzer-pilot",
+					"project": "tsconfig.json",
+					"entrypoints": [
+						{
+							"name": ".",
+							"path": "inputs/index.d.ts"
+						}
+					]
+				},
+				"selections": {
+					"public": {
+						"releaseLevels": [
+							"public"
+						]
+					}
+				},
+				"profiles": {
+					"docs": [
+						"model"
+					],
+					"validate": []
+				},
+				"outputs": {
+					"model": {
+						"file": "model/api.json"
+					},
+					"rollups": [
+						{
+							"selection": "public",
+							"directory": "types"
+						}
+					],
+					"reports": [
+						{
+							"entrypoint": ".",
+							"selection": "public",
+							"file": "reports/api.md"
+						}
+					]
+				}
+			},
+			"compile": {
+				"script": false,
+				"dependsOn": [
+					"api"
+				]
+			},
+			"build:docs": {
+				"script": false,
+				"dependsOn": [
+					"api"
+				]
+			}
+		}
+	}
+}

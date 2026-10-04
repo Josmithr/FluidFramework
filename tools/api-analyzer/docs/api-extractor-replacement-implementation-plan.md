@@ -14,7 +14,8 @@ The user explicitly deferred the remaining follow-ups until the rest of the libr
 This is an accepted limitation, not an assertion of full TSDoc conformance.
 Stage 3 implements portable documentation models and source-free artifact readers; Stage 4 implements detached declaration rollups.
 The user accepted Stage 3 on 2026-09-25, including its documented limitations and three pending compiler probes.
-The user accepted Stage 4 on 2026-10-01 within the approved ESM scope and with its documented limitations; Stage 5 has not started.
+The user accepted Stage 4 on 2026-10-01 within the approved ESM scope and with its documented limitations.
+Stage 5 integration design is in progress; no production migration has started.
 Source invalidation and watch mode are not initial API requirements; persistent reuse across builds is deferred.
 Architecture direction agreed on 2026-09-17: follow the [layered architecture proposal](Architecture-Proposal.md).
 The initial source-directory migration is implemented for utilities, shared contracts, analysis, and report generation.
@@ -1370,7 +1371,7 @@ The initial relative-module-augmentation blocker is resolved by the implementati
 The missing permanent regression assertions are now covered by the follow-ups below.
 Final full verification passes for the approved Stage 4 scope.
 The user accepted Stage 4 within the approved ESM scope, including its documented limitations and the one pending asynchronous-client crash probe.
-Stage 5 integration has not started.
+At Stage 4 acceptance, Stage 5 integration had not started; the current design proposal follows below.
 
 The audit used ten disposable consumer probes in addition to reviewing the checked-in tests.
 The initial run passed nine probes and reproduced one relative-augmentation blocker.
@@ -1495,6 +1496,271 @@ The initial audit did not rerun that full matrix or change production code, snap
 Exit: W6, W8, W9, and W11 pass in repository integration, including artifact completion and publication status.
 Persistent analysis caches are deferred to the follow-up tracker, not required for initial delivery.
 Future caching must pass the invalidation and fresh-analysis equivalence tests before use.
+
+#### Combined task integration proposal
+
+Status (2026-10-04): implementation in progress under the approved design and the model-generation decision below.
+Stage 4 remains accepted. Stage 5 design work has started; production migration has not started.
+
+Proposed direction: add one Fluid Build task for `api-analyzer` that performs shared analysis once and generates every requested rollup, model, and report from that result.
+Configuration selects the outputs and their destinations.
+Keep output writing and baseline checks outside the analyzer's compiler-free generators.
+
+##### Confirmed integration decisions
+
+- Add a programmatic Fluid Build task configured under `package.json`'s `fluidBuild` field. Do not add an analyzer executable or a dummy package script.
+- Reuse one completed analysis for all requested rollups, models, and reports in an analysis context.
+- Local builds update eligible report baselines; CI checks them. A check-only report must never update, including during a local build.
+- A report comparison failure may still publish successfully generated artifacts, but the task must fail and must not record successful completion.
+- Start with one analysis context in the first pilot. Multiple compiler-resolution contexts require an explicit later design within Stage 5.
+- Select report mode once per Fluid Build invocation with a proposed `--api-report-mode update|check` option. An invocation without the option defaults to `check`; local and CI wrappers explicitly select their intended mode.
+- Resolve the analyzer from the target package, following the current extractor ownership pattern. Provision the private analyzer as an explicit local development dependency for the pilot; do not silently fall back to Fluid Build's version or a hard-coded repository path.
+- Include named output profiles in the first pilot, including documentation-only and validation-only requests, without duplicating analysis configuration.
+- After checked-in fixture tests, use `@fluidframework/core-utils` as the first isolated representative package pilot.
+
+The user confirmed report mode, package resolution, output profiles, and the representative pilot on 2026-10-02.
+The user approved proceeding with the design, then simplified dependency handling on 2026-10-04:
+
+- Every Fluid Build analyzer mode generates its package's complete model, including validation-only and documentation-only profiles.
+- Fluid Build uses its existing local dependency graph and task prerequisites to order model producers before consumers.
+- Shared suite wildcards select Fluid dependencies; the analyzer continues to reject missing, invalid, or stale required models.
+- Missing required local tasks and model destinations fail explicitly. No new analyzer planning API is needed.
+- Standard file-hash completion tracking avoids rerunning unchanged work when the task has a complete configured input set.
+
+The current implementation uses the existing `files` tracking settings and completion-file lifecycle.
+It tracks requested artifact existence and hashes in addition to inputs, configuration, execution mode, and tool state.
+Without explicit file tracking it runs conservatively on every invocation.
+Dependency-pair fixtures exercise model generation and invalidation in producer order; worker execution and production migration remain pending.
+Verification on 2026-10-04: 214 build-tools package tests pass, including mandatory models, required local prerequisites, and incremental invalidation.
+An isolated two-package build using the actual analyzer generated both models, skipped unchanged work, and rebuilt the producer and consumer after deletion of the producer model.
+
+##### Current integration evidence
+
+- The [API Extractor task](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/apiExtractorTask.ts) extends `TscDependentTask`, loads the package's extractor version, and includes report content hashes in its completion state.
+- The [shared TypeScript-dependent task](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/tscTask.ts) tracks tool version, selected config contents, and prerequisite TypeScript build information. That state alone does not establish that every requested rollup or model still exists.
+- The [extractor worker](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/workers/apiExtractorWorker.ts) invokes the package-local tool programmatically. The new task can follow that ownership pattern without retaining API Extractor's command syntax or CommonJS loading.
+- The [shared extractor config](../../../common/build/build-common/api-extractor-base.json) disables outputs by default and lets package configs opt in. Retain that explicit-output pattern where practical.
+- The analyzer's [self-artifact script](../src/generateApiArtifacts.ts) already generates a report and model from one analysis and prepares all selected content before writing. It is a package-specific development script, not the proposed general build runner.
+- The analyzer's [configuration resolver](../src/configuration.ts) handles analysis policy and ordered object inheritance. Output destinations and write/check modes are not part of that configuration contract.
+- The [task definitions](../../../build-tools/packages/build-tools/src/fluidBuild/fluidTaskDefinitions.ts) distinguish script tasks from dependency-only aliases. [Task creation](../../../build-tools/packages/build-tools/src/fluidBuild/buildGraph.ts) currently requires a package script for executable work.
+- The [shared leaf runner](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/leaf/leafTask.ts) can retry a worker error through a command. A programmatic task with possible output writes must not inherit that fallback unchanged.
+- The [repository task graph](../../../fluidBuild.config.cjs) reaches API work through compile, report, documentation, and entrypoint tasks. Local and CI builds share prerequisites, so separate leaf names cannot safely determine report mode.
+
+##### Task registration and scheduling
+
+Add a task-kind discriminator, proposed as `kind: "api-analyzer"`, to the existing Fluid Build task definition.
+Keep `dependsOn`, `before`, `after`, and their existing dependency syntax.
+A task with this kind performs work without a matching `scripts` entry; it is not a `script: false` alias.
+Reject combinations of the new kind with script-only settings or an ambiguous same-named package script.
+Existing task definitions retain their current behavior.
+This is a bounded addition for the analyzer task, not a general plugin system.
+
+Each package has one canonical analyzer task for the configured analysis context.
+During migration, existing compile, report, documentation, and entrypoint targets depend on that same task rather than creating separate analyzer invocations.
+All targets share the invocation's selected output profile; a retained alias must not run a second analysis for its preferred output.
+Each execution always generates its model; profiles select additional report and rollup work without introducing separate analyzer invocations.
+Packages opt into the new kind explicitly. Do not globally replace extractor task mappings while unmigrated packages still use them.
+
+Dependencies must provide the package's untrimmed, comment-preserving declaration inputs and every selected suite model before analysis starts.
+Use the existing package-task dependency notation, such as `^api`, for local producers.
+Analyzer task prerequisites must not silently skip missing local tasks, and every executable analyzer task requires a model destination.
+Use a consistent model path in shared producer outputs and consumer suite settings; the analyzer fails if a required model is unavailable at that path.
+Selected-but-unused models remain prerequisites because the analyzer validates the whole selected suite.
+Outside-suite packages provide installed declarations and remain opaque dependency references.
+Do not infer dependencies from an output filename alone or silently accept a missing selected model.
+
+Do not make raw declaration compilation depend on the same package's rollups.
+Where compilation of a downstream package needs a dependency's published entrypoints, order that compilation after the dependency's analyzer task.
+Detect dependency cycles and overlapping artifact owners when constructing the graph, before running or writing anything.
+The initial pilot must demonstrate this ordering with a small dependency pair before adoption by a release group.
+
+##### Configuration boundary
+
+Put build scheduling and output requests under `fluidBuild.tasks.<taskName>`.
+Keep the analysis object compatible with the analyzer's existing `Configuration` contract; retain ordered object inheritance, entrypoint names, suite selectors, and rule overrides.
+Output destinations, report modes, and file ownership belong to the Fluid Build adapter, not the analyzer's semantic configuration or generator APIs.
+Omitted report and rollup categories are disabled. A model destination is required, and every mode performs model generation after successful shared validation.
+
+The following illustrative package configuration requests one public rollup set, one complete model, and one public report from the same analysis.
+The task fields and string release-level conversion are implemented; the example assumes the referenced raw declaration task exists.
+
+```json
+{
+	"fluidBuild": {
+		"tasks": {
+			"api": {
+				"kind": "api-analyzer",
+				"dependsOn": ["build:esnext", "^api"],
+				"analyzer": {
+					"packageName": "@example/package",
+					"project": "tsconfig.api.json",
+					"entrypoints": [{ "name": ".", "path": "lib/index.d.ts" }]
+				},
+				"selections": {
+					"public": { "releaseLevels": ["public"] }
+				},
+				"profiles": {
+					"docs": ["model"],
+					"validate": []
+				},
+				"outputs": {
+					"rollups": [{ "selection": "public", "directory": "dist/types/public" }],
+					"model": { "file": "api-model/package.api.json" },
+					"reports": [
+						{
+							"entrypoint": ".",
+							"selection": "public",
+							"file": "api-report/package.public.api.md",
+							"mode": "build"
+						}
+					]
+				}
+			}
+		}
+	}
+}
+```
+
+The adapter converts a selection's name and string release levels into `ApiItemSelection` and the public `ReleaseLevel` enum.
+Reuse `includeUntagged`, `requireTags`, and `excludeTags`; do not implement a second selection engine.
+Reject unknown selection names, release levels, entrypoints, output fields, and invalid paths before analysis.
+The model is complete and unfiltered, matching `generateModel()`; only reports and rollups use selections.
+Report presentation options reuse `generateReport`'s existing presentation contract.
+Each rollup request writes the entire returned artifact set under its directory, preserving every package-relative filename, including the shared declaration module.
+Different rollup selections require separate output directories.
+
+Paths are package-relative by default. Reuse `${repoRoot}` only where Fluid Build already supports it, such as additional tracked config files; do not introduce extractor-specific path tokens.
+Require artifact destinations to stay within the owning package for the first pilot and reject paths that escape through symlinks.
+Input declaration directories, source directories, report baselines, and generated artifact directories must not overlap in ways that permit an output to overwrite an input or another output.
+The example's `tsconfig.api.json` and `build:esnext` are supplied by the pilot package; they are not implicit defaults.
+
+Reuse repository task defaults for scheduling and shared configuration.
+Analysis inheritance must use the existing object-layer semantics, not a new string-valued analyzer `extends` convention.
+The task normalizer must preserve the new fields when applying package overrides; output arrays replace inherited arrays rather than append implicitly.
+Define these merge rules in tests before supporting shared task presets.
+
+##### Independent output profiles
+
+Add an invocation-wide profile selector, proposed as `--api-output-profile <name>`.
+The implicit default profile, `all`, requests every configured output category; it is not a request to enable unconfigured outputs.
+Other profiles list categories from `rollups`, `model`, and `reports`, as shown above.
+`docs` requests the model without report generation, comparison, or baseline updates.
+`validate` requests shared analysis and model generation, without report or rollup generation.
+Report mode and output profile are independent: `update` must not add a report request to a model-only plan.
+Reject an unknown profile or an explicitly requested category with no configured output.
+Model generation is implicit in every profile; these profile names and the option spelling are implemented.
+
+All configured task instances reached by the invocation must define the selected nondefault profile.
+Profiles merge by name through shared task defaults; a package's category list replaces the inherited list for that name.
+Local and CI documentation wrappers select the documentation profile explicitly instead of relying on the spelling of their task names.
+An ordinary package build still uses the combined `all` profile.
+
+A profile selects work in addition to mandatory model generation.
+The existing local dependency graph and configured `^api` prerequisites order producer models before consumer analysis, transitively.
+No discovery API or per-consumer model-request propagation is required.
+Report generation and baseline checks are never inferred merely because another package needs a model.
+If a required local task or model destination is absent, fail with a diagnostic rather than using stale files.
+Installed dependencies outside the local graph must already provide the selected model artifacts.
+Packages with no suite dependencies omit suite configuration; existing unmatched-selector diagnostics are unchanged.
+Compilation that needs dependency rollups still requires the corresponding output profile and task prerequisites.
+
+Track the effective output plan in completion state.
+Do not delete outputs merely because the current profile did not request them; remove obsolete generated files only when their owning configured output is removed or its artifact set changes.
+A documentation-only success must not satisfy a later report-check request without checking the baseline.
+These independent report controls and dependency guarantees are required for W6 and W8.
+
+##### Report mode and comparisons
+
+Resolve the invocation-wide report mode before building the task graph, pass it explicitly to workers, and include it in completion state.
+Local build wrappers select `update`; CI wrappers select `check`.
+Direct invocations without a mode are check-only, regardless of task name or environment variables.
+Do not infer mode from `build`, `ci:build`, worker process environment, or the path by which a shared task was reached.
+
+The proposed per-report `mode` is either `build` or `check`, defaulting to `build`.
+`build` follows the invocation-wide mode; `check` is always read-only.
+There is no per-report force-update override that could defeat a CI check.
+Missing or different check-mode baselines produce an actionable comparison failure; check mode must not create or modify accepted baselines.
+Update mode changes only eligible baselines after all analysis and requested generation have succeeded.
+Report comparison results are distinct from semantic validation results and artifact-write results.
+
+Platform parity remains a separate comparison, not a second baseline owner.
+For example, client-utils' Node surface must check the browser baseline even when a local build updates the browser report.
+The first single-context pilot does not claim this cross-context support.
+Before migrating such packages, specify context ordering, one writer per baseline, and comparison against the same invocation's generated reference content; do not race a reader against a baseline writer.
+
+##### Execution and output failure behavior
+
+1. Resolve and validate the task plan, report mode, dependency prerequisites, output ownership, and package-local analyzer module.
+2. Call `analyzeAPIs` once for the context. Expected diagnostics fail the task without writing outputs; unexpected failures remain failures with their original diagnostic context.
+3. Generate all requested content in memory from that completed analysis. Generate the model at most once, and each distinct requested report or rollup variant once. A generation failure prevents publication of the requested set.
+4. Compare reports and record all differences. A comparison failure does not prevent publication of otherwise valid generated artifacts, but it must remain a task failure. In update mode, prepare changes only for update-eligible baselines.
+5. Stage output files, then publish each file using an atomic replacement where supported. Retain a manifest of files owned by each configured output; remove only obsolete generated files listed in its previous manifest. Preserve unrequested output groups. Do not delete unowned files or obsolete accepted baselines automatically.
+6. Record completion only after all required comparisons and writes succeed. If a comparison, write, cleanup, or worker failure occurs, invalidate any previous completion record and report failure. Downstream tasks must not treat partially published outputs as a successful producer result.
+
+Publication across multiple directories is not a filesystem-wide transaction.
+A crash can leave a partially published set; no success record may survive that state, and the next build must repair it.
+Keep output ownership and recovery information separate from the success record so a failed run does not lose track of files it wrote.
+Protect shared output ownership within a build graph and across overlapping Fluid Build processes, using an exclusive task-output lock with explicit recovery for abandoned ownership.
+Document lock lifetime and recovery before enabling concurrent writers in the pilot.
+Do not add a retry that can silently overwrite evidence of a failed comparison or partial write.
+
+Use one programmatic runner for the main-process and worker execution paths.
+Support normal Fluid Build diagnostics, timing, dry-run output, and task accounting without inventing a shell command that performs no work.
+Because the analyzer's native client is synchronous internally, worker execution is preferable for preserving build concurrency.
+Load the target package's ESM import entrypoint with import-condition resolution and dynamic import; the current `require`-based extractor worker is not directly reusable for this import-only package.
+Pass a typed task request and structured result rather than reconstructing configuration from command text.
+Worker startup failure may be reported directly; do not fall back to a fictitious CLI or retry the task after execution may have started.
+Resolve the same package version in both execution paths and fail clearly if the private dependency has not been installed or built.
+
+##### Completion tracking
+
+Reuse the completion-file lifecycle, but do not treat `TscDependentTask`'s existing tool/config/build-info snapshot as a complete analyzer cache key.
+Track three independent state groups:
+
+| State | Required coverage |
+| --- | --- |
+| Analysis inputs | Effective analyzer and task configuration, inherited config inputs, project references and resolution settings, input membership and content, source/declaration/documentation changes, package manifests and export maps, selected dependency models, relevant lockfiles, analyzer/compiler identity, and local tool build changes. |
+| Report comparisons | Baseline paths and hashes or missing state, report selection/presentation, per-report policy, and invocation-wide mode. Restoring an old baseline must invalidate a prior success. |
+| Generated artifacts | Effective profile and dependency output requests, exact expected paths, content hashes, selected output variants, and the task-owned manifest. Missing or modified requested outputs must invalidate a prior success even when analysis inputs are unchanged. |
+
+Recheck state after producer tasks finish; an early up-to-date check must not hide changed dependency outputs.
+Track added and removed inputs, not only the files named in the previous run.
+Treat an unreadable or incomplete state as requiring execution, never as a cache hit.
+The private analyzer currently uses version `0.0.0`, so a package version alone cannot detect local implementation changes.
+
+Incremental execution reuses Fluid Build's standard file-hash tracking with explicit `files` configuration.
+Input globs must cover declarations, project configuration and its inherited files, external type inputs, and relevant membership changes.
+Package metadata, the resolved analyzer build, execution settings, requested outputs, and the ownership manifest are also tracked.
+Model fingerprints alone are not treated as a complete input inventory; no new analyzer API is introduced.
+Tasks without configured tracking always execute. Persistent restoration of completed semantic analysis remains deferred.
+
+##### Verification and rollout
+
+Use the existing build-tools task-definition, graph, worker, and completion-state test infrastructure.
+Use checked-in ESM fixture packages and explicit temporary local dependency links; do not require network installation or publication of the private analyzer to exercise the task.
+
+| Test group | Required assertions |
+| --- | --- |
+| Registration and configuration | New task runs without a script; legacy script tasks and aliases are unchanged; invalid kind combinations and unknown fields fail; inherited settings follow the documented merge rules. |
+| Shared analysis and profiles | All three output categories and configured variants use one analysis per context; model generation is mandatory and unfiltered; omitted report and rollup categories stay absent; documentation-only and validation-only modes do not add report comparisons. |
+| Scheduling | Multiple aliases reach one task; raw declarations precede analysis; existing local task prerequisites order producer models before consumer analysis; missing producer tasks and model destinations fail explicitly. |
+| Report mode | Direct calls default to check; local and CI wrappers pass the intended mode through shared prerequisites and workers; check-only parity reports never update; mode changes invalidate completion state. |
+| Failure and publication | Semantic or generation failure writes nothing; comparison failure can publish valid generated artifacts but still fails; missing baselines remain missing in check mode; write/worker failures leave no success record; abandoned partial outputs are repaired on retry. |
+| Input and output state | Input changes, new/removed files, inherited config changes, dependency-model changes, baseline restoration, local tool rebuilds, and deleted/edited artifacts invalidate prior completion. A no-skip pilot must not claim incremental-state coverage. |
+| Concurrency and diagnostics | Independent packages run concurrently; same-output writers cannot overlap; target-package resolution selects the correct ESM tool even when the build tooling has a different version; no automatic rerun follows a partially executed worker; expected and unexpected failures remain actionable in local and CI logs. |
+| End-to-end compatibility | TS6- and TS7-built declaration inputs produce consumable rollups under both consumer compilers; generated model consumers need no compiler; reports preserve configured selection and presentation. |
+
+Recommended implementation order:
+
+1. Review the task schema and execution/publication contract. Add task-kind normalization and graph tests before implementing the programmatic runner.
+2. Build a single-context fixture pilot with target-package ESM resolution, mandatory models, optional report and rollup profiles, and failure handling. This is implemented; current production tasks remain unchanged.
+3. Prove dependency-pair scheduling and incremental completion against explicit input tracking. These checks pass; typed worker execution remains next.
+4. Evaluate [core-utils](../../../packages/common/core-utils/package.json) in isolation, with separate output locations while the old workflow remains active. Compare semantics rather than copying existing extractor output blindly.
+5. Design multi-context/platform parity and inspectable effective configuration before migrating affected packages. Add export-coverage policy based on configured surfaces, not command spellings.
+6. Continue Stage 5 with documenter and website readers, artifact publication, and historical artifact retention. Broad package migration and extractor retirement remain Stage 6.
+
+Remaining integration work includes typed worker execution, complete input-glob configurations for representative packages, cross-process recovery checks, and the isolated core-utils trial.
+These are remaining requirements, not unimplemented capabilities being counted as passing tests.
 
 ### Stage 6. Migrate and retire API Extractor
 

@@ -4,16 +4,25 @@
  */
 
 import type { PackageJson } from "../common/npmPackage.js";
+import {
+	type ApiAnalyzerTaskSettings,
+	mergeApiAnalyzerTaskSettings,
+	validateApiAnalyzerTaskSettings,
+} from "./apiAnalyzerTaskConfig.js";
 import { validateDeclarativeTaskPathSeparators } from "./fluidBuildConfig.js";
 import { isConcurrentlyCommand, parseConcurrentlyCommand } from "./parseCommands.js";
 
 /**
- * Task definitions (type `TaskDefinitions`) is an object describing build tasks for fluid-build.
- * Task names are represented as property name on the object and the value the task configuration
- * (type `TaskConfig`). Task configuration can a plain array of string, presenting the task's
- * dependencies or a full description (type `TaskConfigFull`).
+ * Normalized Fluid Build tasks indexed by task name.
+ *
+ * @remarks
+ * Each configuration contains shared scheduling metadata and one supported execution variant.
+ * Use {@link TaskConfigOnDisk} for definitions that still contain shorthand or omitted defaults.
  */
 export interface TaskDefinitions {
+	/**
+	 * Normalized configuration selected by its package task name.
+	 */
 	readonly [name: string]: TaskConfig;
 }
 
@@ -126,7 +135,12 @@ export interface TaskFileDependencies {
 	additionalConfigFiles?: readonly string[];
 }
 
-export interface TaskConfig {
+/**
+ * Normalized scheduling and execution metadata shared by supported task kinds.
+ * @remarks
+ * Tool-specific configuration belongs to a concrete task variant, not this interface.
+ */
+export interface TaskConfigBase {
 	/**
 	 * Task dependencies as a plain string array. Matched task will be scheduled to run before the current task.
 	 * The strings specify dependencies for the task. See Task Dependencies Expansion above for details.
@@ -138,8 +152,8 @@ export interface TaskConfig {
 	 * details. As compared to "dependsOn", "before" is a weak dependency. It will only affect ordering if matched task is already
 	 * scheduled. It won't cause the matched tasks to be scheduled if it isn't already.
 	 *
-	 * Notes 'before' is disallowed for non-script tasks since it has no effect on non-script tasks as they has no
-	 * action to perform.
+	 * Dependency-only aliases cannot use 'before' because they perform no action.
+	 * Programmatic analyzer tasks can use this ordering constraint.
 	 */
 	readonly before: TaskDependencies;
 
@@ -157,8 +171,8 @@ export interface TaskConfig {
 	 * details. As compared to "dependsOn", "after" is a weak dependency. It will only affect ordering if matched task is already
 	 * scheduled. It won't cause the matched tasks to be scheduled if it isn't already.
 	 *
-	 * Notes 'after' is disallowed for non-script tasks since it has no effect on non-script tasks as they has no
-	 * action to perform.
+	 * Dependency-only aliases cannot use 'after' because they perform no action.
+	 * Programmatic analyzer tasks can use this ordering constraint.
 	 */
 	readonly after: TaskDependencies;
 
@@ -171,17 +185,45 @@ export interface TaskConfig {
 	 *
 	 * If false, the task will only trigger the dependencies (and not look for the script in package.json).
 	 * It can be used as an alias to a group of tasks.
+	 * Normalized tasks with kind 'api-analyzer' also use false, but execute their registered programmatic action.
+	 * Do not supply this setting together with kind in on-disk configuration.
 	 */
 	readonly script: boolean;
 
 	/**
-	 * For leaf tasks (i.e. tasks that have a single executable command).
-	 * Specify the input/output files the task depends on for incremental check.
-	 * Can used for unknown executable isn't a known tool (i.e. non-incremental), or to override behavior of known tools.
-	 * Error if this is specified for a non-leaf task (e.g. npm run, concurrently, multiple command with '&&').
+	 * Input and output tracking for leaf tasks.
+	 * @remarks
+	 * Script tasks can use this to select declarative execution; programmatic analyzer tasks keep their own runner.
+	 * Non-leaf task groups cannot supply file tracking.
 	 */
 	readonly files: TaskFileDependencies | undefined;
 }
+
+/**
+ * Normalized configuration for existing package scripts and dependency-only aliases.
+ */
+export interface ScriptTaskConfig extends TaskConfigBase {
+	/**
+	 * Absence of a programmatic kind selects the existing script or alias execution path.
+	 * @defaultValue `undefined`
+	 */
+	readonly kind?: undefined;
+}
+
+/**
+ * Normalized programmatic analyzer task, with analyzer-owned configuration kept on this variant.
+ */
+export interface ApiAnalyzerTaskConfig extends TaskConfigBase, ApiAnalyzerTaskSettings {
+	/**
+	 * Analyzer tasks execute programmatically rather than through a package script.
+	 */
+	readonly script: false;
+}
+
+/**
+ * Normalized task configuration, narrowed by kind before accessing tool-specific settings.
+ */
+export type TaskConfig = ScriptTaskConfig | ApiAnalyzerTaskConfig;
 
 /**
  * Inverse of Readonly, make all fields mutable.
@@ -193,8 +235,35 @@ interface MutableTaskDefinitions {
 	[name: TaskName]: MutableTaskConfig;
 }
 
-// On file versions that allow fields to be omitted
-export type TaskConfigOnDisk = TaskDependencies | Omit<Partial<TaskConfig>, "children">;
+/**
+ * Analyzer task settings before scheduling defaults are applied.
+ * The analyzer kind remains required even when its analysis settings come from shared defaults.
+ */
+export interface ApiAnalyzerTaskConfigOnDisk
+	extends ApiAnalyzerTaskSettings,
+		Partial<Pick<TaskConfigBase, "dependsOn" | "before" | "after">> {
+	/**
+	 * Script execution cannot be combined with an analyzer kind, even through a composed object.
+	 * @defaultValue Omitted; normalization supplies the programmatic execution metadata.
+	 */
+	readonly script?: never;
+
+	/**
+	 * Input and output tracking for the programmatic task; this does not select a shell executor.
+	 * Input globs must include the complete declaration and configuration input set.
+	 * @defaultValue No incremental skipping; the analyzer runs on each build.
+	 */
+	readonly files?: TaskFileDependencies;
+}
+
+/**
+ * On-disk task definitions retain the existing dependency-array shorthand and partial script settings.
+ * Programmatic analyzer definitions use their own discriminated variant.
+ */
+export type TaskConfigOnDisk =
+	| TaskDependencies
+	| Omit<Partial<ScriptTaskConfig>, "children">
+	| ApiAnalyzerTaskConfigOnDisk;
 export interface TaskDefinitionsOnDisk {
 	readonly [name: TaskName]: TaskConfigOnDisk;
 }
@@ -222,6 +291,32 @@ function getFullTaskConfig(config: TaskConfigOnDisk): MutableTaskConfig {
 			files: undefined,
 		};
 	} else {
+		if (
+			config.kind === undefined &&
+			["analyzer", "selections", "profiles", "outputs"].some((key) =>
+				Object.prototype.hasOwnProperty.call(config, key),
+			)
+		) {
+			throw new Error("Analyzer task settings require kind: 'api-analyzer'");
+		}
+		// Parsed configuration can contain kinds that TypeScript callers cannot construct.
+		const kind: unknown = config.kind;
+		if (kind !== undefined && kind !== "api-analyzer") {
+			throw new Error(`Unsupported task kind '${String(kind)}'`);
+		}
+		if (config.kind === "api-analyzer") {
+			// Validate the on-disk shape before normalization adds internal fields such as script and children.
+			validateApiAnalyzerTaskSettings(config);
+			return {
+				dependsOn: makeClonedOrEmptyArray(config.dependsOn),
+				before: makeClonedOrEmptyArray(config.before),
+				children: [],
+				after: makeClonedOrEmptyArray(config.after),
+				script: false,
+				files: structuredClone(config.files),
+				...mergeApiAnalyzerTaskSettings(config, undefined),
+			};
+		}
 		return {
 			dependsOn: makeClonedOrEmptyArray(config.dependsOn),
 			script: config.script ?? true,
@@ -305,7 +400,7 @@ export function normalizeGlobalTaskDefinitions(
 	if (globalTaskDefinitionsOnDisk) {
 		for (const name in globalTaskDefinitionsOnDisk) {
 			const full = getFullTaskConfig(globalTaskDefinitionsOnDisk[name]);
-			if (!full.script) {
+			if (!full.script && full.kind === undefined) {
 				if (full.before.length !== 0 || full.after.length !== 0) {
 					throw new Error(
 						`Non-script global task definition '${name}' cannot have 'before' or 'after'`,
@@ -433,9 +528,25 @@ export function getTaskDefinitions(
 	const packageTaskDefinitions = json.fluidBuild?.tasks;
 	const taskDefinitions: MutableTaskDefinitions = {};
 
+	/**
+	 * Checks explicit package opt-in before applying global analyzer defaults or dependency references.
+	 *
+	 * @param name - Task name to look up in the package's own configuration.
+	 * @returns Whether the package declares this task with the analyzer kind.
+	 */
+	const isAnalyzerOptIn = (name: string): boolean => {
+		const config = packageTaskDefinitions?.[name];
+		return (
+			config !== undefined && !isTaskDependencies(config) && config.kind === "api-analyzer"
+		);
+	};
+	// A reference from a global build target must not activate analysis in a package that has not opted in.
 	const globalAllow = (value: string): boolean =>
 		value.startsWith("^") ||
-		(globalTaskDefinitions[value] !== undefined && !globalTaskDefinitions[value].script) ||
+		(globalTaskDefinitions[value] !== undefined &&
+			!globalTaskDefinitions[value].script &&
+			(globalTaskDefinitions[value].kind === undefined || isAnalyzerOptIn(value))) ||
+		isAnalyzerOptIn(value) ||
 		packageScripts[value] !== undefined;
 	const globalAllowExpansionsStar = (value: string): boolean =>
 		value === "*" || globalAllow(value);
@@ -443,21 +554,35 @@ export function getTaskDefinitions(
 	// Initialize from global TaskDefinition, and filter out script tasks if the package doesn't have the script
 	for (const name in globalTaskDefinitions) {
 		const globalTaskDefinition = globalTaskDefinitions[name];
+		if (globalTaskDefinition.kind === "api-analyzer" && !isAnalyzerOptIn(name)) {
+			continue;
+		}
 		if (globalTaskDefinition.script && packageScripts[name] === undefined) {
 			// Skip script tasks if the package doesn't have the script
 			continue;
 		}
 		// Only keep task or script references that exist
 		// and make array clones in the process.
-		taskDefinitions[name] = {
+		const scheduling = {
 			dependsOn: globalTaskDefinition.dependsOn.filter(globalAllow),
-			script: globalTaskDefinition.script,
 			before: globalTaskDefinition.before.filter(globalAllowExpansionsStar),
 			// `children` are not inherited from the global task definitions (which should always be empty anyway)
 			children: [],
 			after: globalTaskDefinition.after.filter(globalAllowExpansionsStar),
-			files: globalTaskDefinition.files,
 		};
+		taskDefinitions[name] =
+			globalTaskDefinition.kind === "api-analyzer"
+				? {
+						...scheduling,
+						...mergeApiAnalyzerTaskSettings(globalTaskDefinition, undefined),
+						script: false,
+						files: globalTaskDefinition.files,
+					}
+				: {
+						...scheduling,
+						script: globalTaskDefinition.script,
+						files: globalTaskDefinition.files,
+					};
 	}
 
 	// Override from the package.json, and resolve "..." to the global dependencies if any
@@ -465,7 +590,20 @@ export function getTaskDefinitions(
 		for (const name in packageTaskDefinitions) {
 			const packageTaskDefinition = packageTaskDefinitions[name];
 			const full = getFullTaskConfig(packageTaskDefinition);
-			if (full.script) {
+			if (full.kind === "api-analyzer") {
+				// A same-named script would introduce a second execution path with different lifecycle behavior.
+				if (packageScripts[name] !== undefined) {
+					throw new Error(`api-analyzer task '${name}' cannot also have a package script`);
+				}
+				const inherited = taskDefinitions[name];
+				Object.assign(
+					full,
+					mergeApiAnalyzerTaskSettings(
+						full,
+						inherited?.kind === "api-analyzer" ? inherited : undefined,
+					),
+				);
+			} else if (full.script) {
 				const script = packageScripts[name];
 				if (script === undefined) {
 					throw new Error(`Script not found for task definition '${name}'`);
@@ -490,7 +628,8 @@ export function getTaskDefinitions(
 			full.after = expandDotDotDot(full.after, currentTaskConfig?.after);
 			const currentFiles = currentTaskConfig?.files;
 			if (full.files === undefined) {
-				full.files = currentTaskConfig?.files;
+				// Tracking from a different execution kind must not silently change this task's input contract.
+				full.files = currentTaskConfig?.kind === full.kind ? currentFiles : undefined;
 			} else {
 				full.files.inputGlobs = expandDotDotDot(
 					full.files.inputGlobs,
@@ -512,6 +651,13 @@ export function getTaskDefinitions(
 			}
 			taskDefinitions[name] = full;
 		}
+	}
+
+	// The pilot has one package-wide lock and ownership manifest, not independent state for multiple analyzer tasks.
+	if (
+		Object.values(taskDefinitions).filter((task) => task.kind === "api-analyzer").length > 1
+	) {
+		throw new Error("The api-analyzer pilot supports only one analyzer task per package");
 	}
 
 	// Check to make sure all the dependencies either is a target or script.
