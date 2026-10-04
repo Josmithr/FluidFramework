@@ -1764,6 +1764,58 @@ Recommended implementation order:
 Remaining integration work includes complete input-glob configurations for representative packages, broader cross-process recovery checks, and the isolated core-utils trial.
 These are remaining requirements, not unimplemented capabilities being counted as passing tests.
 
+##### Core-utils integration trial
+
+Status (2026-10-04): **blocked**; the trial is reproducible, but the untouched package cannot complete shared analysis.
+The isolated [task configuration](../../../build-tools/packages/build-tools/src/test/data/api-analyzer/core-utils/task.json) and [declaration project](../../../build-tools/packages/build-tools/src/test/data/api-analyzer/core-utils/tsconfig.api-analyzer.json) are checked-in trial inputs, not production configuration.
+The trial copies existing ESM declarations, preserves both raw entrypoints, and writes artifacts under a separate `trial` directory.
+The earlier analyzer pilot covered only `compare.d.ts`, not the complete package.
+
+Run the [trial helper](../../../build-tools/packages/build-tools/src/test/data/api-analyzer/core-utils/run.mjs) from `build-tools` after building build-tools, api-analyzer, and the existing core-utils ESM declarations and entrypoints:
+
+```sh
+node packages/build-tools/src/test/data/api-analyzer/core-utils/run.mjs
+```
+
+The helper uses temporary copies and returns a nonzero exit code while any case is blocked.
+It does not write production configuration, source comments, or accepted baselines.
+Its partial-surface controls retain the same reference policy and do not count as full-package acceptance.
+No validation rule was disabled to make a case succeed.
+
+| Case | Observed result | Required investigation |
+| --- | --- | --- |
+| Full raw package: `lib/index.d.ts` and `lib/internal.d.ts` | `documentation-unsupported` on `PromiseTimer.hasTimer`, whose [source comment](../../../packages/common/core-utils/src/timer.ts) uses `{@inheritDoc Timer.hasTimer}`. The [inheritance binder](../src/analysis/documentation.ts) excludes accessor declaration kinds before resolving the target; its non-callable compatibility categories also omit accessors. This is missing support, not evidence of an invalid getter-to-getter reference. | Add a focused accessor-inheritance reproduction and define the supported getter/setter source and target combinations before implementing the missing behavior. |
+| Existing public/beta/alpha/legacy entrypoints, excluding internal | The directional rule rejects the `PromiseCache` constructor's reference to `PromiseCacheOptions`. Both containers are tagged `@legacy`, but the constructor has no own modifier tag in [promiseCache.ts](../../../packages/common/core-utils/src/promiseCache.ts). | Implement parent-container inheritance of `@legacy` in build-tools, not generic analyzer classification. The public model supplies original containment, local tags, and resolved references. Replace this local-tag directional rule with the build-tools policy before artifact publication; leaving the rule enabled prevents analysis from returning a model. |
+| Existing public/beta/alpha entrypoints only | After rebuilding declarations with the user's public-link correction and the private-remarks fix, analysis reaches `documentation-link-policy`: `@alpha emulateProductionBuild` has public documentation linking to `@internal debugAssert` in [assert.ts](../../../packages/common/core-utils/src/assert.ts). | Review this public-link visibility mismatch. It is separate from the resolved private-remarks defect. Do not suppress the policy or change package comments merely to pass the trial. |
+
+The current failures were reproduced through the real Fluid Build graph and analyzer after rebuilding core-utils ESM declarations.
+Each failed run left no model artifact, success marker, or abandoned lock.
+These results verify failure propagation, not successful package integration, incremental reuse, rollup compilation, or baseline parity for core-utils.
+The successful synthetic worker and incremental tests remain separate evidence.
+
+Resolved findings and policy decisions:
+
+- The user corrected `assert`'s public parameter-documentation link to target `emulateProductionBuild`. The source edit was preserved.
+- Private-remarks links to erased implementation helpers are valid developer comments, not package documentation defects. Analysis now excludes private links, labels, inheritance requests, and syntax diagnostics. Original source text remains provenance; resolved documentation and rollups omit private content. [Documentation tests](../src/analysis/test/documentation.test.ts) and the existing [rollup test](../src/test/rollup.test.ts) cover the shared parser and detached removal without changing the expected rollup snapshots.
+- A [public-model contract test](../src/test/nativeCapabilities.test.ts) verifies consumer-defined legacy inheritance with both TS6- and TS7-produced declarations. It uses `ModelItem.declaringContainer`, `documentationId`, local `metadata.modifierTags`, and resolved `references`. Constructor references, nested namespace ancestry, and inherited members use their original declaring containers. No new analyzer API or implicit custom-tag inheritance was required. Build-tools policy implementation remains pending.
+
+Package integration friction and improvement candidates:
+
+- The actual package has separate public and internal `assert` bindings. Analyzing only the public barrel misses part of its internal surface.
+- Published public, beta, alpha, and legacy entrypoints are generated from raw declarations. A shared build-side configuration helper should derive release surfaces from the package export policy rather than make each package repeat it. Using current generated entrypoints in the controls does not remove the migration-time generation requirement.
+- Entrypoint paths must also belong to the TypeScript project. The first published-surface control failed with `entrypoint-missing` until the isolated project included all package declaration files. Requiring authors to maintain both lists invites configuration drift.
+- Report/rollup selections use named release levels, while reference-policy configuration currently uses numeric enum values. A shared configuration adapter should avoid making package authors maintain both spellings.
+- The runner protects each raw entrypoint's entire containing directory from output writes. Core-utils currently puts raw declarations and generated entrypoints together under `lib`; production integration therefore needs a deliberate raw/output directory layout or a more precise proven ownership boundary. The isolated `trial` outputs avoid that conflict but do not solve the package migration.
+- Each rollup selection produces its own shared declaration module. Mapping different release entrypoints to different generated sets could duplicate nominal class identities across those entrypoints. The blocked trial has not tested this; require cross-entrypoint consumer assignments before adopting a publication layout.
+- The trial cannot reuse the current source-oriented TypeScript project directly for declaration-only analysis. It supplies a small separate project and avoids importing repository-relative compiler configuration into the temporary package.
+- The candidate explicitly disables lockfile tracking only because its disposable declaration inputs and tool installation are fixed for the experiment. That setting is not a recommended production default; full-package incremental behavior remains unverified until shared analysis succeeds.
+- The private analyzer must be installed and built in the target package's resolution scope. The trial uses a temporary link; normal package integration still needs a documented dependency/bootstrap path.
+- Missing support is reported with an encoded item identity rather than a concise package, symbol, file, and line. More direct diagnostics would reduce integration effort.
+
+Recommended next step: address accessor inheritance with a minimal regression, implement the build-tools legacy policy, and review the public-link visibility mismatch before repeating the full-package trial.
+Keep the original cases intact so fixes cannot be mistaken for relaxed inputs or changed baselines.
+Stage 4's recorded acceptance is unchanged; these are additional package-compatibility findings that block this Stage 5 trial.
+
 ### Stage 6. Migrate and retire API Extractor
 
 - Exercise every usage family with representative packages: Tree, fluid-framework, client-utils, Presence, local-driver, the documenter, build-tools, and server.

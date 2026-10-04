@@ -9,6 +9,7 @@ import type {
 } from "../analysis-types/documentation.js";
 import assert from "node:assert/strict";
 import { mergeDocumentationComments } from "./mergedDocumentation.js";
+import { parseDocumentation } from "./documentationParser.js";
 import {
 	type DocLinkTag,
 	SelectorKind,
@@ -511,7 +512,8 @@ function selectCallableOverload(
 			labels:
 				signature.documentationContext?.labels ??
 				collectDocumentationLabels(
-					new TSDocParser().parseString(signature.documentation ?? "/** */").docComment,
+					parseDocumentation(new TSDocParser(), signature.documentation ?? "/** */")
+						.docComment,
 				),
 		})),
 		terminal,
@@ -980,10 +982,11 @@ export function bindPackageDocumentation(
 	if (documentation === undefined) {
 		return { ok: true, value: undefined };
 	}
-	const nodes = collectApiLinkNodes(
-		new TSDocParser(analysis.configuration).parseString(documentation.documentation)
-			.docComment,
+	const parsed = parseDocumentation(
+		new TSDocParser(analysis.configuration),
+		documentation.documentation,
 	);
+	const nodes = collectApiLinkNodes(parsed.docComment);
 	const references = documentation.references ?? [];
 	assert.equal(
 		nodes.length,
@@ -1047,7 +1050,11 @@ export function bindPackageDocumentation(
 	}
 	return freezeData({
 		ok: true,
-		value: { origin: documentation.origin, documentation: documentation.documentation, links },
+		value: {
+			origin: documentation.origin,
+			documentation: parsed.sourceRange.toString(),
+			links,
+		},
 	});
 }
 

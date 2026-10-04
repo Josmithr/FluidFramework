@@ -31,6 +31,7 @@ import type {
 } from "../analysis-types/facts.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
+import { parseDocumentation } from "./documentationParser.js";
 import type { ReferencePolicies } from "../analysis-types/referencePolicy.js";
 import type { DependencyModel } from "../analysis-types/dependencyModel.js";
 
@@ -41,7 +42,7 @@ import type { DependencyModel } from "../analysis-types/dependencyModel.js";
  */
 export type ParsedDocumentationItem<TInput extends ApiItemDocumentation> = TInput & {
 	/**
-	 * Parser output whose comment nodes may be updated once during resolution.
+	 * Parser output with private remarks excluded; comment nodes may be updated once during resolution.
 	 */
 	readonly parsed: ReturnType<TSDocParser["parseString"]>;
 
@@ -57,10 +58,11 @@ export type ParsedDocumentationItem<TInput extends ApiItemDocumentation> = TInpu
 };
 
 /**
- * Parsed comments retained during one extraction, indexed by documentation input identifier.
+ * Parsed user-facing comments retained during one extraction, indexed by documentation input identifier.
  *
  * @remarks
  * Contains TSDoc nodes, not compiler objects.
+ * Private remarks must already be excluded by the shared documentation parser.
  * Use only with the same facts and modifier vocabulary that produced these comments.
  * Do not retain this map across invocations or serialize it as a model artifact.
  */
@@ -219,7 +221,8 @@ export function createDocumentationContext<TInput extends ApiItemDocumentation>(
 			);
 		}
 		const parsed =
-			extractedComments?.get(input.id) ?? parser.parseString(input.documentation ?? "/** */");
+			extractedComments?.get(input.id) ??
+			parseDocumentation(parser, input.documentation ?? "/** */");
 
 		// Preserve strict syntax failures even when classification is configured to tolerate them.
 		if (validation.ok && parsed.log.messages.length > 0) {
@@ -556,7 +559,7 @@ function validateUnresolvedMergedComments(
 				}
 
 				// Comparing malformed comments could hide differences, even when general syntax checks are disabled.
-				const parsed = parser.parseString(source.documentation);
+				const parsed = parseDocumentation(parser, source.documentation);
 				if (parsed.log.messages.length > 0) {
 					return reportFailure(
 						DiagnosticCode.DocumentationTsdoc,

@@ -198,6 +198,92 @@ describe("Merged documentation", () => {
 });
 
 describe("Documentation link binding", () => {
+	it("excludes private remarks from documentation analysis", () => {
+		const documentation = `/**
+ * Visible summary. {@link visible}
+ * @public
+ * @privateRemarks
+ * Developer notes. {@link missingPrivateTarget}
+ * {@inheritDoc missingPrivateSource}
+ */`;
+		const context = createTestDocumentationContext([
+			createDocumentationInput("source", documentation),
+		]);
+		assert.equal(context.validation.ok, true);
+		const item = context.items.get("source");
+		assert(item !== undefined);
+		assert.deepEqual(
+			item.originalLinks.map((link) => link.codeDestination?.emitAsTsdoc()),
+			["visible"],
+		);
+		assert.equal(item.parsed.docComment.inheritDocTag, undefined);
+		assert.equal(item.parsed.docComment.privateRemarks, undefined);
+		assert.equal(item.documentation, documentation);
+	});
+
+	it("ignores private syntax while preserving public blocks, modifiers, and diagnostics", () => {
+		for (const privateContent of [
+			"{@link } {@label PRIVATE} {@inheritDoc missing}",
+			"@unknownPrivateTag Developer details.",
+			"First private block.\n * @privateRemarks Second private block.",
+		]) {
+			const context = createTestDocumentationContext([
+				createDocumentationInput(
+					"source",
+					`/**
+ * Visible.
+ * @privateRemarks ${privateContent}
+ * @public
+ * @remarks Public details. {@link visible}
+ */`,
+				),
+			]);
+			assert.equal(context.validation.ok, true, JSON.stringify(context.validation));
+			const item = context.items.get("source");
+			assert(item !== undefined);
+			assert(item.parsed.docComment.modifierTagSet.hasTagName("@public"));
+			assert.equal(item.parsed.docComment.privateRemarks, undefined);
+			assert.equal(item.parsed.docComment.inheritDocTag, undefined);
+			assert.deepEqual(item.originalBlockTags, ["@remarks"]);
+			assert.deepEqual(
+				item.originalLinks.map((link) => link.codeDestination?.emitAsTsdoc()),
+				["visible"],
+			);
+		}
+		const invalid = createTestDocumentationContext([
+			createDocumentationInput(
+				"source",
+				"/** Public {@link }\n * @privateRemarks Private {@link }\n */",
+			),
+		]);
+		assert.equal(invalid.validation.ok, false);
+		assert.equal(invalid.validation.diagnostics[0]?.code, DiagnosticCode.DocumentationTsdoc);
+	});
+
+	it("ends private remarks before public parameter documentation", () => {
+		for (const block of ["@param value -", "@typeParam Value -"]) {
+			const context = createTestDocumentationContext([
+				createDocumentationInput(
+					"source",
+					`/**
+ * Visible summary.
+ * @privateRemarks Private {@link missing}.
+ * ${block} Public parameter. {@link visible}
+ * @public
+ */`,
+				),
+			]);
+			assert.equal(context.validation.ok, true);
+			const item = context.items.get("source");
+			assert(item !== undefined);
+			assert.deepEqual(
+				item.originalLinks.map((link) => link.codeDestination?.emitAsTsdoc()),
+				["visible"],
+			);
+			assert.match(item.parsed.docComment.emitAsTsdoc(), /Public parameter/);
+		}
+	});
+
 	it("selects local overload links before applying release visibility", () => {
 		const target = createFunctionFact("target", "/** Public overload. @public */", []);
 		const first = target.signatures[0];

@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "mocha";
 import { analyzeAPIs, ReleaseLevel } from "../index.js";
+import { decodeDependencyModel } from "../model.js";
 import {
 	analyzeRepository,
 	compilePackage,
@@ -798,6 +799,19 @@ describe("Detached declaration rollups", () => {
 				rmSync(path.join(directory, `${file}.d.ts`));
 			}
 			const model = analysis.generateModel();
+			const decoded = decodeDependencyModel(model, "rollup-test");
+			assert(decoded.ok, JSON.stringify(decoded));
+			assert.doesNotMatch(
+				decoded.value.packageDocumentation?.documentation ?? "",
+				/privateRemarks|missingPrivate|Invalid private/,
+			);
+			for (const api of decoded.value.apis) {
+				assert.doesNotMatch(
+					api.documentation.documentation ?? "",
+					/privateRemarks|missingPrivate|Invalid private/,
+				);
+				assert(!api.labels.includes("PRIVATE"));
+			}
 			const selection = { name: "public", releaseLevels: [ReleaseLevel.Public] };
 			const generated = analysis.generateRollups(selection);
 			assert(generated.ok, JSON.stringify(generated));

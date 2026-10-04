@@ -4,6 +4,9 @@
  * Package overview retained in every generated entrypoint.
  * @privateRemarks
  * Private package implementation note.
+ * {@link missingPrivatePackageTarget}
+ * {@inheritDoc missingPrivatePackageSource}
+ * Invalid private syntax: {@link }
  * @packageDocumentation
  */
 
@@ -57,6 +60,10 @@ interface Support {
  * @returns The stored text.
  * @privateRemarks
  * This implementation note must never be published.
+ * {@link missingPrivateApiTarget}
+ * {@inheritDoc missingPrivateApiSource}
+ * {@label PRIVATE}
+ * Invalid private syntax: {@link }
  * @public
  */
 export // Preserve the line-comment boundary.

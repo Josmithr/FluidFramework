@@ -1,7 +1,7 @@
 /* eslint-disable no-bitwise -- TypeScript exposes symbol flags as bit masks. */
 
 import assert from "node:assert/strict";
-import { DocExcerpt, type DocNode, type TSDocParser } from "@microsoft/tsdoc";
+import type { TSDocParser } from "@microsoft/tsdoc";
 import {
 	SyntaxKind,
 	createScanner,
@@ -43,6 +43,7 @@ import type {
 	SyntaxRange,
 } from "../analysis-types/declarationSyntax.js";
 import { createCodeExcerpt } from "./structuredExcerpt.js";
+import { parseDocumentationWithRanges } from "./documentationParser.js";
 
 /**
  * Original statement and its compiler symbol, used only during capture.
@@ -991,38 +992,18 @@ function captureDocumentationSyntax(text: string, parser: TSDocParser): Document
 	if (!text.includes("@privateRemarks")) {
 		return { text, privateRemarks: [] };
 	}
-	const block = parser.parseString(text).docComment.privateRemarks;
-	if (block === undefined) {
-		return { text, privateRemarks: [] };
-	}
-	const ranges: { readonly pos: number; readonly end: number }[] = [];
-
-	/**
-	 * Collects source ranges owned by the private block, excluding other modifier tags.
-	 * @param node - Parsed private documentation node.
-	 */
-	function collectRanges(node: DocNode): void {
-		if (node instanceof DocExcerpt) {
-			ranges.push(node.content.getContainingTextRange());
-		}
-		for (const child of node.getChildNodes()) {
-			collectRanges(child);
-		}
-	}
-	collectRanges(block);
+	const ranges = parseDocumentationWithRanges(parser, text).privateRemarks;
 	const removals: { pos: number; end: number }[] = [];
-	for (const range of ranges
-		.filter((item) => item.end > item.pos)
-		.sort((left, right) => left.pos - right.pos)) {
-		const lineStart = text.lastIndexOf("\n", range.pos - 1) + 1;
+	for (const range of [...ranges].sort((left, right) => left.start - right.start)) {
+		const lineStart = text.lastIndexOf("\n", range.start - 1) + 1;
 		const newline = text.indexOf("\n", range.end);
 		const lineEnd = newline === -1 ? text.length : newline;
 		const wholeLine =
-			/^\s*\*\s*$/.test(text.slice(lineStart, range.pos)) &&
+			/^\s*\*\s*$/.test(text.slice(lineStart, range.start)) &&
 			/^\s*$/.test(text.slice(range.end, lineEnd));
 		const removal = wholeLine
 			? { pos: lineStart, end: newline === -1 ? lineEnd : lineEnd + 1 }
-			: { pos: range.pos, end: range.end };
+			: { pos: range.start, end: range.end };
 		const previous = removals.at(-1);
 		if (previous !== undefined && removal.pos <= previous.end) {
 			previous.end = Math.max(previous.end, removal.end);

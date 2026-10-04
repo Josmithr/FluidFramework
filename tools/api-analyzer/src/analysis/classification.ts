@@ -21,6 +21,7 @@ import {
 	type Result,
 } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
+import { parseDocumentation } from "./documentationParser.js";
 
 /**
  * Rejects distinct explicit release tags on parts of the same merged non-overloaded API.
@@ -97,7 +98,7 @@ function validateMergedReleaseGroup(
 			// Absence is not an implicit release tag and does not resolve a conflict in another part.
 			continue;
 		}
-		const comment = parser.parseString(source.documentation).docComment;
+		const comment = parseDocumentation(parser, source.documentation).docComment;
 		const modifiers = new Set(
 			comment.modifierTagSet.nodes.map(
 				(tag) => configuration.tryGetTagDefinition(tag.tagName)?.tagName,

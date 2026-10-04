@@ -112,6 +112,7 @@ import {
 } from "./documentationContext.js";
 import { mergeDocumentationComments } from "./mergedDocumentation.js";
 import { createTsdocConfiguration } from "./tsdocConfiguration.js";
+import { parseDocumentation } from "./documentationParser.js";
 import { getDeclarationSelectorKind } from "./dependencyReferences.js";
 import { captureDeclarationSyntax } from "./declarationCapture.js";
 import {
@@ -466,7 +467,7 @@ function extractFacts(
 				path.resolve(configuration.packageRoot, packageComment.origin.file),
 			),
 		);
-		const parsed = parser.parseString(packageComment.documentation);
+		const parsed = parseDocumentation(parser, packageComment.documentation);
 		packageComment = {
 			...packageComment,
 			references: collectLinks(parsed.docComment, (reference) =>
@@ -601,7 +602,8 @@ function collectReexportTags(
 				(node.exportClause === undefined || isNamedExports(node.exportClause))
 			) {
 				const text = getOriginalComment(node);
-				const comment = text === undefined ? undefined : parser.parseString(text).docComment;
+				const comment =
+					text === undefined ? undefined : parseDocumentation(parser, text).docComment;
 				const tags =
 					comment === undefined
 						? []
@@ -785,7 +787,7 @@ function parsePackageDocumentation(
 	origin: Origin,
 	parser: TSDocParser,
 ): Result<PackageDocumentationFact | undefined> {
-	const parsed = parser.parseString(comment.text);
+	const parsed = parseDocumentation(parser, comment.text);
 	const doc = parsed.docComment;
 	if (!doc.modifierTagSet.hasTagName("@packageDocumentation")) {
 		return { ok: true, value: undefined };
@@ -2604,7 +2606,8 @@ function hasSymbolLabel(
 		return (
 			node !== undefined &&
 			collectDocumentationLabels(
-				parser.parseString(
+				parseDocumentation(
+					parser,
 					getOriginalComment(isNamespaceExport(node) ? node.parent : node) ?? "/** */",
 				).docComment,
 			).includes(label)
@@ -3232,7 +3235,7 @@ function mergeReferenceContexts(
 
 	const parser = state.documentation?.parser ?? new TSDocParser();
 	const comments = sources.map((source) =>
-		parser.parseString(source.documentation ?? "/** */"),
+		parseDocumentation(parser, source.documentation ?? "/** */"),
 	);
 	if (comments.some((comment) => comment.log.messages.length > 0)) {
 		return undefined;
@@ -3304,7 +3307,7 @@ function mergeReferenceContexts(
 	const documentation = sources.every((source) => source.documentation === undefined)
 		? undefined
 		: merged.emitAsTsdoc() || "/** */";
-	state.documentation?.comments.set(id, parser.parseString(documentation ?? "/** */"));
+	state.documentation?.comments.set(id, parseDocumentation(parser, documentation ?? "/** */"));
 	const request =
 		merged.inheritDocTag === undefined ? undefined : inheritance.get(merged.inheritDocTag);
 	return {
@@ -3850,7 +3853,10 @@ function createReferenceContext(
 	}
 	const parsed =
 		parsedComment ??
-		(state.documentation?.parser ?? new TSDocParser()).parseString(documentation ?? "/** */");
+		parseDocumentation(
+			state.documentation?.parser ?? new TSDocParser(),
+			documentation ?? "/** */",
+		);
 	state.documentation?.comments.set(id, parsed);
 	const links = collectLinks(parsed.docComment, (reference) =>
 		lookupReference(compiler, locations, state, node, source, reference, true),
@@ -4162,9 +4168,9 @@ function getOriginalComment(node: Node | undefined): string | undefined {
 	assert(range !== undefined, "Attached TSDoc nodes must identify an original comment range.");
 	const text = source.slice(range.pos, range.end);
 	return text.includes("@packageDocumentation") &&
-		new TSDocParser()
-			.parseString(text)
-			.docComment.modifierTagSet.hasTagName("@packageDocumentation")
+		parseDocumentation(new TSDocParser(), text).docComment.modifierTagSet.hasTagName(
+			"@packageDocumentation",
+		)
 		? undefined
 		: text;
 }

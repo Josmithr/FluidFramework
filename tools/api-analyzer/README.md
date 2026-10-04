@@ -133,6 +133,19 @@ Compiler tests cover classes, interfaces, inherited generic members, local overr
 Original source preservation is independent of combined documentation and automatic inheritance.
 Single-declaration class and interface reports now consume the completed member documentation.
 
+### Private remarks
+
+Content in `@privateRemarks` does not participate in documentation analysis.
+Private links, labels, inheritance requests, and malformed TSDoc do not trigger lookup or validation.
+The shared parser uses official TSDoc source ranges to exclude private sections before semantic parsing.
+Public blocks and global modifier tags, such as a trailing `@public`, keep their TSDoc meaning.
+Comments without private blocks require one parse; comments with private blocks require a structural parse before the semantic parse.
+
+Resolved model documentation and generated reports omit private content.
+Declaration rollups remove the same private ranges without parsing again.
+Original source records still retain private text for provenance and detached declaration generation; readers must use resolved documentation for user-facing descriptions.
+This behavior applies to API comments, merged contributions, and package documentation.
+
 ### Package documentation
 
 A package has at most one `@packageDocumentation` comment, independent of its entrypoints.
@@ -162,7 +175,8 @@ Misplaced tags, malformed TSDoc, release tags, parameter or return blocks, and `
 These errors cannot be disabled through the item-classification syntax opt-out.
 Literal tag text in strings and code examples does not count as a package declaration.
 
-The facts and dependency model retain the original comment and its package-relative location outside API records.
+The facts retain the original comment and its package-relative location outside API records.
+The dependency model retains that location and the comment with private content excluded.
 Every entrypoint report renders the same package comment before its selected declarations, even when that selection contains no API items.
 No missing-package-documentation notice is rendered when the comment is absent.
 Package documentation is not copied into the first API, classified by release level, or inherited from a dependency.
@@ -1745,3 +1759,9 @@ The [real-compiler tests](src/test/nativeCapabilities.test.ts) build the same fu
 They classify once and render public and complete reports after closing the session, with one analysis and unchanged original facts.
 Normal tests only read snapshot files. When intentionally changing output, update the affected snapshot and review its full diff; never accept a new snapshot merely to make a test pass.
 This remains a function-only report implementation. General declarations, semantic reference validation, actual conditional-entrypoint parity, and the repository pilot remain open Stage 2 work.
+
+## New Features (Compared to API-Extractor)
+
+- Support for TSDoc labels for docs references
+- Automatic docs inheritance
+- TODO: what else?

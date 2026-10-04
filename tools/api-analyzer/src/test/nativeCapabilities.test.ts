@@ -43,7 +43,12 @@ import type {
 } from "../analysis-types/facts.js";
 import type { CompletedDocumentation } from "../analysis-types/completedGraph.js";
 import { ReleaseLevel, DiagnosticCode, analyzeAPIs } from "../index.js";
-import type { CodeExcerpt, ModelMember } from "../model.js";
+import {
+	decodeDependencyModel,
+	type CodeExcerpt,
+	type ModelItem,
+	type ModelMember,
+} from "../model.js";
 import {
 	createReviewReport,
 	prepareReviewReport,
@@ -67,10 +72,7 @@ import {
 	type LocationContext,
 } from "../analysis/nativeAdapter.js";
 import { assertSnapshot } from "./snapshotUtils.js";
-import {
-	encodeDependencyModel,
-	decodeDependencyModel,
-} from "../model-generation/dependencyModel.js";
+import { encodeDependencyModel } from "../model-generation/dependencyModel.js";
 import { completeAnalysis } from "../analysis/completeAnalysis.js";
 import {
 	createAnalysisContext,
@@ -2966,6 +2968,93 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 				assert.equal(value.metadata.releaseLevel, ReleaseLevel.Public);
 				assert.equal(value.metadata.modifierTags.includes("@selected"), false);
 				assert.equal(value.metadata.modifierTags.includes("@omit"), true);
+			});
+
+			it("exposes original ownership and references for consumer-defined legacy inheritance", async () => {
+				const source = readFileSync(
+					path.join(directory, "declarations/container-members.d.ts"),
+					"utf8",
+				);
+				const file = path.join(directory, "declarations/legacy-container-members.d.ts");
+				try {
+					writeFileSync(
+						file,
+						source
+							.replaceAll("@selected", "@legacy")
+							.replace("Public base declaration.", "Public base declaration.\n * @legacy")
+							.replace("private constructor();", "private constructor(options: WholeClass);"),
+					);
+					const analysis = getSuccessValue(
+						await analyzeAPIs(
+							{
+								packageName: "example",
+								project: "tsconfig.json",
+								entrypoints: [
+									{ name: ".", path: "declarations/legacy-container-members.d.ts" },
+								],
+								customModifierTags: ["@legacy", "@omit"],
+							},
+							directory,
+						),
+					);
+					const model = getSuccessValue(
+						decodeDependencyModel(analysis.generateModel(), "example"),
+					);
+					const declarations = new Map(
+						model.graph.declarations.map((item) => [item.id, item]),
+					);
+					const apis = new Map(model.apis.map((item) => [item.id, item]));
+
+					/**
+					 * Evaluates a consumer-owned tag policy using only portable model records.
+					 * @param item - Declaration, member, or signature whose effective policy is requested.
+					 * @returns Whether the item or its original declaring ancestry is legacy.
+					 */
+					function isLegacy(item: ModelItem): boolean {
+						if (
+							item.documentationId !== undefined &&
+							apis.get(item.documentationId)?.metadata.modifierTags.includes("@legacy") ===
+								true
+						) {
+							return true;
+						}
+						if (item.declaringContainer === undefined) {
+							return false;
+						}
+						const parent = declarations.get(item.declaringContainer);
+						assert(parent !== undefined);
+						return isLegacy(parent);
+					}
+
+					const whole = model.graph.declarations.find((item) => item.name === "WholeClass");
+					assert(whole !== undefined);
+					const constructor = whole.container?.declaredMembers.find((item) =>
+						item.references.some((reference) => reference.target === whole.id),
+					);
+					assert(constructor !== undefined);
+					assert.equal(constructor.source.kind, "Constructor");
+					assert.equal(constructor.declaringContainer, whole.id);
+					assert(constructor.documentationId !== undefined);
+					assert.equal(
+						apis.get(constructor.documentationId)?.metadata.modifierTags.includes("@legacy"),
+						false,
+					);
+					assert(isLegacy(constructor));
+					assert(isLegacy(whole));
+					const derived = model.graph.declarations.find(
+						(item) => item.name === "DerivedContainer",
+					);
+					assert(derived !== undefined);
+					assert.equal(isLegacy(derived), false);
+					const inherited = derived.members.find((item) => item.name === "inherited");
+					assert(inherited !== undefined);
+					assert(isLegacy(inherited));
+					const nested = model.graph.declarations.find((item) => item.name === "Child");
+					assert(nested !== undefined);
+					assert(isLegacy(nested));
+				} finally {
+					rmSync(file, { force: true });
+				}
 			});
 
 			it("rejects local container mismatches across member forms without an opt-out", async () => {
