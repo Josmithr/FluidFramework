@@ -4,109 +4,26 @@
  */
 
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { findPackageJSON } from "node:module";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { ExecAsyncResult } from "../../../common/utils.js";
 import type { BuildContext } from "../../buildContext.js";
 import type { BuildPackage } from "../../buildGraph.js";
 import { replaceRepoRootTokens } from "../../fluidBuildConfig.js";
 import type { ApiAnalyzerTaskConfig, GitIgnoreSetting } from "../../fluidTaskDefinitions.js";
 import { options } from "../../options.js";
-import {
-	type ApiAnalyzerModule,
-	getOutputPath,
-	readOwnedFiles,
-	runApiAnalyzer,
-} from "../apiAnalyzerRunner.js";
+import { getOutputPath, readOwnedFiles } from "../apiAnalyzerRunner.js";
 import { globWithGitignore } from "../taskUtils.js";
-import { LeafWithGlobInputOutputDoneFileTask } from "./leafTask.js";
-
-/**
- * Loads the target package's import-only analyzer without falling back to the build tool's dependencies.
- *
- * @remarks
- * Requires the current analyzer manifest shape: a package-relative string at `exports["."].import`.
- * Only the presence of `analyzeAPIs` and numeric release-level exports is checked here.
- * The loaded implementation remains responsible for fulfilling the runner's API contract.
- *
- * @param directory - Absolute target package directory from which Node resolves the analyzer package.
- * @returns The imported analyzer module for use by the programmatic runner.
- * @throws If resolution, manifest parsing, import validation, module loading, or export checks fail.
- */
-export async function loadApiAnalyzer(directory: string): Promise<ApiAnalyzerModule> {
-	// Resolve relative to the target package so its chosen tool version wins over the build tool's installation.
-	const manifestPath = findPackageJSON(
-		"api-analyzer",
-		pathToFileURL(path.join(directory, "package.json")),
-	);
-	if (manifestPath === undefined) {
-		throw new Error(`Install and build api-analyzer in ${directory} before running this task`);
-	}
-	const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
-		/**
-		 * Package name, required to match `api-analyzer` before loading.
-		 * @defaultValue Missing; validation rejects the manifest.
-		 */
-		name?: string;
-
-		/**
-		 * Package export map inspected for its root ESM entrypoint.
-		 * @defaultValue Missing; validation rejects the manifest.
-		 */
-		exports?: {
-			/**
-			 * Root export conditions; additional package subpaths are not used by this loader.
-			 * @defaultValue Missing; validation rejects the manifest.
-			 */
-			"."?: {
-				/**
-				 * Package-relative ESM entrypoint beginning with `./`.
-				 * @defaultValue Missing; validation rejects the manifest.
-				 */
-				import?: string;
-			};
-		};
-	};
-	const entrypoint = manifest.exports?.["."]?.import;
-	if (
-		manifest.name !== "api-analyzer" ||
-		typeof entrypoint !== "string" ||
-		!entrypoint.startsWith("./")
-	) {
-		throw new Error(`Unsupported api-analyzer import entrypoint in ${manifestPath}`);
-	}
-	// Import a file URL: raw absolute paths do not work uniformly across platforms or URL-sensitive characters.
-	const module: unknown = await import(
-		pathToFileURL(path.resolve(path.dirname(manifestPath), entrypoint)).href
-	);
-	if (
-		module === null ||
-		typeof module !== "object" ||
-		!("analyzeAPIs" in module) ||
-		typeof module.analyzeAPIs !== "function"
-	) {
-		throw new Error(`api-analyzer at ${manifestPath} does not export analyzeAPIs`);
-	}
-	if (
-		!("ReleaseLevel" in module) ||
-		module.ReleaseLevel === null ||
-		typeof module.ReleaseLevel !== "object" ||
-		["Public", "Beta", "Alpha", "Internal"].some(
-			(key) => typeof Reflect.get(module.ReleaseLevel as object, key) !== "number",
-		)
-	) {
-		throw new Error(`api-analyzer at ${manifestPath} does not export ReleaseLevel`);
-	}
-	return module as ApiAnalyzerModule;
-}
+import { apiAnalyzerWorker } from "../workers/apiAnalyzerWorker.js";
+import type { ApiAnalyzerWorkerMessage } from "../workers/worker.js";
+import { LeafWithGlobInputOutputDoneFileTask, type TaskExecResult } from "./leafTask.js";
 
 /**
  * Programmatic analyzer task with standard file-hash completion tracking.
  *
  * @remarks
- * Runs in the main process and generates a model in every output mode.
+ * Uses the configured worker pool, or runs directly when workers are disabled.
+ * Generates a model in every output mode.
  * Shared graph references execute the same leaf once per build.
  * Incremental skipping requires an explicit input tracking contract in the task's files settings.
  * No shell fallback or worker retry is used.
@@ -237,6 +154,9 @@ export class ApiAnalyzerTask extends LeafWithGlobInputOutputDoneFileTask {
 				...toolFiles,
 				fileURLToPath(import.meta.url),
 				fileURLToPath(new URL("../apiAnalyzerRunner.js", import.meta.url)),
+				fileURLToPath(new URL("../workers/apiAnalyzerWorker.js", import.meta.url)),
+				fileURLToPath(new URL("../workers/worker.js", import.meta.url)),
+				fileURLToPath(new URL("../workers/workerPool.js", import.meta.url)),
 			]),
 		];
 	}
@@ -317,19 +237,39 @@ export class ApiAnalyzerTask extends LeafWithGlobInputOutputDoneFileTask {
 	 * @returns A normal leaf-task result. Comparison differences and operational exceptions become failed results
 	 * with diagnostics, without triggering a command fallback or recording success.
 	 */
-	protected override async execCore(): Promise<ExecAsyncResult> {
+	protected override async execCore(): Promise<TaskExecResult> {
+		const pool = this.node.context.workerPool;
+		const request: ApiAnalyzerWorkerMessage = {
+			workerName: "api-analyzer",
+			cwd: this.node.pkg.directory,
+			settings: this.settings,
+			invocation: { reportMode: options.apiReportMode, profile: options.apiOutputProfile },
+		};
 		try {
-			const differences = await runApiAnalyzer(
-				this.settings,
-				{ reportMode: options.apiReportMode, profile: options.apiOutputProfile },
-				this.node.pkg.directory,
-				await loadApiAnalyzer(this.node.pkg.directory),
-			);
-			// The runner may publish valid artifacts despite report differences; the graph must still see failure.
-			if (differences.length !== 0) {
-				throw new Error(differences.join("\n"));
-			}
-			return { error: null, stdout: "", stderr: "" };
+			const result =
+				pool === undefined
+					? { ...(await apiAnalyzerWorker(request)), stdout: "", stderr: "" }
+					: await pool.runOnWorker(request);
+			// Structured diagnostics survive IPC even if console buffers have not drained yet.
+			const diagnostics = [
+				...(result.diagnostics ?? []),
+				result.error?.stack ?? result.error?.message ?? "",
+			]
+				.filter(Boolean)
+				.join("\n");
+			return {
+				error:
+					result.code === 0
+						? null
+						: {
+								name: result.error?.name ?? "ApiAnalyzerTaskError",
+								message: diagnostics || `Analyzer failed with code ${result.code}`,
+								code: result.code,
+							},
+				stdout: result.stdout,
+				stderr: [result.stderr, diagnostics].filter(Boolean).join("\n"),
+				worker: pool !== undefined,
+			};
 		} catch (error) {
 			const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
 			// Feed failure into normal leaf accounting without retrying work that may already have written files.
@@ -337,6 +277,7 @@ export class ApiAnalyzerTask extends LeafWithGlobInputOutputDoneFileTask {
 				error: { name: "ApiAnalyzerTaskError", message, code: 1 },
 				stdout: "",
 				stderr: message,
+				worker: pool !== undefined,
 			};
 		}
 	}

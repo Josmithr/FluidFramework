@@ -18,6 +18,7 @@ import {
 	type ApiAnalyzerModule,
 	runApiAnalyzer,
 } from "../../../fluidBuild/tasks/apiAnalyzerRunner.js";
+import { WorkerPool } from "../../../fluidBuild/tasks/workers/workerPool.js";
 
 describe("Programmatic API analyzer execution", () => {
 	const settings: ApiAnalyzerTaskSettings = {
@@ -343,6 +344,173 @@ describe("API analyzer build graph", () => {
 		assert.equal(await readFile(path.join(directory, "calls.txt"), "utf8"), "analysis\n");
 	});
 
+	for (const useWorkerThreads of [false, true]) {
+		const mode = useWorkerThreads ? "thread" : "process";
+		it(`resolves each target package's analyzer in a reused ${mode} worker pool`, async () => {
+			const otherDirectory = path.join(directory, "other");
+			await cp(path.join(fixture, "package"), otherDirectory, { recursive: true });
+			const toolDirectory = path.join(otherDirectory, "node_modules/api-analyzer");
+			await cp(path.join(fixture, "tool"), toolDirectory, { recursive: true });
+			const toolManifestPath = path.join(toolDirectory, "package.json");
+			const toolManifest = new Package(toolManifestPath, "test").packageJson;
+			await writeFile(
+				toolManifestPath,
+				JSON.stringify({ ...toolManifest, exports: { ".": { import: "./throw.mjs" } } }),
+			);
+			const settings = new Package(path.join(directory, "package.json"), "test").packageJson
+				.fluidBuild?.tasks?.api;
+			assert(settings !== undefined && "kind" in settings && settings.kind === "api-analyzer");
+			const pool = new WorkerPool(useWorkerThreads, Number.POSITIVE_INFINITY);
+			try {
+				const invocation = { reportMode: "check" as const, profile: "validate" };
+				const first = await pool.runOnWorker({
+					workerName: "api-analyzer",
+					cwd: directory,
+					settings,
+					invocation,
+				});
+				assert.equal(first.code, 0);
+				assert.deepEqual(first.diagnostics, []);
+				const second = await pool.runOnWorker({
+					workerName: "api-analyzer",
+					cwd: otherDirectory,
+					settings,
+					invocation,
+				});
+				assert.equal(second.code, 1);
+				assert.equal(second.error?.message, "Fixture analyzer operational failure");
+				const third = await pool.runOnWorker({
+					workerName: "api-analyzer",
+					cwd: directory,
+					settings,
+					invocation,
+				});
+				assert.equal(third.code, 0);
+				assert.equal(
+					await readFile(path.join(directory, "calls.txt"), "utf8"),
+					"analysis\nanalysis\n",
+				);
+				assert.equal(
+					await readFile(path.join(otherDirectory, "calls.txt"), "utf8"),
+					"analysis\n",
+				);
+			} finally {
+				pool.reset();
+			}
+		}).timeout(10000);
+
+		it(`executes analysis in a ${useWorkerThreads ? "thread" : "process"} worker`, async () => {
+			options.worker = true;
+			options.workerThreads = useWorkerThreads;
+			assert.equal(await build(), BuildResult.Success);
+			const execution: unknown = JSON.parse(
+				await readFile(path.join(directory, "execution.json"), "utf8"),
+			);
+			assert(
+				execution !== null &&
+					typeof execution === "object" &&
+					"pid" in execution &&
+					"isMainThread" in execution,
+			);
+			if (useWorkerThreads) {
+				assert.equal(execution.pid, process.pid);
+				assert.equal(execution.isMainThread, false);
+			} else {
+				assert.notEqual(execution.pid, process.pid);
+			}
+			assert.equal(await readFile(path.join(directory, "calls.txt"), "utf8"), "analysis\n");
+		}).timeout(10000);
+
+		it(`preserves direct artifacts when checking them in a ${mode} worker`, async () => {
+			assert.equal(await build(), BuildResult.Success);
+			const files = ["model/api.json", "types/index.d.ts", "reports/api.md"];
+			const expected = await Promise.all(
+				files.map((file) => readFile(path.join(directory, file), "utf8")),
+			);
+			options.worker = true;
+			options.workerThreads = useWorkerThreads;
+			options.apiReportMode = "check";
+			assert.equal(await build(), BuildResult.Success);
+			assert.deepEqual(
+				await Promise.all(files.map((file) => readFile(path.join(directory, file), "utf8"))),
+				expected,
+			);
+			assert.equal(await build(), BuildResult.UpToDate);
+			assert.equal(
+				await readFile(path.join(directory, "calls.txt"), "utf8"),
+				"analysis\nanalysis\n",
+			);
+		}).timeout(10000);
+
+		it(`passes the model-only profile explicitly to a ${mode} worker`, async () => {
+			options.worker = true;
+			options.workerThreads = useWorkerThreads;
+			options.apiOutputProfile = "validate";
+			assert.equal(await build(), BuildResult.Success);
+			assert.equal(
+				await readFile(path.join(directory, "model/api.json"), "utf8"),
+				'{"packageName":"analyzer-pilot"}',
+			);
+			await assert.rejects(readFile(path.join(directory, "reports/api.md")), {
+				code: "ENOENT",
+			});
+			await assert.rejects(readFile(path.join(directory, "types/index.d.ts")), {
+				code: "ENOENT",
+			});
+		}).timeout(10000);
+
+		it(`does not retry report differences from a ${mode} worker`, async () => {
+			options.worker = true;
+			options.workerThreads = useWorkerThreads;
+			options.apiReportMode = "check";
+			assert.equal(await build(), BuildResult.Failed);
+			assert.equal(await readFile(path.join(directory, "calls.txt"), "utf8"), "analysis\n");
+			assert.equal(
+				await readFile(path.join(directory, "types/index.d.ts"), "utf8"),
+				"export {};",
+			);
+			await assert.rejects(readFile(path.join(directory, ".fluid-build-api.done.build.log")), {
+				code: "ENOENT",
+			});
+			await assert.rejects(readFile(path.join(directory, ".fluid-build-api.lock")), {
+				code: "ENOENT",
+			});
+		}).timeout(10000);
+
+		for (const fault of ["throw", "exit"] as const) {
+			it(`does not retry a ${mode} worker that ${fault === "exit" ? "exits after a partial write" : "throws"}`, async () => {
+				const manifestPath = path.join(directory, "node_modules/api-analyzer/package.json");
+				const manifest = new Package(manifestPath, "test").packageJson;
+				await writeFile(
+					manifestPath,
+					JSON.stringify({ ...manifest, exports: { ".": { import: `./${fault}.mjs` } } }),
+				);
+				options.worker = true;
+				options.workerThreads = useWorkerThreads;
+				assert.equal(await build(), BuildResult.Failed);
+				assert.equal(await readFile(path.join(directory, "calls.txt"), "utf8"), "analysis\n");
+				await assert.rejects(
+					readFile(path.join(directory, ".fluid-build-api.done.build.log")),
+					{ code: "ENOENT" },
+				);
+				if (fault === "exit") {
+					assert.equal(
+						await readFile(path.join(directory, "partial.txt"), "utf8"),
+						"partial output",
+					);
+					assert.notEqual(
+						await readFile(path.join(directory, ".fluid-build-api.lock"), "utf8"),
+						"",
+					);
+				} else {
+					await assert.rejects(readFile(path.join(directory, ".fluid-build-api.lock")), {
+						code: "ENOENT",
+					});
+				}
+			}).timeout(10000);
+		}
+	}
+
 	it("keeps dependency-only aliases non-executing with optional caret prerequisites", async () => {
 		const dependentDirectory = path.join(directory, "dependent");
 		await cp(path.join(fixture, "dependent"), dependentDirectory, { recursive: true });
@@ -460,70 +628,74 @@ describe("API analyzer build graph", () => {
 		await assert.rejects(readFile(path.join(directory, "reports/api.md")), { code: "ENOENT" });
 	});
 
-	it("generates producer and consumer models in dependency order for validation", async () => {
-		const dependentDirectory = path.join(directory, "dependent");
-		await cp(path.join(fixture, "dependent"), dependentDirectory, { recursive: true });
-		await mkdir(path.join(dependentDirectory, "node_modules"), { recursive: true });
-		await symlink(
-			directory,
-			path.join(dependentDirectory, "node_modules/analyzer-pilot"),
-			"dir",
-		);
-		const producer = new Package(path.join(directory, "package.json"), "test");
-		const dependent = new Package(path.join(dependentDirectory, "package.json"), "test");
-		dependent.setMatched();
-		options.apiReportMode = "check";
-		options.apiOutputProfile = "validate";
-		const createGraph = (): BuildGraph =>
-			new BuildGraph(
-				new Map([
-					[producer.name, producer],
-					[dependent.name, dependent],
-				]),
-				[],
-				{
-					fluidBuildConfig: {},
-					repoRoot: directory,
-					gitRepo: new GitRepo(directory),
-				},
-				["api"],
-				undefined,
-				() => () => true,
+	for (const execution of ["direct", "process", "thread"] as const) {
+		it(`generates producer and consumer models in dependency order for validation (${execution})`, async () => {
+			const dependentDirectory = path.join(directory, "dependent");
+			await cp(path.join(fixture, "dependent"), dependentDirectory, { recursive: true });
+			await mkdir(path.join(dependentDirectory, "node_modules"), { recursive: true });
+			await symlink(
+				directory,
+				path.join(dependentDirectory, "node_modules/analyzer-pilot"),
+				"dir",
 			);
-		assert.equal(await createGraph().build(), BuildResult.Success);
-		assert.equal(await createGraph().build(), BuildResult.UpToDate);
-		assert.equal(await readFile(path.join(directory, "calls.txt"), "utf8"), "analysis\n");
-		assert.equal(
-			await readFile(path.join(dependentDirectory, "calls.txt"), "utf8"),
-			"analysis\n",
-		);
-		const producerModel: unknown = JSON.parse(
-			await readFile(path.join(directory, "model/api.json"), "utf8"),
-		);
-		const dependentModel: unknown = JSON.parse(
-			await readFile(path.join(dependentDirectory, "model/api.json"), "utf8"),
-		);
-		assert.deepEqual(producerModel, { packageName: producer.name });
-		assert.deepEqual(dependentModel, { packageName: dependent.name });
-		for (const file of [
-			"types/index.d.ts",
-			"reports/api.md",
-			"dependent/types/index.d.ts",
-			"dependent/reports/api.md",
-		]) {
-			await assert.rejects(readFile(path.join(directory, file)), { code: "ENOENT" });
-		}
-		await rm(path.join(directory, "model/api.json"));
-		assert.equal(await createGraph().build(), BuildResult.Success);
-		assert.equal(
-			await readFile(path.join(directory, "calls.txt"), "utf8"),
-			"analysis\nanalysis\n",
-		);
-		assert.equal(
-			await readFile(path.join(dependentDirectory, "calls.txt"), "utf8"),
-			"analysis\nanalysis\n",
-		);
-	});
+			const producer = new Package(path.join(directory, "package.json"), "test");
+			const dependent = new Package(path.join(dependentDirectory, "package.json"), "test");
+			dependent.setMatched();
+			options.apiReportMode = "check";
+			options.apiOutputProfile = "validate";
+			options.worker = execution !== "direct";
+			options.workerThreads = execution === "thread";
+			const createGraph = (): BuildGraph =>
+				new BuildGraph(
+					new Map([
+						[producer.name, producer],
+						[dependent.name, dependent],
+					]),
+					[],
+					{
+						fluidBuildConfig: {},
+						repoRoot: directory,
+						gitRepo: new GitRepo(directory),
+					},
+					["api"],
+					undefined,
+					() => () => true,
+				);
+			assert.equal(await createGraph().build(), BuildResult.Success);
+			assert.equal(await createGraph().build(), BuildResult.UpToDate);
+			assert.equal(await readFile(path.join(directory, "calls.txt"), "utf8"), "analysis\n");
+			assert.equal(
+				await readFile(path.join(dependentDirectory, "calls.txt"), "utf8"),
+				"analysis\n",
+			);
+			const producerModel: unknown = JSON.parse(
+				await readFile(path.join(directory, "model/api.json"), "utf8"),
+			);
+			const dependentModel: unknown = JSON.parse(
+				await readFile(path.join(dependentDirectory, "model/api.json"), "utf8"),
+			);
+			assert.deepEqual(producerModel, { packageName: producer.name });
+			assert.deepEqual(dependentModel, { packageName: dependent.name });
+			for (const file of [
+				"types/index.d.ts",
+				"reports/api.md",
+				"dependent/types/index.d.ts",
+				"dependent/reports/api.md",
+			]) {
+				await assert.rejects(readFile(path.join(directory, file)), { code: "ENOENT" });
+			}
+			await rm(path.join(directory, "model/api.json"));
+			assert.equal(await createGraph().build(), BuildResult.Success);
+			assert.equal(
+				await readFile(path.join(directory, "calls.txt"), "utf8"),
+				"analysis\nanalysis\n",
+			);
+			assert.equal(
+				await readFile(path.join(dependentDirectory, "calls.txt"), "utf8"),
+				"analysis\nanalysis\n",
+			);
+		}).timeout(10000);
+	}
 
 	for (const missing of ["task", "model"] as const) {
 		it(`rejects a local producer with no analyzer ${missing}`, async () => {

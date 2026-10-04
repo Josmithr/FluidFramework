@@ -273,9 +273,14 @@ Task authors remain responsible for a complete input set; there is no inferred c
 Missing artifacts, changed baselines, and invalidated producer tasks force execution. Failed runs do not write a success marker.
 Tasks without `files` settings always reanalyze rather than claim unsupported incremental correctness.
 
-The current implementation supports one task and one analysis context per package and runs in the main process.
-It does not retry through a shell command or restore cached semantic analysis.
-Worker execution, platform parity, and production workflow migration remain later integration steps.
+The current implementation supports one task and one analysis context per package.
+It runs directly when workers are disabled, in a process worker with `--worker`, or in a thread worker with `--workerThreads`.
+All three paths use the same analyzer runner and package-local tool resolution.
+Worker requests carry normalized settings, report mode, and output profile explicitly; workers do not infer policy from command strings or their environment.
+Report differences and operational failures are transferred as structured results, and worker termination fails the task without a command fallback or automatic retry.
+A terminated worker can leave partial output and an abandoned lock; follow the recovery procedure above after confirming the process is no longer active.
+Incremental completion is recorded only after success; changing execution mode alone does not invalidate otherwise identical artifacts.
+Platform parity and production workflow migration remain later integration steps.
 Existing extractor tasks and local/CI build wrappers are unchanged.
 
 ### Concurrency

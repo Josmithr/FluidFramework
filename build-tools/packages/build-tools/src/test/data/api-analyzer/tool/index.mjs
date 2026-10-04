@@ -4,8 +4,9 @@
  */
 
 /* Exercises package-local ESM loading and graph execution; compiler behavior is tested in api-analyzer. */
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { isMainThread } from "node:worker_threads";
 
 /**
  * Minimal release-level exports used to exercise the loader's runtime contract checks.
@@ -46,6 +47,10 @@ export async function analyzeAPIs(configuration, directory) {
 		await readFile(path.join(directory, "node_modules", name, configuration.suite.modelFile));
 	}
 	await appendFile(path.join(directory, "calls.txt"), "analysis\n");
+	await writeFile(
+		path.join(directory, "execution.json"),
+		JSON.stringify({ pid: process.pid, isMainThread }),
+	);
 	return {
 		ok: true,
 		value: {

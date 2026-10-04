@@ -1530,9 +1530,11 @@ The user approved proceeding with the design, then simplified dependency handlin
 The current implementation uses the existing `files` tracking settings and completion-file lifecycle.
 It tracks requested artifact existence and hashes in addition to inputs, configuration, execution mode, and tool state.
 Without explicit file tracking it runs conservatively on every invocation.
-Dependency-pair fixtures exercise model generation and invalidation in producer order; worker execution and production migration remain pending.
-Verification on 2026-10-04: 214 build-tools package tests pass, including mandatory models, required local prerequisites, and incremental invalidation.
-An isolated two-package build using the actual analyzer generated both models, skipped unchanged work, and rebuilt the producer and consumer after deletion of the producer model.
+Dependency-pair fixtures exercise model generation and invalidation in producer order under direct, process-worker, and thread-worker execution; production migration remains pending.
+Verification on 2026-10-04: 233 build-tools package tests pass, including mandatory models, required local prerequisites, incremental invalidation, worker output equivalence, and no-retry failure handling.
+An isolated two-package build using the actual analyzer generated equivalent models, rollups, and reports in all three execution modes and skipped unchanged work.
+TypeScript 6 and TypeScript 7 consumers compiled the generated declarations after original declaration inputs were removed.
+Worker tests also cover package-local tool resolution across reused pools, serialized operational errors, and termination after a partial write without a success marker or automatic retry.
 
 ##### Current integration evidence
 
@@ -1754,12 +1756,12 @@ Recommended implementation order:
 
 1. Review the task schema and execution/publication contract. Add task-kind normalization and graph tests before implementing the programmatic runner.
 2. Build a single-context fixture pilot with target-package ESM resolution, mandatory models, optional report and rollup profiles, and failure handling. This is implemented; current production tasks remain unchanged.
-3. Prove dependency-pair scheduling and incremental completion against explicit input tracking. These checks pass; typed worker execution remains next.
+3. Prove dependency-pair scheduling, incremental completion, and typed worker execution. These checks pass for direct execution and both worker transports.
 4. Evaluate [core-utils](../../../packages/common/core-utils/package.json) in isolation, with separate output locations while the old workflow remains active. Compare semantics rather than copying existing extractor output blindly.
 5. Design multi-context/platform parity and inspectable effective configuration before migrating affected packages. Add export-coverage policy based on configured surfaces, not command spellings.
 6. Continue Stage 5 with documenter and website readers, artifact publication, and historical artifact retention. Broad package migration and extractor retirement remain Stage 6.
 
-Remaining integration work includes typed worker execution, complete input-glob configurations for representative packages, cross-process recovery checks, and the isolated core-utils trial.
+Remaining integration work includes complete input-glob configurations for representative packages, broader cross-process recovery checks, and the isolated core-utils trial.
 These are remaining requirements, not unimplemented capabilities being counted as passing tests.
 
 ### Stage 6. Migrate and retire API Extractor

@@ -9,14 +9,23 @@ import { freemem } from "node:os";
 import type { Readable } from "node:stream";
 import { Worker } from "node:worker_threads";
 
-import type { WorkerExecResult, WorkerMessage } from "./worker.js";
+import type { WorkerExecResult, WorkerRequest } from "./worker.js";
 
 // Resolve the worker entry point relative to this module so it loads as ESM
 // (the nearest package.json declares "type": "module").
 const workerUrl = new URL("./worker.js", import.meta.url);
 
+/**
+ * Structured worker result together with console output captured for that request.
+ */
 export interface WorkerExecResultWithOutput extends WorkerExecResult {
+	/**
+	 * Standard output captured while the request was active.
+	 */
 	stdout: string;
+	/**
+	 * Standard error captured while the request was active.
+	 */
 	stderr: string;
 }
 
@@ -51,12 +60,41 @@ export class WorkerPool {
 		return worker;
 	}
 
-	public async runOnWorker(
+	/**
+	 * Runs a structured request through the existing worker pool.
+	 * @param message - Typed request dispatched by the worker entrypoint.
+	 * @returns The worker result and captured output.
+	 * @throws If communication or worker execution terminates before a result arrives.
+	 */
+	public runOnWorker(message: WorkerRequest): Promise<WorkerExecResultWithOutput>;
+	/**
+	 * Runs an existing command-based request without changing its handler protocol.
+	 * @param workerName - Registered command worker name.
+	 * @param command - Command string interpreted by that worker.
+	 * @param cwd - Target package working directory.
+	 * @returns The worker result and captured output.
+	 * @throws If communication or worker execution terminates before a result arrives.
+	 */
+	public runOnWorker(
 		workerName: string,
 		command: string,
 		cwd: string,
+	): Promise<WorkerExecResultWithOutput>;
+	public async runOnWorker(
+		request: string | WorkerRequest,
+		command?: string,
+		cwd?: string,
 	): Promise<WorkerExecResultWithOutput> {
-		const workerMessage: WorkerMessage = { workerName, command, cwd };
+		let workerMessage: WorkerRequest;
+		if (typeof request === "string") {
+			if (command === undefined || cwd === undefined) {
+				throw new Error("Command worker requests require a command and working directory");
+			}
+			workerMessage = { workerName: request, command, cwd };
+		} else {
+			workerMessage = request;
+		}
+		let activeWorker: Worker | ChildProcess | undefined;
 		const cleanup: (() => void)[] = [];
 		const installTemporaryListener = (
 			object: EventEmitter | Readable,
@@ -69,6 +107,7 @@ export class WorkerPool {
 		const setupWorker = (
 			worker: Worker | ChildProcess,
 			res: (value: WorkerExecResultWithOutput) => void,
+			reject: (error: Error) => void,
 		): void => {
 			let stdout = "";
 			let stderr = "";
@@ -84,21 +123,28 @@ export class WorkerPool {
 				});
 			}
 
-			worker.once("message", (result: WorkerExecResult) => {
+			installTemporaryListener(worker, "message", (result: WorkerExecResult) => {
 				res({ ...result, stdout, stderr });
 			});
+			// Thread workers have no IPC disconnect event; exit and error must also settle the pending request.
+			installTemporaryListener(worker, "error", (error: Error) => reject(error));
+			installTemporaryListener(worker, "exit", (code: number) =>
+				reject(new Error(`Worker exited before returning a result (code ${code})`)),
+			);
 		};
 		try {
 			if (this.useWorkerThreads) {
 				const worker = this.getThreadWorker();
-				const res = await new Promise<WorkerExecResultWithOutput>((res) => {
-					setupWorker(worker, res);
+				activeWorker = worker;
+				const res = await new Promise<WorkerExecResultWithOutput>((res, reject) => {
+					setupWorker(worker, res, reject);
 					worker.postMessage(workerMessage);
 				});
 				this.threadWorkerPool.push(worker);
 				return res;
 			} else {
 				const worker = this.getProcessWorker();
+				activeWorker = worker;
 				const res = await new Promise<WorkerExecResultWithOutput>((res, rej) => {
 					const setupErrorListener = (event: string): void => {
 						installTemporaryListener(worker, event, () => {
@@ -106,12 +152,10 @@ export class WorkerPool {
 						});
 					};
 
-					setupWorker(worker, res);
+					setupWorker(worker, res, rej);
 
 					setupErrorListener("close");
 					setupErrorListener("disconnect");
-					setupErrorListener("error");
-					setupErrorListener("exit");
 					worker.send(workerMessage);
 				});
 
@@ -143,6 +187,14 @@ export class WorkerPool {
 				}
 				return res;
 			}
+		} catch (error) {
+			// Failed workers are not returned to the pool, and callers decide whether any retry is permitted.
+			if (activeWorker instanceof Worker) {
+				await activeWorker.terminate();
+			} else {
+				activeWorker?.kill();
+			}
+			throw error;
 		} finally {
 			cleanup.forEach((value) => value());
 		}

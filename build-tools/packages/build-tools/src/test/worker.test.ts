@@ -6,6 +6,7 @@
 import { strict as assert } from "node:assert/strict";
 import { describe, it } from "mocha";
 import { serializeWorkerError } from "../fluidBuild/tasks/workers/workerError.js";
+import { WorkerPool } from "../fluidBuild/tasks/workers/workerPool.js";
 
 describe("serializeWorkerError", () => {
 	it("serializes Error fields", () => {
@@ -38,4 +39,21 @@ describe("serializeWorkerError", () => {
 			},
 		);
 	});
+});
+
+describe("Worker command requests", () => {
+	for (const useWorkerThreads of [false, true]) {
+		it(`preserves legacy error results in ${useWorkerThreads ? "thread" : "process"} workers`, async () => {
+			const pool = new WorkerPool(useWorkerThreads, Number.POSITIVE_INFINITY);
+			try {
+				for (const command of ["first", "second"]) {
+					const result = await pool.runOnWorker("unknown-worker", command, process.cwd());
+					assert.equal(result.code, -1);
+					assert.equal(result.error?.message, "Invalid workerName unknown-worker");
+				}
+			} finally {
+				pool.reset();
+			}
+		}).timeout(10000);
+	}
 });

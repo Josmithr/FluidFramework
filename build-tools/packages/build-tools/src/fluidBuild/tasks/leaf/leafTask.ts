@@ -41,7 +41,14 @@ const traceTaskInitWeight = registerDebug("fluid-build:task:init:weight");
 const traceTaskQueue = registerDebug("fluid-build:task:exec:queue");
 const traceError = registerDebug("fluid-build:task:error");
 
-interface TaskExecResult extends ExecAsyncResult {
+/**
+ * Execution output consumed by leaf accounting, including whether work ran through a worker.
+ */
+export interface TaskExecResult extends ExecAsyncResult {
+	/**
+	 * Whether a worker handled this execution.
+	 * @defaultValue `false`
+	 */
 	worker?: boolean;
 }
 
