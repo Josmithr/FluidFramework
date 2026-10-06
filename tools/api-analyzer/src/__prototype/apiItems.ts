@@ -44,21 +44,18 @@ export type ApiIdentifier = `${string}#${LocalApiIdentifier}`;
 
 /**
  * Represents the overall structure of the API surface for a package.
+ * @remarks
+ * Top-level result of API analysis.
+ * Contains all of the API items reachable from the package's entry point(s).
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- TODO
 export interface ApiPackageModel {
-	// TODO: need to think on this setup more. I don't think this is the right setup.
-	// It might make more sense to have a single record of exports, and have parsed items track their canonical source.
+	// TODO: we probably surface a couple of ways to access the API items:
+	// 1. Flat list of all API items, keyed by their API identifier.
+	// 2. Hierarchical representation of API items, reflecting their containment relationships. Starts with the package's entry point(s).
 
-	/**
-	 * APIs exported by this package.
-	 * @remarks Only includes exports of items defined within this package.
-	 */
-	readonly localExports: Readonly<Record<LocalApiIdentifier, ApiItem>>;
-
-	/**
-	 * APIs re-exported from external packages.
-	 */
-	readonly reExports: Readonly<Record<ApiIdentifier, ApiItem>>;
+	// TODO: how do we surface re-exports from other packages? How about references to items in other packages?
+	// At a minimum, we need to make sure these are differentiated from local API items.
 }
 
 /**
