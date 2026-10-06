@@ -9,7 +9,10 @@ import type {
 	DependencyExport,
 	DependencyModel,
 } from "../analysis-types/dependencyModel.js";
-import type { DocumentationReferenceLookup } from "../analysis-types/facts.js";
+import type {
+	DeclarationFact,
+	DocumentationReferenceLookup,
+} from "../analysis-types/facts.js";
 import {
 	DiagnosticCode,
 	reportFailure,
@@ -153,7 +156,7 @@ export function resolveDependencyReference(
 	let candidates: readonly DependencyApi[];
 	if (useCompilerTarget) {
 		const records = new Map(model.apis.map((api) => [api.id, api]));
-		const record = declaration === undefined ? undefined : records.get(declaration.id);
+		const record = findDependencyDeclarationApi(declaration, records);
 		const selectCallable =
 			preferCallable ||
 			reference?.memberReferences.at(-1)?.selector?.selectorKind === SelectorKind.Index;
@@ -245,6 +248,52 @@ export function resolveDependencyReference(
 		`${packageName}#${lookup.reference}`,
 		preferCallable,
 	);
+}
+
+/**
+ * Finds a dependency API for a compiler-resolved declaration, including accessor symbols.
+ *
+ * @param declaration - Detached compiler target; undefined means no target was resolved.
+ * @param records - Validated dependency API records indexed by identity.
+ * @returns The direct identity match or a unique original getter record; undefined when neither is available.
+ */
+function findDependencyDeclarationApi(
+	declaration: DeclarationFact | undefined,
+	records: ReadonlyMap<string, DependencyApi>,
+): DependencyApi | undefined {
+	if (declaration === undefined) {
+		return undefined;
+	}
+
+	// A direct identity match takes precedence over the accessor-specific fallback.
+	const direct = records.get(declaration.id);
+	if (direct !== undefined) {
+		return direct;
+	}
+	const getter = declaration.declarations.find((source) => source.kind === "GetAccessor");
+	if (getter === undefined) {
+		return undefined;
+	}
+
+	// Compiler accessor symbols and model getter records have different identities.
+	// Match the original container and source occurrence, not the displayed member name.
+	let match: DependencyApi | undefined;
+	for (const api of records.values()) {
+		if (
+			api.kind === "GetAccessor" &&
+			api.declarationId === declaration.documentationContext?.container &&
+			api.origin.packageName === getter.packageName &&
+			api.origin.file === getter.file &&
+			api.origin.start === getter.start
+		) {
+			// Ambiguous source matches must not silently select the first record.
+			if (match !== undefined) {
+				return undefined;
+			}
+			match = api;
+		}
+	}
+	return match;
 }
 
 /**

@@ -56,6 +56,68 @@ describe("Dependency suite models", () => {
 	});
 	afterEach(() => rmSync(directory, { recursive: true, force: true }));
 
+	it("inherits getter documentation from a dependency model", async () => {
+		const root = path.join(directory, "node_modules", "dependency");
+		writeFileSync(
+			path.join(root, "index.d.ts"),
+			`/* Validates cross-package getter documentation inheritance. */
+/** Source. @public */
+export declare class GetterSource {
+	/** Setter-only producer details. */
+	set active(value: boolean);
+	/** Getter documentation from the producer. */
+	get active(): boolean;
+}
+`,
+		);
+		const configuration = {
+			project: "tsconfig.json",
+			entrypoints: [{ name: ".", path: "index.d.ts" }],
+		};
+		const dependency = await analyzeAPIs(
+			{ ...configuration, packageName: "dependency" },
+			root,
+		);
+		assert(dependency.ok, JSON.stringify(dependency));
+		writeFileSync(path.join(root, "api-model.json"), dependency.value.generateModel());
+		for (const reference of ["GetterSource.active", "dependency#GetterSource.active"]) {
+			writeFileSync(
+				path.join(directory, "index.d.ts"),
+				`/* Uses a producer model for getter documentation. */
+import { GetterSource } from "dependency";
+/** Receiver. @public */
+export declare class GetterReceiver {
+	/** {@inheritDoc ${reference}} */
+	get active(): boolean;
+}
+`,
+			);
+			const result = await analyzeAPIs(
+				{
+					...configuration,
+					packageName: "consumer",
+					suite: { packages: ["dependency"], modelFile: "api-model.json" },
+				},
+				directory,
+			);
+			assert(result.ok, JSON.stringify(result));
+			const model = decodeDependencyModel(result.value.generateModel(), "consumer");
+			assert(model.ok, JSON.stringify(model));
+			const receiver = model.value.graph.declarations.find(
+				(item) => item.name === "GetterReceiver",
+			);
+			const getter = receiver?.container?.declaredMembers.find(
+				(item) => item.source.kind === "GetAccessor",
+			);
+			assert(getter?.documentationId !== undefined);
+			assert.match(
+				model.value.apis.find((item) => item.id === getter.documentationId)?.documentation
+					.documentation ?? "",
+				/Getter documentation from the producer/,
+			);
+		}
+	});
+
 	it("shares accessor-pair documentation status without replacing original comments", async () => {
 		// Same-named static and instance pairs must stay separate; declaration order must not choose the docs.
 		cpSync(

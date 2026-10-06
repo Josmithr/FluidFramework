@@ -12664,6 +12664,18 @@
       "entrypoint": ".",
       "path": [
         "Store",
+        "value"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "Store",
         "create"
       ],
       "items": [
@@ -12715,6 +12727,18 @@
       ],
       "items": [
         "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"revision\"]"
+      ],
+      "typeOnly": true,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": ".",
+      "path": [
+        "StoreType",
+        "value"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]"
       ],
       "typeOnly": true,
       "memberKind": "instance"
@@ -12972,6 +12996,18 @@
       ],
       "items": [
         "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]"
+      ],
+      "typeOnly": false,
+      "memberKind": "instance"
+    },
+    {
+      "entrypoint": "./inheritance",
+      "path": [
+        "PrivateDerived",
+        "value"
+      ],
+      "items": [
+        "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]"
       ],
       "typeOnly": false,
       "memberKind": "instance"

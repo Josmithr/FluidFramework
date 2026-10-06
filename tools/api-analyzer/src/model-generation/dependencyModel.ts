@@ -19,7 +19,11 @@ import type {
 	DependencyModel,
 } from "../analysis-types/dependencyModel.js";
 import type { ApiItemId, DeclarationFact, Origin } from "../analysis-types/facts.js";
-import type { ModelDeclaration, ModelGraph } from "../analysis-types/modelGraph.js";
+import type {
+	ModelDeclaration,
+	ModelGraph,
+	ModelMember,
+} from "../analysis-types/modelGraph.js";
 import { DiagnosticCode, reportFailure, type Result } from "../analysis-types/result.js";
 import { freezeData } from "../utilities/freezeData.js";
 import { ReleaseLevel } from "../analysis-types/classification.js";
@@ -465,12 +469,7 @@ function collectModelExports(graph: ModelGraph): DependencyExport[] {
 			return;
 		}
 		for (const member of declaration.members) {
-			const memberItems =
-				member.documentationId === undefined
-					? member.signatures
-							.filter((signature) => signature.documentationId !== undefined)
-							.map((signature) => signature.id)
-					: [member.id];
+			const memberItems = getMemberExportItems(member, declaration.id, declarations);
 			if (memberItems.length > 0) {
 				exports.push({
 					entrypoint,
@@ -531,6 +530,50 @@ function collectModelExports(graph: ModelGraph): DependencyExport[] {
 		}
 	}
 	return exports;
+}
+
+/**
+ * Selects documentation identities for an instance member's exported path.
+ * @param member - Effective member whose documentation targets are being exported.
+ * @param containingDeclarationId - Receiving declaration identity, used when no original declaring container is recorded.
+ * @param declarations - Portable declarations indexed by identity, including original declaring containers.
+ * @returns The original getter or member identity, or documented signature identities in compiler order.
+ * Returns an empty array when no documentation identity is available.
+ */
+function getMemberExportItems(
+	member: ModelMember,
+	containingDeclarationId: ApiItemId,
+	declarations: ReadonlyMap<ApiItemId, ModelDeclaration>,
+): ApiItemId[] {
+	const getterSource = member.sources.find((source) => source.kind === "GetAccessor");
+
+	// Inherited member views retain their original getter's source and declaring container.
+	// Match that source identity so the export does not target the receiver or the paired setter.
+	const getter =
+		getterSource === undefined
+			? undefined
+			: declarations
+					.get(member.declaringContainer ?? containingDeclarationId)
+					?.container?.declaredMembers.find(
+						(item) =>
+							item.source.kind === "GetAccessor" &&
+							item.source.packageName === getterSource.packageName &&
+							item.source.file === getterSource.file &&
+							item.source.start === getterSource.start,
+					);
+
+	// Accessor paths expose the getter's read-side documentation, not combined getter/setter content.
+	if (getter?.documentationId !== undefined) {
+		return [getter.documentationId];
+	}
+	if (member.documentationId !== undefined) {
+		return [member.id];
+	}
+
+	// Without a member-level record, keep documented overloads in order for numeric selectors.
+	return member.signatures
+		.filter((signature) => signature.documentationId !== undefined)
+		.map((signature) => signature.id);
 }
 
 /**

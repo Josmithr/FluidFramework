@@ -508,6 +508,12 @@ The internal `bindDocumentationReferences(context)` operation produces bindings 
 It is not exported from the package entrypoint.
 Analysis completion runs binding and content resolution before any generator receives its input.
 
+Getters can explicitly inherit from getters in the same package or a selected dependency model.
+For a getter/setter target pair, inheritance uses the getter's original comment regardless of declaration order; setter content is not merged.
+Imported aliases and package-qualified getter paths are supported.
+Getter inheritance does not compare return types and does not accept numeric overload selectors, methods, properties, or setter-only targets.
+Explicit setter inheritance remains unsupported.
+
 Configure `customModifierTags` once when creating the context.
 For example, `{ customModifierTags: ["@partner"] }` registers `@partner` for all semantic stages.
 The content resolver's `DocumentationResolutionOptions` supplies only API link validation inputs and validated automatic inheritance bindings.
@@ -1462,9 +1468,18 @@ Validation checks the original declarations and the receiver's own relationships
 These three switches default to disabled and are independent of report selection.
 Directional rules use the ordinary release and custom-tag selectors on both source and target metadata.
 Each directional rule defaults to enabled and can be disabled with `enabled: false`.
-Inherited `referencePolicies` and `suite` objects are replaced as complete values by local configuration.
 API links retain their separate non-internal-to-internal restriction; public-to-beta links remain valid.
 Invalid configuration or reference relationships produce diagnostics without partial analysis.
+
+Configuration inheritance applies bases in `extends` order, then the local configuration.
+A supplied `referencePolicies` object replaces the complete policy object from earlier layers; its fields are not merged.
+Fields omitted from the replacement use their defaults, not values from an earlier layer.
+The `directional` array is also replaced, not appended.
+Omitting `referencePolicies` preserves the inherited object; supplying `referencePolicies: {}` clears the inherited settings.
+For example, a local object that supplies only `entrypointExposure: true` does not preserve an inherited `releaseCompatibility: true`.
+This replacement does not disable checks outside `ReferencePolicies`, such as API-link visibility.
+The `suite` object follows the same whole-object replacement rule.
+Possible future reference-policy composition is tracked [separately](docs/api-extractor-replacement-follow-ups.md#reference-policy-configuration-composition); it does not change the current contract.
 
 ### Verification scope
 

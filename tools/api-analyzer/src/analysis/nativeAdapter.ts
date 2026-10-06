@@ -3137,6 +3137,7 @@ function extractDeclarationSignatures(
  * @remarks
  * Merged interface, property, and named namespace comments combine content in compiler order while retaining each surviving reference's scope.
  * Supported compound symbols retain a shared context while each callable keeps its original parameter context.
+ * Getter/setter symbols use the getter's comment for read-side references, without merging setter content.
  * Retains type-reference occurrences from every supported declaration part.
  *
  * @param compiler - Active checker and emitter.
@@ -3160,6 +3161,19 @@ function extractDeclarationDocumentationContext(
 	const sourceNode = sourceNodes[0];
 	if (!sourceNode || !source) {
 		return undefined;
+	}
+
+	// Handle read-side documentation before merged declarations can combine accessor comments.
+	const getterContext = extractGetterDocumentationContext(
+		compiler,
+		locations,
+		state,
+		sources,
+		sourceNodes,
+		id,
+	);
+	if (getterContext !== undefined) {
+		return getterContext;
 	}
 	if (sources.length > 1) {
 		const namespace = sources.some((part) => part.kind === "ModuleDeclaration");
@@ -3204,6 +3218,63 @@ function extractDeclarationDocumentationContext(
 				source.documentation,
 			)
 		: undefined;
+}
+
+/**
+ * Captures an accessor symbol's read-side documentation in the getter's original scope.
+ *
+ * @param compiler - Active checker and emitter.
+ * @param locations - Package ownership lookup state.
+ * @param state - Target collection and parsed comments updated during extraction.
+ * @param sources - Original declaration records in compiler order.
+ * @param sourceNodes - Original nodes in source-record order. Undefined entries prevent extraction.
+ * @param id - Owning declaration identity used to cache the parsed getter comment.
+ * @returns A getter context without setter content, or undefined for non-accessor symbols or an unavailable getter or source record.
+ * @throws If compiler extraction fails unexpectedly.
+ */
+function extractGetterDocumentationContext(
+	compiler: CompilerContext,
+	locations: LocationContext,
+	state: CollectionState,
+	sources: readonly SourceDeclarationFact[],
+	sourceNodes: readonly (Node | undefined)[],
+	id: ApiItemId,
+): DocumentationReferenceContext | undefined {
+	// Mixed or unresolved declarations cannot establish an accessor-only documentation source.
+	if (
+		!sourceNodes.every(
+			(node) =>
+				node !== undefined &&
+				(isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node)),
+		)
+	) {
+		return undefined;
+	}
+
+	// The setter may appear first. Keep the getter node paired with its original source record.
+	const getterIndex = sourceNodes.findIndex(
+		(node) => node !== undefined && isGetAccessorDeclaration(node),
+	);
+	const getterNode = sourceNodes[getterIndex];
+	const getterSource = sources[getterIndex];
+	if (getterNode === undefined || getterSource === undefined) {
+		return undefined;
+	}
+
+	// Keep an explicit empty comment when the getter has none, so setter text is not used as a fallback.
+	const documentation = getterSource.documentation ?? "/** */";
+	return {
+		...createReferenceContext(
+			compiler,
+			locations,
+			state,
+			getterNode,
+			getterSource,
+			id,
+			documentation,
+		),
+		documentation,
+	};
 }
 
 /**

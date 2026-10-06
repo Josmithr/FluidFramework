@@ -60,6 +60,7 @@ import {
  *
  * Callable sources include effective method signatures; targets are functions or methods.
  * Non-callable declarations can inherit from their own supported category, including merged contexts.
+ * Getters inherit from getters; this does not establish return-type compatibility.
  * Generic declaration type-parameter names and order must match. Numeric selectors apply only to callable documentation.
  * Targets can belong to the same original package or to selected dependency models.
  * Numeric method references use a terminal selector, such as `Base.(method:2)`.
@@ -107,29 +108,8 @@ export function bindDocumentationReferences(
 
 		const sources =
 			declaredMember === undefined ? (member ?? declaration).declarations : [declaredMember];
-		if (
-			sources.length === 0 ||
-			sources.some(
-				(source) =>
-					source.kind !== "FunctionDeclaration" &&
-					source.kind !== "MethodDeclaration" &&
-					source.kind !== "MethodSignature" &&
-					!(
-						signature === undefined &&
-						(source.kind === "PropertyDeclaration" ||
-							source.kind === "PropertySignature" ||
-							[
-								"InterfaceDeclaration",
-								"ClassDeclaration",
-								"TypeAliasDeclaration",
-								"VariableDeclaration",
-								"EnumDeclaration",
-								"ModuleDeclaration",
-								"NamespaceExport",
-							].includes(source.kind))
-					),
-			)
-		) {
+		const sourceKinds = sources.map((source) => source.kind);
+		if (!isSupportedInheritanceSource(sourceKinds, signature !== undefined)) {
 			return reportFailure(
 				DiagnosticCode.DocumentationUnsupported,
 				`Item ${id}: @inheritDoc requires a supported declaration or callable documentation context. Supply local documentation for this declaration.`,
@@ -149,10 +129,7 @@ export function bindDocumentationReferences(
 			request.declarationReference?.emitAsTsdoc() ?? "",
 			"Inheritance lookup facts must match the original comment.",
 		);
-		const sourceShape = getNonCallableDocumentationShape(
-			sources.map((source) => source.kind),
-			context.typeParameters,
-		);
+		const sourceShape = getNonCallableDocumentationShape(sourceKinds, context.typeParameters);
 		if (
 			signature === undefined &&
 			request.declarationReference?.memberReferences.some(
@@ -268,6 +245,55 @@ export function bindDocumentationReferences(
 }
 
 /**
+ * Checks whether original declaration kinds can supply an explicit documentation inheritance request.
+ *
+ * @remarks
+ * Checks source eligibility only. Target compatibility and documentation shapes are validated separately.
+ *
+ * @param kinds - Syntax kinds of every original source declaration part.
+ * @param hasSignature - Whether the request belongs to a callable signature rather than declaration documentation.
+ * @returns Whether every source part is supported. Empty source lists and standalone setters are unsupported.
+ */
+function isSupportedInheritanceSource(
+	kinds: readonly string[],
+	hasSignature: boolean,
+): boolean {
+	if (kinds.length === 0) {
+		return false;
+	}
+	const hasGetter = kinds.includes("GetAccessor");
+	return kinds.every((kind) => {
+		switch (kind) {
+			case "FunctionDeclaration":
+			case "MethodDeclaration":
+			case "MethodSignature": {
+				return true;
+			}
+			case "SetAccessor": {
+				// A paired setter can contribute to a getter symbol, but cannot inherit on its own.
+				return !hasSignature && hasGetter;
+			}
+			case "PropertyDeclaration":
+			case "PropertySignature":
+			case "GetAccessor":
+			case "InterfaceDeclaration":
+			case "ClassDeclaration":
+			case "TypeAliasDeclaration":
+			case "VariableDeclaration":
+			case "EnumDeclaration":
+			case "ModuleDeclaration":
+			case "NamespaceExport": {
+				// These forms use declaration documentation, even when their values are callable.
+				return !hasSignature;
+			}
+			default: {
+				return false;
+			}
+		}
+	});
+}
+
+/**
  * Binds a selected dependency target after validating callable or non-callable documentation shapes.
  *
  * @param id - Receiving documentation input identity.
@@ -290,7 +316,7 @@ function bindDependencyInheritance(
 			reference,
 			sourceShape,
 			target.parameters === undefined
-				? getNonCallableDocumentationShape([target.kind], target.typeParameters)
+				? getNonCallableDocumentationShape(target.declarationKinds, target.typeParameters)
 				: undefined,
 		);
 		if (!compatible.ok) {
@@ -335,6 +361,7 @@ interface NonCallableDocumentationShape {
 		| "VariableDeclaration"
 		| "EnumDeclaration"
 		| "ModuleDeclaration"
+		| "GetAccessor"
 		| "property";
 
 	/**
@@ -360,6 +387,12 @@ function getNonCallableDocumentationShape(
 	const kind = kinds[0];
 	if (kinds.every((part) => part === "ModuleDeclaration" || part === "NamespaceExport")) {
 		return { kind: "ModuleDeclaration", typeParameters: [] };
+	}
+	if (
+		kinds.includes("GetAccessor") &&
+		kinds.every((part) => part === "GetAccessor" || part === "SetAccessor")
+	) {
+		return { kind: "GetAccessor", typeParameters: [] };
 	}
 	if (
 		(kind === "InterfaceDeclaration" ||

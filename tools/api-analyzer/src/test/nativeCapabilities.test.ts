@@ -4506,6 +4506,105 @@ for (const compilerPackage of ["typescript6", "typescript"] as const) {
 		});
 
 		describe("Explicit documentation inheritance binding boundaries", () => {
+			it("inherits getter documentation from an explicitly named getter", async () => {
+				const file = path.join(directory, "declarations/getter-inheritance.d.ts");
+				try {
+					const getterSource = "/** Whether the timer is active. */\nget active(): boolean;";
+					const setterSource = "/** Setter-only details. */\nset active(value: boolean);";
+					for (const accessors of [
+						getterSource,
+						`${getterSource}\n${setterSource}`,
+						`${setterSource}\n${getterSource}`,
+					]) {
+						writeFileSync(
+							file,
+							`/* Validates explicit getter-to-getter documentation inheritance. */
+/** Getter source. @public */
+export declare class GetterSource {
+	${accessors}
+}
+/** Getter receiver. @public */
+export declare class GetterReceiver {
+	/** {@inheritDoc GetterSource.active} */
+	get active(): boolean;
+}
+`,
+						);
+						const result = await analyzeAPIs(
+							{
+								packageName: "example",
+								project: "tsconfig.json",
+								entrypoints: [{ name: ".", path: "declarations/getter-inheritance.d.ts" }],
+							},
+							directory,
+						);
+						assert(result.ok, JSON.stringify(result));
+						const model = getSuccessValue(
+							decodeDependencyModel(result.value.generateModel(), "example"),
+						);
+						const receiver = model.graph.declarations.find(
+							(item) => item.name === "GetterReceiver",
+						);
+						const getter = receiver?.container?.declaredMembers.find(
+							(item) => item.source.kind === "GetAccessor",
+						);
+						assert(getter?.documentationId !== undefined);
+						const documentation = model.apis.find(
+							(item) => item.id === getter.documentationId,
+						)?.documentation;
+						assert.match(documentation?.documentation ?? "", /Whether the timer is active/);
+						assert.doesNotMatch(documentation?.documentation ?? "", /Setter-only details/);
+						assert.equal(documentation?.inheritedFrom.length, 1);
+					}
+				} finally {
+					rmSync(file, { force: true });
+				}
+			});
+
+			it("rejects getter inheritance from non-getters and numeric selectors", async () => {
+				const file = path.join(directory, "declarations/getter-inheritance-invalid.d.ts");
+				try {
+					for (const [target, reference] of [
+						["active: boolean;", "GetterSource.active"],
+						["active(): boolean;", "GetterSource.active"],
+						["set active(value: boolean);", "GetterSource.active"],
+						["get active(): boolean;", "GetterSource.(active:1)"],
+					] as const) {
+						writeFileSync(
+							file,
+							`/* Getter documentation must not bind to a different declaration category. */
+/** Source. @public */
+export declare class GetterSource { ${target} }
+/** Receiver. @public */
+export declare class GetterReceiver {
+	/** {@inheritDoc ${reference}} */
+	get active(): boolean;
+}
+`,
+						);
+						const result = await analyzeAPIs(
+							{
+								packageName: "example",
+								project: "tsconfig.json",
+								entrypoints: [
+									{ name: ".", path: "declarations/getter-inheritance-invalid.d.ts" },
+								],
+							},
+							directory,
+						);
+						assert.equal(result.ok, false, JSON.stringify(result));
+						assert.equal(
+							result.diagnostics[0]?.code,
+							reference.includes(":1")
+								? DiagnosticCode.DocumentationReference
+								: DiagnosticCode.DocumentationUnsupported,
+						);
+					}
+				} finally {
+					rmSync(file, { force: true });
+				}
+			});
+
 			it("supports export aliases and rejects unsafe function bindings", () => {
 				for (const fixture of documentationBindingCases) {
 					const configuration = resolveConfiguration(

@@ -1206,6 +1206,30 @@
         "entrypoint": ".",
         "path": [
           "Store",
+          "value"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "Store",
           "create"
         ],
         "typeOnly": false,
@@ -1327,6 +1351,30 @@
               {
                 "section": "summary",
                 "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/containers.d.ts\\\\\\\"]\\\"],\\\"Store\\\"]\",\"revision\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": ".",
+        "path": [
+          "StoreType",
+          "value"
+        ],
+        "typeOnly": true,
+        "items": [
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
                 "packageName": "@scenario/primary"
               }
             ],
@@ -1913,6 +1961,30 @@
               {
                 "section": "summary",
                 "source": "member:[\"[[\\\"[\\\\\\\"@scenario/primary\\\\\\\",\\\\\\\"lib/privateInheritance.d.ts\\\\\\\"]\\\"],\\\"PrivateDerived\\\"]\",\"revision\"]",
+                "packageName": "@scenario/primary"
+              }
+            ],
+            "links": []
+          }
+        ]
+      },
+      {
+        "entrypoint": "./inheritance",
+        "path": [
+          "PrivateDerived",
+          "value"
+        ],
+        "typeOnly": false,
+        "items": [
+          {
+            "name": "Store",
+            "owner": "@scenario/primary",
+            "sourcePackage": "@scenario/primary",
+            "documentation": "/**\n * Stored value.\n */\n",
+            "sections": [
+              {
+                "section": "summary",
+                "source": "[[\"[\\\"@scenario/primary\\\",\\\"lib/containers.d.ts\\\"]\"],\"Store\"]:declared:[\"@scenario/primary\",\"lib/containers.d.ts\",997,178]",
                 "packageName": "@scenario/primary"
               }
             ],

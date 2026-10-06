@@ -88,6 +88,37 @@ function verifyPrimaryArtifact(artifact: RepositoryArtifact): void {
 		surface.exports.find((entry) => entry.name === "Store")?.target,
 	);
 
+	// Resolve the getter's own documentation record, not the class or its paired setter.
+	const store = model.graph.declarations.find((declaration) => declaration.name === "Store");
+	const getter = store?.container?.declaredMembers.find(
+		(member) => member.source.kind === "GetAccessor",
+	);
+	assert(getter?.documentationId !== undefined);
+	assert.equal(
+		model.apis.find((api) => api.id === getter.documentationId)?.kind,
+		"GetAccessor",
+	);
+
+	// Direct, type-only, and inherited export paths must share the original getter identity.
+	// Each path must still retain its own type-only status.
+	for (const [entrypoint, name, typeOnly] of [
+		[".", "Store", false],
+		[".", "StoreType", true],
+		["./inheritance", "PrivateDerived", false],
+	] as const) {
+		const exportedGetter = model.exports.find(
+			(entry) =>
+				entry.entrypoint === entrypoint &&
+				entry.path.length === 2 &&
+				entry.path[0] === name &&
+				entry.path[1] === "value",
+		);
+		assert(exportedGetter !== undefined);
+		assert.deepEqual(exportedGetter.items, [getter.documentationId]);
+		assert.equal(exportedGetter.memberKind, "instance");
+		assert.equal(exportedGetter.typeOnly, typeOnly);
+	}
+
 	// The namespace adds a documented wrapper, but its children must reuse the direct value exports.
 	const namespaceSurface = model.graph.surfaces.find(
 		(current) => current.name === "./namespace",
