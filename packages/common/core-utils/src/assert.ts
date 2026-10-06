@@ -13,7 +13,7 @@
  * Before a release, policy-check should be run, which will convert any asserts still using strings to
  * use numbered error codes instead.
  * @param debugMessageBuilder - An optional function that can be used to build a debug message to include in the error in development builds.
- * Only executed if `condition` is false. `debugMessageBuilder` is not executed in production builds, see {@link skipInProduction} for details.
+ * Only executed if `condition` is false. `debugMessageBuilder` is not executed in production builds, see {@link emulateProductionBuild} for details.
  * @remarks
  * Use this instead of the node 'assert' package, which requires polyfills and has a big impact on bundle sizes.
  *
@@ -222,7 +222,7 @@ export function configureDebugAsserts(enabled: boolean): boolean {
 }
 
 /**
- * Checks if non-production conditional code like {@link debugAssert} is included in this build.
+ * Checks if non-production conditional code like `debugAssert` is included in this build.
  * @remarks
  * Such code can be optimized out by bundlers or by {@link emulateProductionBuild}: this checks if that has occurred.
  *
@@ -242,7 +242,7 @@ export function nonProductionConditionalsIncluded(): boolean {
 }
 
 /**
- * Overrides the behavior code which optimizes out non-production conditional code like {@link debugAssert} and {@link nonProductionConditionalsIncluded}.
+ * Overrides the behavior code which optimizes out non-production conditional code like `debugAssert` and {@link nonProductionConditionalsIncluded}.
  *
  * Can be called multiple times. Will emulate production builds if called with `true` more times than `false`.
  * Emulation of production builds is disabled when enabled and disabled counts match (including at 0, by default).
@@ -250,7 +250,7 @@ export function nonProductionConditionalsIncluded(): boolean {
  *
  * @remarks
  * This is intended for testing that the code behaves correctly in production configurations.
- * Since tools like {@link debugAssert} typically add additional validation to help catch more bugs, tests should generally be run with such checks enabled (and thus emulateProductionBuild in its default disabled state).
+ * Since tools like `debugAssert` typically add additional validation to help catch more bugs, tests should generally be run with such checks enabled (and thus emulateProductionBuild in its default disabled state).
  * However it is possible that some debugAsserts could accidentally change behavior and hide a bug.
  * This function provides a way to globally disable the debugAsserts so it is possible to run test suites in a production like mode without having to do a production bundling of them.
  *
