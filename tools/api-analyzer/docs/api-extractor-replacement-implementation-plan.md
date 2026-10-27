@@ -1821,6 +1821,320 @@ Recommended next step: define the shared publication layout and cross-release no
 Keep the raw and partial-surface cases separate so controls cannot be mistaken for full-package coverage.
 Stage 4's recorded acceptance is unchanged; remaining Stage 5 integration work still applies.
 
+##### Custom type-reference rule callback
+
+Status (2026-10-06): **baseline approved; implementation in progress**.
+This plan records the agreed direction for replacing build-tools' post-generation legacy-reference traversal with an analyzer callback.
+It does not change Stage 4 acceptance, complete Stage 5, or authorize production migration.
+The user approved the current shared item representation as the implementation baseline, with further iteration permitted.
+The callback and compiler-to-item projection remain unimplemented.
+
+###### Goal and confirmed decisions
+
+Add one optional custom type-reference callback to [ReferencePolicies](../src/analysis-types/referencePolicy.ts).
+The analyzer owns reference traversal, dependency resolution, and diagnostics.
+Build-tools owns the meaning of `@legacy` and supplies the mandatory current-to-legacy rule.
+Build-tools must not reconstruct the analyzer's reference graph from generated JSON to enforce this rule.
+
+- The callback receives reusable public API-member details for the source and target, not compiler handles or callback-specific member types.
+- It checks type references only. API links and documentation inheritance retain their separate validation paths.
+- It can reject additional relationships but cannot override an enabled built-in check.
+- Check each original source signature independently and each applicable target overload. One rejection fails the analysis.
+- Use original declaring ownership for inherited members. Do not revalidate a member under each receiving class or interface.
+- Keep whole-object replacement for `referencePolicies` across `Configuration.extends`. Do not accumulate callbacks from configuration layers.
+- Keep legacy enforcement mandatory in every Fluid Build analyzer mode. Do not restore a package-level opt-out.
+- Create the build-owned callback inside the common runner after worker dispatch. Do not send functions through process or thread messages.
+
+The existing `releaseCompatibility`, `entrypointExposure`, and `inheritanceVisibility` switches default to `false`.
+This feature does not change those defaults.
+Changing release compatibility to run by default requires a separate decision.
+The [configuration-composition follow-up](api-extractor-replacement-follow-ups.md#reference-policy-configuration-composition) remains open and does not block this feature.
+
+###### Proposed public contract
+
+Use the approved [API item contract](../src/analysis-types/apiItems.ts) as the baseline for the shared public representation.
+The approved baseline defines `ApiItem` as a discriminated union of concrete declaration, package, and entrypoint interfaces.
+It is not exported from the package or populated by the analyzer yet.
+The internal [snapshot factory](../src/analysis/apiPackageModel.ts) belongs to the analysis layer and has a [focused test suite](../src/test/apiPackageModel.test.ts).
+The factory consumes already completed item records; it does not reconstruct missing metadata from the existing combined graph.
+It copies the input once, validates structural relationships, freezes nested records, and exposes private lookup maps through read-only methods.
+Validation covers unique identities and package names, reciprocal ownership and group membership, permitted parent kinds, property forms, export targets, inherited-view references, and lexical-parent cycles.
+Compiler symbol equivalence, declaration order, inheritance reachability, and completed documentation content remain producer responsibilities.
+Export the contract from the package only when its analyzer projection is implemented.
+Reuse existing origin and release-level types where their contracts fit.
+Do not make it an alias for an internal analysis-context item or require callers to parse a generated model.
+Its design must support reuse by other inspection and validation APIs, not only this callback.
+
+Confirmed design direction (2026-10-06):
+
+- Function overloads and separate parts of a merged symbol remain separate items with independent documentation and source locations. A getter and setter for the same property share one item, which retains each accessor's original source details.
+- Class properties use `ApiProperty`; interface property signatures use `ApiPropertySignature`. This distinction matches methods and constructors and follows API Extractor's property item kinds. Both property kinds support paired accessors; only class properties have a static/instance member side.
+- `parent` describes original lexical ownership. A top-level declaration belongs to its package, not an entrypoint. Export exposure and inherited receiving views are separate relationships.
+- Identifiers are opaque and suite-wide. TSDoc selectors and export paths resolve to identifiers but do not define their format.
+- Declarations of the same resolved symbol have an explicit group. Matching names alone do not establish a relationship.
+- Classification is separate from documentation content. Custom modifier tags remain local rather than being copied from parents or sibling declarations.
+- Documentation is minimal, complete, and immutable when exposed to consumers or custom callbacks. `originalComment` and `resolvedComment` distinguish source text from resolved content; omission means no content, never pending analysis. Wrapping TSDoc internally is permitted only when mutable nodes cannot escape or later change an existing view.
+
+| Required information | Contract to establish in the public type design |
+| --- | --- |
+| Identity and role | An opaque identity for each declaration, property, package, or entrypoint item. A property's accessor occurrences remain separately inspectable within one item. An inherited view references the original item instead of acquiring a new declaring parent. |
+| Name and syntax kinds | Each item has its own kind and useful display name. Symbol groups connect related declaration kinds without combining their identities. Names alone do not establish identity. |
+| Package and origin | Original package identity and package-relative source location, including dependency APIs. Distinguish the analyzed package from selected dependencies without inferring it from paths. |
+| Classification | Validated original release metadata and locally declared modifier tags. Preserve the existing release-classification rules; do not copy ancestor custom tags onto a member or combine getter/setter tags. A property's definition retains classification on each original declaration record instead of selecting a combined property classification. |
+| Original ownership | Original declaring-container ancestry, including nested namespaces, classes, and interfaces. Distinguish lexical ancestry from signature ownership and inherited receiving views. |
+| Callable relationships | Enough identity and ownership information to inspect overloads independently and preserve the existing legacy rule for declarations without their own documentation record. |
+
+Expose immutable member views and read-only ownership access using the same public representation.
+The contract uses ID-based relationships and a shared `ApiModelLookup` rather than embedding parent objects or exposing mutable maps.
+The same lookup serves callbacks and other inspection consumers; it is not a callback-specific context type.
+Validate missing or cyclic required ownership before invoking user code rather than treating an unknown ancestor as current.
+Construct the views from detached local facts and validated dependency data, with invocation-local identity reuse.
+Do not copy complete graphs for each reference or expose mutable collection state.
+
+The following proposed signature illustrates the callback and its explicit acceptance result.
+`ApiDeclaration` is the declaration subset of `ApiItem`, excluding packages and entrypoints.
+The third argument supplies read-only navigation from parent and declaration-group identifiers.
+The imports refer to internal analysis types for type-checking this design example; these are not supported package exports.
+
+```typescript
+import type {
+	ApiDeclaration,
+	ApiModelLookup,
+} from "../src/analysis-types/apiItems.js";
+
+export type TypeReferenceRuleResult =
+	| { readonly accepted: true }
+	| { readonly accepted: false; readonly message: string };
+
+export type TypeReferenceRule = (
+	source: ApiDeclaration,
+	target: ApiDeclaration,
+	lookup: ApiModelLookup,
+) => TypeReferenceRuleResult;
+
+// Proposed addition to ReferencePolicies; omission adds no custom check.
+export interface ReferencePolicies {
+	readonly typeReferenceRule?: TypeReferenceRule;
+}
+```
+
+The callback is synchronous.
+A returned rejection becomes a `DiagnosticCode.ReferencePolicy` diagnostic with the callback message and analyzer-owned source, target, and reference-location details.
+Callback exceptions remain operational failures and retain the existing compiler cleanup and worker error handling.
+Validate the returned result at runtime: reject promises, invalid result shapes, and empty rejection messages as callback contract errors, not acceptance.
+Require deterministic callbacks with no mutation of supplied data.
+Closed-over configuration remains the caller's responsibility; the analyzer does not serialize or infer dependencies from function bodies.
+
+###### Item model design walkthrough
+
+The model's interfaces define the approved baseline, not proof that current local or dependency facts can populate every field.
+Its flat lookup and hierarchy refer to the same declaration records.
+`ApiPackage.children` lists original top-level declarations, including unexported support declarations.
+`ApiPackage.entrypoints` lists separate exposure nodes; entrypoints are not duplicated in `children`.
+`ApiPackageModel` is the inspection envelope, not another `ApiItemKind.Model` node.
+It extends `ApiModelLookup` directly, so consumers call `model.getItem`, `model.getDeclarationGroup`, and `model.getAllItems` without a child lookup property.
+Callbacks and utilities can retain the narrower `ApiModelLookup` contract; a package model satisfies it directly.
+These lookup methods include selected dependency items, while `package` identifies the package being inspected.
+
+`ApiDeclarationGroup` relates declarations without becoming their parent or combining their metadata.
+An accessor property's item appears once in its group and in its parent's children; its getter and setter are not separate lookup items.
+Export bindings point to groups so a reference to an overloaded function or merged namespace does not arbitrarily choose one declaration.
+The producer retains declaration order for related overloads; the flat registry's identity order must not become overload order.
+Class and interface `children` contain only originally declared members.
+An `ApiInheritedMember` records a receiver and original declaration; later type-expression work must describe generic substitutions separately.
+
+The following cases define the intended relationships.
+Names such as `parse-text` describe example records, not an identifier encoding.
+
+| Case | Items and relationships | Expected consumer behavior |
+| --- | --- | --- |
+| Two `parse` overloads exported from `.` and `./testing` | Distinct `parse-text` and `parse-number` function items have the package as parent and share one declaration group. Both entrypoints export that group. | Inspect each overload's own parameters and documentation. Navigate group declarations in overload order; do not duplicate items per entrypoint. |
+| A function merged with a namespace | A function item and a namespace item share a resolved-symbol group. A helper written inside the namespace belongs to that namespace item. | Keep the function's callability and namespace's children distinct. The helper's lexical ancestry must not run through the function declaration. |
+| Two blocks of namespace `Tools` | Each namespace declaration is an item in the same group. Each block owns only the declarations written in it. | Navigate related blocks to obtain combined exposure without merging their comments or assigning a child multiple original parents. |
+| Getter and setter named `value` | One `Property` item in a class or `PropertySignature` item in an interface has an accessor definition with separate getter and setter records. Both belong to the same original owner, symbol, and member side. Each record retains its own origin, classification, type excerpt, and completed documentation. | Inspect read and write contracts independently without enumerating the property twice. The property's display documentation uses the getter when present and the setter only for a setter-only property; a getter without documentation does not inherit setter text. |
+| A field, readonly field, or interface property signature | A class field uses `Property` with a field definition; an interface property uses `PropertySignature` with a signature definition. Each definition contains one source record, optionality, and writability. No getter or setter is invented. | Use the declaration's type excerpt for reading and, when writable, writing. Class children accept `Property`; interface children accept `PropertySignature`. The item kind narrows the parent and permitted definition forms. |
+| A getter-only or setter-only property | The accessor definition requires at least one accessor. Getter-only and setter-only forms retain only their declared contracts. | A missing accessor means no corresponding declared contract, not unresolved analysis. Paired read and write types may differ; do not copy one accessor's type onto the other. |
+| A dependency function re-exported as `renamed` | The producer's original function items keep producer ownership. The consumer's export binding names their group `renamed`. | Look up the same original items through either surface. An outside-suite export instead has an explicit external import binding, with no invented local item. |
+| `Derived` inherits `Base.value` | The member item remains a child of `Base`. `Derived.inheritedMembers` contains a receiving view that references that item. | Follow `Base` for original classification and legacy ancestry. Do not treat the inherited view as another local source declaration. |
+
+This example navigates function overloads through the shared lookup.
+It filters a mixed function/namespace group without losing the producer's function-overload order.
+
+```typescript
+import {
+	ApiItemKind,
+	type ApiFunction,
+	type ApiModelLookup,
+} from "../src/analysis-types/apiItems.js";
+
+export function getRelatedFunctions(
+	item: ApiFunction,
+	lookup: ApiModelLookup,
+): readonly ApiFunction[] {
+	if (item.declarationGroup === undefined) {
+		return [item];
+	}
+	const group = lookup.getDeclarationGroup(item.declarationGroup);
+	if (group === undefined) {
+		throw new Error("The declaration group must exist in the model.");
+	}
+	return group.declarations.map((id) => {
+		const declaration = lookup.getItem(id);
+		if (declaration === undefined) {
+			throw new Error("Group declarations must exist in the model.");
+		}
+		return declaration;
+	}).filter((declaration): declaration is ApiFunction =>
+		declaration.kind === ApiItemKind.Function,
+	);
+}
+```
+
+The kind-specific identifier brands constrain parent and child targets at compile time.
+They do not prove that an identifier exists, belongs to the expected package, or points to the correct instance of a kind.
+The producer must validate identity uniqueness, kind agreement, reciprocal parent/child membership, package ownership, acyclic lexical ancestry, and group membership.
+Accessor records may share a property item only when their original owner, symbol, and static/instance side agree.
+They keep distinct source occurrences and metadata, and at least one accessor must exist.
+`ApiProperty` has a class parent and a field or accessor definition; `ApiPropertySignature` has an interface parent and a signature or accessor definition.
+Interface properties describe instance members and expose no `memberSide` field.
+The item types constrain these relationships at compile time; the snapshot factory also validates them at runtime.
+Export and type-reference graphs can contain cycles; do not apply the lexical-parent acyclicity rule to those graphs.
+Missing required relationships must fail before invoking callbacks.
+
+This example inspects both property item kinds without assigning a getter's type to its setter.
+The type excerpts reuse the existing display/reference representation; a complete semantic type-expression API remains separate work.
+
+```typescript
+import type { ApiProperty, ApiPropertySignature } from "../src/analysis-types/apiItems.js";
+import type { CodeExcerpt } from "../src/analysis-types/excerpt.js";
+
+export function getDeclaredPropertyTypes(property: ApiProperty | ApiPropertySignature): {
+	readonly read: CodeExcerpt | undefined;
+	readonly write: CodeExcerpt | undefined;
+} {
+	const definition = property.definition;
+	if (definition.kind === "accessors") {
+		return {
+			read: definition.accessors.getter?.type,
+			write: definition.accessors.setter?.type,
+		};
+	}
+	return {
+		read: definition.declaration.type,
+		write: definition.writable ? definition.declaration.type : undefined,
+	};
+}
+```
+
+Minimal documentation and remaining design questions:
+
+- Start with original and resolved comment text, preserving absent, empty, and tag-only comments. Resolution must finish before a public inspection view or custom callback can observe the data. Structured section and resolved-link navigation remain a later documentation contract, not fields claimed to be implemented now.
+- [Current completion order](../src/analysis/completeAnalysis.ts) already resolves documentation before returning successful analysis, but validates reference policies earlier. The planned callback path must validate type references against a completed immutable view after documentation resolution, not expose an intermediate state or populate documentation later. Keep built-in type checks before the custom rule for each occurrence. Test diagnostic precedence when documentation and type-reference validation would both fail; the runtime ordering has not changed in this design pass.
+- A property's declaration details live in `definition.declaration` or `definition.accessors`, not a combined `classification` or `origin` on the property item. Preserve both accessors' facts for rules and diagnostics. The callback invocation contract must identify the original source occurrence within the property, rather than treating either accessor's tags as applying to both. Finalize that reusable reference-occurrence representation before implementing property policy validation; the signature above remains a sketch until then.
+- The existing model can combine several declarations into one identity and documentation record. Prove that each original declaration's identity, comment, metadata, and lexical parent can be retained for both local and dependency APIs. If current records are insufficient, extend producer capture and the versioned artifact contract explicitly; do not reconstruct declarations by parsing rendered text or copy combined metadata onto each declaration.
+- Specify how existing merged-symbol release consistency and custom-tag policy interact with separate declaration records. Groups provide navigation, not implicitly combined classification. Establish expected legacy behavior for members in different blocks of one merged namespace before replacing the existing ancestry traversal.
+- Preserve the existing distinction between artifact schema version, identity version, and compiler compatibility. The item model is an in-process inspection contract, not a new wire format. Decide identity allocation and compatibility effects before replacing existing item IDs or exporting the new types. Current development-version rules do not promise backward compatibility.
+- Complete type expressions, parameter structure, method modifiers, anonymous type-literal ownership, module namespace exports, and cross-package declaration augmentation still need design. The initial named-declaration skeleton must not be presented as complete TypeScript coverage.
+
+Integration gate: the property reference-occurrence contract and projection requirements must be finalized before connecting the snapshot to completed analysis or custom callbacks.
+Completed-only documentation, distinct class-property and interface-property-signature kinds, paired accessors within each kind, and direct lookup inheritance are agreed design directions.
+Type-check example consumers, kind narrowing, invalid parent/child assignments, mismatched field/signature definitions, every property form, nonempty accessor definitions, and rejection of the removed pending-documentation shape.
+The compile-time checks validate the TypeScript contract; the snapshot tests now cover runtime immutability and structural lookup integrity.
+Projection fidelity, analyzer integration, callback invocation, and serialization remain unimplemented for this inspection model.
+
+###### Configuration and evaluation
+
+Extend the strict policy schema in [configuration.ts](../src/configuration.ts) to accept a callable value only for the new option.
+Preserve the callback's function identity when resolving configuration.
+Replace function-incompatible `structuredClone` use on policy objects with explicit copying of policy data and retention of the function reference.
+Keep nested arrays and selectors isolated from caller mutation without freezing caller-owned functions or their closed-over state.
+Review the configuration copies used by analysis-context construction and completed analysis as well as the initial normalizer.
+
+Bases still apply in `extends` order, followed by the local configuration.
+Omitting `referencePolicies` inherits the complete earlier object.
+Supplying `{}` clears it, including an inherited callback.
+Supplying a new policy object replaces all earlier fields; omitted switches use their defaults and `directional` is not appended.
+Callers that need several checks must explicitly compose them into the final callback.
+Do not introduce an automatic composition mechanism, callback registry, or JSON function-loading syntax in this feature.
+
+Integrate the callback into [referencePolicy.ts](../src/analysis/referencePolicy.ts), not into model, report, or rollup generation.
+Complete documentation resolution before the type-reference validation pass that invokes custom rules.
+No successful analysis result or callback input may contain pending documentation.
+The callback alone must enable type-reference traversal when all existing policy options are disabled.
+Keep existing reference order and the relative order of built-in checks.
+For each original reference occurrence, run the enabled built-in type-reference checks first, then the custom rule, and stop at the first failure.
+The callback is not invoked for an occurrence already rejected by a built-in check.
+
+Reuse the analyzer's target-classification selection: declaration metadata takes precedence where present; otherwise inspect the applicable callable signatures independently.
+Do not flatten overload metadata into combined custom tags.
+Likewise, a property's getter and setter retain independent source occurrences, classification, and read/write reference edges despite sharing one public item.
+Cover compound declarations explicitly so the callback sees the same target interpretation as the built-in rules.
+Check references owned by the analyzed package, including support APIs excluded by output selection.
+Use selected dependency APIs as targets without rechecking all dependency-owned source references in the consumer.
+Do not deduplicate distinct original reference occurrences or use export aliases to change their original ownership.
+
+Complete custom validation before returning successful analysis.
+Generators must not invoke callbacks, reload dependency models, or change their output based on callback identity.
+The effective in-process configuration may retain the function; generated models, reports, rollups, fingerprints, and worker messages must not contain it.
+Equivalent accepting rules must produce identical artifacts.
+
+###### Build-tools migration
+
+Adapt [apiAnalyzerLegacyPolicy.ts](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/apiAnalyzerLegacyPolicy.ts) into a rule over the shared member representation.
+Preserve its existing semantics: local `@legacy` or legacy original ancestry makes an API legacy; current sources cannot reference legacy targets; reverse-direction references remain allowed.
+Preserve constructor, nested-container, inherited-member, and undocumented callable-declaration behavior without changing model metadata.
+Use the existing policy tests as the behavioral specification for this migration.
+
+The [common runner](../../../build-tools/packages/build-tools/src/fluidBuild/tasks/apiAnalyzerRunner.ts) must attach the rule before `analyzeAPIs` runs in direct, process-worker, and thread-worker execution.
+Resolve ordinary configuration inheritance before explicitly composing the effective custom callback with the mandatory build-owned rule.
+Run the mandatory rule first in that composition, then any effective caller rule; neither can accept a relationship rejected by the other.
+Preserve all effective built-in switches and directional rules when installing the final policy object.
+Appending a layer containing only the callback would erase those settings and is not acceptable.
+
+Before implementation, choose how the runner obtains the effective policies without duplicating the analyzer's merge algorithm.
+The preferred starting point is to reuse the existing configuration resolver through a deliberate public export if one is needed.
+Review that API addition in the first milestone; do not add a second inheritance implementation to build-tools or analyze the package twice.
+Keep task normalization and worker payloads data-only; installing arbitrary serialized callbacks is outside this plan.
+
+Once callback parity is proven, remove the legacy-only post-generation model traversal and redundant dependency-model loading from the runner.
+Keep the analyzer's dependency schema, identity, and freshness checks intact.
+Every build mode still generates the complete model once and preserves existing publication, locking, and completion-file behavior.
+Remove model-reader requirements and loader checks only if they have no remaining integration use; update fixture modules and tests with that change.
+Require the package-local analyzer to support the new contract and report incompatible installations explicitly; do not silently skip the rule.
+Track the build-owned rule implementation and its inputs for incremental invalidation without hashing or transporting a function value.
+
+###### Implementation sequence
+
+1. **Implement the approved item baseline.** Preserve the agreed direct lookup, completed-documentation, distinct property/signature kinds, and paired-accessor contracts. Implement and test the immutable snapshot and representable relationship invariants first. Then prove per-declaration projection fidelity, finalize original property reference occurrences, and integrate the model with completed analysis. Keep callback names, the runtime result contract, and the configuration-resolution bridge as focused follow-up decisions. Do not begin with callback-specific member wrappers.
+2. **Add member views and configuration support.** Implement immutable local and dependency projections and preserve callback identity through configuration resolution. Add tests for ownership, classification, mutation isolation, defaults, and replacement semantics. Regenerate public artifacts through the supported build scripts when exports change.
+3. **Add analyzer enforcement.** Enable callback-only traversal after documentation resolution and invoke the rule after built-in type checks for each occurrence. Test diagnostic precedence, overloads, independent property-accessor references, original ownership, exception cleanup, and output independence before changing build-tools.
+4. **Migrate mandatory legacy enforcement.** Explicitly compose the rule inside the runner, preserve worker and incremental behavior, and replace the model-based validation only after the old policy cases pass through the new path. Remove only dependencies and helpers that are no longer used.
+5. **Verify integration and document the feature.** Run the isolated raw, published, and current core-utils trials and the package gates below. Update the analyzer and build-tools READMEs, examples, limitations, and this plan with verified results. Keep production package migration and publication-layout work separate.
+
+###### Acceptance and verification
+
+| Area | Required evidence |
+| --- | --- |
+| Configuration | Omitted callback preserves behavior; callback-only configuration runs; non-functions fail validation; function identity survives resolution; nested data is isolated; ordered bases, shared bases, cycles, full replacement, `{}`, and explicit composition retain their documented behavior. |
+| Public member views | Local and dependency APIs expose original metadata and ownership through one representation; signatures and compound declarations remain distinguishable; class properties and interface property signatures use distinct kinds with constrained owners and definitions; each property item preserves separate accessor origins, classification, types, and documentation; fields/signatures and getter-only/setter-only forms remain explicit; no public documentation is pending; missing or cyclic required ownership cannot produce a permissive default; callers cannot mutate analysis data. |
+| Rule behavior | Accept and reject paths; built-in rejection cannot be bypassed; each applicable source signature and target overload is checked; constructor, getter, static, nested, unexported, and inherited cases retain original identities; reverse-direction references remain independent. |
+| Scope and order | Current-package reference occurrences are checked independently of output selection; getter and setter occurrences retain separate policy inputs; dependency-owned sources and inherited receiving views are not redundantly revalidated; callbacks observe completed documentation; diagnostic order is deterministic, including competing documentation failures; links and documentation inheritance never invoke the type rule. |
+| Failure handling | Returned rejections are normal policy diagnostics; thrown exceptions, promises, and malformed results are operational failures; compiler resources are released; workers preserve diagnostics and errors; failed analysis publishes nothing and records no successful completion. |
+| Artifact independence | The rule runs during analysis only; generation order cannot change callback counts; equivalent accepting callbacks produce identical model/report/rollup output; no function enters serialized artifacts or fingerprints. |
+| Build integration | Mandatory legacy checks in every profile and execution mode; no opt-out or lost effective policy fields; no legacy-only graph reconstruction or model reload; package-local capability failures are explicit; policy changes invalidate incremental completion; failures do not trigger an automatic retry. |
+| Representative package | The isolated core-utils raw and partial-surface controls retain their current acceptance boundary, report checks, unchanged-build skips, and TS6/TS7 consumer compilation without production configuration or baseline changes. |
+
+Reuse existing configuration, policy, native capability, dependency-suite, and build-task test files and helpers.
+Add focused regressions before changing behavior; do not accept new snapshots only because they match current output.
+Run focused checks after each implementation milestone.
+For analyzer code changes, run `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm check:format`, model/report freshness checks, editor diagnostics, and `git diff --check`.
+For build-tools changes, follow its package instructions and run both type configurations, its test suite, lint, and formatting from `build-tools`.
+Validate changed TSDoc with the official parser, type-check examples, check documentation links, and follow the applicable API-change and changeset guidance.
+Record any pending tests or remaining limitations explicitly.
+
+Exit: the approved reusable member contract and optional callback are implemented, mandatory legacy policy runs through that callback with parity evidence, redundant build-side semantic traversal is removed, and all required checks have recorded results.
+Configuration-composition redesign, default-policy changes, asynchronous rules, serialized callback loading, production migration, and publication-layout changes remain outside this feature.
+
 ### Stage 6. Migrate and retire API Extractor
 
 - Exercise every usage family with representative packages: Tree, fluid-framework, client-utils, Presence, local-driver, the documenter, build-tools, and server.

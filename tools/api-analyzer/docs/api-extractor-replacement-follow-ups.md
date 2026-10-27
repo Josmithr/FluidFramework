@@ -172,6 +172,23 @@ Tests cover inherited configurations, relative paths, precedence, invalid inputs
 Include a representative API Extractor migration fixture that reuses its existing TSDoc configuration.
 Direct programmatic use remains available without filesystem access.
 
+## Reference-policy configuration composition
+
+Status: open for future investigation; retain the current whole-object replacement semantics.
+
+Decision (2026-10-06): keep the existing [`referencePolicies` inheritance contract](../README.md#reference-policies).
+A later policy object replaces the earlier object, including any configured rules.
+The planned optional custom type-reference callback must follow this contract: callbacks from different configuration layers will not be combined automatically.
+The callback API is not implemented yet; its API-member arguments must use a reusable public representation, not types specific to this callback.
+The [custom type-reference rule callback plan](api-extractor-replacement-implementation-plan.md#custom-type-reference-rule-callback) defines the proposed contract, implementation milestones, and acceptance checks under the current replacement semantics.
+
+Before changing composition behavior, identify use cases that require rules from multiple layers to run together.
+Define explicit replacement and composition behavior, evaluation order, diagnostics, and compatibility with existing configurations.
+Custom validators may reject additional type relationships but must not override built-in rejections.
+Any future change must document its migration impact and test inherited, replaced, and explicitly composed rules.
+
+This investigation does not block the planned callback API or introduce composition behavior now.
+
 ## Configurable documentation inheritance rules
 
 Status: open; future investigation. No configurable inheritance rules are implemented or committed by this item.
