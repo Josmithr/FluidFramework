@@ -1517,6 +1517,37 @@ describe("Host and Guest correctness", () => {
 		channel.port2.close();
 	});
 
+	describe("Guest alpha tree", () => {
+		it("exports the stored schema from the Guest checkout", async () => {
+			const { guest, provider } = await setup(["initial"]);
+			const expected = asAlpha(provider.trees[1]).exportSimpleSchema();
+			assert.deepEqual(asAlpha(guest.tree).exportSimpleSchema(), expected);
+		});
+
+		it("exports the Guest content after a Host update", async () => {
+			const { guest, host, main, provider } = await setup(["initial"]);
+			const tree = asAlpha(guest.tree);
+
+			// Read through the original tree handle after the Host's edit reaches the Guest.
+			main.root.push("updated");
+			await host.updateGuestPromise;
+			assert.deepEqual(tree.exportVerbose(), asAlpha(provider.trees[1]).exportVerbose());
+		});
+
+		it("forks an editable branch without modifying the Guest's view", async () => {
+			const { guest, guestView } = await setup(["initial"]);
+			const branch = asAlpha(guest.tree).forkBranch();
+			try {
+				const fork = branch.viewWith(stringArrayConfig);
+				fork.root.push("local");
+				assert.deepEqual([...fork.root], ["initial", "local"]);
+				assert.deepEqual([...guestView.root], ["initial"]);
+			} finally {
+				branch.dispose();
+			}
+		});
+	});
+
 	it("continues synchronizing after replacing the Guest view", async () => {
 		const { host, main, guest, guestView } = await setup(["initial"]);
 		guestView.dispose();

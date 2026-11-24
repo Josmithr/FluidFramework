@@ -33,7 +33,8 @@ export function createViewableTreeAlpha(
 		viewWith<TRoot extends ImplicitFieldSchema>(
 			config: TreeViewConfiguration<TRoot>,
 		): TreeView<TRoot> {
-			const view: TreeViewAlpha<TRoot> = checkout.viewWith(config);
+			// The tree owns the checkout. Closing a view must not dispose the Guest's synchronization branch.
+			const view: TreeViewAlpha<TRoot> = checkout.viewWithInternal(config, false);
 			return view as TreeView<TRoot>;
 		},
 		exportVerbose(): VerboseTree | undefined {
